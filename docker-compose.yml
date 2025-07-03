@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  ticketing-system:
+    build:
+      context: ticketing-system
+      dockerfile: Dockerfile
+    ports:
+      - 5000:5000
+    environment:
+      - APP_DATABASE__HOST=postgres
+      - APP_DATABASE__PASSWORD=${POSTGRES_PASSWORD:-password}
+      - APP_DATABASE__DATABASE_NAME=${POSTGRES_DB:-ticketing_system}
+      - APP_DATABASE__PORT=${POSTGRES_PORT:-5432}
+      - APP_DATABASE__REQUIRE_SSL=false
+      - APP_REDIS__URL=redis://redis:6379
+
+  redis:
+    image: redis:alpine
+    command: redis-server --save 900 1 --save 300 10 --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  postgres:
+    image: debezium/postgres:17-alpine
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-ticketing_system}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  redis_data:
+  pg_data:
