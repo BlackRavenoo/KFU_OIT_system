@@ -2,7 +2,7 @@ use bb8_redis::{bb8::Pool, RedisConnectionManager};
 use sqlx::postgres::PgPoolOptions;
 use std::net::TcpListener;
 
-use ticketing_system::{config::get_config, startup::run, telemetry::{get_subscriber, init_subscriber}};
+use ticketing_system::{auth::token_store::TokenStore, config::get_config, startup::run, telemetry::{get_subscriber, init_subscriber}};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -30,9 +30,10 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to build Redis pool");
 
+    let token_store = TokenStore::new(redis_pool.clone());
+
     run(
         listener,
-        config,
-        redis_pool
+        token_store
     )?.await
 }
