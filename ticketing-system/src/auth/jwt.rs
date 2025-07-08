@@ -5,7 +5,7 @@ use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::config::AuthSettings;
+use crate::{auth::types::UserRole, config::AuthSettings};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -14,7 +14,7 @@ pub struct Claims {
     pub exp: i64,
     pub iss: String,
     pub jti: String,
-    pub roles: Vec<String>,
+    pub role: UserRole,
 }
 
 pub struct JwtService {
@@ -41,7 +41,7 @@ impl JwtService {
     pub fn create_access_token(
         &self,
         user_id: i32,
-        roles: Vec<String>,
+        role: UserRole,
     ) -> anyhow::Result<String> {
         let now = Utc::now();
         let expiry = now + self.access_token_lifetime;
@@ -52,7 +52,7 @@ impl JwtService {
             iat: now.timestamp(),
             iss: self.issuer.clone(),
             jti: Uuid::new_v4().to_string(),
-            roles
+            role
         };
 
         let mut header = Header::new(Algorithm::RS256);
