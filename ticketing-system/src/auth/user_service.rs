@@ -79,4 +79,48 @@ impl UserService {
         .fetch_one(&self.db_pool)
         .await
     }
+
+    pub async fn change_username(&self, user_id: i32, name: &str) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "UPDATE users
+            SET name = $1
+            WHERE id = $2",
+            name,
+            user_id
+        )
+        .execute(&self.db_pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn change_email(&self, user_id: i32, email: &str) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "UPDATE users
+            SET email = $1
+            WHERE id = $2",
+            email,
+            user_id
+        )
+        .execute(&self.db_pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn change_password(&self, user_id: i32, password: String) -> anyhow::Result<()> {
+        let password_hash = password::hash_password(password)?;
+        
+        sqlx::query!(
+            "UPDATE users
+            SET password_hash = $1
+            WHERE id = $2",
+            password_hash,
+            user_id
+        )
+        .execute(&self.db_pool)
+        .await?;
+
+        Ok(())
+    }
 }
