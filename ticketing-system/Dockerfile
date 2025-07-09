@@ -25,6 +25,7 @@ RUN apt-get update -y \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/ticketing-system server/ticketing-system
 COPY configuration server/configuration
+COPY keys server/keys
 ENV APP_ENV=production
 WORKDIR /app/server
 ENTRYPOINT ["./ticketing-system"]
