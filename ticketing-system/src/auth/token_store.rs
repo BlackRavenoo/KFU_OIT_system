@@ -3,7 +3,7 @@ use bb8_redis::{bb8::Pool, redis::AsyncCommands, RedisConnectionManager};
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::schema::RefreshToken;
+use crate::auth::types::RefreshToken;
 
 pub struct TokenStore {
     redis_pool: Pool<RedisConnectionManager>,

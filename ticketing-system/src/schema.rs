@@ -1,15 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+// Input
+
 #[derive(Debug, Deserialize)]
 pub struct RefreshTokenRequest {
     pub client_id: String,
     pub refresh_token: String,
-    pub fingerprint: String
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct RefreshToken {
-    pub user_id: i32,
     pub fingerprint: String
 }
 
@@ -20,7 +16,17 @@ pub struct LoginRequest {
     pub fingerprint: String
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Deserialize)]
+pub struct CreateTicketSchema {
+    pub title: String,
+    pub description: String,
+    pub author: String,
+    pub author_contacts: String,
+}
+
+// Output
+
+#[derive(Serialize)]
 pub struct TokenResponse {
     pub access_token: String,
     pub refresh_token: String,

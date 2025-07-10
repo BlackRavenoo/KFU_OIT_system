@@ -10,7 +10,7 @@ pub struct User {
     pub role: UserRole
 }
 
-#[derive(Debug, Clone, Copy, Type, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Type, Serialize, Deserialize, PartialEq, PartialOrd)]
 #[repr(i16)]
 pub enum UserRole {
     Employee = 0,
@@ -30,4 +30,16 @@ impl From<i16> for UserRole {
             }
         }
     }
+}
+
+impl UserRole {
+    pub fn has_access(&self, required_level: Self) -> bool {
+        *self >= required_level
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RefreshToken {
+    pub user_id: i32,
+    pub fingerprint: String
 }

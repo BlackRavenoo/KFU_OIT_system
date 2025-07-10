@@ -33,12 +33,13 @@ async fn main() -> std::io::Result<()> {
 
     let token_store = TokenStore::new(redis_pool.clone());
     let jwt_service = JwtService::new(&config.auth).unwrap();
-    let user_service = UserService::new(connection_pool);
+    let user_service = UserService::new(connection_pool.clone());
 
     run(
         listener,
         token_store,
         jwt_service,
-        user_service
+        user_service,
+        connection_pool
     )?.await
 }
