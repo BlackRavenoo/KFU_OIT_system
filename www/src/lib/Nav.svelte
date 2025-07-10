@@ -26,7 +26,10 @@
         {/if}
         <li><a href="/contact" class="big">Контакты</a></li>
         {#if isAuthenticated}
-            <li><a href="/account">{ username }</a></li>
+            <li><a href="/account" class="account">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z"/></svg>
+                { username }
+            </a></li>
         {:else}
             <li><button on:click={login}>Войти</button></li>
         {/if}
@@ -89,6 +92,25 @@
 
     .small-logo {
         display: none;
+    }
+
+    .account {
+        display: flex;
+        flex-direction: row-reverse;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .account svg {
+        width: 20px;
+        height: 20px;
+        fill: var(--text);
+        transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), fill 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .account:hover svg {
+        fill: var(--blue);
+        transform: scale(1.1);
     }
 
     @media (max-width: 980px) {
