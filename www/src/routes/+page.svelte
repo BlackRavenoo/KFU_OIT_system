@@ -1,9 +1,27 @@
 <script lang="ts">
     import '../assets/app.css';
     import product from '../assets/product.webp';
+    import support from '../assets/support.png';
     import card1 from '../assets/card_filler.svg';
     import card2 from '../assets/card_filler.svg';
     import Nav from '$lib/Nav.svelte'
+
+    let moreOptionsVisible: boolean = false;
+
+    let Title: string = '';
+    let Description: string = '';
+    let Name: string = '';
+    let Contact: string = '';
+    let DateVal: string = '';
+    let File: File | null = null;
+
+    function swapMoreOptions() {
+        moreOptionsVisible = !moreOptionsVisible;
+    }
+
+    function fetchTicket() {
+        console.log('Заявка отправлена:', { Title, Description, Name, Contact, DateVal, File });
+    }
 </script>
 
 <div class="container">
@@ -70,8 +88,44 @@
                 </div>
             </div>
         </div>
-        <div class="stats"></div>
-        <div class="form"></div>
+        <div class="stats">
+            <div class="stat">
+                <h2>До 20</h2>
+                <p>выполненных заявок ежедневно</p>
+            </div>
+            <div class="stat">
+                <h2>1000</h2>
+                <p>решенных проблем</p>
+            </div>
+            <div class="stat">
+                <h2>99%</h2>
+                <p>проблем решается</p>
+            </div>
+        </div>
+        <div class="form">
+            <div class="img_container">
+                <img src="{ support }" alt="support">
+            </div>
+            <div class="form_container">
+                <h2>Наш отдел спешит на помощь!</h2>
+                <p>Оставьте заявку и мы сделаем всё возможное, чтобы решить Вашу проблему</p>
+                <input type="text" id="Title" name="Title" placeholder="Заголовок заявки" required bind:value={ Title }>
+                <textarea id="Description" name="Description" placeholder="Описание проблемы" required bind:value={ Description }></textarea>
+                <input type="text" id="Name" name="Name" placeholder="ФИО" required bind:value={ Name }>
+                <input type="text" id="Contact" name="Contact" placeholder="+7 (123) 456-78-90" required bind:value={ Contact }>
+                <input type="button" value="Больше опций ▼" class="more_options" on:click={ swapMoreOptions }>
+                <div class="more { moreOptionsVisible && 'more_visible' }">
+                    <input
+                        type="datetime-local"
+                        id="Date" name="Date"
+                        min="2025-06-07T00:00"
+                        max="2045-06-14T00:00" 
+                        bind:value={ DateVal } />
+                    <input type="file" alt="" bind:value={ File } accept=".jpg, .jpeg, .png, .pdf" />
+                </div>
+                <button class="promo" on:click={ fetchTicket() }>Оставить заявку</button>
+            </div>
+        </div>
     </main>
     <footer>
         <div class="footer_content">
@@ -176,7 +230,7 @@
         font-size: 1.1rem;
         transition: color 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         border: none;
-        background-color: var(--blue);
+        background: var(--blue);
         padding: 12px 50px;
         border-radius: 0;
         margin-top: 1rem;
@@ -184,7 +238,7 @@
     }
 
     button:hover {
-        background-color: var(--dark);
+        background: var(--dark);
         color: var(--white);
     }
 
@@ -290,12 +344,161 @@
         fill: #fff;
     }
 
+    .stats {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-around;
+        width: 70vw;
+        padding: 0 15vw;
+        margin-top: 250px;
+    }
+
+    .stat {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: var(--text);
+    }
+
+    .stat h2 {
+        font-size: 5rem;
+        font-weight: 800;
+        background-image: var(--blue-gradient);
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat p {
+        font-size: 1.4rem;
+        font-weight: 500;
+        transform: translate(0, -20px);
+    }
+
+    .form {
+        display: grid;
+        grid-template-columns: max(500px, 30vw) 1fr;
+        width: 100vw;
+        background-color: var(--light-blue);
+        margin-top: 350px;
+    }
+
+    .img_container {
+        padding: 0;
+        display: flex;
+        justify-content: end;
+        flex-direction: column;
+    }
+
+    .img_container img {
+        min-width: 500px;
+        width: 100%;
+        height: auto;
+    }
+
+    .form_container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 2rem;
+        color: var(--text);
+    }
+
+    .form_container h2 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0;
+    }
+
+    input, textarea {
+        width: 300px;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid var(--white);
+        border-radius: 4px;
+        font-size: 1rem;
+        background-color: var(--white);
+        color: var(--text);
+    }
+
+    textarea {
+        height: 100px;
+        resize: none;
+    }
+
+    input:focus, textarea:focus {
+        border-color: var(--dark);
+        outline: none;
+    }
+
+    input[type="file"] {
+        background-color: transparent;
+        border-color: transparent;
+        width: fit-content;
+    }
+
+    input[type="file"]::file-selector-button {
+        background-color: var(--blue);
+        color: var(--white);
+        padding: 10px 20px;
+        border: none;
+        cursor: pointer;
+        margin-right: 20px;
+        filter: saturate(.7) brightness(1.2);
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    input[type="file"]::file-selector-button:hover {
+        background-color: var(--dark);
+    }
+
+    input[type="file"]:focus {
+        border-color: transparent;
+        outline: none;
+    }
+
+    .more {
+        transition: max-height 0.5s ease-in-out, opacity 0.4s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        overflow: hidden;
+        max-height: 0;
+        opacity: 0;
+        margin: 0;
+        padding: 0;
+    }
+
+    .more_visible {
+        max-height: 200px;
+        opacity: 1;
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
+
+    .more_options {
+        background-color: transparent;
+        border: none;
+        margin: 0;
+        cursor: pointer;
+    }
+
+    .more_options:hover {
+        color: var(--dark);
+    }
+
     @media (max-width: 1450px) {
         .header_content {
             width: 85vw;
         }
 
-        .cards_row {
+        .cards_row, .stats {
             width: 90vw;
             padding: 0 5vw;
         }
@@ -346,7 +549,7 @@
             margin-top: 150px;
         }
 
-        .cards_row:first-child {
+        .cards_row:first-child, .stats {
             flex-direction: column;
             align-items: center;
         }
