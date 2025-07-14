@@ -24,6 +24,17 @@ pub struct CreateTicketSchema {
     pub author_contacts: String,
 }
 
+#[derive(Deserialize)]
+pub struct UpdateTicketSchema {
+    pub id: i64,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub author: Option<String>,
+    pub author_contacts: Option<String>,
+    pub status: Option<String>,
+    pub priority: Option<String>,
+}
+
 // Output
 
 #[derive(Serialize)]
