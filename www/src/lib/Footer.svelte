@@ -4,13 +4,13 @@
             <div class="footer-column">
                 <h3>О системе</h3>
                 <p>Репозиторий: <span><a href="https://github.com/BlackRavenoo/KFU_OIT_system">GitHub</a></span></p>
-                <p>Frontend: <span><a href="https://github.com/ivanvit100">Ivanvit</a></span></p>
+                <p>Frontend: <span><a href="https://ivanvit.ru">Ivanvit</a></span></p>
                 <p>Backend: <span><a href="https://github.com/BlackRavenoo">BlackRavenoo</a></span></p>
             </div>
             <div class="footer-column">
                 <h3>Контакты</h3>
-                <p>Телефон: <span><a href="tel:+7 (123) 456-78-90">+7 (123) 456-78-90</a></span></p>
-                <p>Email: <span><a href="mailto:support@kfu.ru">support@kfu.ru</a></span></p>
+                <p>Телефон: <span><a href="tel:+79869142780">+7 (986) 914-27-80</a></span></p>
+                <p>Email: <span><a href="/">support@kfu.ru</a></span></p>
             </div>
             <div class="footer-column">
                 <h3>Ссылки</h3>

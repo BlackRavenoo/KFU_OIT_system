@@ -1,11 +1,21 @@
 <script lang="ts">
     import KFU_large from '../assets/KFU_large.webp';
     import KFU from '../assets/KFU.webp';
-    import { fly, fade, scale } from 'svelte/transition';
+    import { fade, scale } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
+    import { page } from '$app/stores';
+    import { goto } from '$app/navigation';
 
     export let pageTitle: string = 'ОИТ | Система управления заявками ЕИ КФУ';
     export let pageDescription: string = 'Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.';
+
+    let visibleElements: Record<string, boolean> = {
+        header: false,
+        hero: false,
+        features: false,
+        form: false,
+        faq: false
+    };
 
     let isAuthenticated: boolean = false;
     let isAdmin: boolean = false;
@@ -37,6 +47,51 @@
             isClosing = false;
         }
     }
+
+    export function navigateToFormExternal() {
+        const event = new MouseEvent('click');
+        navigateToForm(event);
+    }
+
+    function navigateToForm(event: MouseEvent) {
+        event.preventDefault();
+        
+        $page.url.pathname === '/' ?
+            scrollWithCompensation() :
+            goto('/').then(() => {
+                setTimeout(scrollWithCompensation, 100);
+            });
+    }
+
+    function scrollWithCompensation() {
+        const marker = document.getElementById('marker');
+        if (marker) {
+            marker.scrollIntoView({ behavior: 'auto', block: 'start' });
+            
+            if (visibleElements)
+                Object.keys(visibleElements).forEach(key => {
+                    visibleElements[key] = true;
+                });
+            
+            setTimeout(() => {
+                const formElement = document.getElementById('form');
+                if (formElement) {
+                    window.scrollTo({
+                        top: formElement.offsetTop - 100,
+                        behavior: 'smooth'
+                    });
+                }
+            }, 300);
+        } else {
+            const formElement = document.getElementById('form');
+            if (formElement) {
+                window.scrollTo({
+                    top: formElement.offsetTop - 100,
+                    behavior: 'smooth'
+                });
+            }
+        }
+    }
 </script>
 
 <svelte:head>
@@ -54,7 +109,7 @@
         {#if isAuthenticated}
             <li><a href="/tickets" class="nav-link">Заявки</a></li>
         {:else}
-            <li><a href="/tickets/new" class="nav-link">Оставить заявку</a></li>
+            <li><a href="/#form" class="nav-link" on:click={ navigateToForm }>Оставить заявку</a></li>
         {/if}
         <li><a href="/contact" class="big nav-link">Контакты</a></li>
         {#if isAuthenticated}
@@ -78,9 +133,9 @@
 {#if showModal && !isAuthenticated}
     <div class="modal-overlay" transition:fade={{ duration: 200 }}>
         <div class="modal-container">
-            <button class="modal-backdrop" on:click={toggleModal}>x</button>
-            <div class="modal" class:closing={isClosing} transition:scale={{ duration: 300, start: 0.95, opacity: 0, easing: cubicOut }}>
-                <button class="modal-close" on:click={toggleModal} aria-label="Закрыть окно">
+            <button class="modal-backdrop" on:click={ toggleModal }>x</button>
+            <div class="modal" class:closing={ isClosing } transition:scale={{ duration: 300, start: 0.95, opacity: 0, easing: cubicOut }}>
+                <button class="modal-close" on:click={ toggleModal } aria-label="Закрыть окно">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
                         <path fill="none" d="M0 0h24v24H0z"/>
                         <path d="M12 10.586l4.95-4.95 1.414 1.414-4.95 4.95 4.95 4.95-1.414 1.414-4.95-4.95-4.95 4.95-1.414-1.414 4.95-4.95-4.95-4.95L7.05 5.636z" fill="currentColor"/>
@@ -105,24 +160,24 @@
                         </div>
                     </div>
                     
-                    <form on:submit|preventDefault={login}>
+                    <form on:submit|preventDefault={ login }>
                         <div class="form-group">
                             <div class="input-container">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="input-icon"><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z"/></svg>
-                                <input type="text" id="username" bind:value={username} placeholder="Введите ваш логин" required />
+                                <input type="text" id="username" bind:value={ username } placeholder="Введите ваш логин" required />
                             </div>
                         </div>
                         
                         <div class="form-group">
                             <div class="input-container">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="input-icon"><path d="M144 144v48H304V144c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 192V144C80 64.5 144.5 0 224 0s144 64.5 144 144v48h16c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V256c0-35.3 28.7-64 64-64H80z"/></svg>
-                                <input type="password" id="password" bind:value={password} placeholder="Введите ваш пароль" required />
+                                <input type="password" id="password" bind:value={ password } placeholder="Введите ваш пароль" required />
                             </div>
                         </div>
                         
                         <div class="remember-container">
                             <label class="remember-label">
-                                <input type="checkbox" bind:checked={rememberMe} />
+                                <input type="checkbox" bind:checked={ rememberMe } />
                                 <span class="checkmark"></span>
                                 <span>Запомнить меня</span>
                             </label>
@@ -230,6 +285,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        margin-top: 0 !important;
     }
 
     .login-btn:hover {
