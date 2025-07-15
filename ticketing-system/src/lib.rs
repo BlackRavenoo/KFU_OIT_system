@@ -4,3 +4,4 @@ pub mod telemetry;
 pub mod auth;
 pub mod schema;
 pub mod routes;
+pub mod utils;

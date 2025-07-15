@@ -1,7 +1,7 @@
 use std::fs;
 
 use chrono::{Duration, Utc};
-use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode_header, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -22,6 +22,7 @@ pub struct JwtService {
     decoding_key: DecodingKey,
     issuer: String,
     pub access_token_lifetime: Duration,
+    validation: Validation,
 }
 
 impl JwtService {
@@ -29,12 +30,18 @@ impl JwtService {
         let private_key = fs::read(&auth_settings.private_key_path)?;
         
         let public_key = fs::read(&auth_settings.public_key_path)?;
+
+        let mut validation = Validation::new(Algorithm::RS256);
+        validation.validate_exp = true;
+        validation.validate_nbf = true;
+        validation.set_issuer(&[&auth_settings.issuer]);
         
         Ok(Self {
             encoding_key: EncodingKey::from_rsa_pem(&private_key)?,
             decoding_key: DecodingKey::from_rsa_pem(&public_key)?,
             issuer: auth_settings.issuer.clone(),
             access_token_lifetime: Duration::from_std(auth_settings.access_token_lifetime)?,
+            validation
         })
     }
 
@@ -61,17 +68,31 @@ impl JwtService {
         Ok(jsonwebtoken::encode(&header, &claims, &self.encoding_key)?)
     }
 
-    pub fn validate_token(&self, token: &str) -> Result<Claims, &'static str> {
-        let mut validation = Validation::new(Algorithm::RS256);
-        validation.set_issuer(&[&self.issuer]);
-        
-        jsonwebtoken::decode::<Claims>(token, &self.decoding_key, &validation)
+    pub fn validate_token(&self, token: &str) -> Result<Claims, JwtError> {
+        let header = decode_header(token)
+            .map_err(|e| JwtError::InvalidToken(format!("Invalid header: {}", e)))?;
+
+        let _kid = header.kid
+            .ok_or_else(|| JwtError::InvalidToken("Missing kid in header".to_string()))?;
+
+        // TODO: Implement key rotation mechanism
+        let key = &self.decoding_key;
+
+        jsonwebtoken::decode::<Claims>(token, key, &self.validation)
             .map(|data| data.claims)
             .map_err(|e| match e.kind() {
                 jsonwebtoken::errors::ErrorKind::ExpiredSignature => {
-                    "Token expired"
+                    JwtError::InvalidToken("Token has expired".to_string())
                 }
-                _ => "Invalid token"
+                _ => JwtError::InvalidToken("Failed to decode token".to_string())
             })
     }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum JwtError {
+    #[error("Invalid token: {0}")]
+    InvalidToken(String),
+    #[error("Key not found: {0}")]
+    KeyNotFound(String),
 }
