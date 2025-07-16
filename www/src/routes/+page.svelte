@@ -155,10 +155,6 @@
         fileName = fileName.filter((_, i) => i !== index);
     }
 
-    function handleGlobalKeydown(e: KeyboardEvent) {
-        showModal && e.key === 'Escape' && closeModal();
-    }
-
     function loadStyleContent(css: string, id?: string): HTMLElement {
         const style = document.createElement('style');
         style.textContent = css;
@@ -401,7 +397,7 @@
     <Footer />
     {#if showModal}
         <div 
-            class="modal-overlay" 
+            class="modal-overlay modal-error" 
             on:click={ closeModal }
             transition:fade={{ duration: 200 }}
             role="presentation"

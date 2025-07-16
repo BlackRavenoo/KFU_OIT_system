@@ -22,6 +22,7 @@
     let isClosing: boolean = false;
 
     let showModal: boolean = false;
+    let modalElement: HTMLElement;
     
     let username: string = '';
     let password: string = '';
@@ -36,15 +37,21 @@
 
     function toggleModal() {
         if (showModal) {
-            isClosing = true;
             showModal = false;
-            
-            setTimeout(() => {
-                isClosing = false;
-            }, 400);
         } else {
             showModal = true;
-            isClosing = false;
+            
+            setTimeout(() => {
+                if (modalElement) {
+                    const firstFocusable = modalElement.querySelector(
+                        'input, button:not(.modal-close), [tabindex]:not([tabindex="-1"])'
+                    ) as HTMLElement;
+                    
+                    firstFocusable ?
+                        firstFocusable.focus() :
+                        modalElement.focus();
+                }
+            }, 100);
         }
     }
 
@@ -92,6 +99,34 @@
             }
         }
     }
+
+    function handleModalKeydown(e: KeyboardEvent) {
+        if (e.key === 'Escape') {
+            toggleModal();
+            return;
+        }
+        
+        if (e.key === 'Tab') {
+            const focusableElements = Array.from(
+                modalElement.querySelectorAll(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                )
+            );
+            
+            if (!focusableElements.length) return;
+            
+            const firstElement = focusableElements[0] as HTMLElement;
+            const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+            
+            if (e.shiftKey && document.activeElement === firstElement) {
+                lastElement.focus();
+                e.preventDefault();
+            } else if (!e.shiftKey && document.activeElement === lastElement) {
+                firstElement.focus();
+                e.preventDefault();
+            }
+        }
+    }
 </script>
 
 <svelte:head>
@@ -131,9 +166,21 @@
 </nav>
 
 {#if showModal && !isAuthenticated}
-    <div class="modal-overlay" transition:fade={{ duration: 200 }}>
-        <div class="modal-container">
-            <button class="modal-backdrop" on:click={ toggleModal }>x</button>
+    <div class="modal-overlay"
+            on:click={ toggleModal }
+            transition:fade={{ duration: 200 }}
+            role="presentation">
+        <div class="modal-container"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+            aria-describedby="modal-content"
+            on:click|stopPropagation
+            on:keydown={ handleModalKeydown }
+            in:scale={{ start: 0.8, duration: 300, delay: 100 }}
+            out:scale={{ start: 0.8, duration: 200 }}
+            tabindex="-1"
+            bind:this={ modalElement }>
             <div class="modal" class:closing={ isClosing } transition:scale={{ duration: 300, start: 0.95, opacity: 0, easing: cubicOut }}>
                 <button class="modal-close" on:click={ toggleModal } aria-label="Закрыть окно">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
@@ -369,6 +416,9 @@
         align-items: center;
         justify-content: center;
         z-index: 100;
+        margin: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(3px);
     }
 
     .modal-container {
@@ -378,19 +428,7 @@
         width: 100%;
         height: 100%;
         position: relative;
-    }
-
-    .modal-backdrop {
-        position: absolute;
-        color: transparent;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 120vh;
-        transform: translate(0, -10%);
-        background-color: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(3px);
-        cursor: pointer;
+        margin: 0;
     }
 
     .modal {
@@ -421,17 +459,21 @@
         z-index: 3;
         transition: all 0.2s ease;
         padding: 0;
+        box-shadow: none;
+        margin-top: 0;
     }
 
     .modal-close:hover {
         background: rgba(0, 0, 0, 0.1);
         transform: rotate(90deg);
+        box-shadow: none;
     }
 
     .modal-content {
         position: relative;
         flex-direction: column;
         padding: 30px;
+        margin: 0;
         z-index: 2;
     }
 
@@ -543,7 +585,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
+        margin: 15px 0 10px;
     }
 
     .remember-label {
