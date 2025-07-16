@@ -11,7 +11,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .service(
                 web::scope("/auth")
                     .route("/login", web::post().to(login))
-                    .route("/me", web::post().to(me)
+                    .route("/me", web::get().to(me)
                         .wrap(JwtMiddleware::default()))
             )
             .service(
