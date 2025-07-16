@@ -1,20 +1,20 @@
 use std::{future::{ready, Ready}, rc::Rc};
 
-use actix_web::{body::{EitherBody, MessageBody}, dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform}, http::{header::AUTHORIZATION, Error, StatusCode}, web::Data, HttpMessage as _, HttpResponse};
+use actix_web::{body::{EitherBody, MessageBody}, dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform}, http::{header::AUTHORIZATION, StatusCode}, web::Data, Error, HttpMessage as _, HttpResponse};
 use futures_util::future::LocalBoxFuture;
 
 use crate::auth::{jwt::JwtService, types::UserRole};
 
 #[derive(Clone)]
 pub struct JwtConfig {
-    pub min_role: Option<UserRole>,
+    pub min_role: UserRole,
     pub optional: bool,
 }
 
 impl Default for JwtConfig {
     fn default() -> Self {
         Self {
-            min_role: None,
+            min_role: UserRole::Employee,
             optional: false,
         }
     }
@@ -26,7 +26,7 @@ impl JwtConfig {
     }
 
     pub fn min_role(mut self, role: UserRole) -> Self {
-        self.min_role = Some(role);
+        self.min_role = role;
         self
     }
 
@@ -145,12 +145,10 @@ where
                 }
             };
 
-            if let Some(min_role) = &config.min_role {
-                if !claims.role.has_access(*min_role) {
-                    tracing::warn!("User {} lacks required role: {:?}", claims.sub, config.min_role);
-                    return Ok(create_error_response(req, "Insufficient permissions", StatusCode::FORBIDDEN));
-                }
-            };
+            if !claims.role.has_access(config.min_role) {
+                tracing::warn!("User {} lacks required role: {:?}", claims.sub, config.min_role);
+                return Ok(create_error_response(req, "Insufficient permissions", StatusCode::FORBIDDEN));
+            }
 
             req.extensions_mut().insert(claims);
 

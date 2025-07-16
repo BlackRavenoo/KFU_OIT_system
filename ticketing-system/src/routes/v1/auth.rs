@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse, Responder};
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore, types::RefreshToken, user_service::UserService}, schema::{LoginRequest, TokenResponse}};
+use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::TokenStore, types::RefreshToken, user_service::UserService}, schema::{LoginRequest, TokenResponse}};
 
 
 pub async fn login(
@@ -44,5 +44,24 @@ pub async fn login(
         Err(_) => {
             HttpResponse::Unauthorized().finish()
         },
+    }
+}
+
+pub async fn me(
+    id: UserId,
+    user_service: web::Data<UserService>
+) -> impl Responder {
+    let user_id = match id.0 {
+        Some(id) => id,
+        None => return HttpResponse::Unauthorized().finish()
+    };
+
+    match user_service.get_user(user_id).await {
+        Ok(Some(user)) => HttpResponse::Ok().json(user),
+        Ok(None) => HttpResponse::Unauthorized().finish(),
+        Err(e) => {
+            tracing::error!("Failed to get user: {:?}", e);
+            HttpResponse::InternalServerError().finish()
+        }
     }
 }

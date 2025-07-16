@@ -13,7 +13,7 @@ impl UserService {
     }
     
     pub async fn authenticate(&self, email: &str, password_input: String) -> anyhow::Result<User> {
-        let user = sqlx::query_as!(
+        let mut user = sqlx::query_as!(
             User,
             r#"SELECT id, name, email, password_hash, role FROM users WHERE email = $1"#,
             email
@@ -21,8 +21,10 @@ impl UserService {
         .fetch_optional(&self.db_pool)
         .await?
         .ok_or_else(|| anyhow!("Пользователь не найден"))?;
-        
-        verify_password(password_input, &user.password_hash)?;
+
+        let password_hash = user.password_hash.take().unwrap_or_default();
+
+        verify_password(password_input, &password_hash)?;
         
         Ok(user)
     }
@@ -56,6 +58,20 @@ impl UserService {
         .id;
         
         Ok(user_id)
+    }
+
+    pub async fn get_user(&self, user_id: i32) -> Result<Option<User>, sqlx::Error> {
+        sqlx::query_as!(
+            User,
+            r#"
+            SELECT id, name, email, role, NULL as password_hash
+            FROM users
+            WHERE id = $1
+            "#,
+            user_id
+        )
+        .fetch_optional(&self.db_pool)
+        .await
     }
 
     pub async fn get_user_role(&self, user_id: i32) -> Result<UserRole, sqlx::Error> {
