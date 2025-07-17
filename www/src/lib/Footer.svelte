@@ -1,3 +1,9 @@
+<!--
+--- @file Footer.svelte
+--- Файл для отображения нижнего колонтитула сайта
+--- Монтируется в +layout.svelte
+-->
+
 <footer>
     <div class="footer_content">
         <div class="footer-main">

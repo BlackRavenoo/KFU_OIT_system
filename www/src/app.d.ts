@@ -1,16 +1,32 @@
-// See https://svelte.dev/docs/kit/types#app.d.ts
-// for information about these interfaces
+/**
+ * @file app.d.ts
+ * Объявление типов для приложения SvelteKit.
+ */
+
 declare global {
 	namespace App {
-		// interface Locals {}
-		// interface PageData {}
-		// interface PageState {}
-		// interface Platform {}
-
 		interface Error {
 			message: string;
 			code: string;
 		}
+	}
+
+	interface LoginRequest {
+		email: string;
+		password: string;
+		fingerprint: string;
+	}
+	
+	interface AuthTokens {
+		accessToken: string;
+		refreshToken?: string;
+	}
+	
+	export interface UserData {
+		id: string;
+		name: string;
+		email: string;
+		role: number;
 	}
 }
 

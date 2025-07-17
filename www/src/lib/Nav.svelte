@@ -1,13 +1,21 @@
+<!--
+--- @file Nav.svelte
+--- Компонент навигационной панели
+--- Встраивается в +layout.svelte
+-->
+
 <script lang="ts">
     import KFU_large from '../assets/KFU_large.webp';
     import KFU from '../assets/KFU.webp';
+
     import { fade, scale } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
 
-    export let pageTitle: string = 'ОИТ | Система управления заявками ЕИ КФУ';
-    export let pageDescription: string = 'Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.';
+    import { login, getUserData, 
+            currentUser, isAuthenticated } from '$lib/auth';
+    import { pageTitle, pageDescription } from '$lib/stores';
 
     let visibleElements: Record<string, boolean> = {
         header: false,
@@ -17,7 +25,6 @@
         faq: false
     };
 
-    let isAuthenticated: boolean = false;
     let isAdmin: boolean = false;
     let isClosing: boolean = false;
 
@@ -25,16 +32,52 @@
     let modalElement: HTMLElement;
     
     let username: string = '';
-    let password: string = '';
+    let userLogin: string = '';
+    let userPassword: string = '';
     let rememberMe: boolean = false;
 
-    function login() {
-        if (username && password) {
-            isAuthenticated = true;
-            showModal = false;
+    /**
+     * Начальное состояние авторизации
+     * Используется для восстановления состояния при загрузке страницы
+    */
+    $: {
+        if ($currentUser) {
+            username = $currentUser.name || '';
+            isAdmin = $currentUser.role !== 0;
         }
     }
 
+    /**
+     * Обработчик входа в систему
+     * Проверяет введенные данные пользователя и выполняет вход
+     * Если вход успешен, обновляет состояние пользователя и закрывает модальное окно
+     */
+    async function loginHandler() {
+        if (!userLogin || !userPassword) return;
+        
+        try {
+            const userData = await login(userLogin, userPassword, rememberMe);
+
+            if (userData) {
+                const user = await getUserData();
+                if (user) {
+                    $currentUser = user;
+                    $isAuthenticated = true;
+                    showModal = false;
+                }
+
+                userLogin = '';
+                userPassword = '';
+            }
+        } catch (error) {
+            console.error("Ошибка при входе:", error);
+        }
+    }
+
+    /**
+     * Переключает видимость модального окна
+     * При открытии модального окна устанавливает фокус на первый интерактивный элемент
+     */
     function toggleModal() {
         if (showModal) {
             showModal = false;
@@ -55,11 +98,22 @@
         }
     }
 
+    /**
+     * Функция для навигации к форме заявки
+     * Вызывается при клике на ссылку "Оставить заявку"
+     * Если находимся на главной странице, прокручиваем к форме
+     * Иначе переходим на главную страницу и прокручиваем к форме
+     */
     export function navigateToFormExternal() {
         const event = new MouseEvent('click');
         navigateToForm(event);
     }
 
+    /**
+     * Обработчик навигации к форме заявки
+     * Предотвращает стандартное поведение ссылки и выполняет прокрутку к форме
+     * Вызывается при клике на ссылку "Оставить заявку" или navigateToFormExternal
+     */
     function navigateToForm(event: MouseEvent) {
         event.preventDefault();
         
@@ -70,6 +124,12 @@
             });
     }
 
+    /**
+     * Прокручивает страницу к форме заявки с компенсацией высоты шапки
+     * Если элемент с id "marker" существует, прокручивает к нему
+     * Иначе прокручивает к элементу с id "form"
+     * Устанавливает видимость всех элементов формы в true чтобы избежать проблем с отображением
+     */
     function scrollWithCompensation() {
         const marker = document.getElementById('marker');
         if (marker) {
@@ -100,6 +160,11 @@
         }
     }
 
+    /**
+     * Обработчик нажатия клавиш в модальном окне
+     * Закрывает модальное окно при нажатии Escape
+     * Реализует навигацию по интерактивным элементам при нажатии Tab
+     */
     function handleModalKeydown(e: KeyboardEvent) {
         if (e.key === 'Escape') {
             toggleModal();
@@ -130,8 +195,8 @@
 </script>
 
 <svelte:head>
-    <title>{ pageTitle }</title>
-    <meta name="description" content={ pageDescription }>
+    <title>{ $pageTitle }</title>
+    <meta name="description" content={ $pageDescription }>
 </svelte:head>
 
 <nav>
@@ -141,13 +206,16 @@
     </div>
     <ul>
         <li><a href="/" class="big nav-link">Главная</a></li>
-        {#if isAuthenticated}
+        {#if $isAuthenticated}
             <li><a href="/tickets" class="nav-link">Заявки</a></li>
         {:else}
-            <li><a href="/#form" class="nav-link" on:click={ navigateToForm }>Оставить заявку</a></li>
+            <li><a href="/#form" class="nav-link" id="form-link" on:click={ navigateToForm }>Оставить заявку</a></li>
         {/if}
         <li><a href="/contact" class="big nav-link">Контакты</a></li>
-        {#if isAuthenticated}
+        {#if $isAuthenticated}
+            {#if isAdmin}
+                <li><a href="/admin" class="big admin-link">Админ-панель</a></li>
+            {/if}
             <li>
                 <a href="/account" class="account">
                     <span class="account-avatar">
@@ -159,13 +227,10 @@
         {:else}
             <li><button class="login-btn" on:click={ toggleModal }>Войти</button></li>
         {/if}
-        {#if isAdmin}
-            <li><a href="/admin" class="big admin-link">Админ-панель</a></li>
-        {/if}
     </ul>
 </nav>
 
-{#if showModal && !isAuthenticated}
+{#if showModal && !$isAuthenticated}
     <div class="modal-overlay"
             on:click={ toggleModal }
             transition:fade={{ duration: 200 }}
@@ -207,18 +272,18 @@
                         </div>
                     </div>
                     
-                    <form on:submit|preventDefault={ login }>
+                    <form on:submit|preventDefault={ loginHandler }>
                         <div class="form-group">
                             <div class="input-container">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="input-icon"><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z"/></svg>
-                                <input type="text" id="username" bind:value={ username } placeholder="Введите ваш логин" required />
+                                <input type="text" id="username" bind:value={ userLogin } placeholder="Введите ваш логин" required />
                             </div>
                         </div>
                         
                         <div class="form-group">
                             <div class="input-container">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="input-icon"><path d="M144 144v48H304V144c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 192V144C80 64.5 144.5 0 224 0s144 64.5 144 144v48h16c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V256c0-35.3 28.7-64 64-64H80z"/></svg>
-                                <input type="password" id="password" bind:value={ password } placeholder="Введите ваш пароль" required />
+                                <input type="password" id="password" bind:value={ userPassword } placeholder="Введите ваш пароль" required />
                             </div>
                         </div>
                         
@@ -244,14 +309,16 @@
 {/if}
 
 <style>
-    /* --- Навигация --- */
     nav {
-        position: relative;
+        position: absolute;
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 12px 30px;
-        z-index: 2;
+        z-index: 3;
+        top: 1rem;
+        left: max(calc(3vw - 30px), 15px);
+        width: min(94vw, calc(100vw - 30px));
     }
 
     .logo {
@@ -701,7 +768,7 @@
         }
     }
 
-    @media (max-width: 780px) {
+    @media (max-width: 900px) {
         .large-logo {
             display: none
         }
@@ -723,7 +790,7 @@
         }
     }
 
-    @media (max-width: 480px) {
+    @media (max-width: 650px) {
         .big {
             display: none;
         }

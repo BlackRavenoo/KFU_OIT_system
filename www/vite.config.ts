@@ -35,5 +35,6 @@ export default defineConfig({
         manualChunks: undefined
       }
     }
-  }
+  },
+  optimizeDeps: { exclude: ['fsevents'], },
 });

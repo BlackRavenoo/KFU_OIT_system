@@ -128,7 +128,7 @@ button:active {
 
 header {
     width: 100%;
-    padding: var(--padding-top) 0;
+    padding: calc(var(--padding-top) + 1rem + 64px) 0 var(--padding-top);
 }
 
 .header_content {
