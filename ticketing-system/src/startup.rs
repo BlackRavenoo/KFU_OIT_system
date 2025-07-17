@@ -27,7 +27,7 @@ pub fn run(
             .app_data(pool.clone())
             .route("/health", web::to(HttpResponse::Ok))
             .service(
-                web::scope("/api")
+                web::scope("")
                     .configure(config)
             )
     })
