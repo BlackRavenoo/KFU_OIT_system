@@ -7,6 +7,7 @@
 
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import { browser } from '$app/environment';
+import { error } from '@sveltejs/kit';
 import { writable } from 'svelte/store';
 import type { Writable } from 'svelte/store';
 
@@ -137,17 +138,20 @@ export async function checkToken(): Promise<boolean> {
  * Проверка валидности токена доступа.
  * @returns {boolean} true, если токен действителен, иначе false.
  */
-function checkTokenExpiration(token: string): boolean {
+async function checkTokenExpiration(token: string): Promise<boolean> {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         const exp = payload.exp * 1000;
         
-        if (Date.now() >= exp) return false;
+        if (Date.now() >= exp) {
+            logout();
+            return false;
+        } 
         
         if (exp - Date.now() < 5 * 60 * 1000) {
             const tokens = getAuthTokens();
             if (tokens?.refreshToken) {
-                const isRefreshed = refreshAuthTokens();
+                const isRefreshed = await refreshAuthTokens();
                 return isRefreshed;
             }
             return true;
@@ -159,12 +163,48 @@ function checkTokenExpiration(token: string): boolean {
     }
 }
 
-/** !!! TDD !!!
- * Обновление токенов авторизации.
- * @returns {boolean} true, если токены успешно обновлены, иначе false.
+/**
+ * Обновляет токены авторизации через refresh_token.
+ * @returns {Promise<boolean>} true, если токены успешно обновлены, иначе false.
  */
-function refreshAuthTokens(): boolean {
-    return false;
+export async function refreshAuthTokens(): Promise<boolean> {
+    try {
+        const tokensData = getAuthTokens();
+        if (!tokensData?.refreshToken) return false;
+
+        const fp = await FingerprintJS.load();
+        const result = await fp.get();
+        const fingerprint = result.visitorId;
+
+        const response = await fetch('/api/v1/auth/refresh_token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                refresh_token: tokensData.refreshToken,
+                fingerprint
+            }),
+            credentials: 'include'
+        });
+
+        if (!response.ok) return false;
+
+        const data = await response.json();
+
+        if (data.access_token && data.refresh_token) {
+            tokens.set({
+                accessToken: data.access_token,
+                refreshToken: data.refresh_token
+            });
+            return true;
+        }
+
+        return false;
+    } catch (error) {
+        logout();
+        return false;
+    }
 }
 
 /**

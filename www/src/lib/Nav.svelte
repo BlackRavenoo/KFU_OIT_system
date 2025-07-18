@@ -30,6 +30,7 @@
 
     let showModal: boolean = false;
     let modalElement: HTMLElement;
+    let loginError: string = '';
     
     let username: string = '';
     let userLogin: string = '';
@@ -52,25 +53,26 @@
      * Проверяет введенные данные пользователя и выполняет вход
      * Если вход успешен, обновляет состояние пользователя и закрывает модальное окно
      */
-    async function loginHandler() {
+     async function loginHandler() {
+        loginError = '';
         if (!userLogin || !userPassword) return;
-        
         try {
             const userData = await login(userLogin, userPassword, rememberMe);
 
-            if (userData) {
+            if (userData && !userData.error) {
                 const user = await getUserData();
                 if (user) {
                     $currentUser = user;
                     $isAuthenticated = true;
                     showModal = false;
                 }
-
                 userLogin = '';
                 userPassword = '';
+            } else {
+                loginError = userData?.message || 'Неверный логин или пароль.';
             }
         } catch (error) {
-            console.error("Ошибка при входе:", error);
+            loginError = 'Неверный логин или пароль.';
         }
     }
 
@@ -271,6 +273,10 @@
                             <p>Вход в систему доступен только для сотрудников ОИТ</p>
                         </div>
                     </div>
+
+                    {#if loginError}
+                        <div class="login-error">{loginError}</div>
+                    {/if}
                     
                     <form on:submit|preventDefault={ loginHandler }>
                         <div class="form-group">
@@ -600,6 +606,13 @@
         font-size: 0.9rem;
         color: var(--text);
         line-height: 1.5;
+    }
+
+    .login-error {
+        color: #d14747;
+        margin-bottom: 12px;
+        text-align: center;
+        font-size: 0.95rem;
     }
 
     /* Форма */
