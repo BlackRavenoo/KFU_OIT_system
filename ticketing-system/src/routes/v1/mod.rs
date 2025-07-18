@@ -13,6 +13,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .route("/login", web::post().to(login))
                     .route("/me", web::get().to(me)
                         .wrap(JwtMiddleware::default()))
+                    .route("/token", web::get().to(refresh_token))
             )
             .service(
                 web::scope("/tickets")

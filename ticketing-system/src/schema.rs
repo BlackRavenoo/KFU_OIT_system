@@ -6,7 +6,6 @@ use crate::auth::types::UserRole;
 
 #[derive(Debug, Deserialize)]
 pub struct RefreshTokenRequest {
-    pub client_id: String,
     pub refresh_token: String,
     pub fingerprint: String
 }
