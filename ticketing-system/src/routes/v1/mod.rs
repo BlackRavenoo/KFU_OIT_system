@@ -1,6 +1,6 @@
 use actix_web::web;
 
-use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{login, me}, tickets::create_ticket}};
+use crate::{auth::{middleware::JwtMiddleware}, routes::v1::{auth::{login, me, refresh_token}, tickets::create_ticket}};
 
 pub mod auth;
 pub mod tickets;
