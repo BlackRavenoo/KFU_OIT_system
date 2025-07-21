@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse, Responder};
 
-use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::TokenStore, types::RefreshToken, user_service::UserService}, schema::{LoginRequest, RefreshTokenRequest, TokenResponse}};
+use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::{TokenStore, TokenStoreError}, types::RefreshToken, user_service::UserService}, schema::{LoginRequest, RefreshTokenRequest, TokenResponse}};
 
 
 pub async fn login(
@@ -24,7 +24,7 @@ pub async fn login(
                 fingerprint: req.fingerprint,
             };
 
-            let refresh_token = match token_store.generate_refresh_token(refresh_token_data).await {
+            let refresh_token = match token_store.generate_refresh_token(&refresh_token_data, None).await {
                 Ok(token) => token,
                 Err(e) => {
                     tracing::error!("Failed to create refresh token: {:?}", e);
@@ -72,17 +72,19 @@ pub async fn refresh_token(
     user_service: web::Data<UserService>,
     jwt_service: web::Data<JwtService>,
 ) -> impl Responder {
-    let req = req.into_inner();
-    
-    let refresh_token = match token_store.validate_refresh_token(&req.refresh_token, &req.fingerprint).await {
-        Ok(token) => token,
-        Err(e) => {
-            tracing::error!("Failed to validate refresh token: {:?}", e);
-            return HttpResponse::BadRequest().finish()
-        }
+    let (token_data, refresh_token) = match token_store.rotate_refresh_token(&req.refresh_token, &req.fingerprint).await {
+        Ok(res) => res,
+        Err(e) => return match e {
+            TokenStoreError::TokenNotFound
+            | TokenStoreError::FingerprintMismatch => HttpResponse::Unauthorized().finish(),
+            _ => {
+                tracing::error!("{}", e);
+                HttpResponse::InternalServerError().finish()
+            },
+        },
     };
 
-    let role = match user_service.get_user_role(refresh_token.user_id).await {
+    let role = match user_service.get_user_role(token_data.user_id).await {
         Ok(role) => role,
         Err(e) => {
             tracing::error!("Failed to get user role: {:?}", e);
@@ -90,24 +92,10 @@ pub async fn refresh_token(
         },
     };
 
-    let access_token = match jwt_service.create_access_token(refresh_token.user_id, role) {
+    let access_token = match jwt_service.create_access_token(token_data.user_id, role) {
         Ok(token) => token,
         Err(e) => {
             tracing::error!("Failed to create access token: {:?}", e);
-            return HttpResponse::InternalServerError().finish()
-        },
-    };
-
-    let refresh_token = match token_store.rotate_refresh_token(
-        &req.refresh_token,
-        RefreshToken {
-            user_id: refresh_token.user_id,
-            fingerprint: req.fingerprint
-        }
-    ).await {
-        Ok(token) => token,
-        Err(e) => {
-            tracing::error!("Failed to rotate refresh token: {:?}", e);
             return HttpResponse::InternalServerError().finish()
         },
     };

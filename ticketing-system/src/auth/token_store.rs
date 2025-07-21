@@ -1,5 +1,5 @@
-use anyhow::Context;
-use bb8_redis::{bb8::Pool, redis::AsyncCommands, RedisConnectionManager};
+use bb8_redis::{bb8::{Pool, PooledConnection}, redis::{self, AsyncCommands}, RedisConnectionManager};
+use ring::digest::{Context, SHA256};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -7,18 +7,20 @@ use crate::auth::types::RefreshToken;
 
 pub struct TokenStore {
     redis_pool: Pool<RedisConnectionManager>,
-    access_token_ttl: u64,
     refresh_token_ttl: u64,
 }
 
 #[derive(Debug, Error)]
-pub enum TokenValidationError {
+pub enum TokenStoreError {
     #[error("Token not found")]
-    NotFound,
+    TokenNotFound,
 
     #[error("Fingerprint mismatch")]
     FingerprintMismatch,
     
+    #[error("Failed to get Redis connection")]
+    PoolConnectionError,
+
     #[error("Other error: {0}")]
     Other(String),
 }
@@ -28,43 +30,38 @@ impl TokenStore {
         // TODO: ttl from_config
         Self {
             redis_pool,
-            access_token_ttl: 60 * 15,
             refresh_token_ttl: 60 * 60 * 24 * 30,
         }
     }
 
     fn get_key(&self, token: &str) -> String {
-        format!("refresh_token:{}", token)
+        let mut context = Context::new(&SHA256);
+        context.update(token.as_bytes());
+        let digest = context.finish();
+        let hash = hex::encode(digest.as_ref());
+        format!("refresh_token:{}", hash)
     }
 
-    pub async fn get_refresh_token(&self, token: &str) -> anyhow::Result<Option<RefreshToken>> {
-        let mut conn = self.redis_pool.get().await.context("Failed to get Redis connection")?;
-        
-        let json_data: Option<String> = conn
-            .get(self.get_key(token))
-            .await
-            .context("Failed to get token from Redis")?;
-            
-        match json_data {
-            Some(data) => {
-                let token_data: RefreshToken = serde_json::from_str(&data)
-                    .context("Failed to deserialize token data")?;
-                Ok(Some(token_data))
-            },
-            None => Ok(None)
-        }
+    fn get_user_tokens_key(&self, user_id: i32) -> String {
+        format!("user_tokens:{}", user_id)
     }
 
-    pub async fn generate_refresh_token(&self, token_data: RefreshToken) -> anyhow::Result<String> {
-        let mut conn = self.redis_pool
+    async fn get_connection(&self) -> Result<PooledConnection<'_, RedisConnectionManager>, TokenStoreError> {
+        self.redis_pool
             .get()
             .await
-            .context("Failed to get Redis connection")?;
+            .map_err(|_| TokenStoreError::PoolConnectionError)
+    }
+
+    pub async fn generate_refresh_token(&self, token_data: &RefreshToken, conn: Option<PooledConnection<'_, RedisConnectionManager>>) -> Result<String, TokenStoreError> {
+        let mut conn = conn.unwrap_or(
+            self.get_connection().await?
+        );
         
         let token = Uuid::new_v4().to_string();
         
         let json_data = serde_json::to_string(&token_data)
-            .context("Failed to serialize token data")?;
+            .map_err(|e| TokenStoreError::Other(e.to_string()))?;
 
         conn.set_ex::<_, _, ()>(
             self.get_key(&token), 
@@ -72,79 +69,82 @@ impl TokenStore {
             self.refresh_token_ttl
         )
         .await
-        .context("Failed to save token to Redis")?;
+        .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+
+        let user_tokens_key = self.get_user_tokens_key(token_data.user_id);
+
+        conn.sadd::<_, _, ()>(
+            &user_tokens_key,
+            &token
+        )
+        .await
+        .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+
+        conn.expire::<_, ()>(
+            user_tokens_key,
+            self.refresh_token_ttl as i64
+        )
+        .await
+        .map_err(|e| TokenStoreError::Other(e.to_string()))?;
         
         Ok(token)
     }
 
-    pub async fn invalidate_refresh_token(&self, token: &str) -> anyhow::Result<()> {
-        let mut conn = self.redis_pool.get().await.context("Failed to get Redis connection")?;
-        
-        conn.del::<_, ()>(format!("refresh_token:{}", token))
-            .await
-            .context("Failed to delete token from Redis")?;
-        
-        Ok(())
-    }
-
-    pub async fn revoke_access_token(&self, token: &str) -> anyhow::Result<()> {
-        let mut conn = self.redis_pool.get().await.context("Failed to get Redis connection")?;
-        
-        conn.set_ex::<_, _, ()>(
-            self.get_key(token), 
-            "1", 
-            self.access_token_ttl
-        )
-        .await
-        .context("Failed to add token to revocation list")?;
-        
-        Ok(())
-    }
-
-    pub async fn is_access_token_revoked(&self, token: &str) -> anyhow::Result<bool> {
-        let mut conn = self.redis_pool.get().await.context("Failed to get Redis connection")?;
-        
-        let exists: bool = conn
-            .exists(self.get_key(token))
-            .await
-            .context("Failed to check token revocation status")?;
-        
-        Ok(exists)
-    }
-
-    pub async fn validate_refresh_token(
-        &self, 
-        token: &str, 
-        fingerprint: &str
-    ) -> Result<RefreshToken, TokenValidationError> {
-        let token_data = match self.get_refresh_token(token).await {
-            Ok(Some(data)) => data,
-            
-            Ok(None) => return Err(TokenValidationError::NotFound),
-            
-            Err(e) => {
-                return Err(TokenValidationError::Other(e.to_string()));
-            }
-        };
-        
-        if token_data.fingerprint != fingerprint {
-            return Err(TokenValidationError::FingerprintMismatch);
-        }
-        
-        Ok(token_data)
-    }
-
     pub async fn rotate_refresh_token(
         &self, 
-        old_token: &str,
-        new_token_data: RefreshToken
-    ) -> anyhow::Result<String> {
-        self.get_refresh_token(old_token).await?;
+        refresh_token: &str,
+        fingerprint: &str
+    ) -> Result<(RefreshToken, String), TokenStoreError> {
+        let mut conn = self.get_connection().await?;
         
-        self.invalidate_refresh_token(old_token).await?;
+        let token_data: Option<RefreshToken> = conn.get_del(self.get_key(refresh_token))
+            .await
+            .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+
+        let token = match token_data {
+            Some(token) => token,
+            None => return Err(TokenStoreError::TokenNotFound),
+        };
+
+        if token.fingerprint != fingerprint {
+            self.revoke_all_user_tokens(token.user_id, Some(conn)).await?;
+
+            tracing::warn!(
+                "Fingerprint mismatch for user {}, expected: {}, got {}. All tokens revoked.",
+                token.user_id, token.fingerprint, fingerprint
+            );
+
+            return Err(TokenStoreError::FingerprintMismatch);
+        }
+
+        conn.srem::<_, _, ()>(
+            self.get_user_tokens_key(token.user_id),
+            refresh_token
+        )
+        .await
+        .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+
+        let token_str = self.generate_refresh_token(&token, Some(conn)).await?;
         
-        let new_token = self.generate_refresh_token(new_token_data).await?;
-        
-        Ok(new_token)
+        Ok((token, token_str))
+    }
+
+    pub async fn revoke_all_user_tokens(&self, user_id: i32, conn: Option<PooledConnection<'_, RedisConnectionManager>>) -> Result<(), TokenStoreError> {
+        let mut conn = conn.unwrap_or(self.get_connection().await?);
+
+        let user_tokens_key = self.get_user_tokens_key(user_id);
+
+        let tokens: Vec<String> = conn.smembers(&user_tokens_key)
+            .await
+            .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+
+        redis::pipe()
+            .unlink(tokens)
+            .unlink(user_tokens_key)
+            .exec_async(&mut *conn)
+            .await
+            .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+
+        Ok(())
     }
 }

@@ -1,3 +1,4 @@
+use bb8_redis::redis::{from_redis_value, ErrorKind, FromRedisValue};
 use serde::{Deserialize, Serialize};
 use sqlx::Type;
 
@@ -43,4 +44,15 @@ impl UserRole {
 pub struct RefreshToken {
     pub user_id: i32,
     pub fingerprint: String
+}
+
+impl FromRedisValue for RefreshToken {
+    fn from_redis_value(v: &bb8_redis::redis::Value) -> bb8_redis::redis::RedisResult<Self> {
+        let json_str = from_redis_value::<String>(v)?;
+
+        match serde_json::from_str::<Self>(&json_str) {
+            Ok(v) => Ok(v),
+            Err(_) => Err((ErrorKind::TypeError, "Failed to parse json").into()),
+        }
+    }
 }

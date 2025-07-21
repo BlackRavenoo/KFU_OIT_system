@@ -32,6 +32,9 @@ jsonwebtoken = "9.3.1"
 argon2 = "0.5.3"
 chrono = { version = "0.4.41", features = ["serde"] }
 time = "0.3.41"
+num_enum = "0.7"
+ring = "0.17.14"
+hex = "0.4.3"
 
 sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls", "macros", "postgres", "uuid", "chrono", "migrate"] }
 bb8-redis = "0.24.0"
