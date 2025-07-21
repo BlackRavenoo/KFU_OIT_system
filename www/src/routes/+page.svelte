@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-    import { pageTitle, pageDescription } from '$lib/stores';
+    import { pageTitle, pageDescription } from '$lib/utils/stores/stores';
     
     import pageCSS from './page.css?inline';
 

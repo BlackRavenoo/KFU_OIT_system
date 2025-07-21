@@ -5,17 +5,17 @@
 -->
 
 <script lang="ts">
-    import KFU_large from '../assets/KFU_large.webp';
-    import KFU from '../assets/KFU.webp';
+    import KFU_large from '../../../assets/KFU_large.webp';
+    import KFU from '../../../assets/KFU.webp';
 
     import { fade, scale } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
 
-    import { login, getUserData, 
-            currentUser, isAuthenticated } from '$lib/auth';
-    import { pageTitle, pageDescription } from '$lib/stores';
+    import { login, getUserData } from '$lib/utils/auth/api/api';
+    import { currentUser, isAuthenticated } from '$lib/utils/auth/store/initial';
+    import { pageTitle, pageDescription } from '$lib/utils/stores/stores';
 
     let visibleElements: Record<string, boolean> = {
         header: false,

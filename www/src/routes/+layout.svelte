@@ -2,11 +2,13 @@
     import '../assets/app.css';
     
     import { onMount } from 'svelte';
-    import { isAuthenticated, currentUser, checkToken, getUserData } from '$lib/auth';
+    import { getUserData } from '$lib/utils/auth/api/api';
+    import { checkToken } from '$lib/utils/auth/tokens/tokens';
+    import { currentUser, isAuthenticated } from '$lib/utils/auth/store/initial';
     import { navigating } from '$app/stores';
 
-    import Footer from '$lib/Footer.svelte';
-    import Nav from '$lib/Nav.svelte';
+    import Footer from '$lib/components/Footer/Footer.svelte';
+    import Nav from '$lib/components/Nav/Nav.svelte';
     
     let authChecked = false;
 

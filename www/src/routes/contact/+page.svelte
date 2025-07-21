@@ -8,7 +8,7 @@
     import pageCSS from './page.css?inline';
     import map from '../../assets/map.webp';
     
-    import { pageTitle, pageDescription } from '$lib/stores';
+    import { pageTitle, pageDescription } from '$lib/utils/stores/stores';
 
     import { onMount, onDestroy } from 'svelte';
     import { fly } from 'svelte/transition';
