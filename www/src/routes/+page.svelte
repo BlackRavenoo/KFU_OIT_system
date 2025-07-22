@@ -4,8 +4,11 @@
 -->
 
 <script lang="ts">
-    import { pageTitle, pageDescription } from '$lib/utils/stores/stores';
-    
+    import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
+    import { setupIntersectionObserver, loadStyleContent, cleanupStyleElements, type VisibleElements } from '$lib/utils/setup/page';
+    import { handleModalKeydown } from '$lib/utils/setup/modal';
+    import { navigateToFormLink } from '$lib/utils/navigate/toForm';
+
     import pageCSS from './page.css?inline';
 
     import product from '../assets/product.webp';
@@ -34,18 +37,7 @@
     let modalMessage: string = '';
 
     let styleElements: HTMLElement[] = [];
-
-    /**
-     * Интерфейс для отслеживания видимости элементов на странице.
-     * @interface VisibleElements
-     */
-    interface VisibleElements {
-        hero: boolean;
-        steps: boolean;
-        cards: boolean;
-        stats: boolean;
-        form: boolean;
-    }
+    let observer: IntersectionObserver;
 
     /**
      * Объект для отслеживания видимости элементов на странице.
@@ -75,29 +67,23 @@
     }
 
     /**
-     * Устанавливает наблюдатель за пересечением элементов на странице.
-     * Используется для отслеживания видимости элементов и обновления состояния видимости.
+     * Обработчик изменения прикреплённых к форме файлов.
+     * Добавляет выбранные файлы в список, если их количество не превышает 5.
+     * @param {Event} event - Событие изменения файла.
      */
-    function setupIntersectionObserver() {
-        const options = {
-            threshold: 0.2,
-            rootMargin: "0px 0px -100px 0px"
-        };
+    export function handleFileChange(event: Event) {
+        const input = event.target as HTMLInputElement;
+        if (input.files && input.files.length > 0) {
+            const newFiles = Array.from(input.files);
 
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const id = entry.target.id as keyof VisibleElements;
-                    if (id && id in visibleElements)
-                        visibleElements[id] = true;
-                }
-            });
-        }, options);
+            if (File.length + newFiles.length > 5) {
+                showModalWithFocus('Можно прикрепить максимум 5 файлов');
+                return;
+            }
 
-        ['hero', 'steps', 'cards', 'stats', 'form'].forEach(id => {
-            const element = document.getElementById(id);
-            if (element) observer.observe(element);
-        });
+            File = [...File, ...newFiles];
+            fileName = [...fileName, ...newFiles.map(f => f.name)];
+        }
     }
 
     /**
@@ -121,59 +107,6 @@
     }
 
     /**
-     * Обработчик изменения прикреплённых к форме файлов.
-     * Добавляет выбранные файлы в список, если их количество не превышает 5.
-     * @param {Event} event - Событие изменения файла.
-     */
-    function handleFileChange(event: Event) {
-        const input = event.target as HTMLInputElement;
-        if (input.files && input.files.length > 0) {
-            const newFiles = Array.from(input.files);
-
-            if (File.length + newFiles.length > 5) {
-                showModalWithFocus('Можно прикрепить максимум 5 файлов');
-                return;
-            }
-
-            File = [...File, ...newFiles];
-            fileName = [...fileName, ...newFiles.map(f => f.name)];
-        }
-    }
-
-    /**
-     * Обработчик нажатия клавиш в модальном окне.
-     * Закрывает модальное окно при нажатии Escape и управляет фокусом при нажатии Tab.
-     * @param {KeyboardEvent} e - Событие клавиатуры.
-     */
-    function handleModalKeydown(e: KeyboardEvent) {
-        if (e.key === 'Escape') {
-            closeModal();
-            return;
-        }
-        
-        if (e.key === 'Tab') {
-            const focusableElements = Array.from(
-                modalElement.querySelectorAll(
-                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-                )
-            );
-            
-            if (!focusableElements.length) return;
-            
-            const firstElement = focusableElements[0] as HTMLElement;
-            const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
-            
-            if (e.shiftKey && document.activeElement === firstElement) {
-                lastElement.focus();
-                e.preventDefault();
-            } else if (!e.shiftKey && document.activeElement === lastElement) {
-                firstElement.focus();
-                e.preventDefault();
-            }
-        }
-    }
-
-    /**
      * Закрывает модальное окно и восстанавливает фокус на последний активный элемент.
      */
     function closeModal() {
@@ -187,13 +120,9 @@
         }, 300);
     }
 
-    /**
-     * Функция для обработки навигации к форме
-     * Вызывается при клике на кнопку "Оставить заявку"
-     */
-    function handleNavigateToForm() {
-        let link = document.getElementById('form-link');
-        link && link.click();
+    function modalKeydown(e: KeyboardEvent) {
+        const result = handleModalKeydown(e, modalElement);
+        if (!result) closeModal();;
     }
 
     /**
@@ -206,27 +135,12 @@
     }
 
     /**
-     * Загружает CSS-контент в документ.
-     * @param {string} css - CSS-контент для загрузки.
-     * @param {string} [id] - Необязательный идентификатор для тега <style>.
-     * @returns {HTMLElement} - Элемент <style>, содержащий загруженный CSS.
-     */
-    function loadStyleContent(css: string, id?: string): HTMLElement {
-        const style = document.createElement('style');
-        style.textContent = css;
-        if (id) style.id = id;
-        document.head.appendChild(style);
-        styleElements.push(style);
-        return style;
-    }
-
-    /**
      * Инициализирует страницу при монтировании компонента.
      * Устанавливает стили, настраивает наблюдатель за пересечением элементов и обновляет метаданные страницы.
     */
     onMount(() => {
-        loadStyleContent(pageCSS, 'page-styles');
-        setupIntersectionObserver();
+        loadStyleContent(pageCSS, styleElements, 'page-styles');
+        observer = setupIntersectionObserver(['hero', 'steps', 'cards', 'stats', 'form'], visibleElements);
 
         pageTitle.set('Главная | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
@@ -240,9 +154,9 @@
      * Удаляет все стили и восстанавливает метаданные страницы при уничтожении компонента.
      */
     onDestroy(() => {
-        styleElements.forEach(element => {
-            element && element.parentNode && element.parentNode.removeChild(element);
-        });
+        cleanupStyleElements(styleElements);
+        observer?.disconnect();
+    
         pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
     });
@@ -262,7 +176,7 @@
             <div class="banner">
                 <div class="description" in:fly={{ x: -50, duration: 800, delay: 600 }}>
                     <p>Система заявок ЕИ КФУ — не просто платформа. Это система обслуживания, созданная с заботой о каждом сотруднике, призванная сделать решение проблем быстрее и проще.</p> 
-                    <button class="promo pulse-animation" on:click={ handleNavigateToForm }>Оставить заявку</button>
+                    <button class="promo pulse-animation" on:click={ navigateToFormLink }>Оставить заявку</button>
                 </div>
                 <div class="image-container" in:fly={{ x: 50, duration: 800, delay: 600 }}>
                     <img src={product} alt="Product Banner" class="floating-animation" />
@@ -469,7 +383,7 @@
             aria-labelledby="modal-title"
             aria-describedby="modal-content"
             on:click|stopPropagation
-            on:keydown={ handleModalKeydown }
+            on:keydown={ modalKeydown }
             in:scale={{ start: 0.8, duration: 300, delay: 100 }}
             out:scale={{ start: 0.8, duration: 200 }}
             tabindex="-1"

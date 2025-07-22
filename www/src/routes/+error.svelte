@@ -5,7 +5,7 @@
 -->
 
 <script lang="ts">
-    import { pageTitle } from '$lib/utils/stores/stores';
+    import { pageTitle } from '$lib/utils/setup/stores';
 
     import { onMount, onDestroy } from 'svelte';
     import { fly } from 'svelte/transition';

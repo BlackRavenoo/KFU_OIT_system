@@ -8,20 +8,12 @@
     import pageCSS from './page.css?inline';
     import map from '../../assets/map.webp';
     
-    import { pageTitle, pageDescription } from '$lib/utils/stores/stores';
+    import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
+    import { navigateToFormLink } from '$lib/utils/navigate/toForm';
+    import { setupIntersectionObserver, loadStyleContent, cleanupStyleElements, type VisibleElements } from '$lib/utils/setup/page';
 
     import { onMount, onDestroy } from 'svelte';
     import { fly } from 'svelte/transition';
-
-    /**
-     * Интерфейс для отслеживания видимости элементов на странице
-     * @interface VisibleElements
-     */
-    interface VisibleElements {
-        hero: boolean;
-        contacts: boolean;
-        map: boolean;
-    }
 
     /**
      * Объект для отслеживания видимости ключевых элементов страницы
@@ -34,64 +26,15 @@
     };
 
     let styleElements: HTMLElement[] = [];
-    
-    /**
-     * Функция для обработки навигации к форме
-     * Вызывается при клике на кнопку "Оставить заявку"
-     */
-     function handleNavigateToForm() {
-        let link = document.getElementById('form-link');
-        link && link.click();
-    }
-
-    /**
-     * Настройка Intersection Observer для отслеживания видимости ключевых элементов
-     * Используется для анимации появления элементов при прокрутке страницы
-     */
-    function setupIntersectionObserver() {
-        const options = {
-            threshold: 0.2,
-            rootMargin: "0px 0px -100px 0px"
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const id = entry.target.id as keyof VisibleElements;
-                    if (id && id in visibleElements)
-                        visibleElements[id] = true;
-                }
-            });
-        }, options);
-
-        ['hero', 'contacts', 'map', 'form'].forEach(id => {
-            const element = document.getElementById(id);
-            if (element) observer.observe(element);
-        });
-    }
-
-    /**
-     * Функция для загрузки CSS-контента в виде тега <style>
-     * @param {string} css - CSS-код для загрузки
-     * @param {string} [id] - Необязательный идентификатор для тега <style>
-     * @returns {HTMLElement} - Возвращает созданный элемент <style>
-     */
-    function loadStyleContent(css: string, id?: string): HTMLElement {
-        const style = document.createElement('style');
-        style.textContent = css;
-        if (id) style.id = id;
-        document.head.appendChild(style);
-        styleElements.push(style);
-        return style;
-    }
+    let observer: IntersectionObserver;
 
     /**
      * Инициализация страницы при монтировании компонента
      * Загружает стили, настраивает Intersection Observer и устанавливает метаданные страницы
      */
     onMount(() => {
-        loadStyleContent(pageCSS, 'page-styles');
-        setupIntersectionObserver();
+        loadStyleContent(pageCSS, styleElements, 'page-styles');
+        observer = setupIntersectionObserver(['hero', 'contacts', 'map'], visibleElements);
 
         pageTitle.set('Контакты | Система управления заявками ЕИ КФУ');
         pageDescription.set('Контактная информация Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Боты, адреса, телефоны, email и время работы.');
@@ -106,9 +49,8 @@
      * Удаляет все загруженные стили и восстанавливает метаданные страницы
      */
     onDestroy(() => {
-        styleElements.forEach(element => {
-            element && element.parentNode && element.parentNode.removeChild(element);
-        });
+        cleanupStyleElements(styleElements);
+        observer?.disconnect();
 
         pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
@@ -144,7 +86,7 @@
                             <a href="https://wa.me/">WhatsApp</a>
                         </div>
                     </div>
-                    <button class="promo pulse-animation" on:click={ handleNavigateToForm }>Оставить заявку</button>
+                    <button class="promo pulse-animation" on:click={ navigateToFormLink }>Оставить заявку</button>
                 </div>
                 <div class="hero-visual">
                     <div class="contact-circles">
