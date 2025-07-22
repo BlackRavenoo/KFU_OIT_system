@@ -165,7 +165,6 @@ where
     let (req, _) = req.into_parts();
     let response = HttpResponse::build(status)
         .json(serde_json::json!({
-            "error": status.canonical_reason().unwrap_or("Unknown error"),
             "message": message
         }))
         .map_body(|_, body| EitherBody::right(body));

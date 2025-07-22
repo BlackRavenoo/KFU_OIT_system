@@ -1,0 +1,82 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT \n            t.id,\n            title,\n            description,\n            author,\n            author_contacts,\n            status,\n            priority,\n            planned_at,\n            t.created_at,\n            u.name as \"assigned_to_name\",\n            u.id as \"assigned_to_id\"\n        FROM tickets t\n        LEFT JOIN users u ON u.id = t.assigned_to\n        WHERE t.id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "author",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "author_contacts",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "status",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 6,
+        "name": "priority",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 7,
+        "name": "planned_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "assigned_to_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "assigned_to_id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "dec807383364d0e007de7801fe610ac201deeec567ab17ebe9a4e41fd1e17034"
+}
