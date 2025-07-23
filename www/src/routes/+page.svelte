@@ -6,9 +6,12 @@
 <script lang="ts">
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { setupIntersectionObserver, loadStyleContent, cleanupStyleElements, type VisibleElements } from '$lib/utils/setup/page';
-    import { handleModalKeydown } from '$lib/utils/setup/modal';
     import { navigateToFormLink } from '$lib/utils/navigate/toForm';
+    import { fetchTicket } from '$lib/utils/tickets/new';
+    import { handleFileChange, removeFile } from '$lib/utils/files/inputs';
+    import { showModalWithFocus } from '$lib/components/Modal/Modal';
 
+    import Modal from '$lib/components/Modal/Modal.svelte';
     import pageCSS from './page.css?inline';
 
     import product from '../assets/product.webp';
@@ -17,10 +20,11 @@
     import card2 from '../assets/card_filler.svg';
 
     import { onMount, onDestroy } from 'svelte';
-    import { fade, fly, scale } from 'svelte/transition';
+    import { fade, fly } from 'svelte/transition';
 
     let moreOptionsVisible: boolean = false;
-
+    let showModal: boolean = false;
+    
     let Title: string = '';
     let Description: string = '';
     let Name: string = '';
@@ -28,14 +32,8 @@
     let DateVal: string = '';
     let fileName: string[] = [];
     let File: File[] = [];
-
-    let lastFocusedElement: Element | null;
-    let modalElement: HTMLElement;
-    let modalInitialized = false;
-
-    let showModal: boolean = false;
-    let modalMessage: string = '';
-
+    
+    let modalElement: Modal;
     let styleElements: HTMLElement[] = [];
     let observer: IntersectionObserver;
 
@@ -45,93 +43,35 @@
      */
     let visibleElements: VisibleElements = {
         hero: false,
-        steps: false,
-        cards: false,
-        stats: false,
-        form: false
+        steps: true,
+        cards: true,
+        stats: true,
+        form: true
     };
 
     /**
-     * Переключает видимость дополнительных опций в форме заявки.
+     * Обработчик изменения файла.
+     * @param event
      */
-    function swapMoreOptions() {
-        moreOptionsVisible = !moreOptionsVisible;
-    }
-
-    /** !!! TDD !!!
-     * Обработчик отправки формы заявки.
-     * Здесь можно добавить логику для отправки данных на сервер.
-     */
-    function fetchTicket() {
-        console.log('Заявка отправлена:', { Title, Description, Name, Contact, DateVal, File });
+    function onFileChange(event: Event) {
+        const result = handleFileChange(event, File, fileName, () => {
+            showModalWithFocus(
+                (val) => showModal = val,
+                modalElement,
+            )
+        });
+        File = result.files;
+        fileName = result.fileNames;
     }
 
     /**
-     * Обработчик изменения прикреплённых к форме файлов.
-     * Добавляет выбранные файлы в список, если их количество не превышает 5.
-     * @param {Event} event - Событие изменения файла.
-     */
-    export function handleFileChange(event: Event) {
-        const input = event.target as HTMLInputElement;
-        if (input.files && input.files.length > 0) {
-            const newFiles = Array.from(input.files);
-
-            if (File.length + newFiles.length > 5) {
-                showModalWithFocus('Можно прикрепить максимум 5 файлов');
-                return;
-            }
-
-            File = [...File, ...newFiles];
-            fileName = [...fileName, ...newFiles.map(f => f.name)];
-        }
-    }
-
-    /**
-     * Показывает модальное окно с сообщением и устанавливает фокус на первое доступное поле.
-     * @param {string} message - Сообщение для отображения в модальном окне.
-     */
-    function showModalWithFocus(message: string) {
-        modalMessage = message;
-        lastFocusedElement = document.activeElement;
-        showModal = true;
-        
-        setTimeout(() => {
-            const focusableElements = modalElement?.querySelectorAll(
-                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-            );
-            if (focusableElements?.length) {
-                (focusableElements[0] as HTMLElement).focus();
-            }
-            modalInitialized = true;
-        }, 100);
-    }
-
-    /**
-     * Закрывает модальное окно и восстанавливает фокус на последний активный элемент.
-     */
-    function closeModal() {
-        showModal = false;
-        
-        setTimeout(() => {
-            if (lastFocusedElement && typeof (lastFocusedElement as HTMLElement).focus === 'function') {
-                (lastFocusedElement as HTMLElement).focus();
-            }
-            modalInitialized = false;
-        }, 300);
-    }
-
-    function modalKeydown(e: KeyboardEvent) {
-        const result = handleModalKeydown(e, modalElement);
-        if (!result) closeModal();;
-    }
-
-    /**
-     * Удаляет файл из списка прикреплённых файлов по индексу.
+     * Обработчик удаления файла по индексу из списка загруженных файлов.
      * @param {number} index - Индекс файла для удаления.
      */
-    function removeFile(index: number) {
-        File = File.filter((_, i) => i !== index);
-        fileName = fileName.filter((_, i) => i !== index);
+    function onRemoveFile(index: number) {
+        const result = removeFile(index, File, fileName);
+        File = result.files;
+        fileName = result.fileNames;
     }
 
     /**
@@ -140,7 +80,7 @@
     */
     onMount(() => {
         loadStyleContent(pageCSS, styleElements, 'page-styles');
-        observer = setupIntersectionObserver(['hero', 'steps', 'cards', 'stats', 'form'], visibleElements);
+        observer = setupIntersectionObserver(['hero', 'steps', 'cards', 'stats', 'form'], visibleElements, { threshold: 0, rootMargin: "0px" });
 
         pageTitle.set('Главная | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
@@ -300,7 +240,16 @@
                 <div class="img_container" in:fly={{ x: -50, duration: 800 }}>
                     <img src="{ support }" alt="support" class="floating-animation-slow">
                 </div>
-                <form on:submit|preventDefault={ fetchTicket } class="form_container" in:fly={{ x: 50, duration: 800 }}>
+                <form on:submit|preventDefault={ () => {
+                    fetchTicket(
+                        Title,
+                        Description,
+                        Name,
+                        Contact,
+                        DateVal,
+                        File
+                    )
+                } } class="form_container" in:fly={{ x: 50, duration: 800 }}>
                     <h2>Наш отдел спешит на помощь!</h2>
                     <p>Оставьте заявку и мы сделаем всё возможное, чтобы решить Вашу проблему</p>
                     
@@ -326,7 +275,9 @@
                         </div>
                     </div>
                     
-                    <button class="more_options" on:click|preventDefault={ swapMoreOptions }>
+                    <button class="more_options" on:click|preventDefault={ () => {
+                        moreOptionsVisible = !moreOptionsVisible
+                    } }>
                         Больше опций <span class="arrow {moreOptionsVisible ? 'arrow_up' : ''}">▼</span>
                     </button>
                     
@@ -342,7 +293,7 @@
                         </div>
                         
                         <div class="file-upload">
-                            <input type="file" id="file" multiple accept=".jpg, .jpeg, .png, .pdf" on:change={ handleFileChange } />
+                            <input type="file" id="file" multiple accept=".jpg, .jpeg, .png, .pdf" on:change={ onFileChange } />
                             <label for="file">
                                 <span class="file-icon">📎</span>
                                 Прикрепить файлы ({ File.length }/5)
@@ -351,7 +302,7 @@
                                 <div class="file-list">
                                     {#each fileName as name, i}
                                         <div class="file-item">
-                                            <button class="file-name" on:click={ () => removeFile(i) }>{ name }</button>
+                                            <button class="file-name" on:click={ () => onRemoveFile(i) }>{ name }</button>
                                         </div>
                                     {/each}
                                 </div>
@@ -368,49 +319,11 @@
         {/if}
     </div>
 </main>
-<div id="marker"></div>
+
 {#if showModal}
-    <div 
-        class="modal-overlay modal-error" 
-        on:click={ closeModal }
-        transition:fade={{ duration: 200 }}
-        role="presentation"
-    >
-        <div 
-            class="modal-container"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-title"
-            aria-describedby="modal-content"
-            on:click|stopPropagation
-            on:keydown={ modalKeydown }
-            in:scale={{ start: 0.8, duration: 300, delay: 100 }}
-            out:scale={{ start: 0.8, duration: 200 }}
-            tabindex="-1"
-            bind:this={ modalElement }
-        >
-            <div class="modal-header">
-                <h3 id="modal-title">Внимание</h3>
-                <button
-                    type="button" 
-                    class="close-button" 
-                    on:click={ closeModal }
-                    aria-label="Закрыть окно"
-                >
-                    <span aria-hidden="true">×</span>
-                </button>
-            </div>
-            <div class="modal-content" id="modal-content">
-                <div class="modal-icon" aria-hidden="true">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
-                        <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zm0-384c13.3 0 24 10.7 24 24V264c0 13.3-10.7 24-24 24s-24-10.7-24-24V152c0-13.3 10.7-24 24-24zm-32 224a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"/>
-                    </svg>
-                </div>
-                <p>{ modalMessage }</p>
-            </div>
-            <div class="modal-footer">
-                <button class="modal-button primary-button" on:click={ closeModal }>Понятно</button>
-            </div>
-        </div>
-    </div>
+    <Modal 
+        bind:this={ modalElement } 
+        modalMessage="Доступно максимум 5 изображений для загрузки." 
+        on:close={ () => showModal = false }
+    />
 {/if}

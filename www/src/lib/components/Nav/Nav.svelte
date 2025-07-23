@@ -12,6 +12,7 @@
     import { currentUser, isAuthenticated } from '$lib/utils/auth/store/initial';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { navigateToForm } from '$lib/utils/navigate/toForm';
+    import { navigateToHome } from '$lib/utils/navigate/toHome';
     import { showModal } from '$lib/utils/setup/modal';
 
     import Modal from './Modal.svelte';
@@ -94,7 +95,14 @@
 </svelte:head>
 
 <nav>
-    <div class="logo">
+    <div
+        class="logo"
+        role="button"
+        tabindex="0"
+        aria-label="На главную"
+        on:click={ navigateToHome }
+        on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateToHome; }}
+    >
         <img src="{ KFU_large }" alt="KFU Logo" class="large-logo" />
         <img src="{ KFU }" alt="KFU Logo Small" class="small-logo" />
     </div>
