@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse, Responder};
 use sqlx::{Execute as _, PgPool};
 
-use crate::{build_update_query, schema::{CreateTicketSchema, TicketQueryResult, TicketSchema, UpdateTicketSchema, User}};
+use crate::{build_update_query, schema::tickets::{CreateTicketSchema, TicketQueryResult, TicketSchema, UpdateTicketSchema, User}};
 
 pub async fn create_ticket(
     web::Json(ticket): web::Json<CreateTicketSchema>,

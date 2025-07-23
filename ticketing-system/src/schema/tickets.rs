@@ -1,24 +1,9 @@
 use chrono::{DateTime, Utc};
 use num_enum::FromPrimitive;
 use serde::{Deserialize, Serialize};
-use sqlx::prelude::Type;
-
-use crate::auth::types::UserRole;
+use sqlx::Type;
 
 // Input
-
-#[derive(Debug, Deserialize)]
-pub struct RefreshTokenRequest {
-    pub refresh_token: String,
-    pub fingerprint: String
-}
-
-#[derive(Deserialize)]
-pub struct LoginRequest {
-    pub email: String,
-    pub password: String,
-    pub fingerprint: String
-}
 
 #[derive(Deserialize)]
 pub struct CreateTicketSchema {
@@ -41,22 +26,6 @@ pub struct UpdateTicketSchema {
 }
 
 // Output
-
-#[derive(Serialize)]
-pub struct TokenResponse {
-    pub access_token: String,
-    pub refresh_token: String,
-    pub token_type: String,
-    pub expires_in: i64,
-}
-
-#[derive(Serialize)]
-pub struct MeSchema {
-    pub id: i32,
-    pub name: String,
-    pub email: String,
-    pub role: UserRole
-}
 
 #[derive(Serialize)]
 pub struct User {

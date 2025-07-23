@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse, Responder};
 
-use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::{TokenStore, TokenStoreError}, types::RefreshToken, user_service::UserService}, schema::{LoginRequest, RefreshTokenRequest, TokenResponse}};
+use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::{TokenStore, TokenStoreError}, types::RefreshToken, user_service::UserService}, schema::auth::{LoginRequest, RefreshTokenRequest, TokenResponse}};
 
 
 pub async fn login(
