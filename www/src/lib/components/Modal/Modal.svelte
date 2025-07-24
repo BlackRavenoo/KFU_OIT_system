@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { handleModalKeydown } from '$lib/utils/setup/modal';
+    import { handleModalKeydown } from '$lib/utils/notifications/modal';
     import { fade, scale } from 'svelte/transition';
     import { onMount, createEventDispatcher } from 'svelte';
 

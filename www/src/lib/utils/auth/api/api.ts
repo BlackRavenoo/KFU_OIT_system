@@ -70,7 +70,6 @@ function scheduleTokenRefresh(token: string) {
             else
                 logout();
         }
-        alert(resultText);
     }
 
     refreshTimeout = setTimeout(tryRefresh, delay);
@@ -122,9 +121,7 @@ export async function login(email: string, password: string, rememberMe: boolean
     }
 }
 
-/** !!! TDD !!!
- * Fix 400 error
- * 
+/** 
  * Обновляет токены авторизации через refresh_token.
  * @param allowRetry - если true, не вызывает logout при ошибке, а только если токен истёк
  * @param deadline - время истечения accessToken
@@ -143,11 +140,17 @@ export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: 
         url.searchParams.set('refresh_token', tokensData.refreshToken);
         url.searchParams.set('fingerprint', fingerprint);
 
-        const response = await fetch(url.toString(), {
-            method: 'GET',
+        const response = await fetch(Endpoints.refresh, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                refresh_token: tokensData.refreshToken,
+                fingerprint
+            }),
             credentials: 'include'
         });
-
         if (!response.ok) {
             !allowRetry || (deadline && Date.now() >= deadline) && logout();
             return false;

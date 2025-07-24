@@ -6,10 +6,11 @@
 <script lang="ts">
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { setupIntersectionObserver, loadStyleContent, cleanupStyleElements, type VisibleElements } from '$lib/utils/setup/page';
-    import { navigateToFormLink } from '$lib/utils/navigate/toForm';
+    import { navigateToForm } from '$lib/utils/setup/navigate';
     import { fetchTicket } from '$lib/utils/tickets/new';
     import { handleFileChange, removeFile } from '$lib/utils/files/inputs';
     import { showModalWithFocus } from '$lib/components/Modal/Modal';
+    import { notification, NotificationType } from '$lib/utils/notifications/notification';
 
     import Modal from '$lib/components/Modal/Modal.svelte';
     import pageCSS from './page.css?inline';
@@ -75,6 +76,28 @@
     }
 
     /**
+     * Переход к форме создания заявки.
+     */
+    function onSubmitForm() {
+        fetchTicket(Title, Description, Name, Contact, DateVal, File)
+            .then(() => {
+                Title = '';
+                Description = '';
+                Name = '';
+                Contact = '';
+                DateVal = '';
+                File = [];
+                fileName = [];
+            })
+            .then(() => {
+                notification("Заявка отправлена!", NotificationType.Success);
+            })
+            .catch((error) => {
+                notification("Ошибка при отправке заявки", NotificationType.Error);
+            });
+    }
+
+    /**
      * Инициализирует страницу при монтировании компонента.
      * Устанавливает стили, настраивает наблюдатель за пересечением элементов и обновляет метаданные страницы.
     */
@@ -116,7 +139,7 @@
             <div class="banner">
                 <div class="description" in:fly={{ x: -50, duration: 800, delay: 600 }}>
                     <p>Система заявок ЕИ КФУ — не просто платформа. Это система обслуживания, созданная с заботой о каждом сотруднике, призванная сделать решение проблем быстрее и проще.</p> 
-                    <button class="promo pulse-animation" on:click={ navigateToFormLink }>Оставить заявку</button>
+                    <button class="promo pulse-animation" on:click={ navigateToForm }>Оставить заявку</button>
                 </div>
                 <div class="image-container" in:fly={{ x: 50, duration: 800, delay: 600 }}>
                     <img src={product} alt="Product Banner" class="floating-animation" />
@@ -139,10 +162,10 @@
                        {num: 2, title: 'Ожидайте специалиста', desc: 'Вашей проблемой займутся в ближайшее время'}, 
                        {num: 3, title: 'Получите решение', desc: 'Наши специалисты оперативно решат вашу проблему'}] as step, i}
                     <div class="step" in:fly={{ y: 40, duration: 600, delay: 200 + i*150 }}>
-                        <div class="step-icon">{step.num}</div>
-                        <div class="connector" class:last={i === 2}></div>
-                        <h3>{step.title}</h3>
-                        <p>{step.desc}</p>
+                        <div class="step-icon">{ step.num }</div>
+                        <div class="connector" class:last={ i === 2 }></div>
+                        <h3>{ step.title }</h3>
+                        <p>{ step.desc }</p>
                     </div>
                 {/each}
             </div>
@@ -240,16 +263,7 @@
                 <div class="img_container" in:fly={{ x: -50, duration: 800 }}>
                     <img src="{ support }" alt="support" class="floating-animation-slow">
                 </div>
-                <form on:submit|preventDefault={ () => {
-                    fetchTicket(
-                        Title,
-                        Description,
-                        Name,
-                        Contact,
-                        DateVal,
-                        File
-                    )
-                } } class="form_container" in:fly={{ x: 50, duration: 800 }}>
+                <form on:submit|preventDefault={ onSubmitForm } class="form_container" in:fly={{ x: 50, duration: 800 }}>
                     <h2>Наш отдел спешит на помощь!</h2>
                     <p>Оставьте заявку и мы сделаем всё возможное, чтобы решить Вашу проблему</p>
                     

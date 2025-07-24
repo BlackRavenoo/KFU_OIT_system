@@ -11,9 +11,8 @@
     import { login, getUserData } from '$lib/utils/auth/api/api';
     import { currentUser, isAuthenticated } from '$lib/utils/auth/store/initial';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
-    import { navigateToForm } from '$lib/utils/navigate/toForm';
-    import { navigateToHome } from '$lib/utils/navigate/toHome';
-    import { showModal } from '$lib/utils/setup/modal';
+    import { navigateToForm, navigateToHome } from '$lib/utils/setup/navigate';
+    import { showModal } from '$lib/utils/notifications/modal';
 
     import Modal from './Modal.svelte';
 

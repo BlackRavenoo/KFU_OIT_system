@@ -9,7 +9,7 @@
     import map from '../../assets/map.webp';
     
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
-    import { navigateToFormLink } from '$lib/utils/navigate/toForm';
+    import { navigateToForm } from '$lib/utils/setup/navigate';
     import { setupIntersectionObserver, loadStyleContent, cleanupStyleElements, type VisibleElements } from '$lib/utils/setup/page';
 
     import { onMount, onDestroy } from 'svelte';
@@ -86,7 +86,7 @@
                             <a href="https://wa.me/">WhatsApp</a>
                         </div>
                     </div>
-                    <button class="promo pulse-animation" on:click={ navigateToFormLink }>Оставить заявку</button>
+                    <button class="promo pulse-animation" on:click={ navigateToForm }>Оставить заявку</button>
                 </div>
                 <div class="hero-visual">
                     <div class="contact-circles">

@@ -11,7 +11,7 @@
     import { onMount, onDestroy } from 'svelte';
     import { fly } from 'svelte/transition';
     import { page } from '$app/state';
-    import { navigateToHome } from '$lib/utils/navigate/toHome';
+    import { navigateToHome } from '$lib/utils/setup/navigate';
 
     /**
      * Хранит состояние видимости элементов на странице ошибки

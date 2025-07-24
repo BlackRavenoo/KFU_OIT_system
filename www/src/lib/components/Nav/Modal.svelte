@@ -6,7 +6,7 @@
     import { createEventDispatcher } from 'svelte';
     import { onMount, onDestroy } from 'svelte';
 
-    import { handleModalKeydown } from '$lib/utils/setup/modal';
+    import { handleModalKeydown } from '$lib/utils/notifications/modal';
 
     export let userLogin: string;
     export let userPassword: string;
