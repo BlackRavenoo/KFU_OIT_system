@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse, Responder};
 use sqlx::{Execute as _, PgPool};
 
-use crate::{build_update_query, schema::tickets::{CreateTicketSchema, TicketQueryResult, TicketSchema, UpdateTicketSchema, User}};
+use crate::{build_update_query, build_where_condition, schema::tickets::{CreateTicketSchema, GetTicketsSchema, TicketQueryResult, TicketSchema, UpdateTicketSchema}};
 
 pub async fn create_ticket(
     web::Json(ticket): web::Json<CreateTicketSchema>,
@@ -121,31 +121,8 @@ pub async fn get_ticket(
 
     match result {
         Ok(Some(ticket)) => {
-            let assigned_to = if let (Some(name), Some(id)) = (
-                ticket.assigned_to_name,
-                ticket.assigned_to_id,
-            ) {
-                Some(User {
-                    id,
-                    name,
-                })
-            } else {
-                None
-            };
-
             HttpResponse::Ok().json(
-                TicketSchema {
-                    id: ticket.id,
-                    title: ticket.title,
-                    description: ticket.description,
-                    author: ticket.author,
-                    author_contacts: ticket.author_contacts,
-                    status: ticket.status,
-                    priority: ticket.priority,
-                    planned_at: ticket.planned_at,
-                    created_at: ticket.created_at,
-                    assigned_to,
-                }
+                TicketSchema::from(ticket)
             )
         }
         Ok(None) => {
@@ -155,5 +132,61 @@ pub async fn get_ticket(
             tracing::error!("Failed to get ticket by id: {:?}", e);
             HttpResponse::InternalServerError().finish()
         }
+    }
+}
+
+pub async fn get_tickets(
+    web::Json(schema): web::Json<GetTicketsSchema>,
+    pool: web::Data<PgPool>,
+) -> impl Responder {
+    let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new(
+        r#"SELECT 
+            t.id,
+            title,
+            description,
+            author,
+            author_contacts,
+            status,
+            priority,
+            planned_at,
+            t.created_at,
+            u.name as "assigned_to_name",
+            u.id as "assigned_to_id"
+        FROM tickets t
+        LEFT JOIN users u ON u.id = t.assigned_to
+        "#
+    );
+
+    let mut has_filters = false;
+
+    build_where_condition!(builder, has_filters, schema.statuses, "status", in);
+    build_where_condition!(builder, has_filters, schema.priorities, "priority", in);
+    build_where_condition!(builder, has_filters, schema.planned_from, "planned_from", ">=");
+    build_where_condition!(builder, has_filters, schema.planned_to, "planned_to", "<=");
+
+    if has_filters {
+        builder.push("\n");
+    }
+
+    let order_by_column = match schema.order_by {
+        crate::schema::tickets::OrderBy::Id => "t.id",
+        crate::schema::tickets::OrderBy::PlannedAt => "planned_at",
+        crate::schema::tickets::OrderBy::Priority => "priority",
+    };
+
+    builder
+        .push("ORDER BY ")
+        .push(order_by_column)
+        .push(" ")
+        .push(schema.sort_order.as_str());
+
+    let query = builder.build_query_as::<TicketSchema>();
+
+    match query.fetch_all(pool.as_ref()).await {
+        Ok(tickets) => HttpResponse::Ok().json(tickets),
+        Err(e) => {
+            tracing::error!("Failed to fetch tickets: {:?}", e);
+            HttpResponse::InternalServerError().finish()
+        },
     }
 }
