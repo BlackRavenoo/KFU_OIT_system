@@ -1,7 +1,9 @@
 use actix_web::{web, HttpResponse, Responder};
+use serde_qs::actix::QsQuery;
 use sqlx::{Execute as _, PgPool};
+use strum::IntoEnumIterator;
 
-use crate::{build_update_query, build_where_condition, schema::tickets::{CreateTicketSchema, GetTicketsSchema, TicketQueryResult, TicketSchema, UpdateTicketSchema}};
+use crate::{build_update_query, build_where_condition, schema::{common::PaginationResult, tickets::{CreateTicketSchema, GetTicketsSchema, OrderBy, TicketQueryResult, TicketSchema, TicketWithMeta, UpdateTicketSchema}}};
 
 pub async fn create_ticket(
     web::Json(ticket): web::Json<CreateTicketSchema>,
@@ -136,9 +138,17 @@ pub async fn get_ticket(
 }
 
 pub async fn get_tickets(
-    web::Json(schema): web::Json<GetTicketsSchema>,
+    schema: QsQuery<GetTicketsSchema>,
     pool: web::Data<PgPool>,
 ) -> impl Responder {
+    let schema = schema.into_inner();
+    
+    let page_size = schema.page_size
+        .and_then(|size| Some(size.clamp(10, 50)))
+        .unwrap_or(10);
+
+    let page = schema.page.unwrap_or(1) - 1;
+        
     let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new(
         r#"SELECT 
             t.id,
@@ -152,6 +162,7 @@ pub async fn get_tickets(
             t.created_at,
             u.name as "assigned_to_name",
             u.id as "assigned_to_id"
+            COUNT(*) OVER() as total_items
         FROM tickets t
         LEFT JOIN users u ON u.id = t.assigned_to
         "#
@@ -168,7 +179,9 @@ pub async fn get_tickets(
         builder.push("\n");
     }
 
-    let order_by_column = match schema.order_by {
+    let order_by = schema.order_by.unwrap_or_default();
+
+    let order_by_column = match order_by {
         crate::schema::tickets::OrderBy::Id => "t.id",
         crate::schema::tickets::OrderBy::PlannedAt => "planned_at",
         crate::schema::tickets::OrderBy::Priority => "priority",
@@ -178,15 +191,50 @@ pub async fn get_tickets(
         .push("ORDER BY ")
         .push(order_by_column)
         .push(" ")
-        .push(schema.sort_order.as_str());
+        .push(schema.sort_order.unwrap_or_default().as_str())
+        .push("\n")
+        .push("LIMIT ")
+        .push_bind(page_size)
+        .push("OFFSET ")
+        .push_bind(page_size as i64 * page);
 
-    let query = builder.build_query_as::<TicketSchema>();
+    let query = builder.build_query_as::<TicketWithMeta>();
 
     match query.fetch_all(pool.as_ref()).await {
-        Ok(tickets) => HttpResponse::Ok().json(tickets),
+        Ok(tickets) => {
+            let total_items = match tickets.first() {
+                Some(ticket) => ticket.total_items as u64,
+                None => return HttpResponse::NotFound().finish(),
+            };
+
+            let tickets = tickets.into_iter().map(|ticket| TicketSchema {
+                id: ticket.id,
+                title: ticket.title,
+                description: ticket.description,
+                author: ticket.author,
+                author_contacts: ticket.author_contacts,
+                status: ticket.status,
+                priority: ticket.priority,
+                planned_at: ticket.planned_at,
+                assigned_to: ticket.assigned_to,
+                created_at: ticket.created_at,
+            }).collect::<Vec<_>>();
+
+            let res = PaginationResult::new_with_pagination(
+                total_items,
+                page_size,
+                tickets
+            );
+
+            HttpResponse::Ok().json(res)
+        },
         Err(e) => {
             tracing::error!("Failed to fetch tickets: {:?}", e);
             HttpResponse::InternalServerError().finish()
         },
     }
+}
+
+pub async fn get_order_fields() -> impl Responder {
+    HttpResponse::Ok().json(OrderBy::iter().collect::<Vec<_>>())
 }

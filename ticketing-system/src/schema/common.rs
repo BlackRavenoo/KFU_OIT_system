@@ -1,7 +1,8 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 pub enum SortOrder {
+    #[default]
     Asc,
     Desc
 }
@@ -11,6 +12,40 @@ impl SortOrder {
         match self {
             SortOrder::Asc => "ASC",
             SortOrder::Desc => "DESC",
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct PaginationMeta {
+    pub max_page: u64,
+    pub total_items: u64,
+}
+
+#[derive(Serialize)]
+pub struct PaginationResult<T> {
+    #[serde(flatten)]
+    pub meta: PaginationMeta,
+    pub items: Vec<T>
+}
+
+impl<T> PaginationResult<T> {
+    pub fn new(meta: PaginationMeta, items: Vec<T>) -> Self {
+        Self { meta, items }
+    }
+    
+    pub fn new_with_pagination(total_items: u64, page_size: i8, items: Vec<T>) -> Self {
+        let page_size = page_size as u64;
+        
+        let max_page = if total_items == 0 {
+            1
+        } else {
+            (total_items + page_size - 1) / page_size
+        };
+
+        Self {
+            meta: PaginationMeta { max_page, total_items },
+            items,
         }
     }
 }

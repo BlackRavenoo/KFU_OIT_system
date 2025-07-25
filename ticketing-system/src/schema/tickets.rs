@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use num_enum::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type, Row};
+use strum_macros::EnumIter;
 
 use crate::schema::common::SortOrder;
 
@@ -27,8 +28,9 @@ pub enum TicketPriority {
     Critical = 3
 }
 
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize, Clone, Copy, EnumIter, Default)]
 pub enum OrderBy {
+    #[default]
     Id = 0,
     PlannedAt = 1,
     Priority = 2,
@@ -84,8 +86,10 @@ pub struct GetTicketsSchema {
     pub priorities: Option<Vec<TicketPriority>>,
     pub planned_from: Option<DateTime<Utc>>,
     pub planned_to: Option<DateTime<Utc>>,
-    pub order_by: OrderBy,
-    pub sort_order: SortOrder,
+    pub order_by: Option<OrderBy>,
+    pub sort_order: Option<SortOrder>,
+    pub page: Option<i64>,
+    pub page_size: Option<i8>,
 }
 
 // Output
@@ -108,33 +112,6 @@ pub struct TicketSchema {
     pub planned_at: Option<DateTime<Utc>>,
     pub assigned_to: Option<User>,
     pub created_at: DateTime<Utc>,
-}
-
-impl FromRow<'_, sqlx::postgres::PgRow> for TicketSchema {
-    fn from_row(row: &sqlx::postgres::PgRow) -> Result<Self, sqlx::Error> {
-        let (name, id) = (row.try_get("name")?, row.try_get("id")?);
-        let assigned_to = if let (Some(name), Some(id)) = (name, id) {
-            Some(User {
-                id,
-                name,
-            })
-        } else {
-            None
-        };
-
-        Ok(Self {
-            id: row.try_get("id")?,
-            title: row.try_get("title")?,
-            description: row.try_get("description")?,
-            author: row.try_get("author")?,
-            author_contacts: row.try_get("author_contacts")?,
-            status: row.try_get("status")?,
-            priority: row.try_get("priority")?,
-            planned_at: row.try_get("planned_at")?,
-            assigned_to,
-            created_at: row.try_get("created_at")?,
-        })
-    }
 }
 
 impl From<TicketQueryResult> for TicketSchema {
@@ -180,4 +157,46 @@ pub struct TicketQueryResult {
     pub assigned_to_id: Option<i32>,
     pub assigned_to_name: Option<String>,
     pub created_at: DateTime<Utc>,
+}
+
+pub struct TicketWithMeta {
+    pub id: i64,
+    pub title: String,
+    pub description: String,
+    pub author: String,
+    pub author_contacts: String,
+    pub status: TicketStatus,
+    pub priority: TicketPriority,
+    pub planned_at: Option<DateTime<Utc>>,
+    pub assigned_to: Option<User>,
+    pub created_at: DateTime<Utc>,
+    pub total_items: i64
+}
+
+impl FromRow<'_, sqlx::postgres::PgRow> for TicketWithMeta {
+    fn from_row(row: &sqlx::postgres::PgRow) -> Result<Self, sqlx::Error> {
+        let (name, id) = (row.try_get("name")?, row.try_get("id")?);
+        let assigned_to = if let (Some(name), Some(id)) = (name, id) {
+            Some(User {
+                id,
+                name,
+            })
+        } else {
+            None
+        };
+
+        Ok(Self {
+            id: row.try_get("id")?,
+            title: row.try_get("title")?,
+            description: row.try_get("description")?,
+            author: row.try_get("author")?,
+            author_contacts: row.try_get("author_contacts")?,
+            status: row.try_get("status")?,
+            priority: row.try_get("priority")?,
+            planned_at: row.try_get("planned_at")?,
+            assigned_to,
+            created_at: row.try_get("created_at")?,
+            total_items: row.try_get("total_items")?
+        })
+    }
 }
