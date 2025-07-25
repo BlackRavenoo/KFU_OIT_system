@@ -175,7 +175,7 @@ pub struct TicketWithMeta {
 
 impl FromRow<'_, sqlx::postgres::PgRow> for TicketWithMeta {
     fn from_row(row: &sqlx::postgres::PgRow) -> Result<Self, sqlx::Error> {
-        let (name, id) = (row.try_get("name")?, row.try_get("id")?);
+        let (name, id) = (row.try_get("assigned_to_name")?, row.try_get("assigned_to_id")?);
         let assigned_to = if let (Some(name), Some(id)) = (name, id) {
             Some(User {
                 id,

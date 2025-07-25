@@ -161,7 +161,7 @@ pub async fn get_tickets(
             planned_at,
             t.created_at,
             u.name as "assigned_to_name",
-            u.id as "assigned_to_id"
+            u.id as "assigned_to_id",
             COUNT(*) OVER() as total_items
         FROM tickets t
         LEFT JOIN users u ON u.id = t.assigned_to
@@ -194,8 +194,8 @@ pub async fn get_tickets(
         .push(schema.sort_order.unwrap_or_default().as_str())
         .push("\n")
         .push("LIMIT ")
-        .push_bind(page_size)
-        .push("OFFSET ")
+        .push_bind(page_size as i64)
+        .push(" OFFSET ")
         .push_bind(page_size as i64 * page);
 
     let query = builder.build_query_as::<TicketWithMeta>();
