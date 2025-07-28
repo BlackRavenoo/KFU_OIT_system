@@ -7,7 +7,7 @@
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { setupIntersectionObserver, loadStyleContent, cleanupStyleElements, type VisibleElements } from '$lib/utils/setup/page';
     import { navigateToForm } from '$lib/utils/setup/navigate';
-    import { fetchTicket } from '$lib/utils/tickets/new';
+    import { fetchTicket } from '$lib/utils/tickets/api/new';
     import { handleFileChange, removeFile } from '$lib/utils/files/inputs';
     import { showModalWithFocus } from '$lib/components/Modal/Modal';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';

@@ -1,100 +1,252 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { getAuthTokens } from '$lib/utils/auth/tokens/tokens';
+    import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
+    
+    import { onMount, onDestroy } from 'svelte';
 
     let tickets: any[] = [];
     let error: string | null = null;
 
-    let search = '';
-    let focused = false;
+    let search: string = '';
+    let focused: boolean = false;
     let viewMode: 'cards' | 'list' = 'cards';
-    let sortOrder: 'asc' | 'desc' = 'asc';
+    let sortOrder: 'Asc' | 'Desc' = 'Asc';
+    let selectedStatus: string = 'all';
+    let selectedBuildings: string[] = [];
+    let plannedFrom: string = '';
+    let plannedTo: string = '';
+    let page: number = 1;
+    let page_size: number = 10;
+    let max_page: number = 1;
 
-    onMount(async () => {
-        try {
-            const params = new URLSearchParams({
-                page: '1',
-                per_page: '10'
-            });
+    let sortConsts = [{ id: 0, name: 'Загрузка...' }];
+    let selectedSort = 0;
 
-            const res = await fetch(`/api/v1/tickets/?${params.toString()}`, { credentials: 'include' });
-            if (!res.ok) throw new Error('Ошибка загрузки тикетов');
-            const data = await res.json();
-            tickets = data.items ?? [];
-        } catch (e) {
-            if (e instanceof Error)
-                error = e.message || 'Ошибка';
+    const orderByMap: Record<number, string> = {
+        0: 'Id',
+        1: 'PlannedAt',
+        2: 'Priority'
+    };
+
+    function statusClass(status: string): string {
+        switch (status.toLowerCase()) {
+            case 'low': return 'low-status';
+            case 'medium': return 'medium-status';
+            case 'high': return 'high-status';
+            case 'critical': return 'critical-status';
+            case 'expired': return 'expired-ticket';
+            case 'canceled': return 'canceled-ticket';
+            case 'complete': return 'complete-ticket';
+            default: return '';
         }
+    }
 
+    function formatDate(dateStr: string): string {
+        if (!dateStr) return 'Без даты';
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return 'Без даты';
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function toRfc3339(dateStr: string, endOfDay = false) {
+        if (!dateStr) return '';
+        return endOfDay
+            ? `${dateStr}T23:59:59Z`
+            : `${dateStr}T00:00:00Z`;
+    }
+
+    function buildQuery(params: Record<string, any>) {
+        const parts: string[] = [];
+        for (const [key, value] of Object.entries(params)) {
+            if (Array.isArray(value)) {
+                value.forEach(v => parts.push(`${encodeURIComponent(key)}[]=${encodeURIComponent(v)}`));
+            } else {
+                parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+            }
+        }
+        return parts.join('&');
+    }
+
+    async function fetchTickets() {
+        const params: Record<string, any> = {
+            page,
+            page_size,
+            order_by: orderByMap[selectedSort] || 'Id',
+            sort_order: sortOrder,
+        };
+
+        if (selectedStatus !== 'all')
+            params.statuses = [selectedStatus];
+
+        if (plannedFrom) params.planned_from = toRfc3339(plannedFrom);
+        if (plannedTo) params.planned_to = toRfc3339(plannedTo, true);
+
+        if (selectedBuildings.length > 0)
+            params.buildings = selectedBuildings;
+
+        if (search) params.search = search;
+
+        const query = buildQuery(params);
+
+        const res = await fetch(`/api/v1/tickets/?${query}`, {
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'authorization': `Bearer ${getAuthTokens()?.accessToken}`
+            }
+        });
+        if (!res.ok) throw new Error('Ошибка загрузки тикетов');
+        const data = await res.json();
+        tickets = data.items ?? [];
+        max_page = data.max_page ?? 1;
+    }
+
+    async function fetchConsts() {
         try {
             const res = await fetch('/api/v1/tickets/consts', { credentials: 'include' });
             if (!res.ok) throw new Error('Ошибка загрузки контактов');
-            const consts = await res.json();
+            sortConsts = await res.json();
         } catch (e) {
             if (e instanceof Error)
-                error = e.message || 'Ошибка при загрузке контактов';
+                error = e.message || 'Ошибка при загрузке фильтров';
         }
+    }
+
+    async function handlePrevPage() {
+        if (page > 1) page -= 1;
+        fetchTickets();
+    }
+
+    async function handleNextPage() {
+        if (page < max_page) page += 1;
+        fetchTickets();
+    }
+
+    onMount(async () => {
+        pageTitle.set('Заявки | Система управления заявками ЕИ КФУ');
+        pageDescription.set('Отслеживайте статус заявок, принимайте к выполнению новые. Настройте работчее пространство под себя с множеством гибких фильтров и сортировок.');
+        
+        fetchTickets();
+        fetchConsts();
+    });
+
+    /**
+     * Удаляет все стили и восстанавливает метаданные страницы при уничтожении компонента.
+     */
+    onDestroy(() => {
+        pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
+        pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
     });
 </script>
 
 <div id="content-panel">
     <aside>
+        <!-- Фильтр статуса -->
         <div class="filter">
             <span class="filter_name">Статус</span>
             <div class="filter_case">
-                <input type="radio" name="filter-status" value="all" id="all-tickets" checked>
-                <label for="all-tickets">Все</label>
-                <input type="radio" name="filter-status" value="active" id="active-tickets">
-                <label for="active-tickets">Активные</label>
-                <input type="radio" name="filter-status" value="ongoing" id="ongoing-tickets">
-                <label for="ongoing-tickets">В процессе</label>
-                <input type="radio" name="filter-status" value="complete" id="complete-tickets">
-                <label for="complete-tickets">Выполненные</label>
-                <input type="radio" name="filter-status" value="reject" id="reject-tickets">
-                <label for="reject-tickets">Отклонённые</label>
+                {#each [
+                    { value: 'all', label: 'Все' },
+                    { value: 'Open', label: 'Активные' },
+                    { value: 'InProgress', label: 'В процессе' },
+                    { value: 'Closed', label: 'Выполненные' },
+                    { value: 'Cancelled', label: 'Отклонённые' }
+                ] as status, i}
+                    <input
+                        type="radio"
+                        name="filter-status"
+                        value={ status.value }
+                        id={ status.value + '-tickets' }
+                        checked={ i === 0 }
+                        bind:group={ selectedStatus }
+                    />
+                    <label for={ status.value + '-tickets' }>{ status.label }</label>
+                {/each}
             </div>
         </div>
+        <!-- Фильтр сроков -->
         <div class="filter">
             <span class="filter_name">Сроки</span>
-            <div class="filter_case">
-                <input type="checkbox" name="filter-date" value="has-date" id="has-date" checked>
-                <label for="has-date">Со сроком</label>
-                <input type="checkbox" name="filter-date" value="no-date" id="no-date" checked>
-                <label for="no-date">Без срока</label>
+            <div class="filter_case filter_case-planned">
+                <label for="planned-from">От</label>
+                <input
+                    type="date"
+                    id="planned-from"
+                    name="planned-from"
+                    bind:value={ plannedFrom }
+                />
+                <label for="planned-to">До</label>
+                <input
+                    type="date"
+                    id="planned-to"
+                    name="planned-to"
+                    bind:value={ plannedTo }
+                />
             </div>
         </div>
+        <!-- Фильтр здания -->
         <div class="filter">
             <span class="filter_name">Здание</span>
             <div class="filter_case">
-                <input type="checkbox" name="filter-building" value="building-1" id="building-1" checked>
-                <label for="building-1">Главный корпус</label>
-                <input type="checkbox" name="filter-building" value="building-2" id="building-2" checked>
-                <label for="building-2">Биофак</label>
-                <input type="checkbox" name="filter-building" value="building-3" id="building-3" checked>
-                <label for="building-3">Психфак</label>
-                <input type="checkbox" name="filter-building" value="building-4" id="building-4" checked>
-                <label for="building-4">Школа</label>
-                <input type="checkbox" name="filter-building" value="building-5" id="building-5" checked>
-                <label for="building-5">УСК</label>
-                <input type="checkbox" name="filter-building" value="building-6" id="building-6" checked>
-                <label for="building-6">Общежитие №1</label>
-                <input type="checkbox" name="filter-building" value="building-7" id="building-7" checked>
-                <label for="building-7">Общежитие №2</label>
-                <input type="checkbox" name="filter-building" value="building-8" id="building-8" checked>
-                <label for="building-8">Кафе</label>
-                <input type="checkbox" name="filter-building" value="building-9" id="building-9" checked>
-                <label for="building-9">Буревестник</label>
+                {#each [
+                    { value: 'building-1', label: 'Главный корпус' },
+                    { value: 'building-2', label: 'Биофак' },
+                    { value: 'building-3', label: 'Психфак' },
+                    { value: 'building-4', label: 'Школа' },
+                    { value: 'building-5', label: 'УСК' },
+                    { value: 'building-6', label: 'Общежитие №1' },
+                    { value: 'building-7', label: 'Общежитие №2' },
+                    { value: 'building-8', label: 'Кафе' },
+                    { value: 'building-9', label: 'Буревестник' }
+                ] as building}
+                    <input
+                        type="checkbox"
+                        name="filter-building"
+                        value={ building.value }
+                        id={ building.value }
+                        checked={ selectedBuildings.includes(building.value) }
+                        on:change={() => {
+                            if (selectedBuildings.includes(building.value)) {
+                                selectedBuildings = selectedBuildings.filter(b => b !== building.value);
+                            } else {
+                                selectedBuildings = [...selectedBuildings, building.value];
+                            }
+                        }}
+                    />
+                    <label for={ building.value }>{ building.label }</label>
+                {/each}
             </div>
         </div>
+        <!-- Сортировка -->
+        <div class="filter">
+            <span class="filter_name">Сортировка</span>
+            <div class="filter_case">
+                {#each sortConsts as sort}
+                    <input
+                        type="radio"
+                        name="filter-sort"
+                        id={ "sort-" + sort.id }
+                        value={ sort.id }
+                        bind:group={ selectedSort }
+                        checked={ selectedSort === sort.id }
+                    />
+                    <label for={ "sort-" + sort.id }>{ sort.name }</label>
+                {/each}
+            </div>
+        </div>
+        <button class="filter_access" on:click="{ fetchTickets }">Применить</button>
     </aside>
     <main>
+        <!-- Поисковый блок -->
         <div class="search-module">
             <div class="search-block">
                 <input
                     type="text"
                     placeholder="Поиск по заявкам..."
-                    bind:value={search}
-                    on:focus={() => focused = true}
-                    on:blur={() => focused = false}
+                    bind:value={ search }
+                    on:focus={ () => focused = true }
+                    on:blur={ () => focused = false }
                 />
                 <svg class="search-icon" viewBox="0 0 24 24">
                     <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/>
@@ -104,7 +256,7 @@
                     type="button"
                     class="clear-icon-btn"
                     aria-label="Очистить поиск"
-                    on:click={() => search = ''}
+                    on:click={ () => search = '' }
                     tabindex="-1"
                 >
                     <svg viewBox="0 0 24 24" width="22" height="22">
@@ -114,13 +266,14 @@
                 </button>
             </div>
             <div class="search-controls">
+                <input type="number" bind:value={ page_size } placeholder="Количество тикетов" min="10" max="50" class="page-size-input">
                 <button
                     type="button"
                     class="sort-order-btn"
                     aria-label="Сменить порядок сортировки"
-                    on:click={() => sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'}
+                    on:click={ () => sortOrder = sortOrder === 'Asc' ? 'Desc' : 'Asc' }
                 >
-                    {#if sortOrder === 'asc'}
+                    {#if sortOrder === 'Asc'}
                         <svg width="22" height="22" viewBox="0 0 24 24">
                             <path d="M12 6v12m0 0l-6-6m6 6l6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
                         </svg>
@@ -134,7 +287,7 @@
                     type="button"
                     class="view-mode-btn"
                     aria-label="Переключить режим отображения"
-                    on:click={() => viewMode = viewMode === 'cards' ? 'list' : 'cards'}
+                    on:click={ () => viewMode = viewMode === 'cards' ? 'list' : 'cards' }
                 >
                     {#if viewMode === 'cards'}
                         <svg width="22" height="22" viewBox="0 0 24 24">
@@ -153,58 +306,36 @@
                 </button>
             </div>
         </div>
+        <!-- Тикеты -->
         <div class="tickets-list">
-            <!-- Заявки -->
-            <div class="ticket-card">
-                <div class="ticket-title">Заголовок заявки</div>
-                <div class="ticket-meta">Автор • Дата • Здание</div>
-                <div class="ticket-desc">Описание заявки...</div>
-                <div class="status low-status"></div>
-            </div>
-            <div class="ticket-card expired-ticket">
-                <div class="ticket-title">Заголовок заявки</div>
-                <div class="ticket-meta">Автор • Дата • Здание</div>
-                <div class="ticket-desc">Описание заявки...</div>
-                <div class="status medium-status"></div>
-            </div>
-            <div class="ticket-card">
-                <div class="ticket-title">Заголовок заявки</div>
-                <div class="ticket-meta">Автор • Дата • Здание</div>
-                <div class="ticket-desc">Описание заявки...</div>
-                <div class="status high-status"></div>
-            </div>
-            <div class="ticket-card">
-                <div class="ticket-title">Заголовок заявки</div>
-                <div class="ticket-meta">Автор • Дата • Здание</div>
-                <div class="ticket-desc">Описание заявки...</div>
-                <div class="status low-status"></div>
-            </div>
-            <div class="ticket-card canceled-ticket">
-                <div class="ticket-title">Заголовок заявки</div>
-                <div class="ticket-meta">Автор • Дата • Здание</div>
-                <div class="ticket-desc">Описание заявки...</div>
-                <div class="status low-status"></div>
-            </div>
-            <div class="ticket-card complete-ticket">
-                <div class="ticket-title">Заголовок заявки</div>
-                <div class="ticket-meta">Автор • Дата • Здание</div>
-                <div class="ticket-desc">Описание заявки...</div>
-                <div class="status low-status"></div>
-            </div>
-            <div class="ticket-card complete-ticket">
-                <div class="ticket-title">Заголовок заявки</div>
-                <div class="ticket-meta">Автор • Дата • Здание</div>
-                <div class="ticket-desc">Описание заявки...</div>
-                <div class="status medium-status"></div>
-            </div>
+            {#if error}
+                <div>{ error }</div>
+            {:else if tickets.length === 0}
+                <div>Нет тикетов</div>
+            {:else}
+                {#each tickets as ticket}
+                    <div class="ticket-card { statusClass(ticket.status) }">
+                        <div class="ticket-title">{ticket.title}</div>
+                        <div class="ticket-meta">
+                            { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building ?? 'Не указано' }
+                        </div>
+                        <div class="ticket-desc">
+                            {ticket.description.length > 100
+                                ? ticket.description.slice(0, 100) + '...'
+                                : ticket.description}
+                        </div>
+                        <div class="status { statusClass(ticket.priority) }"></div>
+                    </div>
+                {/each}
+            {/if}
         </div>
         <div class="pagination-block">
             <!-- Управление страницами -->
-            <button aria-label="Назад" class="pagination-button">
+            <button aria-label="Назад" class="pagination-button" on:click="{ handlePrevPage }">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416 160C416 147.1 408.2 135.4 396.2 130.4C384.2 125.4 370.5 128.2 361.3 137.3L201.3 297.3C188.8 309.8 188.8 330.1 201.3 342.6L361.3 502.6C370.5 511.8 384.2 514.5 396.2 509.5C408.2 504.5 416 492.9 416 480L416 160z"/></svg>
             </button>
-            <span>Стр. 1 из 10</span>
-            <button aria-label="Вперёд" class="pagination-button">
+            <span>Стр. { page } из { max_page }</span>
+            <button aria-label="Вперёд" class="pagination-button" on:click="{ handleNextPage }">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M224.5 160C224.5 147.1 232.3 135.4 244.3 130.4C256.3 125.4 270 128.2 279.1 137.4L439.1 297.4C451.6 309.9 451.6 330.2 439.1 342.7L279.1 502.7C269.9 511.9 256.2 514.6 244.2 509.6C232.2 504.6 224.5 492.9 224.5 480L224.5 160z"/></svg>
             </button>
         </div>
@@ -214,21 +345,3 @@
 <style scoped>
     @import './page.css';
 </style>
-
-<!-- {#if error}
-    <div>Ошибка: { error }</div>
-{:else if tickets.length === 0}
-    <div>Нет тикетов</div>
-{:else}
-    <ul>
-        {#each tickets as ticket}
-            <li>
-                <div><b>{ ticket.title }</b></div>
-                <div>{ ticket.description }</div>
-                <div>Автор: { ticket.author }</div>
-                <div>Контакт: { ticket.author_contacts }</div>
-                <div>Дата: { ticket.planned_at }</div>
-            </li>
-        {/each}
-    </ul>
-{/if} -->

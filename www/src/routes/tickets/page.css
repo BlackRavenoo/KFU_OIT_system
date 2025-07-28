@@ -43,6 +43,20 @@ aside {
     align-items: center;
 }
 
+.filter_case-planned {
+    grid-template-columns: 20px 1fr;
+}
+
+.filter_case-planned input {
+    width: 85%;
+    margin-left: 5%;
+    border-bottom: 1px solid var(--gray);
+}
+
+.filter_case-planned input, .filter_case-planned label {
+    grid-column: auto !important;
+}
+
 .filter_case label {
     font-size: 0.98rem;
     color: var(--dark);
@@ -106,6 +120,57 @@ main {
     opacity: 0.6;
     font-size: 1.05rem;
     letter-spacing: 0.01em;
+}
+
+.page-size-input {
+    position: relative;
+    top: .5rem;
+    width: 50px;
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    border: 2px solid var(--gray);
+    border-radius: 24px;
+    background: var(--white);
+    color: var(--dark);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(7,92,239,0.07);
+    outline: none;
+}
+
+.page-size-input:focus {
+    border-color: var(--light-blue);
+    box-shadow: 0 6px 24px rgba(7,92,239,0.13);
+    background: var(--light-gray);
+}
+
+.page-size-input::-webkit-inner-spin-button,
+.page-size-input::-webkit-outer-spin-button {
+    width: 18px;
+    height: 18px;
+    background: var(--light-gray);
+    border-radius: 50%;
+    border: 1px solid var(--light-blue);
+    box-shadow: 0 1px 4px rgba(7,92,239,0.07);
+    color: var(--blue);
+    opacity: 0.8;
+    margin: 0 2px;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.page-size-input:focus::-webkit-inner-spin-button,
+.page-size-input:focus::-webkit-outer-spin-button {
+    background: var(--white);
+    border-color: var(--blue);
+}
+
+.page-size-input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.page-size-input[type="number"]::-webkit-inner-spin-button,
+.page-size-input[type="number"]::-webkit-outer-spin-button {
+    opacity: 1;
 }
 
 .search-icon,
@@ -280,6 +345,9 @@ main {
 }
 .status.high-status {
     background-color: #ff683a;
+}
+.status.critical-status {
+    background-color: #a80000;
 }
 .ticket-card.complete-ticket .status {
     background-color: #9c9c9c;
