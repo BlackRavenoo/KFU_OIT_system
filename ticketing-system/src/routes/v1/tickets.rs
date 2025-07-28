@@ -3,7 +3,7 @@ use serde_qs::actix::QsQuery;
 use sqlx::{Execute as _, PgPool};
 use strum::IntoEnumIterator;
 
-use crate::{build_update_query, build_where_condition, schema::{common::PaginationResult, tickets::{CreateTicketSchema, GetTicketsSchema, OrderBy, TicketQueryResult, TicketSchema, TicketWithMeta, UpdateTicketSchema}}};
+use crate::{auth::extractor::UserId, build_update_query, build_where_condition, schema::{common::PaginationResult, tickets::{CreateTicketSchema, GetTicketsSchema, OrderBy, TicketId, TicketQueryResult, TicketSchema, TicketWithMeta, UpdateTicketSchema}}};
 
 pub async fn create_ticket(
     web::Json(ticket): web::Json<CreateTicketSchema>,
@@ -67,7 +67,7 @@ pub async fn update_ticket(
 }
 
 pub async fn delete_ticket(
-    id: web::Path<i64>,
+    id: web::Path<TicketId>,
     pool: web::Data<PgPool>
 ) -> impl Responder {
     let id = id.into_inner();
@@ -92,7 +92,7 @@ pub async fn delete_ticket(
 }
 
 pub async fn get_ticket(
-    id: web::Path<i64>,
+    id: web::Path<TicketId>,
     pool: web::Data<PgPool>
 ) -> impl Responder {
     let id = id.into_inner();
@@ -237,4 +237,68 @@ pub async fn get_tickets(
 
 pub async fn get_order_fields() -> impl Responder {
     HttpResponse::Ok().json(OrderBy::iter().collect::<Vec<_>>())
+}
+
+pub async fn assign_ticket(
+    id: web::Path<TicketId>,
+    user_id: UserId,
+    pool: web::Data<PgPool>,
+) -> impl Responder {
+    let res = sqlx::query!(
+        r#"
+            UPDATE tickets SET
+            assigned_to = $1
+            WHERE id = $2
+        "#,
+        user_id.0.unwrap(),
+        id.into_inner()
+    )
+    .execute(pool.as_ref())
+    .await;
+
+    match res {
+        Ok(result) => {
+            if result.rows_affected() == 0 {
+                HttpResponse::NotFound().finish()
+            } else {
+                HttpResponse::Ok().finish()
+            }
+        },
+        Err(e) => {
+            tracing::error!("Failed to assign ticket: {:?}", e);
+            HttpResponse::InternalServerError().finish()
+        },
+    }
+}
+
+pub async fn unassign_ticket(
+    id: web::Path<TicketId>,
+    user_id: UserId,
+    pool: web::Data<PgPool>,
+) -> impl Responder {
+    let res = sqlx::query!(
+        r#"
+            UPDATE tickets SET
+            assigned_to = NULL
+            WHERE id = $1 AND assigned_to = $2
+        "#,
+        id.into_inner(),
+        user_id.0.unwrap(),
+    )
+    .execute(pool.as_ref())
+    .await;
+
+    match res {
+        Ok(result) => {
+            if result.rows_affected() == 0 {
+                HttpResponse::NotFound().finish()
+            } else {
+                HttpResponse::Ok().finish()
+            }
+        },
+        Err(e) => {
+            tracing::error!("Failed to unassign ticket: {:?}", e);
+            HttpResponse::InternalServerError().finish()
+        },
+    }
 }

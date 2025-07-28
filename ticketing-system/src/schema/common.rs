@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+pub type UserId = i32;
+
 #[derive(Deserialize, Default)]
 pub enum SortOrder {
     #[default]

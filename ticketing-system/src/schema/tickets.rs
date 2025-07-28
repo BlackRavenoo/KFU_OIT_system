@@ -2,9 +2,11 @@ use chrono::{DateTime, Utc};
 use num_enum::FromPrimitive;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Type, Row};
-use strum_macros::EnumIter;
+use strum::EnumIter;
 
-use crate::schema::common::SortOrder;
+use crate::schema::common::{SortOrder, UserId};
+
+pub type TicketId = i64;
 
 // Common
 
@@ -71,7 +73,7 @@ pub struct CreateTicketSchema {
 
 #[derive(Deserialize)]
 pub struct UpdateTicketSchema {
-    pub id: i64,
+    pub id: TicketId,
     pub title: Option<String>,
     pub description: Option<String>,
     pub author: Option<String>,
@@ -96,13 +98,13 @@ pub struct GetTicketsSchema {
 
 #[derive(Serialize)]
 pub struct User {
-    pub id: i32,
+    pub id: UserId,
     pub name: String,
 }
 
 #[derive(Serialize)]
 pub struct TicketSchema {
-    pub id: i64,
+    pub id: TicketId,
     pub title: String,
     pub description: String,
     pub author: String,
@@ -146,7 +148,7 @@ impl From<TicketQueryResult> for TicketSchema {
 // sqlx
 
 pub struct TicketQueryResult {
-    pub id: i64,
+    pub id: TicketId,
     pub title: String,
     pub description: String,
     pub author: String,
@@ -160,7 +162,7 @@ pub struct TicketQueryResult {
 }
 
 pub struct TicketWithMeta {
-    pub id: i64,
+    pub id: TicketId,
     pub title: String,
     pub description: String,
     pub author: String,

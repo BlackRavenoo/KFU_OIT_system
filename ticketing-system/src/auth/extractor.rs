@@ -2,9 +2,11 @@ use std::future::{ready, Ready};
 
 use actix_web::{FromRequest, HttpMessage, HttpRequest};
 
+use crate::schema;
+
 use super::jwt::Claims;
 
-pub struct UserId(pub Option<i32>);
+pub struct UserId(pub Option<schema::common::UserId>);
 
 impl FromRequest for UserId {
     type Error = actix_web::Error;

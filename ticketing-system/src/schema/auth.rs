@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::auth::types::UserRole;
+use crate::{auth::types::UserRole, schema::common::UserId};
 
 // Input
 
@@ -29,7 +29,7 @@ pub struct TokenResponse {
 
 #[derive(Serialize)]
 pub struct MeSchema {
-    pub id: i32,
+    pub id: UserId,
     pub name: String,
     pub email: String,
     pub role: UserRole
