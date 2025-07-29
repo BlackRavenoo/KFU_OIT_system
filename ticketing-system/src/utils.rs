@@ -24,7 +24,7 @@ macro_rules! build_where_condition {
         if let Some(values) = &$field {
             build_where_condition!(@add_where_and $builder, $has_filters);
 
-            $builder.push(concat!($column, "IN ("));
+            $builder.push(concat!($column, " IN ("));
             let mut separated = $builder.separated(", ");
             for value in values.iter() {
                 separated.push_bind(value);

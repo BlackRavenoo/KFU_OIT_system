@@ -11,6 +11,7 @@ pub type TicketId = i64;
 // Common
 
 #[derive(Serialize, Deserialize, Type, FromPrimitive)]
+#[serde(rename_all = "lowercase")]
 #[repr(i16)]
 pub enum TicketStatus {
     #[default]
@@ -21,6 +22,7 @@ pub enum TicketStatus {
 }
 
 #[derive(Serialize, Deserialize, Type, FromPrimitive)]
+#[serde(rename_all = "lowercase")]
 #[repr(i16)]
 pub enum TicketPriority {
     #[default]
@@ -31,6 +33,7 @@ pub enum TicketPriority {
 }
 
 #[derive(Deserialize, Clone, Copy, EnumIter, Default)]
+#[serde(rename_all = "lowercase")]
 pub enum OrderBy {
     #[default]
     Id = 0,

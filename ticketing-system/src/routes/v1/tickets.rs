@@ -172,8 +172,8 @@ pub async fn get_tickets(
 
     build_where_condition!(builder, has_filters, schema.statuses, "status", in);
     build_where_condition!(builder, has_filters, schema.priorities, "priority", in);
-    build_where_condition!(builder, has_filters, schema.planned_from, "planned_from", ">=");
-    build_where_condition!(builder, has_filters, schema.planned_to, "planned_to", "<=");
+    build_where_condition!(builder, has_filters, schema.planned_from, "planned_at", ">=");
+    build_where_condition!(builder, has_filters, schema.planned_to, "planned_at", "<=");
 
     if has_filters {
         builder.push("\n");
@@ -192,8 +192,7 @@ pub async fn get_tickets(
         .push(order_by_column)
         .push(" ")
         .push(schema.sort_order.unwrap_or_default().as_str())
-        .push("\n")
-        .push("LIMIT ")
+        .push(" LIMIT ")
         .push_bind(page_size as i64)
         .push(" OFFSET ")
         .push_bind(page_size as i64 * page);
