@@ -6,5 +6,6 @@ export const TICKETS_API_ENDPOINTS: ITicketsApiEndpoints = {
     create: `${AUTH_BASE_PATH}/`,
     read: `${AUTH_BASE_PATH}/`,
     update: `${AUTH_BASE_PATH}/`,
-    delete: `${AUTH_BASE_PATH}/`
+    delete: `${AUTH_BASE_PATH}/`,
+    consts: `${AUTH_BASE_PATH}/consts`
 };

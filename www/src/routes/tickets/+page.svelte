@@ -1,139 +1,81 @@
 <script lang="ts">
-    import { getAuthTokens } from '$lib/utils/auth/tokens/tokens';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
-    
+    import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
+    import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';
+    import { formatDate } from '$lib/utils/tickets/support';
     import { onMount, onDestroy } from 'svelte';
+    import { getTicketsFilters, setTicketsFilters } from '$lib/utils/tickets/stores';
 
     let tickets: any[] = [];
     let error: string | null = null;
-
-    let search: string = '';
     let focused: boolean = false;
-    let viewMode: 'cards' | 'list' = 'cards';
-    let sortOrder: 'Asc' | 'Desc' = 'Asc';
-    let selectedStatus: string = 'all';
-    let selectedBuildings: string[] = [];
-    let plannedFrom: string = '';
-    let plannedTo: string = '';
-    let page: number = 1;
-    let page_size: number = 10;
-    let max_page: number = 1;
-
     let sortConsts = [{ id: 0, name: 'Загрузка...' }];
-    let selectedSort = 0;
 
-    const orderByMap: Record<number, string> = {
-        0: 'Id',
-        1: 'PlannedAt',
-        2: 'Priority'
-    };
+    let filters = getTicketsFilters();
 
-    function statusClass(status: string): string {
-        switch (status.toLowerCase()) {
-            case 'low': return 'low-status';
-            case 'medium': return 'medium-status';
-            case 'high': return 'high-status';
-            case 'critical': return 'critical-status';
-            case 'expired': return 'expired-ticket';
-            case 'canceled': return 'canceled-ticket';
-            case 'complete': return 'complete-ticket';
-            default: return '';
-        }
-    }
+    let { search, viewMode, sortOrder, selectedStatus, selectedBuildings, plannedFrom, plannedTo, page_size, selectedSort } = filters;
 
-    function formatDate(dateStr: string): string {
-        if (!dateStr) return 'Без даты';
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return 'Без даты';
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-    }
+    $: setTicketsFilters({ search, viewMode, sortOrder, selectedStatus, selectedBuildings, plannedFrom, plannedTo, page_size, selectedSort });
 
-    function toRfc3339(dateStr: string, endOfDay = false) {
-        if (!dateStr) return '';
-        return endOfDay
-            ? `${dateStr}T23:59:59Z`
-            : `${dateStr}T00:00:00Z`;
-    }
+    let page = 1;
+    let max_page = 1;
 
-    function buildQuery(params: Record<string, any>) {
-        const parts: string[] = [];
-        for (const [key, value] of Object.entries(params)) {
-            if (Array.isArray(value)) {
-                value.forEach(v => parts.push(`${encodeURIComponent(key)}[]=${encodeURIComponent(v)}`));
-            } else {
-                parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
-            }
-        }
-        return parts.join('&');
-    }
-
-    async function fetchTickets() {
-        const params: Record<string, any> = {
-            page,
-            page_size,
-            order_by: orderByMap[selectedSort] || 'Id',
-            sort_order: sortOrder,
-        };
-
-        if (selectedStatus !== 'all')
-            params.statuses = [selectedStatus];
-
-        if (plannedFrom) params.planned_from = toRfc3339(plannedFrom);
-        if (plannedTo) params.planned_to = toRfc3339(plannedTo, true);
-
-        if (selectedBuildings.length > 0)
-            params.buildings = selectedBuildings;
-
-        if (search) params.search = search;
-
-        const query = buildQuery(params);
-
-        const res = await fetch(`/api/v1/tickets/?${query}`, {
-            credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-                'authorization': `Bearer ${getAuthTokens()?.accessToken}`
-            }
-        });
-        if (!res.ok) throw new Error('Ошибка загрузки тикетов');
-        const data = await res.json();
-        tickets = data.items ?? [];
-        max_page = data.max_page ?? 1;
-    }
-
-    async function fetchConsts() {
-        try {
-            const res = await fetch('/api/v1/tickets/consts', { credentials: 'include' });
-            if (!res.ok) throw new Error('Ошибка загрузки контактов');
-            sortConsts = await res.json();
-        } catch (e) {
-            if (e instanceof Error)
-                error = e.message || 'Ошибка при загрузке фильтров';
-        }
-    }
-
+    /**
+     * Обработчик для перехода на предыдущую страницу тикетов.
+     */
     async function handlePrevPage() {
-        if (page > 1) page -= 1;
-        fetchTickets();
+        if (page > 1) {
+            page -= 1;
+            const result = await fetchTickets();
+            tickets = result.tickets;
+            max_page = result.max_page;
+        }
     }
 
+    /**
+     * Обработчик для перехода на следующую страницу тикетов.
+     */
     async function handleNextPage() {
-        if (page < max_page) page += 1;
-        fetchTickets();
+        if (page < max_page) {
+            page += 1;
+            const result = await fetchTickets();
+            tickets = result.tickets;
+            max_page = result.max_page;
+        }
     }
 
+    /**
+     * Обработчик изменения фильтров.
+     * Вызывается по нажатию кнопки "Применить"
+     */
+    async function handleFilterChange() {
+        const result = await fetchTickets();
+        tickets = result.tickets;
+        max_page = result.max_page;
+    }
+
+    /**
+     * Выставляет стартовые значения для фильтров и заголовка страницы.
+     * Вызывается при монтировании компонента.
+    */
     onMount(async () => {
         pageTitle.set('Заявки | Система управления заявками ЕИ КФУ');
-        pageDescription.set('Отслеживайте статус заявок, принимайте к выполнению новые. Настройте работчее пространство под себя с множеством гибких фильтров и сортировок.');
+        pageDescription.set('Отслеживайте статус заявок, принимайте к выполнению новые. Настройте рабочее пространство под себя с множеством гибких фильтров и сортировок.');
         
-        fetchTickets();
-        fetchConsts();
+        try {
+            const result = await fetchTickets();
+            tickets = result.tickets;
+            max_page = result.max_page;
+
+            sortConsts = await fetchConsts();
+        } catch (e) {
+            error = e instanceof Error ? e.message : String(e);
+        }
     });
 
     /**
-     * Удаляет все стили и восстанавливает метаданные страницы при уничтожении компонента.
-     */
+     * Сбрасывает заголовок страницы и описание при размонтировании компонента.
+    */
     onDestroy(() => {
         pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
@@ -146,13 +88,7 @@
         <div class="filter">
             <span class="filter_name">Статус</span>
             <div class="filter_case">
-                {#each [
-                    { value: 'all', label: 'Все' },
-                    { value: 'Open', label: 'Активные' },
-                    { value: 'InProgress', label: 'В процессе' },
-                    { value: 'Closed', label: 'Выполненные' },
-                    { value: 'Cancelled', label: 'Отклонённые' }
-                ] as status, i}
+                {#each statusOptions as status, i}
                     <input
                         type="radio"
                         name="filter-status"
@@ -235,7 +171,7 @@
                 {/each}
             </div>
         </div>
-        <button class="filter_access" on:click="{ fetchTickets }">Применить</button>
+        <button class="filter_access" on:click="{ handleFilterChange }">Применить</button>
     </aside>
     <main>
         <!-- Поисковый блок -->
@@ -271,9 +207,12 @@
                     type="button"
                     class="sort-order-btn"
                     aria-label="Сменить порядок сортировки"
-                    on:click={ () => sortOrder = sortOrder === 'Asc' ? 'Desc' : 'Asc' }
+                    on:click={ () => {
+                        sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+                        handleFilterChange();
+                    } }
                 >
-                    {#if sortOrder === 'Asc'}
+                    {#if sortOrder === 'asc'}
                         <svg width="22" height="22" viewBox="0 0 24 24">
                             <path d="M12 6v12m0 0l-6-6m6 6l6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
                         </svg>
@@ -307,37 +246,56 @@
             </div>
         </div>
         <!-- Тикеты -->
-        <div class="tickets-list">
+        <div class="tickets-list { viewMode === 'list' ? 'list-view' : 'cards-view' }">
             {#if error}
                 <div>{ error }</div>
             {:else if tickets.length === 0}
                 <div>Нет тикетов</div>
             {:else}
                 {#each tickets as ticket}
-                    <div class="ticket-card { statusClass(ticket.status) }">
-                        <div class="ticket-title">{ticket.title}</div>
-                        <div class="ticket-meta">
-                            { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building ?? 'Не указано' }
+                    {#if viewMode === 'list'}
+                        <div class="ticket-item { statusPriority.find(option => option.serverValue === ticket.status)?.value || '' }">
+                            <div class="ticket-title">{ ticket.title }</div>
+                            <div class="ticket-meta">
+                                { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building ?? 'Не указано' }
+                            </div>
+                            <div class="ticket-desc">
+                                {ticket.description.length > 100
+                                    ? ticket.description.slice(0, 100) + '...'
+                                    : ticket.description}
+                            </div>
+                            <div class="status { statusPriority.find(option => option.serverValue === ticket.priority)?.value || '' }"></div>
                         </div>
-                        <div class="ticket-desc">
-                            {ticket.description.length > 100
-                                ? ticket.description.slice(0, 100) + '...'
-                                : ticket.description}
+                    {:else}
+                        <div class="ticket-card { statusPriority.find(option => option.serverValue === ticket.status)?.value || '' }">
+                            <div class="ticket-title">{ ticket.title }</div>
+                            <div class="ticket-meta">
+                                { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building ?? 'Не указано' }
+                            </div>
+                            <div class="ticket-desc">
+                                {ticket.description.length > 100
+                                    ? ticket.description.slice(0, 100) + '...'
+                                    : ticket.description}
+                            </div>
+                            <div class="status { statusPriority.find(option => option.serverValue === ticket.priority)?.value || '' }"></div>
                         </div>
-                        <div class="status { statusClass(ticket.priority) }"></div>
-                    </div>
+                    {/if}
                 {/each}
             {/if}
         </div>
         <div class="pagination-block">
             <!-- Управление страницами -->
-            <button aria-label="Назад" class="pagination-button" on:click="{ handlePrevPage }">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416 160C416 147.1 408.2 135.4 396.2 130.4C384.2 125.4 370.5 128.2 361.3 137.3L201.3 297.3C188.8 309.8 188.8 330.1 201.3 342.6L361.3 502.6C370.5 511.8 384.2 514.5 396.2 509.5C408.2 504.5 416 492.9 416 480L416 160z"/></svg>
-            </button>
+             {#if page > 1}
+                <button aria-label="Назад" class="pagination-button" on:click="{ handlePrevPage }">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416 160C416 147.1 408.2 135.4 396.2 130.4C384.2 125.4 370.5 128.2 361.3 137.3L201.3 297.3C188.8 309.8 188.8 330.1 201.3 342.6L361.3 502.6C370.5 511.8 384.2 514.5 396.2 509.5C408.2 504.5 416 492.9 416 480L416 160z"/></svg>
+                </button>
+            {/if}
             <span>Стр. { page } из { max_page }</span>
-            <button aria-label="Вперёд" class="pagination-button" on:click="{ handleNextPage }">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M224.5 160C224.5 147.1 232.3 135.4 244.3 130.4C256.3 125.4 270 128.2 279.1 137.4L439.1 297.4C451.6 309.9 451.6 330.2 439.1 342.7L279.1 502.7C269.9 511.9 256.2 514.6 244.2 509.6C232.2 504.6 224.5 492.9 224.5 480L224.5 160z"/></svg>
-            </button>
+            {#if max_page > 1 && page < max_page}
+                <button aria-label="Вперёд" class="pagination-button" on:click="{ handleNextPage }">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M224.5 160C224.5 147.1 232.3 135.4 244.3 130.4C256.3 125.4 270 128.2 279.1 137.4L439.1 297.4C451.6 309.9 451.6 330.2 439.1 342.7L279.1 502.7C269.9 511.9 256.2 514.6 244.2 509.6C232.2 504.6 224.5 492.9 224.5 480L224.5 160z"/></svg>
+                </button>
+            {/if}
         </div>
     </main>
 </div>
