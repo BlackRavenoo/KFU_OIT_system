@@ -91,10 +91,17 @@ fn default_always_proxy() -> bool {
 }
 
 impl StorageSettings {
-    async fn into_storage(self) -> Box<dyn FileStorage> {
+    pub async fn into_storage(&self) -> Box<dyn FileStorage> {
         match self {
             StorageSettings::S3(s3_settings) => Box::new(S3Storage::new(s3_settings).await),
             StorageSettings::Filesystem(_) => todo!(),
+        }
+    }
+
+    pub fn bucket(&self) -> String {
+        match self {
+            StorageSettings::S3(cfg) => cfg.bucket.clone(),
+            StorageSettings::Filesystem(cfg) => cfg.base_path.clone(),
         }
     }
 }

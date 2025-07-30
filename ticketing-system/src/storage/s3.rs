@@ -16,7 +16,7 @@ pub struct S3Storage {
 }
 
 impl S3Storage {
-    pub async fn new(config: S3Settings) -> Self {
+    pub async fn new(config: &S3Settings) -> Self {
         let creds = CredentialsProviderChain::default_provider()
             .await
             .or_else("custom", aws_sdk_s3::config::Credentials::new(
@@ -29,7 +29,7 @@ impl S3Storage {
 
         let s3_config = Config::builder()
             .behavior_version(BehaviorVersion::latest())
-            .region(Region::new(config.region))
+            .region(Region::new(config.region.clone()))
             .credentials_provider(creds)
             .endpoint_url(&config.endpoint)
             .build();
