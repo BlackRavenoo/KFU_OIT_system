@@ -43,6 +43,11 @@ export interface ITicketsFiltersStorage {
     clear(): void;
 }
 
+export interface IBuilding {
+    id: string;
+    name: string;
+}
+
 // Consts
 export const orderByMap: Record<number, string> = {
     0: 'id',
@@ -52,18 +57,30 @@ export const orderByMap: Record<number, string> = {
 
 export const statusOptions: StatusOption[] = [
     { value: 'all', label: 'Все', serverValue: null },
-    { value: 'open', label: 'Активные', serverValue: 'Open' },
-    { value: 'inprogress', label: 'В процессе', serverValue: 'InProgress' },
-    { value: 'closed', label: 'Выполненные', serverValue: 'Closed' },
-    { value: 'cancelled', label: 'Отклонённые', serverValue: 'Cancelled' }
+    { value: 'open', label: 'Активные', serverValue: 'open' },
+    { value: 'inprogress', label: 'В процессе', serverValue: 'inprogress' },
+    { value: 'closed', label: 'Выполненные', serverValue: 'closed' },
+    { value: 'cancelled', label: 'Отклонённые', serverValue: 'cancelled' }
 ];
 
 export const statusPriority: StatusOption[] = [
-    { value: 'low', label: "Низкий", serverValue: 'Low' },
-    { value: 'medium', label: "Средний", serverValue: 'Medium' },
-    { value: 'high', label: "Высокий", serverValue: 'High' },
-    { value: 'critical', label: "Срочный", serverValue: 'Critical' },
-    { value: 'expired', label: "Истекло", serverValue: 'Expired' },
-    { value: 'cancelled', label: "Отменён", serverValue: 'Cancelled' },
-    { value: 'complete', label: "Завершён", serverValue: 'Complete' }
+    { value: 'low', label: "Низкий", serverValue: 'low' },
+    { value: 'medium', label: "Средний", serverValue: 'medium' },
+    { value: 'high', label: "Высокий", serverValue: 'high' },
+    { value: 'critical', label: "Срочный", serverValue: 'critical' },
+    { value: 'expired', label: "Истекло", serverValue: 'expired' },
+    { value: 'cancelled', label: "Отменён", serverValue: 'cancelled' },
+    { value: 'complete', label: "Завершён", serverValue: 'complete' }
+]
+
+export const buildingOptions: IBuilding[] = [
+    { id: 'building-1', name: 'Главный корпус' },
+    { id: 'building-2', name: 'Биофак' },
+    { id: 'building-3', name: 'Психфак' },
+    { id: 'building-4', name: 'Школа' },
+    { id: 'building-5', name: 'УСК' },
+    { id: 'building-6', name: 'Общежитие №1' },
+    { id: 'building-7', name: 'Общежитие №2' },
+    { id: 'building-8', name: 'Кафе' },
+    { id: 'building-9', name: 'Буревестник' }
 ]

@@ -164,6 +164,7 @@ export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: 
                 refreshToken: data.refresh_token
             });
             scheduleTokenRefresh(data.access_token);
+            // alert("Tokens updated")
             return true;
         }
 

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
-    import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
+    import { statusOptions, statusPriority, buildingOptions } from '$lib/utils/tickets/types';
     import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';
     import { formatDate } from '$lib/utils/tickets/support';
     import { onMount, onDestroy } from 'svelte';
@@ -26,7 +26,7 @@
     async function handlePrevPage() {
         if (page > 1) {
             page -= 1;
-            const result = await fetchTickets();
+            const result = await fetchTickets(search);
             tickets = result.tickets;
             max_page = result.max_page;
         }
@@ -38,7 +38,7 @@
     async function handleNextPage() {
         if (page < max_page) {
             page += 1;
-            const result = await fetchTickets();
+            const result = await fetchTickets(search);
             tickets = result.tickets;
             max_page = result.max_page;
         }
@@ -49,9 +49,22 @@
      * Вызывается по нажатию кнопки "Применить"
      */
     async function handleFilterChange() {
-        const result = await fetchTickets();
+        const result = await fetchTickets(search);
         tickets = result.tickets;
         max_page = result.max_page;
+    }
+
+    /**
+     * Обработчик для переключения порядка сортировки тикетов.
+     * Меняет порядок сортировки между 'asc' и 'desc'.
+     * Синхронизирует состояние фильтров и обновляет список тикетов.
+    */
+    async function handleToggleSort() {
+        const filters = getTicketsFilters();
+        const newOrder = filters.sortOrder === 'asc' ? 'desc' : 'asc';
+        sortOrder = newOrder;
+        setTicketsFilters({ ...filters, sortOrder: newOrder });
+        handleFilterChange();
     }
 
     /**
@@ -125,32 +138,21 @@
         <div class="filter">
             <span class="filter_name">Здание</span>
             <div class="filter_case">
-                {#each [
-                    { value: 'building-1', label: 'Главный корпус' },
-                    { value: 'building-2', label: 'Биофак' },
-                    { value: 'building-3', label: 'Психфак' },
-                    { value: 'building-4', label: 'Школа' },
-                    { value: 'building-5', label: 'УСК' },
-                    { value: 'building-6', label: 'Общежитие №1' },
-                    { value: 'building-7', label: 'Общежитие №2' },
-                    { value: 'building-8', label: 'Кафе' },
-                    { value: 'building-9', label: 'Буревестник' }
-                ] as building}
+                {#each buildingOptions as building}
                     <input
                         type="checkbox"
                         name="filter-building"
-                        value={ building.value }
-                        id={ building.value }
-                        checked={ selectedBuildings.includes(building.value) }
+                        value={ building.id }
+                        id={ building.id }
+                        checked={ selectedBuildings.includes(building.id) }
                         on:change={() => {
-                            if (selectedBuildings.includes(building.value)) {
-                                selectedBuildings = selectedBuildings.filter(b => b !== building.value);
-                            } else {
-                                selectedBuildings = [...selectedBuildings, building.value];
-                            }
+                            if (selectedBuildings.includes(building.id))
+                                selectedBuildings = selectedBuildings.filter(b => b !== building.id);
+                            else
+                                selectedBuildings = [...selectedBuildings, building.id];
                         }}
                     />
-                    <label for={ building.value }>{ building.label }</label>
+                    <label for={ building.id }>{ building.name }</label>
                 {/each}
             </div>
         </div>
@@ -183,6 +185,10 @@
                     bind:value={ search }
                     on:focus={ () => focused = true }
                     on:blur={ () => focused = false }
+                    on:keydown={(e) => {
+                        if (e.key === 'Enter')
+                            handleFilterChange();
+                    }}
                 />
                 <svg class="search-icon" viewBox="0 0 24 24">
                     <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/>
@@ -207,10 +213,7 @@
                     type="button"
                     class="sort-order-btn"
                     aria-label="Сменить порядок сортировки"
-                    on:click={ () => {
-                        sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
-                        handleFilterChange();
-                    } }
+                    on:click={ handleToggleSort }
                 >
                     {#if sortOrder === 'asc'}
                         <svg width="22" height="22" viewBox="0 0 24 24">
@@ -254,30 +257,34 @@
             {:else}
                 {#each tickets as ticket}
                     {#if viewMode === 'list'}
-                        <div class="ticket-item { statusPriority.find(option => option.serverValue === ticket.status)?.value || '' }">
-                            <div class="ticket-title">{ ticket.title }</div>
+                        <div class="ticket-item">
+                            <div class="ticket-title">
+                                { ticket.title } 
+                                <span class="{ statusPriority.find(option => option.serverValue === ticket.priority)?.value + '-status' || '' }">
+                                    { statusOptions.find(option => option.serverValue === ticket.status)?.label || '' }
+                                </span>
+                            </div>
                             <div class="ticket-meta">
                                 { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building ?? 'Не указано' }
                             </div>
                             <div class="ticket-desc">
-                                {ticket.description.length > 100
+                                { ticket.description.length > 100
                                     ? ticket.description.slice(0, 100) + '...'
-                                    : ticket.description}
+                                    : ticket.description }
                             </div>
-                            <div class="status { statusPriority.find(option => option.serverValue === ticket.priority)?.value || '' }"></div>
                         </div>
                     {:else}
-                        <div class="ticket-card { statusPriority.find(option => option.serverValue === ticket.status)?.value || '' }">
-                            <div class="ticket-title">{ ticket.title }</div>
+                        <div class="ticket-card { statusOptions.find(option => option.serverValue === ticket.status)?.value || '' }">
+                            <div class="ticket-title">{ticket.title}</div>
                             <div class="ticket-meta">
                                 { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building ?? 'Не указано' }
                             </div>
                             <div class="ticket-desc">
-                                {ticket.description.length > 100
+                                { ticket.description.length > 100
                                     ? ticket.description.slice(0, 100) + '...'
-                                    : ticket.description}
+                                    : ticket.description }
                             </div>
-                            <div class="status { statusPriority.find(option => option.serverValue === ticket.priority)?.value || '' }"></div>
+                            <div class="status { statusPriority.find(option => option.serverValue === ticket.priority)?.value + '-status' || '' }"></div>
                         </div>
                     {/if}
                 {/each}

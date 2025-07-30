@@ -9,38 +9,44 @@ import { TICKETS_API_ENDPOINTS } from '$lib/utils/tickets/api/endpoints';
  * @param {string} DateVal - Дата, запланированная для заявки.
  * @param {File[] | null} File - Файлы, прикрепленные к заявке (необязательный параметр).
  */
-export function fetchTicket(
+export async function fetchTicket(
     Title: string,
     Description: string,
     Name: string,
     Contact: string,
+    Building: string,
+    Cabinet: string,
     DateVal: string,
     File?: File[] | null
 ) {
-    if (!Title || !Description || !Name || !Contact)
+    if (!Title || !Description || !Name || !Contact || !Building || !Cabinet)
         throw new Error('Все поля обязательны для заполнения');
 
-    const body = JSON.stringify({
+    const fields = {
         title: Title.trim(),
         description: Description.trim(),
         author: Name.trim(),
         author_contacts: Contact.trim(),
+        // building: Building,
+        // cabinet: string,
         planned_at: DateVal && DateVal.trim() ? normalizeDate(DateVal) : null
+    };
+
+    const formData = new FormData();
+    formData.append('fields', new Blob([JSON.stringify(fields)], { type: 'application/json' }));
+
+    if (File && File.length > 0)
+        for (const file of File)
+            formData.append('attachments', file);
+
+    const response = await fetch(TICKETS_API_ENDPOINTS.create, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
     });
 
-    return fetch(TICKETS_API_ENDPOINTS.create, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-        credentials: 'include'
-    })
-    .then(response => {
-        if (!response.ok)
-            throw new Error('Network response was not ok');
-    })
-    .catch(error => {
-        throw error;
-    });
+    if (!response.ok)
+        throw new Error('Network response was not ok');
 }
 
 /**

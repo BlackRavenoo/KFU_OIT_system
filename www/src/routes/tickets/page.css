@@ -184,6 +184,7 @@ main {
     color: var(--blue);
     opacity: 0.8;
     transition: opacity 0.2s;
+    box-shadow: none;
 }
 
 .clear-icon-btn {
@@ -273,6 +274,7 @@ main {
     flex-direction: column;
     gap: 1.2rem;
     padding: 0.5rem 0;
+    width: calc(100% - 6rem) !important;
 }
 
 .ticket-item {
@@ -291,15 +293,16 @@ main {
 .list-view .ticket-title {
     font-size: 1.15rem;
     font-weight: 600;
-    color: var(--dark);
+    color: var(--blue);
     margin-bottom: 0.1em;
 }
 
 .list-view .ticket-meta {
-    font-size: 0.98rem;
-    color: var(--blue);
-    opacity: 0.8;
-    margin-bottom: 0.2em;
+    font-size: .9rem;
+    color: var(--text);
+    opacity: .8;
+    margin: -.5rem 0 .2rem 0;
+    font-weight: 400;
 }
 
 .list-view .ticket-desc {
@@ -390,20 +393,32 @@ main {
     margin-top: 0.5rem;
 }
 
-.status.low-status {
+.low-status {
     background-color: #a8a8a8;
+    color: #a8a8a8;
 }
-.status.medium-status {
+.medium-status {
     background-color: #efff5e;
+    color: #efff5e;
 }
-.status.high-status {
+.high-status {
     background-color: #ff683a;
+    color: #ff683a;
 }
-.status.critical-status {
+.critical-status {
     background-color: #a80000;
+    color: #a80000
 }
 .ticket-card.complete-ticket .status {
     background-color: #9c9c9c;
+    color: #9c9c9c;
+}
+
+.ticket-title span {
+    font-size: .8rem;
+    font-weight: 600;
+    background-color: transparent;
+    margin-left: .5rem;
 }
 
 .pagination-block {

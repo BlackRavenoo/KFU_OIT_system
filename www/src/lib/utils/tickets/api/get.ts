@@ -8,8 +8,9 @@ import { TICKETS_API_ENDPOINTS } from './endpoints';
  * Получение списка тикетов с учётом фильтров.
  * Использует параметры из хранилища фильтров.
  * Возвращает массив тикетов и максимальное количество страниц.
+ * @param search Строка для поиска по тикетам (необязательный параметр).
  */
-export async function fetchTickets() {
+export async function fetchTickets(search: string = '') {
     const filters = getTicketsFilters();
     const page = (filters as any).page || 1;
     const page_size = filters.page_size;
@@ -19,6 +20,7 @@ export async function fetchTickets() {
         page_size,
         order_by: orderByMap[filters.selectedSort] || 'id',
         sort_order: filters.sortOrder,
+        // search
     };
 
     if (filters.selectedStatus !== 'all')
