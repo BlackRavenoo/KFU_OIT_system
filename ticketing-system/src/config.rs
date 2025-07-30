@@ -2,8 +2,10 @@ use std::time::Duration;
 
 use secrecy::{ExposeSecret, SecretBox};
 use serde::{Deserialize, Deserializer};
-use serde_aux::field_attributes::deserialize_number_from_string;
+use serde_aux::field_attributes::{deserialize_number_from_string, deserialize_bool_from_anything};
 use sqlx::{postgres::{PgConnectOptions, PgSslMode}, ConnectOptions};
+
+use crate::storage::{s3::S3Storage, FileStorage};
 
 #[derive(Deserialize, Debug)]
 pub struct Settings {
@@ -11,6 +13,7 @@ pub struct Settings {
     pub database: DatabaseSettings,
     pub auth: AuthSettings,
     pub redis: RedisSettings,
+    pub storage: StorageSettings,
 }
 
 #[derive(Deserialize, Debug)]
@@ -45,6 +48,55 @@ pub struct AuthSettings {
 #[derive(Deserialize, Debug)]
 pub struct RedisSettings {
     pub url: String,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum StorageSettings {
+    S3(S3Settings),
+    Filesystem(FilesystemSettings),
+}
+
+#[derive(Deserialize, Debug)]
+pub struct S3Settings {
+    pub access_key: String,
+    pub secret_key: SecretBox<String>,
+    pub region: String,
+    pub bucket: String,
+    pub endpoint: String,
+    #[serde(default = "default_always_proxy", deserialize_with = "deserialize_bool_from_anything")]
+    pub always_proxy: bool,
+    #[serde(default = "default_path_style")]
+    pub path_style: bool,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct FilesystemSettings {
+    pub base_path: String,
+    #[serde(default = "default_create_dirs")]
+    pub create_dirs: bool,
+    pub permissions: Option<u32>,
+}
+
+fn default_path_style() -> bool {
+    false
+}
+
+fn default_create_dirs() -> bool {
+    true
+}
+
+fn default_always_proxy() -> bool {
+    false
+}
+
+impl StorageSettings {
+    async fn into_storage(self) -> Box<dyn FileStorage> {
+        match self {
+            StorageSettings::S3(s3_settings) => Box::new(S3Storage::new(s3_settings).await),
+            StorageSettings::Filesystem(_) => todo!(),
+        }
+    }
 }
 
 impl DatabaseSettings {

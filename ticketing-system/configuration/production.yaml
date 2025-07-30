@@ -3,3 +3,12 @@ application:
 
 database:
   require_ssl: true
+
+storage:
+  type: s3
+  region: ru-central-1
+  endpoint: http://127.0.0.1:9000
+  always_proxy: true
+  access_key: "some_access_key"
+  secret_key: "some_secret_key"
+  bucket: "book-catalog"
