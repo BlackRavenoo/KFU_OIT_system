@@ -15,10 +15,16 @@ const defaultFilters: TicketsFilters = {
 };
 
 /**
- * SOLID-реализация хранилища фильтров через localStorage.
+ * SOLID-реализация хранилища фильтров через localStorage и внутреннее состояние.
  */
 export class LocalStorageTicketsFiltersStorage implements ITicketsFiltersStorage {
-    get(): TicketsFilters {
+    private filters: TicketsFilters;
+
+    constructor() {
+        this.filters = this.readFromLocalStorage();
+    }
+
+    private readFromLocalStorage(): TicketsFilters {
         try {
             const stored = localStorage.getItem(FILTERS_KEY);
             if (stored)
@@ -29,11 +35,17 @@ export class LocalStorageTicketsFiltersStorage implements ITicketsFiltersStorage
         return { ...defaultFilters };
     }
 
+    get(): TicketsFilters {
+        return this.filters;
+    }
+
     set(filters: TicketsFilters): void {
-        localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+        this.filters = { ...filters };
+        localStorage.setItem(FILTERS_KEY, JSON.stringify(this.filters));
     }
 
     clear(): void {
+        this.filters = { ...defaultFilters };
         localStorage.removeItem(FILTERS_KEY);
     }
 }

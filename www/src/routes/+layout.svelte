@@ -2,10 +2,11 @@
     import '../assets/app.css';
     
     import { onMount } from 'svelte';
+    import { navigating } from '$app/stores';
+    
     import { getUserData } from '$lib/utils/auth/api/api';
     import { checkToken } from '$lib/utils/auth/tokens/tokens';
-    import { currentUser, isAuthenticated } from '$lib/utils/auth/store/initial';
-    import { navigating } from '$app/stores';
+    import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
 
     import Footer from '$lib/components/Footer/Footer.svelte';
     import Nav from '$lib/components/Nav/Nav.svelte';

@@ -4,7 +4,7 @@
     import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';
     import { formatDate } from '$lib/utils/tickets/support';
     import { onMount, onDestroy } from 'svelte';
-    import { getTicketsFilters, setTicketsFilters } from '$lib/utils/tickets/stores';
+    import { getTicketsFilters, setTicketsFilters, clearTicketsFilters } from '$lib/utils/tickets/stores';
 
     let tickets: any[] = [];
     let error: string | null = null;
@@ -68,6 +68,25 @@
     }
 
     /**
+     * Обработчик для сброса всех фильтров к стандартным значениям
+     */
+    async function handleClearFilters() {
+        clearTicketsFilters();
+        ({
+            search,
+            viewMode,
+            sortOrder,
+            selectedStatus,
+            selectedBuildings,
+            plannedFrom,
+            plannedTo,
+            page_size,
+            selectedSort
+        } = getTicketsFilters());
+        await handleFilterChange();
+    }
+
+    /**
      * Выставляет стартовые значения для фильтров и заголовка страницы.
      * Вызывается при монтировании компонента.
     */
@@ -98,6 +117,7 @@
 <div id="content-panel">
     <aside>
         <!-- Фильтр статуса -->
+        <button id="clear_filters" on:click={ handleClearFilters }>Сбросить</button>
         <div class="filter">
             <span class="filter_name">Статус</span>
             <div class="filter_case">

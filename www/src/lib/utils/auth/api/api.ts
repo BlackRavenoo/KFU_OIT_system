@@ -8,7 +8,7 @@ import FingerprintJS from '@fingerprintjs/fingerprintjs';
 
 import { getAuthTokens, clearAuthTokens } from '../tokens/tokens';
 import { setTokenStore } from '../tokens/storage';
-import { currentUser, isAuthenticated } from '../store/initial';
+import { currentUser, isAuthenticated } from '../storage/initial';
 import { AUTH_API_ENDPOINTS as Endpoints } from './endpoints';
 
 import type { ILoginRequest, IUserData } from '../types';

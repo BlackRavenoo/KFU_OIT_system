@@ -9,7 +9,7 @@
     import KFU from '../../../assets/KFU.webp';
 
     import { login, getUserData } from '$lib/utils/auth/api/api';
-    import { currentUser, isAuthenticated } from '$lib/utils/auth/store/initial';
+    import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { navigateToForm, navigateToHome } from '$lib/utils/setup/navigate';
     import { showModal } from '$lib/utils/notifications/modal';

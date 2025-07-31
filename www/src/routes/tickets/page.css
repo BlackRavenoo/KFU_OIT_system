@@ -11,6 +11,7 @@
 }
 
 aside {
+    position: relative;
     background: var(--white);
     box-shadow: 2px 0 16px rgba(7,92,239,0.05);
     padding: 2rem 1.5rem 2rem 2.5rem;
@@ -68,6 +69,18 @@ aside {
 .filter_case input:nth-of-type(even) { grid-column: 3; }
 .filter_case label:nth-of-type(odd) { grid-column: 2; }
 .filter_case label:nth-of-type(even) { grid-column: 4; }
+
+#clear_filters {
+    position: absolute;
+    top: calc(1rem + 4px);
+    right: 1.5rem;
+    padding: 0;
+    color: #a8a8a8;
+    background-color: transparent;
+    box-shadow: none;
+    font-size: .95rem;
+    font-weight: 700;
+}
 
 /* --- Правая часть --- */
 main {
