@@ -16,5 +16,6 @@ pub enum ProcessingError {
 }
 
 pub trait ImageProcessor {
-    fn process(data: &[u8]) -> Result<Vec<u8>, ProcessingError>;
+    // Returns image data + extension(".webp", ".jpg")
+    fn process(data: &[u8]) -> Result<(Vec<u8>, &'static str), ProcessingError>;
 }

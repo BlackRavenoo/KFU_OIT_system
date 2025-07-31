@@ -25,7 +25,7 @@ impl WebpProcessor {
 }
 
 impl ImageProcessor for WebpProcessor {
-    fn process(data: &[u8]) -> Result<Vec<u8>, ProcessingError> {
+    fn process(data: &[u8]) -> Result<(Vec<u8>, &'static str), ProcessingError> {
         if data.is_empty() {
             return Err(ProcessingError::EmptyInput);
         }
@@ -35,6 +35,6 @@ impl ImageProcessor for WebpProcessor {
             .map_err(|e| ProcessingError::UnsupportedImageFormat(e.to_string()))?
             .decode()?;
 
-        Self::encode_webp(&img)
+        Ok((Self::encode_webp(&img)?, ".webp"))
     }
 }
