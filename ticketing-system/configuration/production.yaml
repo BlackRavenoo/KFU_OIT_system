@@ -11,4 +11,4 @@ storage:
   always_proxy: true
   access_key: "some_access_key"
   secret_key: "some_secret_key"
-  bucket: "book-catalog"
+  bucket: "ticketing-attachments"

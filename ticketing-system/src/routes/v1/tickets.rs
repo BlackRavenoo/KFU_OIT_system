@@ -52,8 +52,16 @@ pub async fn create_ticket(
     let attachments_len = ticket.attachments.len();
 
     if attachments_len == 0 {
-        return HttpResponse::Created().finish()
-    }
+        let resp = match transaction.commit().await {
+            Ok(_) => HttpResponse::Created().finish(),
+            Err(e) => {
+                tracing::error!("Failed to commit transaction: {:?}", e);
+                HttpResponse::InternalServerError().finish()
+            },
+        };
+
+        return resp
+    };
 
     let results = stream::iter(ticket.attachments)
         .map(|attachment| image_service.upload_image(attachment.data))
@@ -207,9 +215,9 @@ pub async fn get_ticket(
             status,
             priority,
             planned_at,
+            u.id as "assigned_to_id: Option<i32>",
+            u.name as "assigned_to_name: Option<String>",
             t.created_at,
-            u.name as "assigned_to_name",
-            u.id as "assigned_to_id",
             ARRAY_AGG(ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments
         FROM tickets t
         LEFT JOIN users u ON u.id = t.assigned_to

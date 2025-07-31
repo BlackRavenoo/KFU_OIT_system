@@ -17,9 +17,9 @@ services:
       - APP_STORAGE__REGION=${S3_REGION:-us-east-1}
       - APP_STORAGE__ENDPOINT=${S3_ENDPOINT}
       - APP_STORAGE__ALWAYS_PROXY=false
-      - APP_STORAGE_ACCESS__KEY=${S3_ACCESS_KEY}
-      - APP_STORAGE_SECRET__KEY=${S3_SECRET_KEY}
-      - APP_STORAGE_BUCKET=${S3_BUCKET:-ticketing-attachments}
+      - APP_STORAGE__ACCESS_KEY=${S3_ACCESS_KEY}
+      - APP_STORAGE__SECRET_KEY=${S3_SECRET_KEY}
+      - APP_STORAGE__BUCKET=${S3_BUCKET:-ticketing-attachments}
 
 
   redis:
