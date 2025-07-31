@@ -5,3 +5,7 @@ pub mod auth;
 pub mod schema;
 pub mod routes;
 pub mod utils;
+pub mod storage;
+pub mod services;
+pub mod image;
+pub mod sqlx_macro;

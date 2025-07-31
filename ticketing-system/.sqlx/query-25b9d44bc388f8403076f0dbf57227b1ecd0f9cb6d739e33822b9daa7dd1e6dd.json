@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT \n            t.id,\n            title,\n            description,\n            author,\n            author_contacts,\n            status,\n            priority,\n            planned_at,\n            t.created_at,\n            u.name as \"assigned_to_name\",\n            u.id as \"assigned_to_id\"\n        FROM tickets t\n        LEFT JOIN users u ON u.id = t.assigned_to\n        WHERE t.id = $1\n        ",
+  "query": "\n        SELECT \n            t.id,\n            title,\n            description,\n            author,\n            author_contacts,\n            status,\n            priority,\n            planned_at,\n            u.id as \"assigned_to_id: Option<i32>\",\n            u.name as \"assigned_to_name: Option<String>\",\n            t.created_at,\n            ARRAY_AGG(ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments\n        FROM tickets t\n        LEFT JOIN users u ON u.id = t.assigned_to\n        LEFT JOIN ticket_attachments ta ON ta.ticket_id = t.id\n        WHERE t.id = $1\n        GROUP BY t.id, u.name, u.id\n        ",
   "describe": {
     "columns": [
       {
@@ -45,18 +45,23 @@
       },
       {
         "ordinal": 8,
-        "name": "created_at",
-        "type_info": "Timestamptz"
+        "name": "assigned_to_id: Option<i32>",
+        "type_info": "Int4"
       },
       {
         "ordinal": 9,
-        "name": "assigned_to_name",
+        "name": "assigned_to_name: Option<String>",
         "type_info": "Varchar"
       },
       {
         "ordinal": 10,
-        "name": "assigned_to_id",
-        "type_info": "Int4"
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "attachments",
+        "type_info": "VarcharArray"
       }
     ],
     "parameters": {
@@ -75,8 +80,9 @@
       true,
       false,
       false,
-      false
+      false,
+      null
     ]
   },
-  "hash": "dec807383364d0e007de7801fe610ac201deeec567ab17ebe9a4e41fd1e17034"
+  "hash": "25b9d44bc388f8403076f0dbf57227b1ecd0f9cb6d739e33822b9daa7dd1e6dd"
 }

@@ -1,44 +1,37 @@
-#[macro_export]
-macro_rules! build_update_query {
-    ($builder:expr, $has_fields:expr, $field:expr, $column:literal) => {
-        if let Some(value) = &$field {
-            if $has_fields {
-                $builder.push(", ");
-            }
-            $builder.push(concat!($column, " = ")).push_bind(value);
-            $has_fields = true;
-        }
-    };
-}
+use std::{sync::Arc, time::Duration};
 
-#[macro_export]
-macro_rules! build_where_condition {
-    ($builder:expr, $has_filters:expr, $field:expr, $column:literal, $operator:literal) => {
-        if let Some(value) = &$field {
-            build_where_condition!(@add_where_and $builder, $has_filters);
-            $builder.push(concat!($column, " ", $operator, " ")).push_bind(value);
-        }
-    };
-    
-    ($builder:expr, $has_filters:expr, $field:expr, $column:literal, in) => {
-        if let Some(values) = &$field {
-            build_where_condition!(@add_where_and $builder, $has_filters);
+use futures_util::{stream, StreamExt as _};
 
-            $builder.push(concat!($column, " IN ("));
-            let mut separated = $builder.separated(", ");
-            for value in values.iter() {
-                separated.push_bind(value);
-            }
-            separated.push_unseparated(")");
-        }
-    };
+use crate::services::image::ImageService;
 
-    (@add_where_and $builder:expr, $has_filters:expr) => {
-        if !$has_filters {
-            $builder.push("WHERE ");
-            $has_filters = true;
-        } else {
-            $builder.push(" AND ");
+#[tracing::instrument(
+    name="Cleanup images",
+    skip(image_service)
+)]
+pub async fn cleanup_images(
+    image_service: Arc<ImageService>,
+    keys: Vec<String>,
+    timeout_secs: u64
+) {
+    tokio::spawn(async move {
+        let cleanup = async {
+            let keys_len = keys.len();
+            let _results = stream::iter(keys)
+                .map(|key| {
+                    let service = &image_service;
+                    async move {
+                        if let Err(e) = service.delete_image(&key).await {
+                            tracing::warn!("Cleanup failed for {}: {:?}", key, e);
+                        }
+                    }
+                })
+                .buffer_unordered(keys_len)
+                .collect::<Vec<_>>()
+                .await;
+        };
+
+        if let Err(_) = tokio::time::timeout(Duration::from_secs(timeout_secs), cleanup).await {
+            tracing::error!("Cleanup timed out after {} seconds", timeout_secs);
         }
-    };
+    });
 }

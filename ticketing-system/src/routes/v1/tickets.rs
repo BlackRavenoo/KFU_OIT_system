@@ -1,34 +1,119 @@
+use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpResponse, Responder};
+use futures_util::{stream, StreamExt as _};
 use serde_qs::actix::QsQuery;
 use sqlx::{Execute as _, PgPool};
 use strum::IntoEnumIterator;
 
-use crate::{auth::extractor::UserId, build_update_query, build_where_condition, schema::{common::PaginationResult, tickets::{CreateTicketSchema, GetTicketsSchema, OrderBy, TicketId, TicketQueryResult, TicketSchema, TicketWithMeta, UpdateTicketSchema}}};
+use crate::{auth::extractor::UserId, build_update_query, build_where_condition, schema::{common::PaginationResult, tickets::{CreateTicketForm, GetTicketsSchema, OrderBy, TicketId, TicketSchema, TicketSchemaWithAttachments, TicketQueryResult, TicketWithMeta, UpdateTicketSchema}}, services::image::ImageService, utils::cleanup_images};
 
 pub async fn create_ticket(
-    web::Json(ticket): web::Json<CreateTicketSchema>,
-    pool: web::Data<PgPool>
+    MultipartForm(ticket): MultipartForm<CreateTicketForm>,
+    pool: web::Data<PgPool>,
+    image_service: web::Data<ImageService>
 ) -> impl Responder {
+    if ticket.attachments.len() > 5 {
+        return HttpResponse::BadRequest().finish()
+    }
+
+    let fields = ticket.fields;
+
+    let mut transaction = match pool.begin().await {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::error!("Failed to begin transaction: {:?}", e);
+            return HttpResponse::InternalServerError().finish()
+        },
+    };
+
     let result = sqlx::query!(
         r#"
         INSERT INTO tickets(title, description, author, author_contacts, planned_at)
         VALUES ($1, $2, $3, $4, $5)
+        RETURNING id
         "#,
-        ticket.title,
-        ticket.description,
-        ticket.author,
-        ticket.author_contacts,
-        ticket.planned_at
+        fields.title,
+        fields.description,
+        fields.author,
+        fields.author_contacts,
+        fields.planned_at
     )
-    .execute(pool.as_ref())
+    .fetch_one(&mut *transaction)
     .await;
 
-    match result {
-        Ok(_) => HttpResponse::Created().finish(),
+    let ticket_id = match result {
+        Ok(rec) => rec.id,
         Err(e) => {
             tracing::error!("Failed to create ticket: {:?}", e);
-            HttpResponse::InternalServerError().finish()
+            return HttpResponse::InternalServerError().finish()
+        },
+    };
+
+    let attachments_len = ticket.attachments.len();
+
+    if attachments_len == 0 {
+        let resp = match transaction.commit().await {
+            Ok(_) => HttpResponse::Created().finish(),
+            Err(e) => {
+                tracing::error!("Failed to commit transaction: {:?}", e);
+                HttpResponse::InternalServerError().finish()
+            },
+        };
+
+        return resp
+    };
+
+    let results = stream::iter(ticket.attachments)
+        .map(|attachment| image_service.upload_image(attachment.data))
+        .buffer_unordered(attachments_len)
+        .collect::<Vec<_>>()
+        .await;
+
+    let mut keys = Vec::with_capacity(attachments_len);
+    let mut has_error = false;
+
+    for result in results {
+        match result {
+            Ok(file_path) => keys.push(file_path),
+            Err(e) => {
+                tracing::error!("Failed to upload file: {:?}", e);
+                has_error = true;
+            }
         }
+    }
+
+    if has_error {
+        cleanup_images(image_service.into_inner(), keys, 30).await;
+        return HttpResponse::InternalServerError().finish()
+    }
+    
+    match sqlx::query!(
+        r#"
+        INSERT INTO ticket_attachments (ticket_id, key)
+        SELECT * FROM UNNEST(
+            $1::BIGINT[],
+            $2::VARCHAR(64)[]
+        )
+        "#,
+        &vec![ticket_id; keys.len()],
+        &keys
+    )
+    .execute(&mut *transaction)
+    .await {
+        Ok(_) => (),
+        Err(e) => {
+            tracing::error!("Failed to insert data into ticket_attachments: {:?}", e);
+            cleanup_images(image_service.into_inner(), keys, 30).await;
+            return HttpResponse::InternalServerError().finish()
+        },
+    };
+    
+    match transaction.commit().await {
+        Ok(_) => HttpResponse::Created().finish(),
+        Err(e) => {
+            tracing::error!("Failed to commit transaction: {:?}", e);
+            HttpResponse::InternalServerError().finish()
+        },
     }
 }
 
@@ -68,9 +153,28 @@ pub async fn update_ticket(
 
 pub async fn delete_ticket(
     id: web::Path<TicketId>,
-    pool: web::Data<PgPool>
+    pool: web::Data<PgPool>,
+    image_service: web::Data<ImageService>,
 ) -> impl Responder {
     let id = id.into_inner();
+
+    let keys = match sqlx::query!(
+        r#"
+        SELECT key FROM ticket_attachments
+        WHERE ticket_id = $1
+        "#,
+        id
+    )
+    .fetch_all(pool.as_ref())
+    .await {
+        Ok(recs) => recs.into_iter()
+            .map(|rec| rec.key)
+            .collect::<Vec<_>>(),
+        Err(e) => {
+            tracing::error!("Failed to get keys from ticket_attachments: {:?}", e);
+            return HttpResponse::InternalServerError().finish()
+        },
+    };
 
     let result = sqlx::query!(
         r#"
@@ -81,6 +185,8 @@ pub async fn delete_ticket(
     )
     .execute(pool.as_ref())
     .await;
+
+    cleanup_images(image_service.into_inner(), keys, 30).await;
 
     match result {
         Ok(_) => HttpResponse::Ok().finish(),
@@ -109,12 +215,15 @@ pub async fn get_ticket(
             status,
             priority,
             planned_at,
+            u.id as "assigned_to_id: Option<i32>",
+            u.name as "assigned_to_name: Option<String>",
             t.created_at,
-            u.name as "assigned_to_name",
-            u.id as "assigned_to_id"
+            ARRAY_AGG(ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments
         FROM tickets t
         LEFT JOIN users u ON u.id = t.assigned_to
+        LEFT JOIN ticket_attachments ta ON ta.ticket_id = t.id
         WHERE t.id = $1
+        GROUP BY t.id, u.name, u.id
         "#,
         id
     )
@@ -124,7 +233,7 @@ pub async fn get_ticket(
     match result {
         Ok(Some(ticket)) => {
             HttpResponse::Ok().json(
-                TicketSchema::from(ticket)
+                TicketSchemaWithAttachments::from(ticket)
             )
         }
         Ok(None) => {

@@ -3,3 +3,8 @@ application:
 
 database:
   require_ssl: false
+
+storage:
+  type: filesystem
+  base_path: ./files
+  permissions: 0o755

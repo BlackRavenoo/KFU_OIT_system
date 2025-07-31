@@ -24,9 +24,8 @@ CREATE TABLE tickets (
 
 CREATE TABLE ticket_attachments (
     ticket_id BIGINT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
-    s3_key UUID NOT NULL,
-    content_type VARCHAR(100),
-    PRIMARY KEY (ticket_id, s3_key)
+    key VARCHAR(64) NOT NULL,
+    PRIMARY KEY (ticket_id, key)
 );
 
 -- admin@example.com admin
