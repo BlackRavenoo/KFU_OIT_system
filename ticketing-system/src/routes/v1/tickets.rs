@@ -75,14 +75,13 @@ pub async fn create_ticket(
     for result in results {
         match result {
             Ok(file_path) => keys.push(file_path),
-            Err(e) => {
-                tracing::error!("Failed to upload file: {:?}", e);
+            Err(_) => {
                 has_error = true;
             }
         }
     }
 
-    if has_error {
+    if has_error && !keys.is_empty() {
         cleanup_images(image_service.into_inner(), keys, 30).await;
         return HttpResponse::InternalServerError().finish()
     }
@@ -103,7 +102,9 @@ pub async fn create_ticket(
         Ok(_) => (),
         Err(e) => {
             tracing::error!("Failed to insert data into ticket_attachments: {:?}", e);
-            cleanup_images(image_service.into_inner(), keys, 30).await;
+            if !keys.is_empty() {
+                cleanup_images(image_service.into_inner(), keys, 30).await;
+            }
             return HttpResponse::InternalServerError().finish()
         },
     };
@@ -186,7 +187,9 @@ pub async fn delete_ticket(
     .execute(pool.as_ref())
     .await;
 
-    cleanup_images(image_service.into_inner(), keys, 30).await;
+    if !keys.is_empty() {
+        cleanup_images(image_service.into_inner(), keys, 30).await;
+    }
 
     match result {
         Ok(_) => HttpResponse::Ok().finish(),

@@ -33,9 +33,9 @@ pub fn run(
                 MultipartFormConfig::default()
                     .memory_limit(30 * 1024 * 1024)   
             )
-            .route("/health", web::to(HttpResponse::Ok))
             .service(
                 web::scope("")
+                    .route("/health", web::to(HttpResponse::Ok))
                     .configure(config)
             )
     })

@@ -66,7 +66,7 @@ pub struct S3Settings {
     pub endpoint: String,
     #[serde(default = "default_always_proxy", deserialize_with = "deserialize_bool_from_anything")]
     pub always_proxy: bool,
-    #[serde(default = "default_path_style")]
+    #[serde(default = "default_path_style", deserialize_with = "deserialize_bool_from_anything")]
     pub path_style: bool,
 }
 
@@ -79,7 +79,7 @@ pub struct FilesystemSettings {
 }
 
 fn default_path_style() -> bool {
-    false
+    true
 }
 
 fn default_create_dirs() -> bool {

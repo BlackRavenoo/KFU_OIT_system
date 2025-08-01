@@ -32,6 +32,7 @@ impl S3Storage {
             .region(Region::new(config.region.clone()))
             .credentials_provider(creds)
             .endpoint_url(&config.endpoint)
+            .force_path_style(config.path_style)
             .build();
 
         Self {
