@@ -301,6 +301,7 @@ main {
     padding: 1.2rem 1.5rem;
     transition: box-shadow 0.2s, border-color 0.2s;
     position: relative;
+    cursor: pointer;
 }
 
 .list-view .ticket-title {
@@ -351,6 +352,7 @@ main {
     border-left: 4px solid var(--blue);
     transition: box-shadow 0.2s;
     height: 100%;
+    cursor: pointer;
 }
 
 .ticket-card:hover, .ticket-item:hover {

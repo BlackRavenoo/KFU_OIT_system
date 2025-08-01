@@ -3,17 +3,16 @@
 	"description": "KFU OIT System - A web application for managing IT support requests",
 	"author": "ivanvit, BlackRavenoo",
 	"private": true,
-	"version": "0.0.13",
+	"version": "0.0.14",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
-		"build:rsync": "npm run build && rsync -a --delete build_tmp/ build/ && rm -rf build_tmp",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"watch:build": "chokidar 'src/**/*' -c 'npm run build:rsync'"
+		"watch:build": "chokidar 'src/**/*' -c 'npm run build'"
 	},
 	"devDependencies": {
 		"@fingerprintjs/fingerprintjs": "^4.6.2",

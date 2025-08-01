@@ -9,6 +9,19 @@ export type UiStatus = 'all' | 'open' | 'inprogress' | 'closed' | 'cancelled';
 export type PriorityStatus = 'low' | 'medium' | 'high' | 'critical' | 'expired' | 'cancelled' | 'complete';
 export type ViewMode = 'cards' | 'list';
 export type SortOrder = 'asc' | 'desc';
+export type Ticket = {
+    id: number,
+    title: string,
+    description: string,
+    author: string,
+    author_contacts: string,
+    status: UiStatus,
+    priority: PriorityStatus,
+    planned_at: null | string,
+    assigned_to: null | string,
+    created_at: string,
+    attachments: null | any
+}
 
 // Interfaces
 export interface ITicketsApiEndpoints {

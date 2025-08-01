@@ -277,7 +277,16 @@
             {:else}
                 {#each tickets as ticket}
                     {#if viewMode === 'list'}
-                        <div class="ticket-item">
+                        <div class="ticket-item" 
+                            role="link"
+                            tabindex="0"
+                            aria-label={`Открыть заявку ${ticket.title}`}
+                            on:click={() => window.location.href = `/ticket/${ticket.id}`}
+                            on:keydown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ')
+                                    window.location.href = `/ticket/${ticket.id}`;
+                            }}
+                        >
                             <div class="ticket-title">
                                 { ticket.title } 
                                 <span class="{ statusPriority.find(option => option.serverValue === ticket.priority)?.value + '-status' || '' }">
@@ -294,7 +303,17 @@
                             </div>
                         </div>
                     {:else}
-                        <div class="ticket-card { statusOptions.find(option => option.serverValue === ticket.status)?.value || '' }">
+                        <div class="ticket-card 
+                            { statusOptions.find(option => option.serverValue === ticket.status)?.value || '' }"
+                            role="link"
+                            tabindex="0"
+                            aria-label={`Открыть заявку ${ticket.title}`}
+                            on:click={() => window.location.href = `/ticket/${ticket.id}`}
+                            on:keydown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ')
+                                    window.location.href = `/ticket/${ticket.id}`;
+                            }}
+                        >
                             <div class="ticket-title">{ticket.title}</div>
                             <div class="ticket-meta">
                                 { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building ?? 'Не указано' }

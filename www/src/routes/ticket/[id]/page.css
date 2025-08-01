@@ -1,0 +1,143 @@
+main {
+    width: 100vw;
+    margin-top: 100px;
+    color: var(--dark);
+    background: var(--light-gray);
+    border-top: 1px solid var(--light-blue);
+}
+
+.ticket-container {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    width: 70vw;
+    margin: 40px 0 80px 0;
+    gap: 40px;
+}
+
+.ticket-meta {
+    min-width: 280px;
+    max-width: 320px;
+    background: var(--white);
+    border-radius: 18px;
+    box-shadow: 0 2px 12px rgba(7, 92, 239, 0.08);
+    padding: 32px 24px;
+    color: var(--dark);
+    display: flex;
+    flex-direction: column;
+    font-size: 1.05rem;
+}
+
+.ticket-id {
+    font-size: .9rem;
+    color: var(--dark);
+    opacity: .7;
+    margin-bottom: -1.1rem;
+}
+
+.ticket-tag {
+    font-size: .98rem;
+    font-weight: 600;
+    color: var(--dark);
+    margin: 5px 0 0 0;
+}
+
+.ticket-tag span {
+    font-weight: 400;
+    color: var(--text);
+}
+
+.low-priority {
+    color: #a8a8a8 !important;
+}
+.medium-priority {
+    color: #efff5e !important;
+}
+.high-priority {
+    color: #ff683a !important;
+}
+.critical-priority {
+    color: #a80000 !important;
+}
+.open-status {
+    color: var(--blue)  !important;
+}
+.in-progress-status {
+    color: #ffad6a !important;
+}
+.closed-status {
+    color: var(--text) !important;
+}
+.cancelled-status {
+    color: #e65400 !important;
+}
+
+.ticket-description {
+    flex: 1;
+    background: var(--white);
+    border-radius: 18px;
+    box-shadow: 0 2px 12px rgba(7, 92, 239, 0.06);
+    padding: 32px 28px;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    font-size: 1.08rem;
+}
+
+.ticket-description h2, .ticket-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--blue);
+}
+
+.ticket-description h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-top: 18px;
+    color: var(--dark);
+}
+
+.ticket-description ul {
+    padding-left: 18px;
+    margin-bottom: 12px;
+}
+
+.ticket-author {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: -.5rem;
+}
+
+.author-contacts {
+    margin-top: 24px;
+    padding-top: 12px;
+    border-top: 1px solid var(--light-blue);
+    font-size: 0.98rem;
+    color: var(--dark);
+}
+
+.contacts-tag span {
+    font-weight: 600;
+    color: var(--blue);
+}
+
+.ticket-description .ticket-actions {
+    margin-top: 32px;
+    display: flex;
+    gap: 18px;
+}
+
+@media (max-width: 900px) {
+    .ticket-container {
+        flex-direction: column;
+        gap: 24px;
+        padding: 0 8px;
+    }
+    .ticket-meta, .ticket-description {
+        max-width: 100%;
+        width: 100%;
+        padding: 24px 12px;
+    }
+}

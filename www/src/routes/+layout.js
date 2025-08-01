@@ -10,4 +10,3 @@ setTokenStorage(new LocalStorageTokenStorage());
 setTicketsFiltersStorage(new LocalStorageTicketsFiltersStorage());
 
 export const ssr = false;
-export const prerender = true;
