@@ -1,11 +1,11 @@
 use actix_multipart::form::MultipartForm;
-use actix_web::{web, HttpResponse, Responder};
+use actix_web::{http::header, web, HttpResponse, Responder};
 use futures_util::{stream, StreamExt as _};
 use serde_qs::actix::QsQuery;
 use sqlx::{Execute as _, PgPool};
 use strum::IntoEnumIterator;
 
-use crate::{auth::extractor::UserId, build_update_query, build_where_condition, schema::{common::PaginationResult, tickets::{CreateTicketForm, GetTicketsSchema, OrderBy, TicketId, TicketSchema, TicketSchemaWithAttachments, TicketQueryResult, TicketWithMeta, UpdateTicketSchema}}, services::image::ImageService, utils::cleanup_images};
+use crate::{auth::extractor::UserId, build_update_query, build_where_condition, schema::{common::PaginationResult, tickets::{CreateTicketForm, GetTicketsSchema, OrderBy, TicketId, TicketQueryResult, TicketSchema, TicketSchemaWithAttachments, TicketWithMeta, UpdateTicketSchema}}, services::image::{ImageService, ImageType}, storage::FileAccess, utils::cleanup_images};
 
 pub async fn create_ticket(
     MultipartForm(ticket): MultipartForm<CreateTicketForm>,
@@ -64,7 +64,7 @@ pub async fn create_ticket(
     };
 
     let results = stream::iter(ticket.attachments)
-        .map(|attachment| image_service.upload_image(attachment.data))
+        .map(|attachment| image_service.upload_image(ImageType::Attachments, attachment.data))
         .buffer_unordered(attachments_len)
         .collect::<Vec<_>>()
         .await;
@@ -82,7 +82,7 @@ pub async fn create_ticket(
     }
 
     if has_error && !keys.is_empty() {
-        cleanup_images(image_service.into_inner(), keys, 30).await;
+        cleanup_images(image_service.into_inner(), keys, 30, ImageType::Attachments).await;
         return HttpResponse::InternalServerError().finish()
     }
     
@@ -103,7 +103,7 @@ pub async fn create_ticket(
         Err(e) => {
             tracing::error!("Failed to insert data into ticket_attachments: {:?}", e);
             if !keys.is_empty() {
-                cleanup_images(image_service.into_inner(), keys, 30).await;
+                cleanup_images(image_service.into_inner(), keys, 30, ImageType::Attachments).await;
             }
             return HttpResponse::InternalServerError().finish()
         },
@@ -188,7 +188,7 @@ pub async fn delete_ticket(
     .await;
 
     if !keys.is_empty() {
-        cleanup_images(image_service.into_inner(), keys, 30).await;
+        cleanup_images(image_service.into_inner(), keys, 30, ImageType::Attachments).await;
     }
 
     match result {
@@ -409,6 +409,36 @@ pub async fn unassign_ticket(
         },
         Err(e) => {
             tracing::error!("Failed to unassign ticket: {:?}", e);
+            HttpResponse::InternalServerError().finish()
+        },
+    }
+}
+
+pub async fn get_image(
+    path: web::Path<(String, String)>,
+    image_service: web::Data<ImageService>
+) -> impl Responder {
+    let (prefix, key) = path.into_inner();
+
+    let image_type = match ImageType::try_from(prefix) {
+        Ok(image_type) => image_type,
+        Err(e) => {
+            tracing::error!("Failed to get image type from string: {}", e);
+            return HttpResponse::BadRequest().finish()
+        },
+    };
+
+    match image_service.get_image(image_type, &key).await {
+        Ok(file_access) => match file_access {
+            // TODO
+            FileAccess::InternalUrl(_) => HttpResponse::InternalServerError().finish(),
+            FileAccess::ExternalUrl(url) => HttpResponse::MovedPermanently()
+                .append_header((header::LOCATION, url))
+                .finish(),
+            FileAccess::Stream(stream) => HttpResponse::Ok().streaming(stream),
+        },
+        Err(e) => {
+            tracing::error!("Failed to get image access: {:?}", e);
             HttpResponse::InternalServerError().finish()
         },
     }
