@@ -143,7 +143,8 @@ export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: 
         const response = await fetch(Endpoints.refresh, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'authorization': `Bearer ${getAuthTokens()?.accessToken}`
             },
             body: JSON.stringify({
                 refresh_token: tokensData.refreshToken,
@@ -164,7 +165,6 @@ export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: 
                 refreshToken: data.refresh_token
             });
             scheduleTokenRefresh(data.access_token);
-            // alert("Tokens updated")
             return true;
         }
 
