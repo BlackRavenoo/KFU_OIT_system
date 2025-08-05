@@ -18,7 +18,7 @@ export type Ticket = {
     status: UiStatus,
     priority: PriorityStatus,
     planned_at: null | string,
-    assigned_to: null | string,
+    assigned_to: null | { id: string, name: string },
     created_at: string,
     attachments: null | any
 }
@@ -29,7 +29,8 @@ export interface ITicketsApiEndpoints {
     read: string;
     update: string;
     delete: string;
-    consts: string
+    consts: string;
+    attachments: string;
 }
 
 interface StatusOption {

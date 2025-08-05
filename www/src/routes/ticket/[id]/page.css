@@ -73,6 +73,14 @@ main {
     color: #e65400 !important;
 }
 
+.ticket-info-container {
+    display: flex; 
+    flex-direction: column; 
+    gap: 32px; 
+    min-width: 280px; 
+    max-width: 320px;
+}
+
 .ticket-description {
     flex: 1;
     background: var(--white);
@@ -90,13 +98,6 @@ main {
     font-weight: 700;
     margin-bottom: 12px;
     color: var(--blue);
-}
-
-.ticket-description h3 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-top: 18px;
-    color: var(--dark);
 }
 
 .attachments-list {
@@ -233,13 +234,6 @@ main {
 }
 .btn-primary:hover {
     background: #1d4ed8;
-}
-.btn-warning {
-    background: #f59e42;
-    color: #fff;
-}
-.btn-warning:hover {
-    background: #d97706;
 }
 .btn-success {
     background: #22c55e;

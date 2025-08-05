@@ -1,14 +1,19 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
-    import { fade, scale } from 'svelte/transition';
+    import { fade } from 'svelte/transition';
     import { page } from '$app/stores';
+
     import { getAuthTokens } from '$lib/utils/auth/tokens/tokens';
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { formatDate } from '$lib/utils/tickets/support';
-    import Avatar from '$lib/components/Avatar/Avatar.svelte';
+    import { TICKETS_API_ENDPOINTS } from '$lib/utils/tickets/api/endpoints';
+    import { notification, NotificationType } from '$lib/utils/notifications/notification';
+
     import type { Ticket } from '$lib/utils/tickets/types';
+
+    import Avatar from '$lib/components/Avatar/Avatar.svelte';
 
     let ticketId: string | undefined = undefined;
     $: ticketId = $page?.params?.id;
@@ -17,11 +22,19 @@
     let images: string[] = [];
     let modalOpen = false;
     let modalImg: string | null = null;
-
     let lastFocused: HTMLElement | null = null;
 
+    let isEditing = false;
+    let showDeleteConfirm = false;
+
+    let status = '';
+    let priority = '';
+    let description = '';
+    let author = '';
+    let author_contacts = '';
+
     async function getById(id: string): Promise<Ticket> {
-        const result = fetch(`/api/v1/tickets/${id}`, {
+        const result = fetch(`${TICKETS_API_ENDPOINTS.read}${id}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -50,20 +63,19 @@
         return result;
     }
 
-    async function fetchImages(attachments: string[]) {
+    async function fetchImages(attachments: string[]): Promise<void> {
         images = [];
         for (const key of attachments) {
             try {
-                const res = await fetch(`/api/v1/images/attachments/${key.split('/').pop()}`);
+                const res = await fetch(`${TICKETS_API_ENDPOINTS.attachments}/${key.split('/').pop()}`);
                 if (!res.ok) continue;
                 const blob = await res.blob();
                 images = [...images, URL.createObjectURL(blob)];
-            } catch { 
-            }
+            } catch { }
         }
     }
 
-    function openModal(img: string) {
+    function openModal(img: string): void {
         modalImg = img;
         modalOpen = true;
         lastFocused = document.activeElement as HTMLElement;
@@ -75,7 +87,7 @@
         }, 0);
     }
 
-    function closeModal() {
+    function closeModal(): void {
         modalOpen = false;
         modalImg = null;
         document.body.style.overflow = '';
@@ -83,11 +95,11 @@
         lastFocused?.focus();
     }
 
-    function handleEsc(e: KeyboardEvent) {
+    function handleEsc(e: KeyboardEvent): void {
         if (e.key === 'Escape') {
             closeModal();
+            showDeleteConfirm = false;
         }
-        // Trap focus inside modal
         if (modalOpen && e.key === 'Tab') {
             const modal = document.getElementById('modal-image-dialog');
             if (!modal) return;
@@ -111,12 +123,126 @@
         }
     }
 
+    function handleDelete() {
+        showDeleteConfirm = true;
+        window.addEventListener('keydown', handleEsc);
+    }
+
+    function closeDeleteConfirm() {
+        showDeleteConfirm = false;
+        window.removeEventListener('keydown', handleEsc);
+    }
+
+    async function confirmDelete() {
+        try {
+            const response = await fetch(`${TICKETS_API_ENDPOINTS.delete}${ticketId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${getAuthTokens()?.accessToken}`
+                }
+            });
+            if (!response.ok) throw new Error('Ошибка при удалении');
+            notification('Заявка удалена', NotificationType.Success);
+            window.location.href = '/tickets';
+        } catch (e) {
+            notification('Ошибка при удалении', NotificationType.Error);
+        } finally {
+            closeDeleteConfirm();
+        }
+    }
+
+    async function assignHandler(): Promise<void> {
+        fetch(`${TICKETS_API_ENDPOINTS.read}${ticketId}/assign`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthTokens()?.accessToken}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Ошибка получения заявки');
+            if (response.status === 200) {
+                if (ticketData)
+                    ticketData.assigned_to = {
+                        id: $currentUser?.id as string,
+                        name: $currentUser?.name as string
+                    };
+                notification('Заявка успешно взята в работу', NotificationType.Success);
+            }
+        })
+        .catch(error => { 
+            notification('Произошла ошибка', NotificationType.Error);
+        });
+    }
+
+    async function unassignHandler(): Promise<void> {
+        fetch(`${TICKETS_API_ENDPOINTS.read}${ticketId}/unassign`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getAuthTokens()?.accessToken}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Ошибка получения заявки');
+            if (response.status === 200) {
+                if (ticketData)
+                    ticketData.assigned_to = null;
+                notification('Вы отказались от заявки', NotificationType.Success);
+            }
+        })
+        .catch(error => { 
+            notification('Произошла ошибка', NotificationType.Error);
+        });
+    }
+
+    function startEdit() {
+        if (!ticketData) return;
+        isEditing = true;
+        status = ticketData.status;
+        priority = ticketData.priority;
+        description = ticketData.description;
+        author = ticketData.author;
+        author_contacts = ticketData.author_contacts;
+    }
+
+    async function saveEdit() {
+        if (!ticketData) return;
+        const updated = {
+            id: ticketData.id,
+            title: ticketData.title,
+            description: description,
+            author: author,
+            author_contacts: author_contacts,
+            status: status,
+            priority: priority
+        };
+        try {
+            const response = await fetch(`${TICKETS_API_ENDPOINTS.update}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getAuthTokens()?.accessToken}`
+                },
+                body: JSON.stringify(updated)
+            });
+            if (!response.ok) throw new Error('Ошибка при сохранении');
+            ticketData = { ...ticketData, ...updated };
+            isEditing = false;
+            notification('Изменения сохранены', NotificationType.Success);
+        } catch (e) {
+            notification('Ошибка при сохранении', NotificationType.Error);
+        }
+    }
+
     onMount(async () => {
         if (!ticketId) return;
         pageTitle.set(`Заявка №${ticketId} | Система управления заявками ЕИ КФУ`);
+
         ticketData = await getById(ticketId);
         if (ticketData && Array.isArray(ticketData.attachments) && ticketData.attachments.length > 0)
             await fetchImages(ticketData.attachments);
+
         if (!$isAuthenticated) window.location.href = '/';
     });
 
@@ -131,34 +257,86 @@
 
 <main>
     <div class="ticket-container">
-        <div class="ticket-meta">
-            <span class="ticket-id">Заявка №{ ticketId }</span>
-            {#if ticketData}
-                <h1 class="ticket-title">{ ticketData.title }</h1>
-                <p class="ticket-tag">Время создания: <span>{ formatDate(ticketData.created_at) }</span></p>
-                <p class="ticket-tag">Запланированное время: <span>{ formatDate(ticketData.planned_at || '') || 'Без даты' }</span></p>
-                <br>
-                <p class="ticket-tag">Статус: <span class="{ ticketData.status + '-status' }">{ statusOptions.find(option => option.serverValue === ticketData?.status)?.label }</span></p>
-                <p class="ticket-tag">Приоритет: <span class="{ ticketData.priority + '-priority' }">{ statusPriority.find(option => option.serverValue === ticketData?.priority)?.label }</span></p>
-                {#if ticketData.assigned_to}
-                    <div class="executor-block">
-                        <h3>Исполнитель</h3>
-                        <p>{ ticketData.assigned_to }</p>
-                    </div>
+        <div class="ticket-info-container">
+            <div class="ticket-meta">
+                {#if ticketData}
+                    <span class="ticket-id">Заявка №{ ticketId }</span>
+                    <h1 class="ticket-title">{ ticketData.title }</h1>
+                    <p class="ticket-tag">Время создания: <span>{ formatDate(ticketData.created_at) }</span></p>
+                    <p class="ticket-tag">
+                        Запланированное время:
+                        <span>{ formatDate(ticketData.planned_at || '') || 'Без даты' }</span>
+                    </p>
+                    <br>
+                    <p class="ticket-tag">
+                        Статус:
+                        {#if isEditing}
+                            <select bind:value={status} style="margin-left: 0.5em;">
+                                {#each statusOptions as option}
+                                    <option value={option.serverValue}>{option.label}</option>
+                                {/each}
+                            </select>
+                        {:else}
+                            <span class="{ ticketData.status + '-status' }">{ statusOptions.find(option => option.serverValue === ticketData?.status)?.label }</span>
+                        {/if}
+                    </p>
+                    <p class="ticket-tag">
+                        Приоритет:
+                        {#if isEditing}
+                            <select bind:value={priority} style="margin-left: 0.5em;">
+                                {#each statusPriority as option}
+                                    <option value={option.serverValue}>{option.label}</option>
+                                {/each}
+                            </select>
+                        {:else}
+                            <span class="{ ticketData.priority + '-priority' }">{ statusPriority.find(option => option.serverValue === ticketData?.priority)?.label }</span>
+                        {/if}
+                    </p>
+                {:else}
+                    <p>Загрузка...</p>
                 {/if}
-            {:else}
-                <p class="ticket-tag">Загрузка...</p>
+            </div>
+            {#if ticketData && ticketData.assigned_to}
+                <div class="ticket-meta" style="margin-top: 2rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <Avatar width={48} round={true} userFullName={ticketData.assigned_to.name} />
+                        <div>
+                            <div style="font-weight: bold;">Исполнитель</div>
+                            <div>{ticketData.assigned_to.name}</div>
+                            <div style="font-size: 0.95em; color: #888; margin-top: 0.25em;">
+                                {#if ticketData.status === 'inprogress'}
+                                    Статус: В работе
+                                {:else if ticketData.status === 'closed'}
+                                    Статус: Завершено
+                                {:else}
+                                    Статус: Ожидает выполнения
+                                {/if}
+                            </div>
+                        </div>
+                    </div>
+                    {#if $currentUser && ticketData.assigned_to.id === $currentUser.id}
+                        <div class="ticket-actions" style="margin-top: 1rem;">
+                            <button class="btn btn-warning" on:click={ unassignHandler }>Отказаться</button>
+                            {#if ticketData.status === 'inprogress'}
+                                <button class="btn btn-primary" style="margin-left: 0.5em;">Завершить</button>
+                            {/if}
+                        </div>
+                    {/if}
+                </div>
             {/if}
         </div>
         <div class="ticket-description">
             <h2>Описание</h2>
             {#if ticketData}
-                <p>{ ticketData.description }</p>
+                {#if isEditing}
+                    <textarea bind:value={description} rows="5" style="width: 100%; margin-bottom: 1em;"></textarea>
+                {:else}
+                    <p>{ ticketData.description }</p>
+                {/if}
             {:else}
                 <p>Загрузка...</p>
             {/if}
             {#if images.length > 0}
-                <h3>Фото</h3>
                 <div class="attachments-list">
                     {#each images as img, i}
                         <button
@@ -186,34 +364,52 @@
             {/if}
             <div class="author-contacts">
                 {#if ticketData}
-                    <Avatar width={64} round={true} userFullName={ ticketData.author } />	
+                    <Avatar width={64} round={true} userFullName={ isEditing ? author : ticketData.author } />	
                     <div class="author-data">
-                        <p class="ticket-author">{ ticketData.author }</p>
-                        <p class="contacts-tag">Телефон: <span>
-                            <a href={ "tel:" + ticketData.author_contacts } 
-                                style="
-                                outline: none; 
-                                color: inherit;
-                                text-decoration: none;">
-                                { ticketData.author_contacts }
-                            </a>
-                        </span></p>
+                        {#if isEditing}
+                            <input
+                                type="text"
+                                bind:value={author}
+                                style="margin-bottom: 0.5em; width: 100%;"
+                                aria-label="Имя заявителя"
+                            />
+                            <input
+                                type="tel"
+                                bind:value={author_contacts}
+                                style="margin-bottom: 0.5em; width: 100%;"
+                                aria-label="Телефон заявителя"
+                            />
+                        {:else}
+                            <p class="ticket-author">{ ticketData.author }</p>
+                            <p class="contacts-tag">Телефон: <span>
+                                <a href={ "tel:" + ticketData.author_contacts } 
+                                    style="
+                                    outline: none; 
+                                    color: inherit;
+                                    text-decoration: none;">
+                                    { ticketData.author_contacts }
+                                </a>
+                            </span></p>
+                        {/if}
                     </div>
                 {:else}
                     <p>Загрузка...</p>
                 {/if}
             </div>
             <div class="ticket-actions">
-                {#if ticketData && !ticketData.assigned_to}
-                    <button class="btn btn-primary">Взять в работу</button>
-                {:else if ticketData && ticketData.assigned_to === $currentUser?.id}
-                    <button class="btn btn-warning">Отказаться</button>
-                    <button class="btn btn-success">Завершить</button>
-                {/if}
-                <button class="btn btn-outline">Редактировать</button>
-                <button class="btn btn-secondary">Отменить</button>
-                {#if $currentUser && $currentUser.role !== 0}
-                    <button class="btn btn-danger">Удалить</button>
+                {#if !isEditing}
+                    {#if ticketData && !ticketData.assigned_to}
+                        <button class="btn btn-primary" on:click={ assignHandler }>Взять в работу</button>
+                    {/if}
+                    <button class="btn btn-outline" on:click={ startEdit }>Редактировать</button>
+                    {#if ticketData && ticketData.status !== 'cancelled'}
+                        <button class="btn btn-secondary">Отменить</button>
+                    {/if}
+                    {#if $currentUser && $currentUser.role !== 0}
+                        <button class="btn btn-danger" on:click={ handleDelete }>Удалить</button>
+                    {/if}
+                {:else}
+                    <button class="btn btn-primary" on:click={ saveEdit }>Сохранить</button>
                 {/if}
             </div>
         </div>
@@ -242,7 +438,18 @@
             aria-label="Закрыть"
         >&times;</button>
     </div>
-{/if}
+    {/if}
+    {#if showDeleteConfirm}
+        <div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Подтвердите удаление" transition:fade={{ duration: 180 }}>
+            <div class="modal-image" style="min-width:320px; max-width:90vw; background:#fff; border-radius:10px; padding:2em; box-shadow:0 4px 32px rgba(0,0,0,0.25); display:flex; flex-direction:column; align-items:center;">
+                <p style="font-size:1.15em; margin-bottom:1.5em;">Вы уверены, что хотите удалить заявку?</p>
+                <div style="display:flex; gap:1em;">
+                    <button class="btn btn-danger" on:click={ confirmDelete }>Удалить</button>
+                    <button class="btn btn-secondary" on:click={ closeDeleteConfirm }>Отмена</button>
+                </div>
+            </div>
+        </div>
+    {/if}
 </main>
 
 <style scoped>

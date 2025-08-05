@@ -1,9 +1,11 @@
 <script lang="ts">
-    import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
-    import { statusOptions, statusPriority, buildingOptions } from '$lib/utils/tickets/types';
-    import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';
-    import { formatDate } from '$lib/utils/tickets/support';
     import { onMount, onDestroy } from 'svelte';
+    
+    import { formatDate } from '$lib/utils/tickets/support';
+    import { isAuthenticated } from '$lib/utils/auth/storage/initial';
+    import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
+    import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';
+    import { statusOptions, statusPriority, buildingOptions } from '$lib/utils/tickets/types';
     import { getTicketsFilters, setTicketsFilters, clearTicketsFilters } from '$lib/utils/tickets/stores';
 
     let tickets: any[] = [];
@@ -94,6 +96,8 @@
         pageTitle.set('Заявки | Система управления заявками ЕИ КФУ');
         pageDescription.set('Отслеживайте статус заявок, принимайте к выполнению новые. Настройте рабочее пространство под себя с множеством гибких фильтров и сортировок.');
         
+        if (!$isAuthenticated) window.location.href = '/';
+
         try {
             const result = await fetchTickets();
             tickets = result.tickets;
