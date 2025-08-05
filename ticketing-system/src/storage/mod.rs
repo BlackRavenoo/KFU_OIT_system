@@ -1,4 +1,5 @@
 pub mod s3;
+pub mod filesystem;
 
 use std::pin::Pin;
 

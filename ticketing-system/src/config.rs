@@ -5,7 +5,7 @@ use serde::{Deserialize, Deserializer};
 use serde_aux::field_attributes::{deserialize_number_from_string, deserialize_bool_from_anything};
 use sqlx::{postgres::{PgConnectOptions, PgSslMode}, ConnectOptions};
 
-use crate::storage::{s3::S3Storage, FileStorage};
+use crate::storage::{filesystem::FilesystemStorage, s3::S3Storage, FileStorage};
 
 #[derive(Deserialize, Debug)]
 pub struct Settings {
@@ -73,16 +73,10 @@ pub struct S3Settings {
 #[derive(Deserialize, Debug)]
 pub struct FilesystemSettings {
     pub base_path: String,
-    #[serde(default = "default_create_dirs")]
-    pub create_dirs: bool,
-    pub permissions: Option<u32>,
+    pub base_url: String,
 }
 
 fn default_path_style() -> bool {
-    true
-}
-
-fn default_create_dirs() -> bool {
     true
 }
 
@@ -94,7 +88,7 @@ impl StorageSettings {
     pub async fn into_storage(&self) -> Box<dyn FileStorage> {
         match self {
             StorageSettings::S3(s3_settings) => Box::new(S3Storage::new(s3_settings).await),
-            StorageSettings::Filesystem(_) => todo!(),
+            StorageSettings::Filesystem(settings) => Box::new(FilesystemStorage::new(settings)),
         }
     }
 

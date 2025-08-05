@@ -6,5 +6,5 @@ database:
 
 storage:
   type: filesystem
-  base_path: ./files
-  permissions: 0o755
+  base_path: ./storage
+  base_url: /storage
