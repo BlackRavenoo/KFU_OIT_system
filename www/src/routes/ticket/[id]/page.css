@@ -1,9 +1,12 @@
 main {
     width: 100vw;
+    min-height: auto;
     margin-top: 100px;
+    padding: 80px 0;
     color: var(--dark);
     background: var(--light-gray);
     border-top: 1px solid var(--light-blue);
+    justify-content: start;
 }
 
 .ticket-container {
@@ -11,9 +14,11 @@ main {
     flex-direction: row;
     align-items: flex-start;
     justify-content: center;
-    width: 70vw;
-    margin: 40px 0 80px 0;
+    max-width: 1200px;
+    margin: 0 auto;
     gap: 40px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .ticket-meta {
@@ -76,7 +81,6 @@ main {
 .ticket-info-container {
     display: flex; 
     flex-direction: column; 
-    gap: 32px; 
     min-width: 280px; 
     max-width: 320px;
 }
@@ -98,6 +102,24 @@ main {
     font-weight: 700;
     margin-bottom: 12px;
     color: var(--blue);
+}
+
+.ticket-building {
+    position: relative;
+    top: -10px;
+    font-size: .9rem;
+    font-weight: 400;
+    color: var(--dark);
+    margin-bottom: -8px;
+    opacity: .7;
+}
+
+.ticket-building svg {
+    fill: var(--dark);
+    width: 1rem;
+    height: 1rem;
+    vertical-align: top;
+    margin-right: 6px;
 }
 
 .attachments-list {

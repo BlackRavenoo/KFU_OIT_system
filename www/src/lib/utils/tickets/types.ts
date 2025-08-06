@@ -9,6 +9,7 @@ export type UiStatus = 'all' | 'open' | 'inprogress' | 'closed' | 'cancelled';
 export type PriorityStatus = 'low' | 'medium' | 'high' | 'critical' | 'expired' | 'cancelled' | 'complete';
 export type ViewMode = 'cards' | 'list';
 export type SortOrder = 'asc' | 'desc';
+
 export type Ticket = {
     id: number,
     title: string,
@@ -20,26 +21,24 @@ export type Ticket = {
     planned_at: null | string,
     assigned_to: null | { id: string, name: string },
     created_at: string,
-    attachments: null | any
+    attachments: null | any,
+    building: Building,
+    note: string,
+    cabinet: string
+};
+
+export type Building = { 
+    id: number; 
+    code: string; 
+    name: string 
+};
+
+export type OrderBy = {
+    id: number;
+    name: string;
 }
 
-// Interfaces
-export interface ITicketsApiEndpoints {
-    create: string;
-    read: string;
-    update: string;
-    delete: string;
-    consts: string;
-    attachments: string;
-}
-
-interface StatusOption {
-    value: UiStatus | PriorityStatus;
-    label: string;
-    serverValue: string | null;
-}
-
-export interface TicketsFilters {
+export type TicketsFilters = {
     search: string;
     viewMode: ViewMode;
     sortOrder: SortOrder;
@@ -49,17 +48,28 @@ export interface TicketsFilters {
     plannedTo: string;
     page_size: number;
     selectedSort: number;
+};
+
+type StatusOption = {
+    value: UiStatus | PriorityStatus;
+    label: string;
+    serverValue: string | null;
+};
+
+export type TicketsApiEndpoints = {
+    create: string;
+    read: string;
+    update: string;
+    delete: string;
+    consts: string;
+    attachments: string;
 }
 
+// Interfaces
 export interface ITicketsFiltersStorage {
     get(): TicketsFilters;
     set(filters: TicketsFilters): void;
     clear(): void;
-}
-
-export interface IBuilding {
-    id: string;
-    name: string;
 }
 
 // Consts
@@ -80,21 +90,5 @@ export const statusOptions: StatusOption[] = [
 export const statusPriority: StatusOption[] = [
     { value: 'low', label: "Низкий", serverValue: 'low' },
     { value: 'medium', label: "Средний", serverValue: 'medium' },
-    { value: 'high', label: "Высокий", serverValue: 'high' },
-    { value: 'critical', label: "Срочный", serverValue: 'critical' },
-    { value: 'expired', label: "Истекло", serverValue: 'expired' },
-    { value: 'cancelled', label: "Отменён", serverValue: 'cancelled' },
-    { value: 'complete', label: "Завершён", serverValue: 'complete' }
-]
-
-export const buildingOptions: IBuilding[] = [
-    { id: 'building-1', name: 'Главный корпус' },
-    { id: 'building-2', name: 'Биофак' },
-    { id: 'building-3', name: 'Психфак' },
-    { id: 'building-4', name: 'Школа' },
-    { id: 'building-5', name: 'УСК' },
-    { id: 'building-6', name: 'Общежитие №1' },
-    { id: 'building-7', name: 'Общежитие №2' },
-    { id: 'building-8', name: 'Кафе' },
-    { id: 'building-9', name: 'Буревестник' }
+    { value: 'high', label: "Высокий", serverValue: 'high' }
 ]

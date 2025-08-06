@@ -3,9 +3,9 @@
     
     import { formatDate } from '$lib/utils/tickets/support';
     import { isAuthenticated } from '$lib/utils/auth/storage/initial';
-    import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
+    import { pageTitle, pageDescription, buildings } from '$lib/utils/setup/stores';
     import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';
-    import { statusOptions, statusPriority, buildingOptions } from '$lib/utils/tickets/types';
+    import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { getTicketsFilters, setTicketsFilters, clearTicketsFilters } from '$lib/utils/tickets/stores';
 
     let tickets: any[] = [];
@@ -103,7 +103,8 @@
             tickets = result.tickets;
             max_page = result.max_page;
 
-            sortConsts = await fetchConsts();
+            const consts = await fetchConsts();
+            sortConsts = consts.order;
         } catch (e) {
             error = e instanceof Error ? e.message : String(e);
         }
@@ -162,21 +163,22 @@
         <div class="filter">
             <span class="filter_name">Здание</span>
             <div class="filter_case">
-                {#each buildingOptions as building}
+                {#each $buildings as building}
                     <input
                         type="checkbox"
                         name="filter-building"
-                        value={ building.id }
-                        id={ building.id }
-                        checked={ selectedBuildings.includes(building.id) }
+                        value={ building.id.toString() }
+                        id={ building.id.toString() }
+                        checked={ selectedBuildings.includes(building.id.toString()) }
                         on:change={() => {
-                            if (selectedBuildings.includes(building.id))
-                                selectedBuildings = selectedBuildings.filter(b => b !== building.id);
+                            const idStr = building.id.toString();
+                            if (selectedBuildings.includes(idStr))
+                                selectedBuildings = selectedBuildings.filter(b => b !== idStr);
                             else
-                                selectedBuildings = [...selectedBuildings, building.id];
+                                selectedBuildings = [...selectedBuildings, idStr];
                         }}
                     />
-                    <label for={ building.id }>{ building.name }</label>
+                    <label for={ building.id.toString() }>{ building.name }</label>
                 {/each}
             </div>
         </div>
@@ -285,10 +287,10 @@
                             role="link"
                             tabindex="0"
                             aria-label={`Открыть заявку ${ticket.title}`}
-                            on:click={() => window.location.href = `/ticket/${ticket.id}`}
+                            on:click={() => window.location.href = `/ticket/${ ticket.id }`}
                             on:keydown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ')
-                                    window.location.href = `/ticket/${ticket.id}`;
+                                    window.location.href = `/ticket/${ ticket.id }`;
                             }}
                         >
                             <div class="ticket-title">
@@ -298,7 +300,7 @@
                                 </span>
                             </div>
                             <div class="ticket-meta">
-                                { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building ?? 'Не указано' }
+                                { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
                             </div>
                             <div class="ticket-desc">
                                 { ticket.description.length > 100
@@ -320,7 +322,7 @@
                         >
                             <div class="ticket-title">{ticket.title}</div>
                             <div class="ticket-meta">
-                                { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building ?? 'Не указано' }
+                                { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
                             </div>
                             <div class="ticket-desc">
                                 { ticket.description.length > 100

@@ -11,7 +11,7 @@
     import { handleFileChange, removeFile } from '$lib/utils/files/inputs';
     import { showModalWithFocus } from '$lib/components/Modal/Modal';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
-    import { buildingOptions } from '$lib/utils/tickets/types';
+    import { buildings } from '$lib/utils/setup/stores';
 
     import Modal from '$lib/components/Modal/Modal.svelte';
     import pageCSS from './page.css?inline';
@@ -31,7 +31,7 @@
     let Description: string = '';
     let Name: string = '';
     let Contact: string = '';
-    let Building: string = '';
+    let Building: number;
     let Cabinet: string = '';
     let DateVal: string = '';
     let fileName: string[] = [];
@@ -88,7 +88,7 @@
                 Description = '';
                 Name = '';
                 Contact = '';
-                Building = '';
+                Building;
                 Cabinet = '';
                 DateVal = '';
                 File = [];
@@ -295,9 +295,9 @@
 
                     <div class="form-row">
                         <div class="form-field">
-                            <select id="Building" name="Building" class="{ Building && "selected" }" placeholder=" " required bind:value={ Building }>
+                            <select id="Building" name="Building" class="{ Building ? "selected" : "" }" placeholder=" " required bind:value={ Building }>
                                 <option value="" disabled selected>Выберите здание</option>
-                                    {#each buildingOptions as building}
+                                    {#each $buildings as building}
                                         <option value={ building.id }>{ building.name }</option>
                                     {/each}
                             </select>
@@ -305,7 +305,7 @@
                         </div>
                         
                         <div class="form-field">
-                            <input type="text" id="Cabinet" name="Cabinet" placeholder=" " required bind:value={ Cabinet }>
+                            <input type="text" id="Cabinet" name="Cabinet" placeholder=" " bind:value={ Cabinet }>
                             <label for="Cabinet">Кабинет</label>
                         </div>
                     </div>

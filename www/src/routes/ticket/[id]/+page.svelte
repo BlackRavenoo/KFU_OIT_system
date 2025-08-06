@@ -6,12 +6,15 @@
     import { getAuthTokens } from '$lib/utils/auth/tokens/tokens';
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
-    import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
+    import { pageTitle, pageDescription, buildings } from '$lib/utils/setup/stores';
     import { formatDate } from '$lib/utils/tickets/support';
     import { TICKETS_API_ENDPOINTS } from '$lib/utils/tickets/api/endpoints';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { getById, fetchImages } from '$lib/utils/tickets/api/get';
+    import { unassign, assign } from '$lib/utils/tickets/api/assign';
+    import { update } from '$lib/utils/tickets/api/update';
 
-    import type { Ticket } from '$lib/utils/tickets/types';
+    import type { Ticket, Building } from '$lib/utils/tickets/types';
 
     import Avatar from '$lib/components/Avatar/Avatar.svelte';
 
@@ -32,48 +35,11 @@
     let description = '';
     let author = '';
     let author_contacts = '';
+    let building_id: number | null = null;
+    let cabinet = '';
 
-    async function getById(id: string): Promise<Ticket> {
-        const result = fetch(`${TICKETS_API_ENDPOINTS.read}${id}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getAuthTokens()?.accessToken}`
-            }
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Ошибка получения заявки');
-            return response.json();
-        })
-        .catch(error => {
-            return {
-                id: 0,
-                title: 'Ошибка',
-                description: error.message,
-                author: 'system',
-                author_contacts: '',
-                status: 'cancelled',
-                priority: 'critical',
-                planned_at: null,
-                assigned_to: null,
-                created_at: new Date().toISOString(),
-                attachments: []
-            } as Ticket;
-        });
-        return result;
-    }
-
-    async function fetchImages(attachments: string[]): Promise<void> {
-        images = [];
-        for (const key of attachments) {
-            try {
-                const res = await fetch(`${TICKETS_API_ENDPOINTS.attachments}/${key.split('/').pop()}`);
-                if (!res.ok) continue;
-                const blob = await res.blob();
-                images = [...images, URL.createObjectURL(blob)];
-            } catch { }
-        }
-    }
+    let buildingsList: Building[] = [];
+    $: buildings.subscribe(val => buildingsList = val);
 
     function openModal(img: string): void {
         modalImg = img;
@@ -123,6 +89,28 @@
         }
     }
 
+    async function assignHandler() {
+        assign(ticketId as string)
+            .then(() => {
+                notification('Заявка взята в работу', NotificationType.Success);
+                ticketData = { ...ticketData, assigned_to: $currentUser } as Ticket;
+            })
+            .catch(() => {
+                notification('Ошибка при взятии заявки в работу', NotificationType.Error);
+            });
+    }
+
+    async function unassignHandler() {
+        unassign(ticketId as string)
+            .then(() => {
+                notification('Заявка снята с выполнения', NotificationType.Success);
+                ticketData = { ...ticketData, assigned_to: null } as Ticket;
+            })
+            .catch(() => {
+                notification('Ошибка при снятии заявки с выполнения', NotificationType.Error);
+            });
+    }
+
     function handleDelete() {
         showDeleteConfirm = true;
         window.addEventListener('keydown', handleEsc);
@@ -151,49 +139,10 @@
         }
     }
 
-    async function assignHandler(): Promise<void> {
-        fetch(`${TICKETS_API_ENDPOINTS.read}${ticketId}/assign`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getAuthTokens()?.accessToken}`
-            }
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Ошибка получения заявки');
-            if (response.status === 200) {
-                if (ticketData)
-                    ticketData.assigned_to = {
-                        id: $currentUser?.id as string,
-                        name: $currentUser?.name as string
-                    };
-                notification('Заявка успешно взята в работу', NotificationType.Success);
-            }
-        })
-        .catch(error => { 
-            notification('Произошла ошибка', NotificationType.Error);
-        });
-    }
-
-    async function unassignHandler(): Promise<void> {
-        fetch(`${TICKETS_API_ENDPOINTS.read}${ticketId}/unassign`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getAuthTokens()?.accessToken}`
-            }
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Ошибка получения заявки');
-            if (response.status === 200) {
-                if (ticketData)
-                    ticketData.assigned_to = null;
-                notification('Вы отказались от заявки', NotificationType.Success);
-            }
-        })
-        .catch(error => { 
-            notification('Произошла ошибка', NotificationType.Error);
-        });
+    async function finishHandler() {
+        if (!ticketData) return;
+        status = 'closed';
+        await saveEdit();
     }
 
     function startEdit() {
@@ -204,6 +153,8 @@
         description = ticketData.description;
         author = ticketData.author;
         author_contacts = ticketData.author_contacts;
+        building_id = ticketData.building?.id ?? null;
+        cabinet = ticketData.cabinet ?? '';
     }
 
     async function saveEdit() {
@@ -215,41 +166,39 @@
             author: author,
             author_contacts: author_contacts,
             status: status,
-            priority: priority
+            priority: priority,
+            building_id: building_id,
+            cabinet: cabinet
         };
-        try {
-            const response = await fetch(`${TICKETS_API_ENDPOINTS.update}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${getAuthTokens()?.accessToken}`
-                },
-                body: JSON.stringify(updated)
+        update(ticketId as string, updated)
+            .then(() => {
+                notification('Заявка обновлена', NotificationType.Success);
+                ticketData = { ...ticketData, ...updated } as Ticket;
+                isEditing = false;
+            })
+            .catch(() => {
+                notification('Ошибка при обновлении заявки', NotificationType.Error);
             });
-            if (!response.ok) throw new Error('Ошибка при сохранении');
-            ticketData = { ...ticketData, ...updated };
-            isEditing = false;
-            notification('Изменения сохранены', NotificationType.Success);
-        } catch (e) {
-            notification('Ошибка при сохранении', NotificationType.Error);
-        }
     }
 
     onMount(async () => {
         if (!ticketId) return;
-        pageTitle.set(`Заявка №${ticketId} | Система управления заявками ЕИ КФУ`);
-
+        
         ticketData = await getById(ticketId);
+        if (ticketData && ticketData.building && ticketData.building.code)
+            pageTitle.set(`Заявка ${ticketData.building.code}-${ticketId} | Система управления заявками ЕИ КФУ`);
         if (ticketData && Array.isArray(ticketData.attachments) && ticketData.attachments.length > 0)
-            await fetchImages(ticketData.attachments);
-
+            images = await fetchImages(ticketData.attachments);
+        
         if (!$isAuthenticated) window.location.href = '/';
     });
 
     onDestroy(() => {
         pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
+        
         images.forEach(url => URL.revokeObjectURL(url));
+        
         document.body.style.overflow = '';
         window.removeEventListener('keydown', handleEsc);
     });
@@ -260,7 +209,7 @@
         <div class="ticket-info-container">
             <div class="ticket-meta">
                 {#if ticketData}
-                    <span class="ticket-id">Заявка №{ ticketId }</span>
+                    <span class="ticket-id">Заявка { ticketData.building.code }-{ ticketId }</span>
                     <h1 class="ticket-title">{ ticketData.title }</h1>
                     <p class="ticket-tag">Время создания: <span>{ formatDate(ticketData.created_at) }</span></p>
                     <p class="ticket-tag">
@@ -271,9 +220,9 @@
                     <p class="ticket-tag">
                         Статус:
                         {#if isEditing}
-                            <select bind:value={status} style="margin-left: 0.5em;">
+                            <select bind:value={ status } style="margin-left: 0.5em;">
                                 {#each statusOptions as option}
-                                    <option value={option.serverValue}>{option.label}</option>
+                                    <option value={ option.serverValue }>{ option.label }</option>
                                 {/each}
                             </select>
                         {:else}
@@ -283,15 +232,37 @@
                     <p class="ticket-tag">
                         Приоритет:
                         {#if isEditing}
-                            <select bind:value={priority} style="margin-left: 0.5em;">
+                            <select bind:value={ priority } style="margin-left: 0.5em;">
                                 {#each statusPriority as option}
-                                    <option value={option.serverValue}>{option.label}</option>
+                                    <option value={ option.serverValue }>{ option.label }</option>
                                 {/each}
                             </select>
                         {:else}
                             <span class="{ ticketData.priority + '-priority' }">{ statusPriority.find(option => option.serverValue === ticketData?.priority)?.label }</span>
                         {/if}
                     </p>
+                    {#if isEditing}
+                        <p class="ticket-tag">
+                            Здание:
+                            <select bind:value={ building_id } style="margin-left: 0.5em;">
+                                <option value="" disabled selected>Выберите здание</option>
+                                {#each buildingsList as b}
+                                    <option value={ b.id }>{ b.name }</option>
+                                {/each}
+                            </select>
+                        </p>
+                    {/if}
+                    {#if isEditing}
+                        <p class="ticket-tag">
+                            Кабинет:
+                            <input
+                                type="text"
+                                bind:value={ cabinet }
+                                style="margin-left: 0.5em; width: 120px;"
+                                aria-label="Кабинет"
+                            />
+                        </p>
+                    {/if}
                 {:else}
                     <p>Загрузка...</p>
                 {/if}
@@ -318,7 +289,7 @@
                         <div class="ticket-actions" style="margin-top: 1rem;">
                             <button class="btn btn-warning" on:click={ unassignHandler }>Отказаться</button>
                             {#if ticketData.status === 'inprogress'}
-                                <button class="btn btn-primary" style="margin-left: 0.5em;">Завершить</button>
+                                <button class="btn btn-primary" on:click={ finishHandler }>Завершить</button>
                             {/if}
                         </div>
                     {/if}
@@ -326,7 +297,13 @@
             {/if}
         </div>
         <div class="ticket-description">
-            <h2>Описание</h2>
+            <h2>Задача</h2>
+            {#if ticketData && ticketData.building}
+                <span class="ticket-building">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M128 252.6C128 148.4 214 64 320 64C426 64 512 148.4 512 252.6C512 371.9 391.8 514.9 341.6 569.4C329.8 582.2 310.1 582.2 298.3 569.4C248.1 514.9 127.9 371.9 127.9 252.6zM320 320C355.3 320 384 291.3 384 256C384 220.7 355.3 192 320 192C284.7 192 256 220.7 256 256C256 291.3 284.7 320 320 320z"/></svg>
+                    { ticketData.building.name } { ticketData.cabinet ? `| Кб. ${ticketData.cabinet}` : '' }
+                </span>
+            {/if}
             {#if ticketData}
                 {#if isEditing}
                     <textarea bind:value={description} rows="5" style="width: 100%; margin-bottom: 1em;"></textarea>
@@ -369,13 +346,13 @@
                         {#if isEditing}
                             <input
                                 type="text"
-                                bind:value={author}
+                                bind:value={ author }
                                 style="margin-bottom: 0.5em; width: 100%;"
                                 aria-label="Имя заявителя"
                             />
                             <input
                                 type="tel"
-                                bind:value={author_contacts}
+                                bind:value={ author_contacts }
                                 style="margin-bottom: 0.5em; width: 100%;"
                                 aria-label="Телефон заявителя"
                             />

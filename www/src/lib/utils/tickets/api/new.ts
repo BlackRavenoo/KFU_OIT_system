@@ -14,7 +14,7 @@ export async function fetchTicket(
     Description: string,
     Name: string,
     Contact: string,
-    Building: string,
+    Building: number,
     Cabinet: string,
     DateVal: string,
     File?: File[] | null
@@ -27,8 +27,8 @@ export async function fetchTicket(
         description: Description.trim(),
         author: Name.trim(),
         author_contacts: Contact.trim(),
-        // building: Building,
-        // cabinet: string,
+        building_id: Building,
+        cabinet: Cabinet,
         planned_at: DateVal && DateVal.trim() ? normalizeDate(DateVal) : null
     };
 
