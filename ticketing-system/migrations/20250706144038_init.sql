@@ -9,6 +9,13 @@ CREATE TABLE users (
 );
 
 -- Tickets
+CREATE TABLE buildings (
+    id SMALLINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    code VARCHAR(6) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true
+);
+
 CREATE TABLE tickets (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
@@ -18,6 +25,9 @@ CREATE TABLE tickets (
     status SMALLINT NOT NULL DEFAULT 0 CHECK (status BETWEEN 0 AND 3),
     priority SMALLINT NOT NULL DEFAULT 0 CHECK (priority BETWEEN 0 AND 3),
     planned_at TIMESTAMPTZ,
+    cabinet VARCHAR(16),
+    note VARCHAR(255),
+    building_id SMALLINT REFERENCES buildings(id) ON DELETE RESTRICT NOT NULL,
     assigned_to INT REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -31,3 +41,14 @@ CREATE TABLE ticket_attachments (
 -- admin@example.com admin
 INSERT INTO users (name, email, password_hash, role)
 VALUES ('admin', 'admin@example.com', '$argon2id$v=19$m=19456,t=2,p=1$842ILagOz0rdwfNELPZhPg$KobLaelwC6ZPo2X0555H1rbyPlBo/+N7G+N2NOvKS7w', 2);
+
+INSERT INTO buildings (code, name)
+VALUES ('MAIN', 'Главное здание'),
+('BIO', 'Биофак'),
+('PSY', 'Психфак'),
+('SCH', 'Школа'),
+('USC', 'УСК'),
+('DORM1', 'Общежитие 1'),
+('DORM2', 'Общежитие 2'),
+('CAFE', 'Кафе'),
+('BUR', 'Буревестник');

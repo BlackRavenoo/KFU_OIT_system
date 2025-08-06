@@ -50,7 +50,7 @@ impl OrderBy {
     pub fn as_str(&self) -> &'static str {
         match self {
             OrderBy::Id => "По айди",
-            OrderBy::PlannedAt => "По запланированному времени",
+            OrderBy::PlannedAt => "По дате",
             OrderBy::Priority => "По приоритету",
         }
     }

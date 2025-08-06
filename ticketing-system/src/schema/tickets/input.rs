@@ -11,6 +11,8 @@ pub struct CreateTicketSchema {
     pub author: String,
     pub author_contacts: String,
     pub planned_at: Option<DateTime<Utc>>,
+    pub cabinet: Option<String>,
+    pub building_id: i16,
 }
 
 #[derive(MultipartForm)]
@@ -28,6 +30,9 @@ pub struct UpdateTicketSchema {
     pub author_contacts: Option<String>,
     pub status: Option<TicketStatus>,
     pub priority: Option<TicketPriority>,
+    pub cabinet: Option<String>,
+    pub note: Option<String>,
+    pub building_id: Option<i16>,
 }
 
 #[derive(Deserialize)]
@@ -40,4 +45,5 @@ pub struct GetTicketsSchema {
     pub sort_order: Option<SortOrder>,
     pub page: Option<i64>,
     pub page_size: Option<i8>,
+    pub buildings: Option<Vec<i16>>,
 }

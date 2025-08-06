@@ -18,7 +18,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             )
             .service(
                 web::scope("/tickets")
-                    .route("/consts", web::get().to(get_order_fields))
+                    .route("/consts", web::get().to(get_consts))
                     .route("/", web::post().to(create_ticket))
                     .route("/", web::put().to(update_ticket)
                         .wrap(JwtMiddleware::default()))

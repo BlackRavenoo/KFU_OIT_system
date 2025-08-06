@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use crate::schema::{common::UserId, tickets::{TicketId, TicketPriority, TicketStatus, TicketQueryResult}};
+use crate::schema::{common::UserId, tickets::{OrderBy, TicketId, TicketPriority, TicketQueryResult, TicketStatus}};
 
 #[derive(Serialize)]
 pub struct User {
@@ -21,6 +21,8 @@ pub struct TicketSchema {
     pub planned_at: Option<DateTime<Utc>>,
     pub assigned_to: Option<User>,
     pub created_at: DateTime<Utc>,
+    pub building: Building,
+    pub cabinet: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -36,9 +38,12 @@ pub struct TicketSchemaWithAttachments {
     pub assigned_to: Option<User>,
     pub created_at: DateTime<Utc>,
     pub attachments: Option<Vec<String>>,
+    pub building: Building,
+    pub note: Option<String>,
+    pub cabinet: Option<String>,
 }
 
-fn create_assigned_user(name: Option<String>, id: Option<UserId>) -> Option<User> {
+pub fn create_assigned_user(name: Option<String>, id: Option<UserId>) -> Option<User> {
     if let (Some(name), Some(id)) = (name, id) {
         Some(User { id, name })
     } else {
@@ -49,6 +54,12 @@ fn create_assigned_user(name: Option<String>, id: Option<UserId>) -> Option<User
 impl From<TicketQueryResult> for TicketSchemaWithAttachments {
     fn from(ticket: TicketQueryResult) -> Self {
         let assigned_to = create_assigned_user(ticket.assigned_to_name, ticket.assigned_to_id);
+
+        let building = Building {
+            id: ticket.building_id,
+            code: ticket.building_code,
+            name: ticket.building_name,
+        };
 
         TicketSchemaWithAttachments {
             id: ticket.id,
@@ -61,7 +72,23 @@ impl From<TicketQueryResult> for TicketSchemaWithAttachments {
             planned_at: ticket.planned_at,
             created_at: ticket.created_at,
             assigned_to,
-            attachments: ticket.attachments
+            attachments: ticket.attachments,
+            building,
+            note: ticket.note,
+            cabinet: ticket.cabinet,
         }
     }
+}
+
+#[derive(Serialize)]
+pub struct Building {
+    pub id: i16,
+    pub code: String,
+    pub name: String,
+}
+
+#[derive(Serialize)]
+pub struct ConstsSchema {
+    pub order_by: Vec<OrderBy>,
+    pub buildings: Vec<Building>,
 }

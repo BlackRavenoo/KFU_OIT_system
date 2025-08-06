@@ -28,15 +28,17 @@ pub async fn create_ticket(
 
     let result = sqlx::query!(
         r#"
-        INSERT INTO tickets(title, description, author, author_contacts, planned_at)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO tickets(title, description, author, author_contacts, planned_at, cabinet, building_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id
         "#,
         fields.title,
         fields.description,
         fields.author,
         fields.author_contacts,
-        fields.planned_at
+        fields.planned_at,
+        fields.cabinet,
+        fields.building_id,
     )
     .fetch_one(&mut *transaction)
     .await;
@@ -131,6 +133,9 @@ pub async fn update_ticket(
     build_update_query!(builder, has_fields, schema.author_contacts, "author_contacts");
     build_update_query!(builder, has_fields, schema.status, "status");
     build_update_query!(builder, has_fields, schema.priority, "priority");
+    build_update_query!(builder, has_fields, schema.cabinet, "cabinet");
+    build_update_query!(builder, has_fields, schema.note, "note");
+    build_update_query!(builder, has_fields, schema.building_id, "building_id");
 
     if !has_fields {
         return HttpResponse::BadRequest().finish();
@@ -221,12 +226,18 @@ pub async fn get_ticket(
             u.id as "assigned_to_id: Option<i32>",
             u.name as "assigned_to_name: Option<String>",
             t.created_at,
-            ARRAY_AGG(ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments
+            ARRAY_AGG(ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments,
+            b.id as "building_id",
+            b.code as "building_code",
+            b.name as "building_name",
+            note,
+            cabinet
         FROM tickets t
         LEFT JOIN users u ON u.id = t.assigned_to
         LEFT JOIN ticket_attachments ta ON ta.ticket_id = t.id
+        JOIN buildings b ON b.id = t.building_id
         WHERE t.id = $1
-        GROUP BY t.id, u.name, u.id
+        GROUP BY t.id, u.name, u.id, b.id
         "#,
         id
     )
@@ -274,9 +285,14 @@ pub async fn get_tickets(
             t.created_at,
             u.name as "assigned_to_name",
             u.id as "assigned_to_id",
+            b.id as "building_id",
+            b.code as "building_code",
+            b.name as "building_name",
+            cabinet,
             COUNT(*) OVER() as total_items
         FROM tickets t
         LEFT JOIN users u ON u.id = t.assigned_to
+        JOIN buildings b ON b.id = t.building_id
         "#
     );
 
@@ -286,6 +302,7 @@ pub async fn get_tickets(
     build_where_condition!(builder, has_filters, schema.priorities, "priority", in);
     build_where_condition!(builder, has_filters, schema.planned_from, "planned_at", ">=");
     build_where_condition!(builder, has_filters, schema.planned_to, "planned_at", "<=");
+    build_where_condition!(builder, has_filters, schema.buildings, "buildings", in);
 
     if has_filters {
         builder.push("\n");
@@ -329,6 +346,8 @@ pub async fn get_tickets(
                 planned_at: ticket.planned_at,
                 assigned_to: ticket.assigned_to,
                 created_at: ticket.created_at,
+                building: ticket.building,
+                cabinet: ticket.cabinet
             }).collect::<Vec<_>>();
 
             let res = PaginationResult::new_with_pagination(
@@ -346,8 +365,28 @@ pub async fn get_tickets(
     }
 }
 
-pub async fn get_order_fields() -> impl Responder {
-    HttpResponse::Ok().json(OrderBy::iter().collect::<Vec<_>>())
+pub async fn get_consts(pool: web::Data<PgPool>) -> impl Responder {
+    let buildings = match sqlx::query_as!(
+        Building,
+        r#"
+            SELECT id, code, name
+            FROM buildings
+            WHERE is_active
+        "#
+    )
+    .fetch_all(pool.as_ref())
+    .await {
+        Ok(buildings) => buildings,
+        Err(e) => {
+            tracing::error!("Failed to get building: {:?}", e);
+            return HttpResponse::InternalServerError().finish()
+        },
+    };
+
+    HttpResponse::Ok().json(ConstsSchema {
+        order_by: OrderBy::iter().collect::<Vec<_>>(),
+        buildings,
+    })
 }
 
 pub async fn assign_ticket(
