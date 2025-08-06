@@ -1,9 +1,10 @@
 use actix_web::web;
 
-use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{login, me, refresh_token}, tickets::{assign_ticket, create_ticket, delete_ticket, get_image, get_order_fields, get_ticket, get_tickets, unassign_ticket, update_ticket}}};
+use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{login, me, refresh_token}, images::get_image, tickets::{assign_ticket, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket, update_ticket}}};
 
 pub mod auth;
 pub mod tickets;
+pub mod images;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
