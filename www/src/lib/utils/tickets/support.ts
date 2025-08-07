@@ -11,6 +11,16 @@ export function formatDate(dateStr: string): string {
 }
 
 /**
+ * Нормализует дату в формате ISO 8601.
+ * @param {string} date - Дата в строковом формате.
+ */
+export function normalizeDate(date: string): string | null {
+    if (!date || !date.trim()) return null;
+    if (/T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})?$/.test(date)) return date;
+    return date + ':00Z';
+}
+
+/**
  * Преобразует строку даты в формат RFC3339
  * @param dateStr - строка даты
  * @param endOfDay - если true, устанавливает время на конец дня (23:59:59)

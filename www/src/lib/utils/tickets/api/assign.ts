@@ -16,7 +16,7 @@ export async function assign(
         }
     });
 
-    if (!response.ok || response.status !== 200) throw new Error('Ошибка получения заявки');
+    if (!response.ok) throw new Error('Ошибка получения заявки');
 }
 
 /**
@@ -34,5 +34,5 @@ export async function unassign(
         }
     });
 
-    if (!response.ok || response.status !== 200) throw new Error('Ошибка получения заявки');
+    if (!response.ok) throw new Error('Ошибка получения заявки');
 }

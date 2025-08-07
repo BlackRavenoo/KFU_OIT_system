@@ -30,6 +30,7 @@
               
                         checkToken().then(async isValid => {
                             if (isValid) {
+                                if ($currentUser) return;
                                 const user = await getUserData();
                                 if (user) $currentUser = user;
                             } else {

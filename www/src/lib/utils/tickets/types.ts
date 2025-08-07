@@ -19,7 +19,7 @@ export type Ticket = {
     status: UiStatus,
     priority: PriorityStatus,
     planned_at: null | string,
-    assigned_to: null | { id: string, name: string },
+    assigned_to: Array<{ id: string, name: string }>,
     created_at: string,
     attachments: null | any,
     building: Building,

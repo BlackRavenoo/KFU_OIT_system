@@ -5,8 +5,9 @@
  */
 
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
+import { get } from 'svelte/store';
 
-import { getAuthTokens, clearAuthTokens } from '../tokens/tokens';
+import { getAuthTokens, clearAuthTokens, checkToken } from '../tokens/tokens';
 import { setTokenStore } from '../tokens/storage';
 import { currentUser, isAuthenticated } from '../storage/initial';
 import { AUTH_API_ENDPOINTS as Endpoints } from './endpoints';
@@ -181,6 +182,13 @@ export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: 
  * @returns {Promise<any>} Данные пользователя или ошибка.
  */
 export async function getUserData(): Promise<IUserData> {
+    if (!getAuthTokens()?.accessToken)
+        throw new Error('Access token is missing');
+    
+    const isValid = await checkToken();
+    if (isValid && getAuthTokens()?.accessToken && get(currentUser))
+        return get(currentUser) as IUserData;
+
     try {
         const response = await fetch(Endpoints.getUserData, {
             method: 'GET',

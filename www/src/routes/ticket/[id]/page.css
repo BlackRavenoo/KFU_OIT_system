@@ -34,6 +34,20 @@ main {
     font-size: 1.05rem;
 }
 
+.executors {
+    box-shadow: none;
+    border-top: 1px solid var(--light-blue);
+    border-radius: 0;
+    margin-top: 1rem;
+}
+
+.executors .ticket-meta {
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+    border-radius: 0;
+}
+
 .ticket-id {
     font-size: .9rem;
     color: var(--dark);
@@ -141,6 +155,33 @@ main {
 
 .attachment-img:hover {
     transform: scale(1.05);
+}
+
+.executor {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+}
+
+.executor-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.executor-text-mobile {
+    justify-content: space-around;
+    margin-left: 15px;
+}
+
+.executor-name {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.executor-status {
+    font-size: 0.9rem;
+    color: var(--dark);
+    opacity: .7;
 }
 
 .modal-backdrop {
@@ -286,6 +327,20 @@ main {
 }
 .btn-danger:hover {
     background: #b91c1c;
+}
+
+.mobile-view {
+    position: relative !important;
+    top: -6rem !important;
+    left: -8px !important;
+    width: calc(100vw - 6rem) !important;
+    margin: 0 !important;
+    margin-bottom: -12rem !important;
+    padding: 3rem !important;
+    border: none !important;
+    border-top: 1px solid var(--light-blue) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
 
 @media (max-width: 900px) {
