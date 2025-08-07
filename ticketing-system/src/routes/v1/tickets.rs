@@ -5,7 +5,7 @@ use serde_qs::actix::QsQuery;
 use sqlx::{Execute as _, PgPool};
 use strum::IntoEnumIterator;
 
-use crate::{auth::extractor::UserId, build_update_query, build_where_condition, schema::{common::PaginationResult, tickets::{Building, ConstsSchema, CreateTicketForm, GetTicketsSchema, OrderBy, TicketId, TicketQueryResult, TicketSchema, TicketSchemaWithAttachments, TicketWithMeta, UpdateTicketSchema}}, services::image::{ImageService, ImageType}, utils::cleanup_images};
+use crate::{auth::extractor::UserId, build_update_query, build_where_condition, schema::{common::PaginationResult, tickets::{Building, ConstsSchema, CreateTicketForm, GetTicketsSchema, OrderBy, TicketId, TicketQueryResult, TicketSchema, TicketSchemaWithAttachments, TicketStatus, TicketWithMeta, UpdateTicketSchema}}, services::image::{ImageService, ImageType}, utils::cleanup_images};
 
 pub async fn create_ticket(
     MultipartForm(ticket): MultipartForm<CreateTicketForm>,
@@ -223,21 +223,22 @@ pub async fn get_ticket(
             status,
             priority,
             planned_at,
-            u.id as "assigned_to_id: Option<i32>",
-            u.name as "assigned_to_name: Option<String>",
+            ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL) as assigned_to_id,
+            ARRAY_AGG(DISTINCT u.name) FILTER (WHERE u.name IS NOT NULL) as assigned_to_name,
             t.created_at,
-            ARRAY_AGG(ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments,
+            ARRAY_AGG(DISTINCT ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments,
             b.id as "building_id",
             b.code as "building_code",
             b.name as "building_name",
             note,
             cabinet
         FROM tickets t
-        LEFT JOIN users u ON u.id = t.assigned_to
+        LEFT JOIN tickets_users tu ON tu.ticket_id = t.id 
+        LEFT JOIN users u ON u.id = tu.assigned_to
         LEFT JOIN ticket_attachments ta ON ta.ticket_id = t.id
         JOIN buildings b ON b.id = t.building_id
         WHERE t.id = $1
-        GROUP BY t.id, u.name, u.id, b.id
+        GROUP BY t.id, b.id
         "#,
         id
     )
@@ -283,15 +284,16 @@ pub async fn get_tickets(
             priority,
             planned_at,
             t.created_at,
-            u.name as "assigned_to_name",
-            u.id as "assigned_to_id",
+            ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL) as assigned_to_id,
+            ARRAY_AGG(DISTINCT u.name) FILTER (WHERE u.name IS NOT NULL) as assigned_to_name,
             b.id as "building_id",
             b.code as "building_code",
             b.name as "building_name",
             cabinet,
             COUNT(*) OVER() as total_items
         FROM tickets t
-        LEFT JOIN users u ON u.id = t.assigned_to
+        LEFT JOIN tickets_users tu ON tu.ticket_id = t.id 
+        LEFT JOIN users u ON u.id = tu.assigned_to
         JOIN buildings b ON b.id = t.building_id
         "#
     );
@@ -317,7 +319,7 @@ pub async fn get_tickets(
     };
 
     builder
-        .push("ORDER BY ")
+        .push("GROUP BY t.id, b.id ORDER BY ")
         .push(order_by_column)
         .push(" ")
         .push(schema.sort_order.unwrap_or_default().as_str())
@@ -394,28 +396,53 @@ pub async fn assign_ticket(
     user_id: UserId,
     pool: web::Data<PgPool>,
 ) -> impl Responder {
+    let ticket_id = id.into_inner();
+
+    let mut transaction = match pool.begin().await {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::error!("Failed to begin transaction: {:?}", e);
+            return HttpResponse::InternalServerError().finish()
+        },
+    };
+
     let res = sqlx::query!(
         r#"
-            UPDATE tickets SET
-            assigned_to = $1
-            WHERE id = $2
+            INSERT INTO tickets_users(assigned_to, ticket_id)
+            VALUES ($1, $2)
+            ON CONFLICT DO NOTHING
         "#,
         user_id.0.unwrap(),
-        id.into_inner()
+        ticket_id
     )
-    .execute(pool.as_ref())
+    .execute(&mut *transaction)
     .await;
 
-    match res {
-        Ok(result) => {
-            if result.rows_affected() == 0 {
-                HttpResponse::NotFound().finish()
-            } else {
-                HttpResponse::Ok().finish()
-            }
-        },
+    if let Err(e) = res {
+        tracing::error!("Failed to assign ticket: {:?}", e);
+        return HttpResponse::InternalServerError().finish()
+    }
+
+    if let Err(e) = sqlx::query!(
+        r#"
+            UPDATE tickets
+            SET status = $1
+            WHERE id = $2 AND status = $3
+        "#,
+        TicketStatus::InProgress as i16,
+        ticket_id,
+        TicketStatus::Open as i16
+    )
+    .execute(&mut *transaction)
+    .await {
+        tracing::error!("Failed to update status: {:?}", e);
+        return HttpResponse::InternalServerError().finish()
+    }
+
+    match transaction.commit().await {
+        Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => {
-            tracing::error!("Failed to assign ticket: {:?}", e);
+            tracing::error!("Failed to commit transaction: {:?}", e);
             HttpResponse::InternalServerError().finish()
         },
     }
@@ -426,28 +453,56 @@ pub async fn unassign_ticket(
     user_id: UserId,
     pool: web::Data<PgPool>,
 ) -> impl Responder {
+    let ticket_id = id.into_inner();
+
+    let mut transaction = match pool.begin().await {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::error!("Failed to begin transaction: {:?}", e);
+            return HttpResponse::InternalServerError().finish()
+        },
+    };
+
     let res = sqlx::query!(
         r#"
-            UPDATE tickets SET
-            assigned_to = NULL
-            WHERE id = $1 AND assigned_to = $2
+            DELETE FROM tickets_users
+            WHERE ticket_id = $1 AND assigned_to = $2
         "#,
-        id.into_inner(),
+        ticket_id,
         user_id.0.unwrap(),
     )
-    .execute(pool.as_ref())
+    .execute(&mut *transaction)
     .await;
 
-    match res {
-        Ok(result) => {
-            if result.rows_affected() == 0 {
-                HttpResponse::NotFound().finish()
-            } else {
-                HttpResponse::Ok().finish()
-            }
-        },
+    if let Err(e) = res {
+        tracing::error!("Failed to unassign ticket: {:?}", e);
+        return HttpResponse::InternalServerError().finish()
+    }
+
+    if let Err(e) = sqlx::query!(
+        r#"
+            UPDATE tickets
+            SET status = $1
+            WHERE id = $2 AND status = $3 AND NOT EXISTS (
+                SELECT 1
+                FROM tickets_users tu
+                WHERE tu.ticket_id = tickets.id
+            )
+        "#,
+        TicketStatus::Open as i16,
+        ticket_id,
+        TicketStatus::InProgress as i16
+    )
+    .execute(&mut *transaction)
+    .await {
+        tracing::error!("Failed to update status: {:?}", e);
+        return HttpResponse::InternalServerError().finish()
+    }
+
+    match transaction.commit().await {
+        Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => {
-            tracing::error!("Failed to unassign ticket: {:?}", e);
+            tracing::error!("Failed to commit transaction: {:?}", e);
             HttpResponse::InternalServerError().finish()
         },
     }

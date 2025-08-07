@@ -1,8 +1,9 @@
 use chrono::{DateTime, Utc};
 use sqlx::{FromRow, Row as _};
 
-use crate::schema::tickets::{create_assigned_user, Building, TicketId, TicketPriority, TicketStatus, User};
+use crate::schema::tickets::{create_assigned_users, Building, TicketId, TicketPriority, TicketStatus, User};
 
+#[derive(Debug)]
 pub struct TicketQueryResult {
     pub id: TicketId,
     pub title: String,
@@ -12,8 +13,8 @@ pub struct TicketQueryResult {
     pub status: TicketStatus,
     pub priority: TicketPriority,
     pub planned_at: Option<DateTime<Utc>>,
-    pub assigned_to_id: Option<i32>,
-    pub assigned_to_name: Option<String>,
+    pub assigned_to_id: Option<Vec<i32>>,
+    pub assigned_to_name: Option<Vec<String>>,
     pub created_at: DateTime<Utc>,
     pub attachments: Option<Vec<String>>,
     pub building_id: i16,
@@ -32,7 +33,7 @@ pub struct TicketWithMeta {
     pub status: TicketStatus,
     pub priority: TicketPriority,
     pub planned_at: Option<DateTime<Utc>>,
-    pub assigned_to: Option<User>,
+    pub assigned_to: Option<Vec<User>>,
     pub created_at: DateTime<Utc>,
     pub total_items: i64,
     pub building: Building,
@@ -41,7 +42,7 @@ pub struct TicketWithMeta {
 
 impl FromRow<'_, sqlx::postgres::PgRow> for TicketWithMeta {
     fn from_row(row: &sqlx::postgres::PgRow) -> Result<Self, sqlx::Error> {
-        let assigned_to = create_assigned_user(
+        let assigned_to = create_assigned_users(
             row.try_get("assigned_to_name")?,
             row.try_get("assigned_to_id")?
         );

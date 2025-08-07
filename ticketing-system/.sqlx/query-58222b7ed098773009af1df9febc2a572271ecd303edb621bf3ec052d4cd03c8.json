@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO tickets_users(assigned_to, ticket_id)\n            VALUES ($1, $2)\n            ON CONFLICT DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "58222b7ed098773009af1df9febc2a572271ecd303edb621bf3ec052d4cd03c8"
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE tickets\n            SET status = $1\n            WHERE id = $2 AND status = $3 AND NOT EXISTS (\n                SELECT 1\n                FROM tickets_users tu\n                WHERE tu.ticket_id = tickets.id\n            )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int2",
+        "Int8",
+        "Int2"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c6a54b97b557f291aa5a81d705591868536cee057ae9db2803f80ba9d92aee86"
+}

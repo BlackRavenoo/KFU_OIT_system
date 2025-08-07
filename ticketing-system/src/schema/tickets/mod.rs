@@ -15,7 +15,7 @@ pub type TicketId = i64;
 
 // Common
 
-#[derive(Serialize, Deserialize, Type, FromPrimitive)]
+#[derive(Serialize, Deserialize, Type, FromPrimitive, Debug)]
 #[serde(rename_all = "lowercase")]
 #[repr(i16)]
 pub enum TicketStatus {
@@ -26,7 +26,7 @@ pub enum TicketStatus {
     Cancelled = 3
 }
 
-#[derive(Serialize, Deserialize, Type, FromPrimitive)]
+#[derive(Serialize, Deserialize, Type, FromPrimitive, Debug)]
 #[serde(rename_all = "lowercase")]
 #[repr(i16)]
 pub enum TicketPriority {

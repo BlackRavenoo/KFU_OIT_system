@@ -19,7 +19,7 @@ pub struct TicketSchema {
     pub status: TicketStatus,
     pub priority: TicketPriority,
     pub planned_at: Option<DateTime<Utc>>,
-    pub assigned_to: Option<User>,
+    pub assigned_to: Option<Vec<User>>,
     pub created_at: DateTime<Utc>,
     pub building: Building,
     pub cabinet: Option<String>,
@@ -35,7 +35,7 @@ pub struct TicketSchemaWithAttachments {
     pub status: TicketStatus,
     pub priority: TicketPriority,
     pub planned_at: Option<DateTime<Utc>>,
-    pub assigned_to: Option<User>,
+    pub assigned_to: Option<Vec<User>>,
     pub created_at: DateTime<Utc>,
     pub attachments: Option<Vec<String>>,
     pub building: Building,
@@ -43,9 +43,17 @@ pub struct TicketSchemaWithAttachments {
     pub cabinet: Option<String>,
 }
 
-pub fn create_assigned_user(name: Option<String>, id: Option<UserId>) -> Option<User> {
-    if let (Some(name), Some(id)) = (name, id) {
-        Some(User { id, name })
+pub fn create_assigned_users(names: Option<Vec<String>>, ids: Option<Vec<UserId>>) -> Option<Vec<User>> {
+    if let (Some(names), Some(ids)) = (names, ids) {
+        Some(
+            names.into_iter()
+                .zip(ids.into_iter())
+                .map(|(name, id)| User {
+                    id,
+                    name,
+                })
+                .collect()
+        )
     } else {
         None
     }
@@ -53,7 +61,7 @@ pub fn create_assigned_user(name: Option<String>, id: Option<UserId>) -> Option<
 
 impl From<TicketQueryResult> for TicketSchemaWithAttachments {
     fn from(ticket: TicketQueryResult) -> Self {
-        let assigned_to = create_assigned_user(ticket.assigned_to_name, ticket.assigned_to_id);
+        let assigned_to = create_assigned_users(ticket.assigned_to_name, ticket.assigned_to_id);
 
         let building = Building {
             id: ticket.building_id,

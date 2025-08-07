@@ -28,8 +28,13 @@ CREATE TABLE tickets (
     cabinet VARCHAR(16),
     note VARCHAR(255),
     building_id SMALLINT REFERENCES buildings(id) ON DELETE RESTRICT NOT NULL,
-    assigned_to INT REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE tickets_users (
+    assigned_to INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    ticket_id BIGINT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    PRIMARY KEY (assigned_to, ticket_id)
 );
 
 CREATE TABLE ticket_attachments (

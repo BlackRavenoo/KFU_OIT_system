@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE tickets\n            SET status = $1\n            WHERE id = $2 AND status = $3\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int2",
+        "Int8",
+        "Int2"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f53dfa3ebc5db6964b3c368d63fc1d9bfacae1333cb5373b185b4000f7bcc788"
+}
