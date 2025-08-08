@@ -27,7 +27,7 @@ pub fn hash_password(password: String) -> Result<String, PasswordError> {
 }
 
 pub fn verify_password(
-    password: String,
+    password: &str,
     stored_hash: &str,
 ) -> Result<(), PasswordError> {
     let parsed_hash = PasswordHash::new(stored_hash)

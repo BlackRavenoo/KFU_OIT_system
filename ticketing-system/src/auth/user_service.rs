@@ -12,7 +12,7 @@ impl UserService {
         Self { db_pool }
     }
     
-    pub async fn authenticate(&self, email: &str, password_input: String) -> anyhow::Result<User> {
+    pub async fn authenticate(&self, email: &str, password_input: &str) -> anyhow::Result<User> {
         let mut user = sqlx::query_as!(
             User,
             r#"SELECT id, name, email, password_hash, role FROM users WHERE email = $1"#,
