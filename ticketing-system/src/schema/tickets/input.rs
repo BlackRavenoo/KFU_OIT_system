@@ -23,7 +23,6 @@ pub struct CreateTicketForm {
 
 #[derive(Deserialize)]
 pub struct UpdateTicketSchema {
-    pub id: TicketId,
     pub title: Option<String>,
     pub description: Option<String>,
     pub author: Option<String>,

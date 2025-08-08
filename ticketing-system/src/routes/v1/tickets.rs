@@ -121,6 +121,7 @@ pub async fn create_ticket(
 }
 
 pub async fn update_ticket(
+    ticket_id: web::Path<TicketId>,
     web::Json(schema): web::Json<UpdateTicketSchema>,
     pool: web::Data<PgPool>,
 ) -> impl Responder {
@@ -142,7 +143,7 @@ pub async fn update_ticket(
     }
 
     builder.push(" WHERE id = ");
-    builder.push_bind(schema.id);
+    builder.push_bind(ticket_id.into_inner());
 
     let query = builder.build();
     
