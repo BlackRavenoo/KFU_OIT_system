@@ -47,7 +47,7 @@ pub fn create_assigned_users(names: Option<Vec<String>>, ids: Option<Vec<UserId>
     if let (Some(names), Some(ids)) = (names, ids) {
         Some(
             names.into_iter()
-                .zip(ids.into_iter())
+                .zip(ids)
                 .map(|(name, id)| User {
                     id,
                     name,

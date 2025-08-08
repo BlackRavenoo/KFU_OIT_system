@@ -32,7 +32,7 @@ pub async fn cleanup_images(
                 .await;
         };
 
-        if let Err(_) = tokio::time::timeout(Duration::from_secs(timeout_secs), cleanup).await {
+        if tokio::time::timeout(Duration::from_secs(timeout_secs), cleanup).await.is_err() {
             tracing::error!("Cleanup timed out after {} seconds", timeout_secs);
         }
     });

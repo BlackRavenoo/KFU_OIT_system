@@ -82,7 +82,7 @@ impl<P: ImageProcessor> Service<P> {
             Err(e) => return Err(ImageServiceError::Other(e.to_string())),
         };
 
-        let mut key = format!("{}/{}", image_type.prefix(), Uuid::new_v4().to_string());
+        let mut key = format!("{}/{}", image_type.prefix(), Uuid::new_v4());
         key.push_str(ext);
 
         match self.storage.store(&self.bucket, &key, image).await {

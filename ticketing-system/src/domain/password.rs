@@ -10,7 +10,7 @@ impl Password {
         
         let has_letter = s.chars().any(|c| c.is_ascii_alphabetic());
         let has_digit = s.chars().any(|c| c.is_ascii_digit());
-        let is_ascii_only = s.chars().all(|c| c.is_ascii());
+        let is_ascii_only = s.is_ascii();
         
         let has_required_chars = has_letter && has_digit && is_ascii_only;
 

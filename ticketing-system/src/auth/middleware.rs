@@ -137,7 +137,7 @@ where
                 return Ok(create_error_response(req, "Empty token", StatusCode::UNAUTHORIZED));
             }
 
-            let claims = match validator.validate_token(&token) {
+            let claims = match validator.validate_token(token) {
                 Ok(claims) => claims,
                 Err(e) => {
                     tracing::warn!("JWT validation failed: {}", e);

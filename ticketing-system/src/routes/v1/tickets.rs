@@ -269,7 +269,7 @@ pub async fn get_tickets(
     let schema = schema.into_inner();
     
     let page_size = schema.page_size
-        .and_then(|size| Some(size.clamp(10, 50)))
+        .map(|size| size.clamp(10, 50))
         .unwrap_or(10);
 
     let page = schema.page.unwrap_or(1) - 1;

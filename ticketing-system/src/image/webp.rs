@@ -13,7 +13,7 @@ impl From<ImageError> for ProcessingError {
 
 impl WebpProcessor {
     fn encode_webp(img: &DynamicImage) -> Result<Vec<u8>, ProcessingError> {
-        let encoder = match webp::Encoder::from_image(&img) {
+        let encoder = match webp::Encoder::from_image(img) {
             Ok(encoder) => encoder,
             Err(e) => return Err(ProcessingError::Other(e.to_string())),
         };

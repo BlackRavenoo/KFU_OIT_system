@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 use anyhow::anyhow;
 
-use crate::auth::{password::{self, verify_password}, types::{User, UserRole}};
+use crate::{auth::{password::{self, verify_password}, types::{User, UserRole}}, domain::{email::Email, password::Password}};
 
 pub struct UserService {
     db_pool: PgPool,
@@ -12,11 +12,11 @@ impl UserService {
         Self { db_pool }
     }
     
-    pub async fn authenticate(&self, email: &str, password_input: &str) -> anyhow::Result<User> {
+    pub async fn authenticate(&self, email: Email, password_input: Password) -> anyhow::Result<User> {
         let mut user = sqlx::query_as!(
             User,
             r#"SELECT id, name, email, password_hash, role FROM users WHERE email = $1"#,
-            email
+            email.as_ref()
         )
         .fetch_optional(&self.db_pool)
         .await?
@@ -24,7 +24,7 @@ impl UserService {
 
         let password_hash = user.password_hash.take().unwrap_or_default();
 
-        verify_password(password_input, &password_hash)?;
+        verify_password(password_input.as_ref(), &password_hash)?;
         
         Ok(user)
     }

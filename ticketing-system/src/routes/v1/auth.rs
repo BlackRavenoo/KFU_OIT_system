@@ -9,7 +9,7 @@ pub async fn login(
     jwt_service: web::Data<JwtService>,
     token_store: web::Data<TokenStore>
 ) -> impl Responder {
-    match user_service.authenticate(req.email.as_ref(), req.password.as_ref()).await {
+    match user_service.authenticate(req.email, req.password).await {
         Ok(user) => {
             let access_token = match jwt_service.create_access_token(user.id, user.role) {
                 Ok(token) => token,

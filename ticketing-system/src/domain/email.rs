@@ -10,7 +10,7 @@ impl Email {
         if s.validate_email() {
             Ok(Self(s))
         } else {
-            Err(format!("{} is not a valid email.", s))
+            Err(format!("{} is not a valid email", s))
         }
     }
 }
