@@ -17,7 +17,7 @@ impl Password {
         if is_valid_length && has_required_chars {
             Ok(Password(s))
         } else {
-            Err("Password must be 8-64 characters long and contain at least one letter and one digit".to_string())
+            Err(format!("{} is not a valid password", s))
         }
     }
 }

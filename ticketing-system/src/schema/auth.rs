@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{auth::types::UserRole, domain::{email::Email, password::Password}, schema::common::UserId};
+use crate::{auth::types::UserRole, domain::email::Email, schema::common::UserId};
 
 // Input
 
@@ -13,7 +13,7 @@ pub struct RefreshTokenRequest {
 #[derive(Deserialize)]
 pub struct LoginRequest {
     pub email: Email,
-    pub password: Password,
+    pub password: String,
     pub fingerprint: String
 }
 
