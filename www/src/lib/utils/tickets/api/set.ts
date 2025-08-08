@@ -1,6 +1,6 @@
+import { api } from '$lib/utils/api';
 import { TICKETS_API_ENDPOINTS } from '$lib/utils/tickets/api/endpoints';
 import { normalizeDate } from '$lib/utils/tickets/support';
-import { getAuthTokens } from '$lib/utils/auth/tokens/tokens';
 
 /**
  * Обработчик отправки формы заявки.
@@ -41,14 +41,11 @@ export async function fetchTicket(
         for (const file of File)
             formData.append('attachments', file);
 
-    const response = await fetch(TICKETS_API_ENDPOINTS.create, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-    });
+    const response = await api.post(TICKETS_API_ENDPOINTS.create, formData);
 
-    if (!response.ok)
-        throw new Error('Network response was not ok');
+    if (!response.success) {
+        throw new Error(response.error || 'Ошибка создания заявки');
+    }
 }
 
 /**
@@ -70,16 +67,17 @@ export async function updateTicket(
         cabinet?: string | null;
     }
 ): Promise<void> {
-    const response = await fetch(`${TICKETS_API_ENDPOINTS.read}${ticketId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getAuthTokens()?.accessToken}`
-        },
-        body: JSON.stringify(data)
-    });
+    const filteredData = Object.fromEntries(
+        Object.entries(data).filter(([_, value]) => value !== "" && value !== null)
+    );
 
-    if (!response.ok || response.status !== 200) throw new Error('Ошибка обновления заявки');
+    if (Object.keys(filteredData).length === 0) return;
+
+    const response = await api.put(`${TICKETS_API_ENDPOINTS.read}${ticketId}`, filteredData);
+
+    if (!response.success) {
+        throw new Error(response.error || 'Ошибка обновления заявки');
+    }
 }
 
 /**
@@ -88,11 +86,9 @@ export async function updateTicket(
  * @param ticketId Идентификатор тикета, который нужно удалить.
  */
 export async function deleteTicket(ticketId: string): Promise<void> {
-    const response = await fetch(`${TICKETS_API_ENDPOINTS.delete}${ticketId}`, {
-        method: 'DELETE',
-        headers: {
-            'Authorization': `Bearer ${getAuthTokens()?.accessToken}`
-        }
-    });
-    if (!response.ok) throw new Error('Ошибка при удалении');
+    const response = await api.delete(`${TICKETS_API_ENDPOINTS.delete}${ticketId}`);
+
+    if (!response.success) {
+        throw new Error(response.error || 'Ошибка при удалении заявки');
+    }
 }

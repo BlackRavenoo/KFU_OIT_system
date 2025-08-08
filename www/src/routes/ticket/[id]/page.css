@@ -343,6 +343,60 @@ main {
     box-shadow: none !important;
 }
 
+.ticket-notes {
+    margin: -.5rem 0 1rem;
+    padding: 1rem;
+    font-size: 1rem;
+    color: var(--dark);
+    background-color: var(--light-gray);
+    border-radius: 8px;
+    font-family: monospace;
+}
+
+.ticket-notes-text {
+    font-size: 1rem;
+    color: var(--text);
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+input.edit-mode, textarea.edit-mode, select.edit-mode {
+    border: 1px solid var(--blue);
+    background-color: var(--light-gray);
+    color: var(--dark);
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    border-radius: 6px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input.edit-mode:focus, textarea.edit-mode:focus, select.edit-mode:focus {
+    border-color: var(--dark);
+    box-shadow: 0 0 0 2px rgba(7, 92, 239, 0.2);
+    outline: none;
+}
+
+textarea.edit-mode {
+    resize: vertical;
+    min-height: 120px;
+    width: calc(100% - 28px) !important;
+}
+
+select.edit-mode {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230759ef'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+}
+
+input.edit-mode::placeholder, textarea.edit-mode::placeholder {
+    color: rgba(0, 0, 0, 0.5);
+}
+
 @media (max-width: 900px) {
     .ticket-container {
         flex-direction: column;

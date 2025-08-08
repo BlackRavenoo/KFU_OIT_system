@@ -12,7 +12,7 @@
     import { unassign, assign } from '$lib/utils/tickets/api/assign';
     import { updateTicket, deleteTicket } from '$lib/utils/tickets/api/set';
 
-    import type { Ticket, Building } from '$lib/utils/tickets/types';
+    import type { Ticket, Building, UiStatus, PriorityStatus } from '$lib/utils/tickets/types';
 
     import Avatar from '$lib/components/Avatar/Avatar.svelte';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
@@ -26,16 +26,17 @@
     let modalImg: string | null = null;
     let lastFocused: HTMLElement | null = null;
 
-    let isEditing = false;
-    let showDeleteConfirm = false;
+    let isEditing: boolean = false;
+    let showDeleteConfirm: boolean = false;
 
-    let status = '';
-    let priority = '';
-    let description = '';
-    let author = '';
-    let author_contacts = '';
+    let status: UiStatus;
+    let priority: PriorityStatus;
+    let description: string = '';
+    let author: string = '';
+    let author_contacts: string = '';
     let building_id: number | null = null;
-    let cabinet = '';
+    let cabinet: string = '';
+    let note: string = '';
 
     let buildingsList: Building[] = [];
     $: buildings.subscribe(val => buildingsList = val);
@@ -80,10 +81,12 @@
             .then(() => {
                 notification('Заявка взята в работу', NotificationType.Success);
                 if (ticketData) {
+                    const currentAssigned = Array.isArray(ticketData.assigned_to) ? ticketData.assigned_to : [];
+
                     ticketData = {
                         ...ticketData,
                         assigned_to: [
-                            ...ticketData.assigned_to,
+                            ...currentAssigned,
                             { id: $currentUser?.id as string, name: $currentUser?.name as string }
                         ]
                     } as Ticket;
@@ -141,6 +144,13 @@
 
     async function finishHandler() {
         if (!ticketData) return;
+        priority = ticketData.priority;
+        description = ticketData.description;
+        author = ticketData.author;
+        author_contacts = ticketData.author_contacts;
+        building_id = ticketData.building?.id ?? null;
+        cabinet = ticketData.cabinet ?? '';
+        note = ticketData.note ?? '';
         status = 'closed';
         await saveEdit();
     }
@@ -159,6 +169,13 @@
 
     async function handleCancel() {
         if (!ticketData) return;
+        priority = ticketData.priority;
+        description = ticketData.description;
+        author = ticketData.author;
+        author_contacts = ticketData.author_contacts;
+        building_id = ticketData.building?.id ?? null;
+        cabinet = ticketData.cabinet ?? '';
+        note = ticketData.note ?? '';
         status = 'cancelled';
         await saveEdit();
     }
@@ -173,25 +190,45 @@
         author_contacts = ticketData.author_contacts;
         building_id = ticketData.building?.id ?? null;
         cabinet = ticketData.cabinet ?? '';
+        note = ticketData.note ?? '';
     }
 
     async function saveEdit() {
         if (!ticketData) return;
-        const updated = {
+
+        const updatedFields: Partial<Ticket> = {
             id: ticketData.id,
-            title: ticketData.title,
-            description: description,
-            author: author,
-            author_contacts: author_contacts,
-            status: status,
-            priority: priority,
-            building_id: building_id,
-            cabinet: cabinet
+            title: ticketData.title
         };
-        updateTicket(ticketId as string, updated)
+
+        if (description !== ticketData.description) updatedFields.description = description;
+        if (author !== ticketData.author) updatedFields.author = author;
+        if (author_contacts !== ticketData.author_contacts) updatedFields.author_contacts = author_contacts;
+        if (status !== ticketData.status) updatedFields.status = status as UiStatus;
+        if (priority !== ticketData.priority) updatedFields.priority = priority as PriorityStatus;
+        if (building_id !== ticketData.building?.id)
+            updatedFields.building = buildingsList.find(b => b.id === building_id) || ticketData.building;
+        if (cabinet !== ticketData.cabinet) updatedFields.cabinet = cabinet;
+        if (note !== ticketData.note) updatedFields.note = note;
+
+        updateTicket(ticketId as string, {
+            ...updatedFields,
+            assigned_to: updatedFields.assigned_to ? JSON.stringify(updatedFields.assigned_to) : null
+        })
             .then(() => {
+                ticketData = {
+                    ...ticketData,
+                    description: description,
+                    author: author,
+                    author_contacts: author_contacts,
+                    status: status,
+                    priority: priority,
+                    cabinet: cabinet,
+                    building: updatedFields.building || ticketData?.building,
+                    note: note
+                } as Ticket;
+
                 notification('Заявка обновлена', NotificationType.Success);
-                ticketData = { ...ticketData, ...updated } as Ticket;
                 isEditing = false;
             })
             .catch(() => {
@@ -244,7 +281,7 @@
                     <p class="ticket-tag">
                         Статус:
                         {#if isEditing}
-                            <select bind:value={ status } style="margin-left: 0.5em;">
+                            <select bind:value={ status } class="edit-mode">
                                 {#each statusOptions as option}
                                     <option value={ option.serverValue }>{ option.label }</option>
                                 {/each}
@@ -256,7 +293,7 @@
                     <p class="ticket-tag">
                         Приоритет:
                         {#if isEditing}
-                            <select bind:value={ priority } style="margin-left: 0.5em;">
+                            <select bind:value={ priority } class="edit-mode">
                                 {#each statusPriority as option}
                                     <option value={ option.serverValue }>{ option.label }</option>
                                 {/each}
@@ -268,7 +305,7 @@
                     {#if isEditing}
                         <p class="ticket-tag">
                             Здание:
-                            <select bind:value={ building_id } style="margin-left: 0.5em;">
+                            <select bind:value={ building_id } class="edit-mode">
                                 <option value="" disabled selected>Выберите здание</option>
                                 {#each buildingsList as b}
                                     <option value={ b.id }>{ b.name }</option>
@@ -281,8 +318,9 @@
                             Кабинет:
                             <input
                                 type="text"
+                                class="edit-mode"
                                 bind:value={ cabinet }
-                                style="margin-left: 0.5em; width: 120px;"
+                                style="width: 120px;"
                                 aria-label="Кабинет"
                             />
                         </p>
@@ -331,12 +369,26 @@
             {/if}
             {#if ticketData}
                 {#if isEditing}
-                    <textarea bind:value={ description } rows="5" style="width: 100%; margin-bottom: 1em;"></textarea>
+                    <textarea bind:value={ description } rows="5" style="width: 100%; margin-bottom: 1em;" class="edit-mode"></textarea>
                 {:else}
                     <p>{ ticketData.description }</p>
                 {/if}
             {:else}
                 <p>Загрузка...</p>
+            {/if}
+            {#if ticketData && (ticketData.note || isEditing)}
+                <div class="ticket-notes">
+                    {#if isEditing}
+                        <textarea
+                            bind:value={ note }
+                            class="edit-mode"
+                            rows="4"
+                            placeholder="Введите примечания"
+                        ></textarea>
+                    {:else}
+                        <p class="ticket-notes-text">{ ticketData.note }</p>
+                    {/if}
+                </div>
             {/if}
             {#if images.length > 0}
                 <div class="attachments-list">
@@ -371,12 +423,14 @@
                         {#if isEditing}
                             <input
                                 type="text"
+                                class="edit-mode"
                                 bind:value={ author }
                                 style="margin-bottom: 0.5em; width: 100%;"
                                 aria-label="Имя заявителя"
                             />
                             <input
                                 type="tel"
+                                class="edit-mode"
                                 bind:value={ author_contacts }
                                 style="margin-bottom: 0.5em; width: 100%;"
                                 aria-label="Телефон заявителя"
@@ -475,7 +529,7 @@
                 <p class="ticket-tag">
                     Статус:
                     {#if isEditing}
-                        <select bind:value={ status } style="margin-left: 0.5em;">
+                        <select bind:value={ status } class="edit-mode">
                             {#each statusOptions as option}
                                 <option value={ option.serverValue }>{ option.label }</option>
                             {/each}
@@ -487,7 +541,7 @@
                 <p class="ticket-tag">
                     Приоритет:
                     {#if isEditing}
-                        <select bind:value={ priority } style="margin-left: 0.5em;">
+                        <select bind:value={ priority } class="edit-mode">
                             {#each statusPriority as option}
                                 <option value={ option.serverValue }>{ option.label }</option>
                             {/each}
@@ -502,7 +556,7 @@
             {#if isEditing}
                 <p class="ticket-tag">
                     Здание:
-                    <select bind:value={ building_id } style="margin-left: 0.5em;">
+                    <select bind:value={ building_id } class="edit-mode">
                         <option value="" disabled selected>Выберите здание</option>
                         {#each buildingsList as b}
                             <option value={ b.id }>{ b.name }</option>
@@ -515,8 +569,9 @@
                     Кабинет:
                     <input
                         type="text"
+                        class="edit-mode"
                         bind:value={ cabinet }
-                        style="margin-left: 0.5em; width: 120px;"
+                        style="width: 120px;"
                         aria-label="Кабинет"
                     />
                 </p>
@@ -530,12 +585,26 @@
             {/if}
             {#if ticketData}
                 {#if isEditing}
-                    <textarea bind:value={ description } rows="5" style="width: 100%; margin-bottom: 1em;"></textarea>
+                    <textarea bind:value={ description } rows="5" style="width: 100%; margin-bottom: 1em;" class="edit-mode"></textarea>
                 {:else}
                     <p>{ ticketData.description }</p>
                 {/if}
             {:else}
                 <p>Загрузка...</p>
+            {/if}
+            {#if ticketData && (ticketData.note || isEditing)}
+                <div class="ticket-notes">
+                    {#if isEditing}
+                        <textarea
+                            bind:value={ note }
+                            class="edit-mode"
+                            rows="4"
+                            placeholder="Введите примечания"
+                        ></textarea>
+                    {:else}
+                        <p class="ticket-notes-text">{ ticketData.note }</p>
+                    {/if}
+                </div>
             {/if}
             {#if images.length > 0}
                 <div class="attachments-list">
@@ -570,12 +639,14 @@
                         {#if isEditing}
                             <input
                                 type="text"
+                                class="edit-mode"
                                 bind:value={ author }
                                 style="margin-bottom: 0.5em; width: 100%;"
                                 aria-label="Имя заявителя"
                             />
                             <input
                                 type="tel"
+                                class="edit-mode"
                                 bind:value={ author_contacts }
                                 style="margin-bottom: 0.5em; width: 100%;"
                                 aria-label="Телефон заявителя"

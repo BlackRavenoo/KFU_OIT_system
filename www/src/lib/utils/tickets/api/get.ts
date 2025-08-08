@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 
-import { getAuthTokens } from '$lib/utils/auth/tokens/tokens';
+import { api } from '$lib/utils/api';
 import { toRfc3339, buildQuery } from '$lib/utils/tickets/support';
 import { getTicketsFilters } from '$lib/utils/tickets/stores';
 import { orderByMap } from '$lib/utils/tickets/types';
@@ -24,7 +24,6 @@ export async function fetchTickets(search: string = '') {
         page_size,
         order_by: orderByMap[filters.selectedSort] || 'id',
         sort_order: filters.sortOrder,
-        // search
     };
 
     if (filters.selectedStatus !== 'all')
@@ -40,22 +39,20 @@ export async function fetchTickets(search: string = '') {
 
     const query = buildQuery(params);
 
-    const res = await fetch(`${TICKETS_API_ENDPOINTS.read}?${query}`, {
-        credentials: 'include',
-        headers: {
-            'Content-Type': 'application/json',
-            'authorization': `Bearer ${getAuthTokens()?.accessToken}`
+    const response = await api.get<{ items: Ticket[]; max_page: number }>(
+        `${TICKETS_API_ENDPOINTS.read}?${query}`
+    );
+
+    if (!response.success) {
+        if (response.status === 404) {
+            return { tickets: [], max_page: 1 };
         }
-    });
+        throw new Error(response.error || 'Ошибка загрузки тикетов');
+    }
 
-    if (res.status === 404)
-        return { tickets: [], max_page: 1 };
-
-    if (!res.ok) throw new Error('Ошибка загрузки тикетов');
-    const data = await res.json();
     return {
-        tickets: data.items ?? [],
-        max_page: data.max_page ?? 1
+        tickets: response.data?.items ?? [],
+        max_page: response.data?.max_page ?? 1
     };
 }
 
@@ -65,35 +62,13 @@ export async function fetchTickets(search: string = '') {
  * @returns Promise<Ticket>
  */
 export async function getById(id: string): Promise<Ticket> {
-    const result = fetch(`${TICKETS_API_ENDPOINTS.read}${id}`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${getAuthTokens()?.accessToken}`
-        }
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Ошибка получения заявки');
-        return response.json();
-    })
-    .catch(error => {
-        return {
-            id: 0,
-            title: 'Ошибка',
-            description: error.message,
-            author: 'system',
-            author_contacts: '',
-            status: 'cancelled',
-            priority: 'critical',
-            planned_at: null,
-            assigned_to: null,
-            created_at: new Date().toISOString(),
-            attachments: [],
-            building: { id: 0, code: '', name: '' },
-            cabinet: ''
-        } as Ticket;
-    });
-    return result;
+    const response = await api.get<Ticket>(`${TICKETS_API_ENDPOINTS.read}${id}`);
+
+    if (!response.success) {
+        throw new Error(response.error || 'Ошибка получения заявки');
+    }
+
+    return response.data!;
 }
 
 /**
@@ -103,14 +78,20 @@ export async function getById(id: string): Promise<Ticket> {
  */
 export async function fetchConsts(): Promise<{ buildings: Building[], order: OrderBy[] }> {
     if (get(order).length === 0 || get(buildings).length === 0) {
-        const res = await fetch(TICKETS_API_ENDPOINTS.consts, { credentials: 'include' });
-        if (!res.ok) throw new Error('Ошибка загрузки контактов');
-        const data = await res.json();
+        const response = await api.get<{ buildings: Building[]; order_by: OrderBy[] }>(
+            TICKETS_API_ENDPOINTS.consts
+        );
+
+        if (!response.success) {
+            throw new Error(response.error || 'Ошибка загрузки констант');
+        }
+
+        const data = response.data!;
         buildings.set(Array.isArray(data.buildings) ? data.buildings : []);
         order.set(Array.isArray(data.order_by) ? data.order_by : []);
         return {
             buildings: Array.isArray(data.buildings) ? data.buildings : [],
-            order: Array.isArray(data.order) ? data.order : []
+            order: Array.isArray(data.order_by) ? data.order_by : []
         };
     } else {
         return {
@@ -123,15 +104,21 @@ export async function fetchConsts(): Promise<{ buildings: Building[], order: Ord
 /**
  * Загрузка изображений по ключам вложений.
  * Использует API для получения изображений по ключам.
- * @returns {Promise<string[]>} Массив sизображений.
+ * @returns {Promise<string[]>} Массив изображений.
  */
 export async function fetchImages(attachments: string[]): Promise<string[]> {
     let images: string[] = [];
     for (const key of attachments) {
         try {
-            const res = await fetch(`${TICKETS_API_ENDPOINTS.attachments}/${key.split('/').pop()}`);
-            if (!res.ok) continue;
-            const blob = await res.blob();
+            const response = await api.get<Blob>(
+                `${TICKETS_API_ENDPOINTS.attachments}/${key.split('/').pop()}`,
+                undefined,
+                'blob'
+            );
+
+            if (!response.success) continue;
+
+            const blob = response.data!;
             images = [...images, URL.createObjectURL(blob)];
         } catch { }
     }

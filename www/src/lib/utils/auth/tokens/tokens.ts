@@ -35,7 +35,6 @@ async function checkTokenExpiration(token: string): Promise<boolean> {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         const exp = payload.exp * 1000;
-        // alert(`Token expiration time: ${new Date(exp).toLocaleString()}`);
         
         if (Date.now() >= exp) {
             logout();
@@ -71,3 +70,5 @@ export function getAuthTokens(): IAuthTokens | null {
 export function clearAuthTokens(): void {
     setTokenStore(null);
 }
+
+export { refreshAuthTokens };

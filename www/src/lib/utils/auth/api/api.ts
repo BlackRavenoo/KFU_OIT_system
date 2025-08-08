@@ -5,9 +5,9 @@
  */
 
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
-import { get } from 'svelte/store';
 
-import { getAuthTokens, clearAuthTokens, checkToken } from '../tokens/tokens';
+import { api } from '$lib/utils/api';
+import { getAuthTokens, clearAuthTokens } from '../tokens/tokens';
 import { setTokenStore } from '../tokens/storage';
 import { currentUser, isAuthenticated } from '../storage/initial';
 import { AUTH_API_ENDPOINTS as Endpoints } from './endpoints';
@@ -47,25 +47,21 @@ function scheduleTokenRefresh(token: string) {
     if (delay < 0) delay = 0;
 
     async function tryRefresh() {
-        let resultText = '';
         const tokensData = getAuthTokens();
         const deadline = getTokenExpiration(tokensData?.accessToken || token);
 
         try {
             const ok = await refreshAuthTokens(true, deadline ?? undefined);
             if (ok) {
-                resultText = 'Токен успешно обновлён';
                 const newToken = getAuthTokens()?.accessToken;
                 if (newToken) scheduleTokenRefresh(newToken);
             } else {
-                resultText = 'Ошибка обновления токена: сервер вернул ошибку';
                 if (Date.now() < (deadline ?? 0))
                     refreshTimeout = setTimeout(tryRefresh, 60 * 1000);
                 else
                     logout();
             }
-        } catch (e: any) {
-            resultText = 'Ошибка обновления токена: ' + (e?.message || e);
+        } catch {
             if (Date.now() < (deadline ?? 0))
                 refreshTimeout = setTimeout(tryRefresh, 60 * 1000);
             else
@@ -84,42 +80,27 @@ function scheduleTokenRefresh(token: string) {
  * @returns {Promise<any>} Ответ сервера с данными пользователя или ошибкой.
  */
 export async function login(email: string, password: string, rememberMe: boolean = false): Promise<any> {
-    try {
-        const fp = await FingerprintJS.load();
-        const result = await fp.get();
-        const fingerprint = result.visitorId; 
-        const requestBody: ILoginRequest = {
-            email,
-            password,
-            fingerprint
-        };    
+    const fp = await FingerprintJS.load();
+    const result = await fp.get();
+    const fingerprint = result.visitorId;
 
-        const response = await fetch(Endpoints.login, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody),
-            credentials: 'include'
+    const requestBody: ILoginRequest = {
+        email,
+        password,
+        fingerprint
+    };
+
+    const response: { success: boolean; data?: { access_token: string; refresh_token?: string } } = await api.post(Endpoints.login, requestBody);
+
+    if (response.success && response.data?.access_token) {
+        setTokenStore({
+            accessToken: response.data.access_token,
+            refreshToken: rememberMe ? response.data.refresh_token : undefined
         });
-
-        if (!response.ok)
-            throw new Error(`Login failed: ${response.status}`);   
-
-        const data = await response.json();
-
-        if (data.access_token) {
-            setTokenStore({
-                accessToken: data.access_token,
-                refreshToken: rememberMe ? data.refresh_token : undefined
-            });
-            scheduleTokenRefresh(data.access_token);
-        }
-
-        return data;
-    } catch (error) {
-        throw error;
+        scheduleTokenRefresh(response.data.access_token);
     }
+
+    return response.data;
 }
 
 /** 
@@ -129,52 +110,31 @@ export async function login(email: string, password: string, rememberMe: boolean
  * @returns {Promise<boolean>} true, если токены успешно обновлены, иначе false.
  */
 export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: number): Promise<boolean> {
-    try {
-        const tokensData = getAuthTokens();
-        if (!tokensData?.refreshToken) return false;
+    const tokensData = getAuthTokens();
+    if (!tokensData?.refreshToken) return false;
 
-        const fp = await FingerprintJS.load();
-        const result = await fp.get();
-        const fingerprint = result.visitorId;
+    const fp = await FingerprintJS.load();
+    const result = await fp.get();
+    const fingerprint = result.visitorId;
 
-        const url = new URL(Endpoints.refresh, window.location.origin);
-        url.searchParams.set('refresh_token', tokensData.refreshToken);
-        url.searchParams.set('fingerprint', fingerprint);
+    const requestBody = {
+        refresh_token: tokensData.refreshToken,
+        fingerprint
+    };
 
-        const response = await fetch(Endpoints.refresh, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'authorization': `Bearer ${getAuthTokens()?.accessToken}`
-            },
-            body: JSON.stringify({
-                refresh_token: tokensData.refreshToken,
-                fingerprint
-            }),
-            credentials: 'include'
+    const response: { success: boolean; data?: { access_token: string; refresh_token?: string } } = await api.post(Endpoints.refresh, requestBody);
+
+    if (response.success && response.data?.access_token && response.data?.refresh_token) {
+        setTokenStore({
+            accessToken: response.data.access_token,
+            refreshToken: response.data.refresh_token
         });
-        if (!response.ok) {
-            !allowRetry || (deadline && Date.now() >= deadline) && logout();
-            return false;
-        }
-
-        const data = await response.json();
-
-        if (data.access_token && data.refresh_token) {
-            setTokenStore({
-                accessToken: data.access_token,
-                refreshToken: data.refresh_token
-            });
-            scheduleTokenRefresh(data.access_token);
-            return true;
-        }
-
-        !allowRetry || (deadline && Date.now() >= deadline) && logout();
-        return false;
-    } catch (error) {
-        !allowRetry || (deadline && Date.now() >= deadline) && logout();
-        return false;
+        scheduleTokenRefresh(response.data.access_token);
+        return true;
     }
+
+    if (!allowRetry || (deadline && Date.now() >= deadline)) logout();
+    return false;
 }
 
 /**
@@ -182,31 +142,17 @@ export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: 
  * @returns {Promise<any>} Данные пользователя или ошибка.
  */
 export async function getUserData(): Promise<IUserData> {
-    if (!getAuthTokens()?.accessToken)
-        throw new Error('Access token is missing');
-    
-    const isValid = await checkToken();
-    if (isValid && getAuthTokens()?.accessToken && get(currentUser))
-        return get(currentUser) as IUserData;
+    const tokens = getAuthTokens();
+    if (!tokens?.accessToken) throw new Error('Access token is missing');
 
-    try {
-        const response = await fetch(Endpoints.getUserData, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'authorization': `Bearer ${getAuthTokens()?.accessToken}`
-            },
-            credentials: 'include'
-        });
+    const response = await api.get<IUserData>(Endpoints.getUserData);
 
-        if (!response.ok)
-            throw new Error(`Failed to fetch user data: ${response.status}`);
-
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        throw error;
+    if (response.success && response.data) {
+        currentUser.set(response.data);
+        return response.data;
     }
+
+    throw new Error(response.error || 'Failed to fetch user data');
 }
 
 /**
@@ -214,16 +160,12 @@ export async function getUserData(): Promise<IUserData> {
  * @returns {Promise<any>} Ответ сервера со статусом операции.
  */
 export async function logout(): Promise<void> {
-    try {
-        clearAuthTokens();
-        if (refreshTimeout) clearTimeout(refreshTimeout);
-        isAuthenticated.set(false);
-        currentUser.set(null);
-        
-        const currentPath = window.location.pathname;
-        if (currentPath !== '/' && currentPath !== '')
-            window.location.href = '/';
-    } catch (error) {
-        throw error;
-    }
+    clearAuthTokens();
+    if (refreshTimeout) clearTimeout(refreshTimeout);
+    isAuthenticated.set(false);
+    currentUser.set(null);
+
+    const currentPath = window.location.pathname;
+    if (currentPath !== '/' && currentPath !== '')
+        window.location.href = '/';
 }
