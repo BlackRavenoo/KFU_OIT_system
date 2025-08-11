@@ -93,6 +93,14 @@ main {
     width: calc(100% - 4rem);
 }
 
+main * {
+    align-self: center;
+}
+
+main * * {
+    align-self: initial;
+}
+
 .search-module {
     display: flex;
     flex-direction: row;

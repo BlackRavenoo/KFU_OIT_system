@@ -2,7 +2,7 @@
     import '../assets/app.css';
     
     import { onMount } from 'svelte';
-    import { navigating } from '$app/stores';
+    import { navigating, page } from '$app/stores';
     
     import { getUserData } from '$lib/utils/auth/api/api';
     import { checkToken } from '$lib/utils/auth/tokens/tokens';
@@ -12,6 +12,10 @@
     import Nav from '$lib/components/Nav/Nav.svelte';
     
     let authChecked = false;
+
+    const pagesWithFooter = ['/', '/contact'];
+    
+    $: showFooter = pagesWithFooter.some(path => $page.url.pathname === path);
 
     /**
      * Проверка аутентификации пользователя.
@@ -63,7 +67,9 @@
 
     <slot></slot>
 
-    <Footer />
+    {#if showFooter}
+        <Footer />
+    {/if}
 </div>
 
 <style>
