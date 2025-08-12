@@ -18,8 +18,9 @@ export async function checkToken(): Promise<boolean> {
         const tokens = getAuthTokens();
         if (!tokens)
             return false;
-        if (!checkTokenExpiration(tokens.accessToken)) 
-            throw new Error('Access token is expired or invalid');
+            
+        if (!isTokenValid(tokens.accessToken))
+            return false;
 
         return true;
     } catch (error) {
@@ -28,27 +29,15 @@ export async function checkToken(): Promise<boolean> {
 }
 
 /**
- * Проверка валидности токена доступа.
- * @returns {boolean} true, если токен действителен, иначе false.
+ * Проверка валидности токена доступа без обновления.
  */
-async function checkTokenExpiration(token: string): Promise<boolean> {
+function isTokenValid(token: string): boolean {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         const exp = payload.exp * 1000;
         
-        if (Date.now() >= exp) {
-            logout();
+        if (Date.now() >= exp)
             return false;
-        } 
-        
-        if (exp - Date.now() < 5 * 60 * 1000) {
-            const tokens = getAuthTokens();
-            if (tokens?.refreshToken) {
-                const isRefreshed = await refreshAuthTokens();
-                return isRefreshed;
-            }
-            return true;
-        }
         
         return true;
     } catch (error) {

@@ -19,7 +19,7 @@ export interface IUserData {
     id: string;
     name: string;
     email: string;
-    role: number;
+    role: string;
 }
 
 export interface ITokenStorage {

@@ -461,7 +461,7 @@
                     {#if ticketData && ticketData.status !== 'cancelled'}
                         <button class="btn btn-secondary" on:click={ handleCancel }>Отменить</button>
                     {/if}
-                    {#if $currentUser && $currentUser.role !== 0}
+                    {#if $currentUser && $currentUser.role === "Admin"}
                         <button class="btn btn-danger" on:click={ handleDelete }>Удалить</button>
                     {/if}
                 {:else}
@@ -708,7 +708,7 @@
                     {#if ticketData && ticketData.status !== 'cancelled'}
                         <button class="btn btn-secondary" on:click={ handleCancel }>Отменить</button>
                     {/if}
-                    {#if $currentUser && $currentUser.role !== 0}
+                    {#if $currentUser && $currentUser.role === "Admin"}
                         <button class="btn btn-danger" on:click={ handleDelete }>Удалить</button>
                     {/if}
                 {:else}

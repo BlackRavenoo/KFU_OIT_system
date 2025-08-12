@@ -114,9 +114,6 @@
         {/if}
         <li><a href="/contact" class="big nav-link">Контакты</a></li>
         {#if $isAuthenticated}
-            {#if isAdmin}
-                <li><a href="/admin" class="big admin-link">Админ-панель</a></li>
-            {/if}
             <li>
                 <a href="/account" class="account">
                     <span class="account-avatar">

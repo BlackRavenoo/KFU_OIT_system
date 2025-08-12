@@ -150,18 +150,6 @@ li {
     fill: white;
 }
 
-.admin-link {
-    color: #d14747;
-}
-
-.admin-link:hover {
-    color: #b31d1d;
-}
-
-.admin-link::after {
-    background-color: #d14747;
-}
-
 /* Медиа запросы */
 @media (max-width: 980px) {
     ul {

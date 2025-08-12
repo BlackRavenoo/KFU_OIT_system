@@ -76,6 +76,7 @@ header {
     width: 70vw;
     margin: 150px 0;
     text-align: center;
+    align-self: center;
 }
 
 .how-it-works h2 {
@@ -102,7 +103,6 @@ header {
     display: flex;
     justify-content: center;
     position: relative;
-    align-self: center;
 }
 
 .step {

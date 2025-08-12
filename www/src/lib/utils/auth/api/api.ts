@@ -1,7 +1,6 @@
 /**
  * @file auth.api.ts
  * Модуль для управления авторизацией пользователей.
- * Содержит функции для входа, выхода, обновления токенов и получения данных пользователя.
  */
 
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
@@ -12,13 +11,15 @@ import { setTokenStore } from '../tokens/storage';
 import { currentUser, isAuthenticated } from '../storage/initial';
 import { AUTH_API_ENDPOINTS as Endpoints } from './endpoints';
 
-import type { ILoginRequest, IUserData } from '../types';
+import type { ILoginRequest, IUserData } from '$lib/utils/auth/types';
 
+let isRefreshing = false;
 let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+let failedRefreshAttempts = 0;
+const MAX_REFRESH_ATTEMPTS = 3;
 
 /**
  * Парсит время истечения токена из accessToken
- * Если токен не валиден, возвращает null
  * @param token Токен для проверки
  */
 function getTokenExpiration(token: string): number | null {
@@ -32,44 +33,124 @@ function getTokenExpiration(token: string): number | null {
 
 /**
  * Запускает автообновление токена за 5 минут до истечения
- * Если токен уже истёк, вызывает logout
  * @param token Токен для проверки и планирования обновления
  */
 function scheduleTokenRefresh(token: string) {
-    if (refreshTimeout) clearTimeout(refreshTimeout);
+    if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+        refreshTimeout = null;
+    }
 
     const exp = getTokenExpiration(token);
     if (!exp) return;
 
     const now = Date.now();
     const refreshTime = exp - 5 * 60 * 1000;
+    
     let delay = refreshTime - now;
     if (delay < 0) delay = 0;
+    else if (delay > 2147483647) return;
 
-    async function tryRefresh() {
-        const tokensData = getAuthTokens();
-        const deadline = getTokenExpiration(tokensData?.accessToken || token);
+    refreshTimeout = setTimeout(() => tryRefresh(token), delay);
+}
 
-        try {
-            const ok = await refreshAuthTokens(true, deadline ?? undefined);
-            if (ok) {
-                const newToken = getAuthTokens()?.accessToken;
-                if (newToken) scheduleTokenRefresh(newToken);
-            } else {
-                if (Date.now() < (deadline ?? 0))
-                    refreshTimeout = setTimeout(tryRefresh, 60 * 1000);
-                else
-                    logout();
-            }
-        } catch {
-            if (Date.now() < (deadline ?? 0))
-                refreshTimeout = setTimeout(tryRefresh, 60 * 1000);
-            else
+/**
+ * Пытается обновить токен
+ * @param token Текущий токен доступа
+ */
+async function tryRefresh(token: string) {
+    if (isRefreshing) return;
+    
+    isRefreshing = true;
+    
+    const tokensData = getAuthTokens();
+    const deadline = getTokenExpiration(tokensData?.accessToken || token);
+
+    try {
+        const ok = await refreshAuthTokens(true, deadline ?? undefined);
+        
+        if (ok) {
+            failedRefreshAttempts = 0;
+            const newToken = getAuthTokens()?.accessToken;
+            if (newToken) scheduleTokenRefresh(newToken);
+        } else {
+            failedRefreshAttempts++;
+            
+            if (failedRefreshAttempts >= MAX_REFRESH_ATTEMPTS || Date.now() >= (deadline ?? 0)) {
                 logout();
+            } else {
+                const backoffDelay = Math.min(1000 * Math.pow(2, failedRefreshAttempts), 60000);
+                refreshTimeout = setTimeout(() => tryRefresh(token), backoffDelay);
+            }
         }
+    } catch (error) {
+        failedRefreshAttempts++;
+        
+        if (failedRefreshAttempts >= MAX_REFRESH_ATTEMPTS || Date.now() >= (deadline ?? 0)) {
+            logout();
+        } else {
+            const backoffDelay = Math.min(1000 * Math.pow(2, failedRefreshAttempts), 60000);
+            refreshTimeout = setTimeout(() => tryRefresh(token), backoffDelay);
+        }
+    } finally {
+        isRefreshing = false;
+    }
+}
+
+/** 
+ * Обновляет токены авторизации через refresh_token.
+ * @param allowRetry - если true, не вызывает logout при ошибке, а только если токен истёк
+ * @param deadline - время истечения accessToken
+ */
+export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: number): Promise<boolean> {
+    const tokensData = getAuthTokens();
+    if (!tokensData?.refreshToken) return false;
+
+    const fp = await FingerprintJS.load();
+    const result = await fp.get();
+    const fingerprint = result.visitorId;
+
+    const requestBody = {
+        refresh_token: tokensData.refreshToken,
+        fingerprint
+    };
+
+    const response: { success: boolean; data?: { access_token: string; refresh_token?: string } } = await api.post(Endpoints.refresh, requestBody);
+
+    if (response.success && response.data?.access_token && response.data?.refresh_token) {
+        setTokenStore({
+            accessToken: response.data.access_token,
+            refreshToken: response.data.refresh_token
+        });
+        
+        scheduleTokenRefresh(response.data.access_token);
+        return true;
     }
 
-    refreshTimeout = setTimeout(tryRefresh, delay);
+    if (!allowRetry || (deadline && Date.now() >= deadline)) logout();
+    return false;
+}
+
+/**
+ * Выход пользователя из системы.
+ */
+export async function logout(): Promise<void> {
+    clearAuthTokens();
+    
+    if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+        refreshTimeout = null;
+    }
+    
+    isRefreshing = false;
+    failedRefreshAttempts = 0;
+    
+    isAuthenticated.set(false);
+    currentUser.set(null);
+
+    const currentPath = window.location.pathname;
+    if (currentPath !== '/' && currentPath !== '')
+        window.location.href = '/';
 }
 
 /**
@@ -103,40 +184,6 @@ export async function login(email: string, password: string, rememberMe: boolean
     return response.data;
 }
 
-/** 
- * Обновляет токены авторизации через refresh_token.
- * @param allowRetry - если true, не вызывает logout при ошибке, а только если токен истёк
- * @param deadline - время истечения accessToken
- * @returns {Promise<boolean>} true, если токены успешно обновлены, иначе false.
- */
-export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: number): Promise<boolean> {
-    const tokensData = getAuthTokens();
-    if (!tokensData?.refreshToken) return false;
-
-    const fp = await FingerprintJS.load();
-    const result = await fp.get();
-    const fingerprint = result.visitorId;
-
-    const requestBody = {
-        refresh_token: tokensData.refreshToken,
-        fingerprint
-    };
-
-    const response: { success: boolean; data?: { access_token: string; refresh_token?: string } } = await api.post(Endpoints.refresh, requestBody);
-
-    if (response.success && response.data?.access_token && response.data?.refresh_token) {
-        setTokenStore({
-            accessToken: response.data.access_token,
-            refreshToken: response.data.refresh_token
-        });
-        scheduleTokenRefresh(response.data.access_token);
-        return true;
-    }
-
-    if (!allowRetry || (deadline && Date.now() >= deadline)) logout();
-    return false;
-}
-
 /**
  * Получение данных текущего пользователя.
  * @returns {Promise<any>} Данные пользователя или ошибка.
@@ -153,19 +200,4 @@ export async function getUserData(): Promise<IUserData> {
     }
 
     throw new Error(response.error || 'Failed to fetch user data');
-}
-
-/**
- * Выход пользователя из системы.
- * @returns {Promise<any>} Ответ сервера со статусом операции.
- */
-export async function logout(): Promise<void> {
-    clearAuthTokens();
-    if (refreshTimeout) clearTimeout(refreshTimeout);
-    isAuthenticated.set(false);
-    currentUser.set(null);
-
-    const currentPath = window.location.pathname;
-    if (currentPath !== '/' && currentPath !== '')
-        window.location.href = '/';
 }
