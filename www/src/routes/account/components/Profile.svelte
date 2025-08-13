@@ -1,54 +1,96 @@
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
+    import { onMount } from 'svelte';
+    
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { fetchTickets } from '$lib/utils/tickets/api/get';
+    import { formatDate } from '$lib/utils/tickets/support';
+    import { api } from '$lib/utils/api';
+    
     import Avatar from '$lib/components/Avatar/Avatar.svelte';
     
-    export let userData: { name: string, email: string, role: string };
-    export let stats: { totalTickets: number, assignedToMe: number, completedTickets: number, cancelledTickets: number };
-    export let activeTickets: any[];
+    export let userData: { id: string, name: string, email: string, role: string };
+    export let stats: { assignedToMe: number, completedTickets: number, cancelledTickets: number };
+    export let activeTickets: any[] = [];
     
     let isEditing: boolean = false;
     let isLoading: boolean = false;
     let editedName: string = '';
+    let editedEmail: string = '';
+    let currentPassword: string = '';
+    let newPassword: string = '';
+    let confirmPassword: string = '';
     let avatarFile: File | null = null;
     let avatarPreview: string | null = null;
-    
-    const dispatch = createEventDispatcher();
+    let changePassword: boolean = false;
     
     function startEditingProfile() {
         editedName = userData.name || '';
+        editedEmail = userData.email || '';
         isEditing = true;
     }
     
     function cancelEditing() {
         editedName = '';
+        editedEmail = '';
+        currentPassword = '';
+        newPassword = '';
+        confirmPassword = '';
         avatarFile = null;
         avatarPreview = null;
+        changePassword = false;
         isEditing = false;
     }
     
-    function handleAvatarChange(event: Event) {
-        const input = event.target as HTMLInputElement;
-        if (input.files && input.files[0]) {
-            avatarFile = input.files[0];
-            avatarPreview = URL.createObjectURL(avatarFile);
+    async function loadActiveTickets() {
+        if (userData.id.length === 0) return;
+        try {
+            const result = await fetchTickets('', {
+                assigned_to: userData.id
+            });
+            activeTickets = result.tickets;
+        } catch (error) {
+            notification('Ошибка загрузки заявок', NotificationType.Error);
+        }
+    }
+
+    async function loadStats() {
+        try {
+            const response = await api.get(`/api/v1/user/stats?user_id=${userData.id}`);
+
+            if (response.success){
+                stats.assignedToMe = (response.data as any).active_tickets_count || 0;
+                stats.completedTickets = (response.data as any).closed_tickets_count || 0;
+                stats.cancelledTickets = (response.data as any).cancelled_tickets_count || 0;
+            }
+        } catch (error) {
+            notification('Ошибка загрузки статистики', NotificationType.Error);
         }
     }
     
     async function saveProfile() {
-        // !!! TDD !!!
+        if (changePassword && newPassword !== confirmPassword) {
+            notification('Пароли не совпадают', NotificationType.Error);
+            return;
+        }
         
         isLoading = true;
         
         try {
             notification('Профиль успешно обновлен', NotificationType.Success);
-            dispatch('reloadData');
+            isEditing = false;
         } catch (error) {
             notification('Ошибка при обновлении профиля', NotificationType.Error);
         } finally {
             isLoading = false;
         }
     }
+
+    onMount(() => {
+        editedName = userData.name || '';
+        editedEmail = userData.email || '';
+        loadActiveTickets();
+        loadStats();
+    });
 </script>
 
 <div class="content-section">
@@ -60,31 +102,89 @@
             {#if isEditing}
                 <div class="edit-profile">
                     <div class="edit-avatar">
-                        {#if avatarPreview}
-                            <img src={ avatarPreview } alt="Avatar preview" class="avatar-preview" />
-                        {:else}
+                        <button class="avatar-edit-container" on:click={ startEditingProfile } on:keydown={ (e) => e.key === 'Enter' && startEditingProfile() } aria-label="Редактировать аватар">
                             <Avatar width={ 100 } round={ true } userFullName={ userData.name || 'Пользователь' } />
-                        {/if}
-                        <label class="avatar-upload">
-                            Изменить аватар
-                            <input 
-                                type="file" 
-                                accept="image/*" 
-                                style="display: none;" 
-                                on:change={ handleAvatarChange }
-                            />
-                        </label>
+                            <div class="avatar-edit-overlay">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            </div>
+                        </button>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="name">Имя пользователя</label>
-                        <input 
-                            type="text" 
-                            id="name" 
-                            class="form-input" 
-                            bind:value={ editedName }
-                            placeholder="Введите имя"
-                        />
+                    <div class="form-section">
+                        <h3>Основная информация</h3>
+                        
+                        <div class="form-group">
+                            <label for="name">Имя пользователя</label>
+                            <input 
+                                type="text" 
+                                id="name" 
+                                class="form-input" 
+                                bind:value={ editedName }
+                                placeholder="Введите имя"
+                            />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input 
+                                type="email" 
+                                id="email" 
+                                class="form-input" 
+                                bind:value={ editedEmail }
+                                placeholder="Введите email"
+                            />
+                        </div>
+                    </div>
+                    
+                    <div class="form-section password-section">
+                        <div class="password-header">
+                            <h3>Смена пароля</h3>
+                            <label class="switch">
+                                <input type="checkbox" bind:checked={ changePassword }>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        
+                        {#if changePassword}
+                            <div class="form-group">
+                                <label for="currentPassword">Текущий пароль</label>
+                                <div class="password-input-wrapper">
+                                    <input 
+                                        type="password" 
+                                        id="currentPassword" 
+                                        class="form-input" 
+                                        bind:value={ currentPassword }
+                                        placeholder="Введите текущий пароль"
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="newPassword">Новый пароль</label>
+                                <div class="password-input-wrapper">
+                                    <input 
+                                        type="password" 
+                                        id="newPassword" 
+                                        class="form-input" 
+                                        bind:value={ newPassword }
+                                        placeholder="Введите новый пароль"
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="confirmPassword">Подтвердите пароль</label>
+                                <div class="password-input-wrapper">
+                                    <input 
+                                        type="password" 
+                                        id="confirmPassword" 
+                                        class="form-input" 
+                                        bind:value={ confirmPassword }
+                                        placeholder="Подтвердите новый пароль"
+                                    />
+                                </div>
+                            </div>
+                        {/if}
                     </div>
                     
                     <div class="form-actions">
@@ -98,19 +198,33 @@
                 </div>
             {:else}
                 <div class="profile-info">
-                    <div class="profile-info-fields">
-                        <div class="info-item">
-                            <strong>Имя:</strong> { userData.name }
-                        </div>
-                        <div class="info-item">
-                            <strong>Email:</strong> { userData.email }
-                        </div>
-                        <div class="info-item">
-                            <strong>Роль:</strong> { userData.role === "Admin" ? 'Администратор' : 'Пользователь' }
+                    <div class="profile-info-sections">
+                        <div class="info-section">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <div class="info-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                    </div>
+                                    <div>
+                                        <span class="info-label">Имя</span>
+                                        <span class="info-value">{ userData.name }</span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                                    </div>
+                                    <div>
+                                        <span class="info-label">Email</span>
+                                        <span class="info-value">{ userData.email }</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <button class="btn btn-primary" on:click={ startEditingProfile }>
+                    <button class="btn edit-btn" on:click={ startEditingProfile }>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                         Редактировать профиль
                     </button>
                 </div>
@@ -125,12 +239,12 @@
                     <div class="stat-label">Активных</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value">{ stats.completedTickets }</div>
-                    <div class="stat-label">Завершенных</div>
-                </div>
-                <div class="stat-item">
                     <div class="stat-value">{ stats.cancelledTickets }</div>
                     <div class="stat-label">Отменённых</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{ stats.completedTickets }</div>
+                    <div class="stat-label">Завершенных</div>
                 </div>
             </div>
         </div>
@@ -144,19 +258,14 @@
         
         {#if activeTickets.length > 0}
             <div class="tickets-grid">
-                {#each activeTickets.slice(0, 4) as ticket}
-                    <a href={`/tickets/${ticket.id}`} class="ticket-card">
+                {#each activeTickets.slice(0, 3) as ticket}
+                    <a href={`/ticket/${ ticket.id }`} class="ticket-card">
                         <div class="ticket-header">
                             <span class="ticket-id">{ ticket.building.code }-{ ticket.id }</span>
-                            <span class={`status-badge ${ ticket.status }`}>
-                                { ticket.status === 'new' ? 'Новая' : 'В работе' }
-                            </span>
                         </div>
                         <h3 class="ticket-title">{ ticket.title }</h3>
-                        <div class="ticket-footer">
-                            <span class="ticket-date">
-                                { new Date(ticket.created_at).toLocaleDateString() }
-                            </span>
+                        <div class="ticket-meta">
+                            { formatDate(ticket.planned_at) }
                         </div>
                     </a>
                 {/each}

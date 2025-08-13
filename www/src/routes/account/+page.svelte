@@ -6,7 +6,10 @@
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { logout } from '$lib/utils/auth/api/api';
-    import { getUserData } from '$lib/utils/auth/api/api';
+
+    import { authCheckComplete } from '$lib/utils/auth/api/api';
+    import { browser } from '$app/environment';
+    import { goto } from '$app/navigation';
     
     import Avatar from '$lib/components/Avatar/Avatar.svelte';
     import Profile from './components/Profile.svelte';
@@ -16,8 +19,7 @@
         TICKETS: 'tickets',
         STATS: 'stats',
         USERS: 'users',
-        BOTS: 'bots',
-        TEA: 'tea'
+        BOTS: 'bots'
     } as const;
 
     type Tab = typeof Tab[keyof typeof Tab];
@@ -29,6 +31,7 @@
     let isMobileView: boolean = false;
     
     let userData = {
+        id: '',
         name: '',
         email: '',
         role: ''
@@ -43,6 +46,15 @@
     
     let activeTickets: any[] = [];
     
+    $: if ($currentUser) {
+        userData = $currentUser;
+        userRole = $currentUser.role === "Admin" ? 'Администратор' : 'Пользователь';
+    }
+
+    $: if (browser && $authCheckComplete && !$isAuthenticated) {
+        goto('/');
+    }
+
     function setTab(tab: Tab) {
         activeTab = tab;
         isMobileView && toggleMenu();
@@ -66,34 +78,10 @@
         }
     }
     
-    async function loadUserData() {
-        if (!$isAuthenticated) {
-            window.location.href = '/';
-            return;
-        }
-        
-        isLoading = true;
-        
-        try {
-            const user = await getUserData();
-            userData = {
-                name: user.name,
-                email: user.email,
-                role: user.role
-            };
-            userRole = userData.role === "Admin" ? 'Администратор' : 'Пользователь';
-        } catch (error) {
-            notification('Ошибка загрузки данных пользователя', NotificationType.Error);
-        } finally {
-            isLoading = false;
-        }
-    }
-    
     onMount(() => {
         pageTitle.set('Личный кабинет | Система управления заявками ЕИ КФУ');
         pageDescription.set('Управление личной учетной записью и просмотр статистики по заявкам.');
         
-        loadUserData();
         checkMobileView();
         window.addEventListener('resize', checkMobileView);
     });
@@ -198,7 +186,6 @@
                     { userData }
                     { stats }
                     { activeTickets }
-                    on:reloadData={ loadUserData }
                 />
             {:else}
                 <div class="content-section">

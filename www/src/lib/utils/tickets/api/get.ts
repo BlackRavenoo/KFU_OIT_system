@@ -14,28 +14,28 @@ import type { Building, OrderBy, Ticket } from '$lib/utils/tickets/types';
  * Возвращает массив тикетов и максимальное количество страниц.
  * @param search Строка для поиска по тикетам (необязательный параметр).
  */
-export async function fetchTickets(search: string = '') {
+export async function fetchTickets(search: string = '', search_params: Record<string, any> = {}): Promise<{ tickets: Ticket[]; max_page: number }> {
     const filters = getTicketsFilters();
     const page = (filters as any).page || 1;
     const page_size = filters.page_size;
 
-    const params: Record<string, any> = {
+    const params: Record<string, any> = search_params || {
         page,
         page_size,
         order_by: orderByMap[filters.selectedSort] || 'id',
         sort_order: filters.sortOrder,
     };
 
-    if (filters.selectedStatus !== 'all')
+    if (filters.selectedStatus !== 'all' && !search_params)
         params.statuses = [filters.selectedStatus];
 
-    if (filters.plannedFrom) params.planned_from = toRfc3339(filters.plannedFrom);
-    if (filters.plannedTo) params.planned_to = toRfc3339(filters.plannedTo, true);
+    if (filters.plannedFrom && !search_params) params.planned_from = toRfc3339(filters.plannedFrom);
+    if (filters.plannedTo && !search_params) params.planned_to = toRfc3339(filters.plannedTo, true);
 
-    if (filters.selectedBuildings.length > 0)
+    if (filters.selectedBuildings.length > 0 && !search_params)
         params.buildings = filters.selectedBuildings;
 
-    if (filters.search) params.search = filters.search;
+    if (filters.search && !search_params) params.search = filters.search;
 
     const query = buildQuery(params);
 

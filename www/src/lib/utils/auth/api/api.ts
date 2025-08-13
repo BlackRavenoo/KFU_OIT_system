@@ -4,17 +4,23 @@
  */
 
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
+import { writable, get } from 'svelte/store';
 
 import { api } from '$lib/utils/api';
 import { getAuthTokens, clearAuthTokens } from '../tokens/tokens';
 import { setTokenStore } from '../tokens/storage';
 import { currentUser, isAuthenticated } from '../storage/initial';
 import { AUTH_API_ENDPOINTS as Endpoints } from './endpoints';
+import { checkToken } from '$lib/utils/auth/tokens/tokens';
 
 import type { ILoginRequest, IUserData } from '$lib/utils/auth/types';
 
 let isRefreshing = false;
 let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+
+export const authCheckComplete = writable(false);
+let authChecking = false;
+
 let failedRefreshAttempts = 0;
 const MAX_REFRESH_ATTEMPTS = 3;
 
@@ -200,4 +206,49 @@ export async function getUserData(): Promise<IUserData> {
     }
 
     throw new Error(response.error || 'Failed to fetch user data');
+}
+
+/**
+ * Проверка аутентификации пользователя.
+ * Получает данные пользователя, если токен действителен.
+ * Инциализирует состояние аутентификации и текущего пользователя.
+ */
+export async function checkAuthentication() {
+    if (authChecking) return;
+    authChecking = true;
+    
+    try {
+        const tokenData = localStorage.getItem('auth_tokens');
+    
+        if (tokenData) {
+            try {
+                const tokens = JSON.parse(tokenData);
+                if (tokens && tokens.accessToken) {
+                    isAuthenticated.set(true);
+                    
+                    scheduleTokenRefresh(tokens.accessToken);
+          
+                    const isValid = await checkToken();
+                    if (isValid) {
+                        if (!get(currentUser)) {
+                            const user = await getUserData();
+                            if (user) currentUser.set(user);
+                        }
+                    } else {
+                        const refreshed = await refreshAuthTokens(true);
+                        if (!refreshed) {
+                            isAuthenticated.set(false);
+                            currentUser.set(null);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Ошибка при разборе токенов:', e);
+                isAuthenticated.set(false);
+            }
+        }
+    } finally {
+        authChecking = false;
+        authCheckComplete.set(true);
+    }
 }

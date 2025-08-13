@@ -313,14 +313,14 @@
                             { statusOptions.find(option => option.serverValue === ticket.status)?.value || '' }"
                             role="link"
                             tabindex="0"
-                            aria-label={`Открыть заявку ${ticket.title}`}
-                            on:click={() => window.location.href = `/ticket/${ticket.id}`}
+                            aria-label={`Открыть заявку ${ ticket.title }`}
+                            on:click={() => window.location.href = `/ticket/${ ticket.id }`}
                             on:keydown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ')
-                                    window.location.href = `/ticket/${ticket.id}`;
+                                    window.location.href = `/ticket/${ ticket.id }`;
                             }}
                         >
-                            <div class="ticket-title">{ticket.title}</div>
+                            <div class="ticket-title">{ ticket.title  }</div>
                             <div class="ticket-meta">
                                 { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
                             </div>
