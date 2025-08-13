@@ -306,6 +306,7 @@ pub async fn get_tickets(
     build_where_condition!(builder, has_filters, schema.planned_from, "planned_at", ">=");
     build_where_condition!(builder, has_filters, schema.planned_to, "planned_at", "<=");
     build_where_condition!(builder, has_filters, schema.buildings, "building_id", in);
+    build_where_condition!(builder, has_filters, schema.assigned_to, "tu.assigned_to", "=");
 
     if has_filters {
         builder.push("\n");

@@ -1,10 +1,11 @@
 use actix_web::web;
 
-use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{login, me, refresh_token}, images::get_image, tickets::{assign_ticket, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket, update_ticket}}};
+use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{login, me, refresh_token}, images::get_image, tickets::{assign_ticket, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket, update_ticket}, user::get_stats}};
 
 pub mod auth;
 pub mod tickets;
 pub mod images;
+pub mod user;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -36,6 +37,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .service(
                 web::scope("/images")
                     .route("/{prefix}/{key}", web::get().to(get_image))
+            )
+            .service(
+                web::scope("/user")
+                    .route("/stats", web::get().to(get_stats)
+                        .wrap(JwtMiddleware::default()))
             )
     );
 }
