@@ -1,3 +1,5 @@
+import { notification, NotificationType } from "../notifications/notification";
+
 /**
  * Преобразует строку даты в формат "ДД.ММ.ГГГГ ЧЧ:ММ"
  * @param dateStr - строка даты
@@ -39,11 +41,11 @@ export function toRfc3339(dateStr: string, endOfDay = false) {
 export function buildQuery(params: Record<string, any>) {
     const parts: string[] = [];
     for (const [key, value] of Object.entries(params)) {
-        if (Array.isArray(value)) {
+        if (Array.isArray(value))
             value.forEach(v => parts.push(`${encodeURIComponent(key)}[]=${encodeURIComponent(v)}`));
-        } else {
+        else
             parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
-        }
     }
+
     return parts.join('&');
 }

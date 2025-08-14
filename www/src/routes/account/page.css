@@ -67,6 +67,7 @@
     align-items: center;
     gap: 0.75rem;
     color: var(--text);
+    box-shadow: 0px 2px 8px #075cef40;
     font-size: 1rem;
     text-align: left;
     cursor: pointer;
@@ -74,6 +75,7 @@
 }
 
 .side-nav button:hover {
+    box-shadow: 0px 2px 15px #075cef40;
     background-color: var(--light-gray);
 }
 
@@ -91,6 +93,7 @@
     gap: 0.5rem;
     background-color: var(--light-gray);
     color: var(--text);
+    box-shadow: 0px 2px 8px #075cef40;
     border: none;
     border-radius: 6px;
     cursor: pointer;
@@ -98,6 +101,7 @@
 }
 
 .logout-btn:hover {
+    box-shadow: 0px 2px 15px #075cef40;
     background-color: var(--gray);
 }
 

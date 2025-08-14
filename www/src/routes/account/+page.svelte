@@ -13,6 +13,7 @@
     
     import Avatar from '$lib/components/Avatar/Avatar.svelte';
     import Profile from './components/Profile.svelte';
+    import Tickets from './components/Tickets.svelte';
     
     const Tab = {
         PROFILE: 'profile',
@@ -187,6 +188,8 @@
                     { stats }
                     { activeTickets }
                 />
+            {:else if activeTab === Tab.TICKETS}
+                <Tickets />
             {:else}
                 <div class="content-section">
                     <h1>Страница в разработке</h1>

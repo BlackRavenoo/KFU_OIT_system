@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { get } from 'svelte/store';
     
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { fetchTickets } from '$lib/utils/tickets/api/get';
@@ -7,6 +8,7 @@
     import { api } from '$lib/utils/api';
     
     import Avatar from '$lib/components/Avatar/Avatar.svelte';
+    import { currentUser } from '$lib/utils/auth/storage/initial';
     
     export let userData: { id: string, name: string, email: string, role: string };
     export let stats: { assignedToMe: number, completedTickets: number, cancelledTickets: number };
@@ -16,11 +18,9 @@
     let isLoading: boolean = false;
     let editedName: string = '';
     let editedEmail: string = '';
-    let currentPassword: string = '';
     let newPassword: string = '';
     let confirmPassword: string = '';
     let avatarFile: File | null = null;
-    let avatarPreview: string | null = null;
     let changePassword: boolean = false;
     
     function startEditingProfile() {
@@ -32,11 +32,9 @@
     function cancelEditing() {
         editedName = '';
         editedEmail = '';
-        currentPassword = '';
         newPassword = '';
         confirmPassword = '';
         avatarFile = null;
-        avatarPreview = null;
         changePassword = false;
         isEditing = false;
     }
@@ -45,7 +43,12 @@
         if (userData.id.length === 0) return;
         try {
             const result = await fetchTickets('', {
-                assigned_to: userData.id
+                assigned_to: userData.id,
+                page: 1,
+                page_size: 3,
+                order_by: 'id',
+                sort_order: 'asc',
+                statuses: ['inprogress']
             });
             activeTickets = result.tickets;
         } catch (error) {
@@ -68,6 +71,13 @@
     }
     
     async function saveProfile() {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!emailRegex.test(editedEmail.trim()) && (editedEmail.trim().length > 128 || editedEmail.trim().length === 1)) {
+            notification('Некорректный формат email', NotificationType.Error);
+            return;
+        }
+
         if (changePassword && newPassword !== confirmPassword) {
             notification('Пароли не совпадают', NotificationType.Error);
             return;
@@ -76,6 +86,31 @@
         isLoading = true;
         
         try {
+            try {
+                if (editedName.trim()) await api.post('/api/v1/user/change_name', { name: editedName.trim() });
+            } catch (error) {
+                notification('Ошибка при обновлении имени', NotificationType.Error);
+            }
+
+            try {
+                if (editedEmail.trim()) await api.post('/api/v1/user/change_email', { email: editedEmail.trim() });
+            } catch (error) {
+                notification('Ошибка при обновлении email', NotificationType.Error);
+            }
+
+            try {
+                if (changePassword) await api.post('/api/v1/user/change_password', { password: newPassword.trim() });
+            } catch (error) {
+                notification('Ошибка при смене пароля', NotificationType.Error);
+            }
+
+            currentUser.update(_ => ({
+                id: get(currentUser)?.id as string,
+                name: editedName.trim() || get(currentUser)?.name as string,
+                email: editedEmail.trim() || get(currentUser)?.email as string,
+                role: get(currentUser)?.role as string
+            }));
+
             notification('Профиль успешно обновлен', NotificationType.Success);
             isEditing = false;
         } catch (error) {
@@ -146,19 +181,6 @@
                         </div>
                         
                         {#if changePassword}
-                            <div class="form-group">
-                                <label for="currentPassword">Текущий пароль</label>
-                                <div class="password-input-wrapper">
-                                    <input 
-                                        type="password" 
-                                        id="currentPassword" 
-                                        class="form-input" 
-                                        bind:value={ currentPassword }
-                                        placeholder="Введите текущий пароль"
-                                    />
-                                </div>
-                            </div>
-                            
                             <div class="form-group">
                                 <label for="newPassword">Новый пароль</label>
                                 <div class="password-input-wrapper">

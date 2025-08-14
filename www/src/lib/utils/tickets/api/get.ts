@@ -19,34 +19,38 @@ export async function fetchTickets(search: string = '', search_params: Record<st
     const page = (filters as any).page || 1;
     const page_size = filters.page_size;
 
-    const params: Record<string, any> = search_params || {
-        page,
-        page_size,
-        order_by: orderByMap[filters.selectedSort] || 'id',
-        sort_order: filters.sortOrder,
-    };
-
-    if (filters.selectedStatus !== 'all' && !search_params)
-        params.statuses = [filters.selectedStatus];
-
-    if (filters.plannedFrom && !search_params) params.planned_from = toRfc3339(filters.plannedFrom);
-    if (filters.plannedTo && !search_params) params.planned_to = toRfc3339(filters.plannedTo, true);
-
-    if (filters.selectedBuildings.length > 0 && !search_params)
-        params.buildings = filters.selectedBuildings;
-
-    if (filters.search && !search_params) params.search = filters.search;
+    let params: Record<string, any> = {};
+    
+    if (Object.keys(search_params).length === 0) {
+        params = {
+            page,
+            page_size,
+            order_by: orderByMap[filters.selectedSort] || 'id',
+            sort_order: filters.sortOrder,
+        };
+        
+        if (filters.selectedStatus !== 'all')
+            params.statuses = [filters.selectedStatus];
+            
+        if (filters.plannedFrom) params.planned_from = toRfc3339(filters.plannedFrom);
+        if (filters.plannedTo) params.planned_to = toRfc3339(filters.plannedTo, true);
+            
+        if (filters.selectedBuildings.length > 0)
+            params.buildings = filters.selectedBuildings;
+            
+        if (filters.search) params.search = filters.search;
+    } else {
+        params = {...search_params};
+    }
 
     const query = buildQuery(params);
-
     const response = await api.get<{ items: Ticket[]; max_page: number }>(
         `${TICKETS_API_ENDPOINTS.read}?${query}`
     );
 
-    if (!response.success) {
+    if (!response.success)
         if (response.status === 404) {
             return { tickets: [], max_page: 1 };
-        }
         throw new Error(response.error || 'Ошибка загрузки тикетов');
     }
 

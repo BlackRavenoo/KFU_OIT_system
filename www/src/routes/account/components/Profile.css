@@ -6,7 +6,7 @@ h1 {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
-    margin-bottom: 4.5rem;
+    margin-bottom: -.5rem;
     align-items: stretch;
 }
 
@@ -18,7 +18,6 @@ h1 {
     display: flex;
     flex-direction: column;
     border-radius: 8px;
-    height: 100%;
     color: var(--text);
 }
 
@@ -59,8 +58,9 @@ h1 {
     align-items: center;
     gap: 0.5rem;
     margin-top: 1.5rem;
-    background-color: var(--light-blue);
+    background-color: whitesmoke;
     color: var(--blue);
+    box-shadow: 0px 2px 8px #075cef40;
     border: none;
     border-radius: 6px;
     padding: 0.75rem 1rem;
@@ -72,6 +72,7 @@ h1 {
 
 .edit-btn:hover {
     background-color: #e1effe;
+    box-shadow: 0px 2px 15px #075cef40;
 }
 
 .avatar-edit-container {
@@ -334,8 +335,8 @@ input:checked + .slider:before {
 
 .info-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    grid-template-rows: 1fr 1fr;
+    gap: 1.5rem;
 }
 
 .info-item {
@@ -422,13 +423,15 @@ input:checked + .slider:before {
 
 @media (max-width: 1024px) {
     .profile-dashboard {
-        grid-template-columns: 1fr;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);        
+        grid-template-columns: 1fr;      
     }
     
-    .profile-section, .profile-stats {
+    .profile-section {
+        margin-bottom: -.5rem;
+    }
+
+    .profile-stats {
         margin-bottom: 1.5rem;
-        box-shadow: none;
     }
     
     .stat-item {
