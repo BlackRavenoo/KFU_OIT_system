@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use crate::auth::password::{hash_password, PasswordError};
+
 #[derive(Debug, Deserialize)]
 #[serde(try_from = "String")]
 pub struct Password(String);
@@ -19,6 +21,10 @@ impl Password {
         } else {
             Err(format!("{} is not a valid password", s))
         }
+    }
+
+    pub fn hash(self) -> Result<String, PasswordError> {
+        hash_password(self.0)
     }
 }
 

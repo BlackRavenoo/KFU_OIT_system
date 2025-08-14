@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 use anyhow::anyhow;
 
-use crate::{auth::{password::{self, verify_password}, types::{User, UserRole}}, domain::{email::Email, password::Password}};
+use crate::{auth::{password::verify_password, types::{User, UserRole}}, domain::{email::Email, password::Password}};
 
 pub struct UserService {
     db_pool: PgPool,
@@ -29,10 +29,10 @@ impl UserService {
         Ok(user)
     }
     
-    pub async fn register(&self, name: &str, email: &str, password: &str) -> anyhow::Result<i32> {
+    pub async fn register(&self, name: &str, email: Email, password: Password) -> anyhow::Result<i32> {
         let existing_user = sqlx::query!(
             r#"SELECT id FROM users WHERE email = $1"#,
-            email
+            email.as_ref()
         )
         .fetch_optional(&self.db_pool)
         .await?;
@@ -41,7 +41,7 @@ impl UserService {
             return Err(anyhow!("A user with this email already exists"));
         }
         
-        let password_hash = password::hash_password(password.to_string())?;
+        let password_hash = password.hash()?;
         
         let user_id = sqlx::query!(
             r#"
@@ -50,7 +50,7 @@ impl UserService {
             RETURNING id
             "#,
             name,
-            email,
+            email.as_ref(),
             password_hash
         )
         .fetch_one(&self.db_pool)
@@ -110,12 +110,12 @@ impl UserService {
         Ok(())
     }
 
-    pub async fn change_email(&self, user_id: i32, email: &str) -> Result<(), sqlx::Error> {
+    pub async fn change_email(&self, user_id: i32, email: Email) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "UPDATE users
             SET email = $1
             WHERE id = $2",
-            email,
+            email.as_ref(),
             user_id
         )
         .execute(&self.db_pool)
@@ -124,8 +124,8 @@ impl UserService {
         Ok(())
     }
 
-    pub async fn change_password(&self, user_id: i32, password: String) -> anyhow::Result<()> {
-        let password_hash = password::hash_password(password)?;
+    pub async fn change_password(&self, user_id: i32, password: Password) -> anyhow::Result<()> {
+        let password_hash = password.hash()?;
         
         sqlx::query!(
             "UPDATE users
