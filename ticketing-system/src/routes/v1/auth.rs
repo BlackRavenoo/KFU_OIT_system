@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse, Responder};
 
-use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::{TokenStore, TokenStoreError}, types::RefreshToken, user_service::UserService}, schema::auth::{LoginRequest, RefreshTokenRequest, TokenResponse}};
+use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::{TokenStore, TokenStoreError}, types::RefreshToken, user_service::UserService}, schema::{auth::{LoginRequest, RefreshTokenRequest, TokenResponse}, tickets::{ChangeEmailSchema, ChangeNameSchema, ChangePasswordSchema}}};
 
 
 pub async fn login(
@@ -106,4 +106,61 @@ pub async fn refresh_token(
         token_type: "Bearer".to_string(),
         expires_in: jwt_service.access_token_lifetime.num_seconds()
     })
+}
+
+pub async fn change_name(
+    user_id: UserId,
+    web::Json(req): web::Json<ChangeNameSchema>,
+    user_service: web::Data<UserService>,
+) -> impl Responder {
+    let user_id = match user_id.0 {
+        Some(id) => id,
+        None => return HttpResponse::Unauthorized().finish()
+    };
+
+    match user_service.change_username(user_id, req.name).await {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(e) => {
+            tracing::error!("Failed to change username: {:?}", e);
+            HttpResponse::InternalServerError().finish()
+        },
+    }
+}
+
+pub async fn change_email(
+    user_id: UserId,
+    web::Json(req): web::Json<ChangeEmailSchema>,
+    user_service: web::Data<UserService>,
+) -> impl Responder {
+    let user_id = match user_id.0 {
+        Some(id) => id,
+        None => return HttpResponse::Unauthorized().finish()
+    };
+
+    match user_service.change_email(user_id, req.email).await {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(e) => {
+            tracing::error!("Failed to change email: {:?}", e);
+            HttpResponse::InternalServerError().finish()
+        },
+    }
+}
+
+pub async fn change_password(
+    user_id: UserId,
+    web::Json(req): web::Json<ChangePasswordSchema>,
+    user_service: web::Data<UserService>,
+) -> impl Responder {
+    let user_id = match user_id.0 {
+        Some(id) => id,
+        None => return HttpResponse::Unauthorized().finish()
+    };
+
+    match user_service.change_password(user_id, req.password).await {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(e) => {
+            tracing::error!("Failed to change password: {:?}", e);
+            HttpResponse::InternalServerError().finish()
+        },
+    }
 }

@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 use anyhow::anyhow;
 
-use crate::{auth::{password::verify_password, types::{User, UserRole}}, domain::{email::Email, password::Password}};
+use crate::{auth::{password::verify_password, types::{User, UserRole}}, domain::{email::Email, name::Name, password::Password}, schema::common::UserId};
 
 pub struct UserService {
     db_pool: PgPool,
@@ -29,7 +29,7 @@ impl UserService {
         Ok(user)
     }
     
-    pub async fn register(&self, name: &str, email: Email, password: Password) -> anyhow::Result<i32> {
+    pub async fn register(&self, name: Name, email: Email, password: Password) -> anyhow::Result<i32> {
         let existing_user = sqlx::query!(
             r#"SELECT id FROM users WHERE email = $1"#,
             email.as_ref()
@@ -49,7 +49,7 @@ impl UserService {
             VALUES ($1, $2, $3) 
             RETURNING id
             "#,
-            name,
+            name.as_ref(),
             email.as_ref(),
             password_hash
         )
@@ -60,7 +60,7 @@ impl UserService {
         Ok(user_id)
     }
 
-    pub async fn get_user(&self, user_id: i32) -> Result<Option<User>, sqlx::Error> {
+    pub async fn get_user(&self, user_id: UserId) -> Result<Option<User>, sqlx::Error> {
         sqlx::query_as!(
             User,
             r#"
@@ -74,7 +74,7 @@ impl UserService {
         .await
     }
 
-    pub async fn get_user_role(&self, user_id: i32) -> Result<UserRole, sqlx::Error> {
+    pub async fn get_user_role(&self, user_id: UserId) -> Result<UserRole, sqlx::Error> {
         let role_num = sqlx::query_scalar!(
             "SELECT role FROM users
             WHERE id = $1",
@@ -86,7 +86,7 @@ impl UserService {
         Ok(UserRole::from(role_num))
     }
 
-    pub async fn get_username(&self, user_id: i32) -> Result<String, sqlx::Error> {
+    pub async fn get_username(&self, user_id: UserId) -> Result<String, sqlx::Error> {
         sqlx::query_scalar!(
             "SELECT name FROM users
             WHERE id = $1",
@@ -96,12 +96,12 @@ impl UserService {
         .await
     }
 
-    pub async fn change_username(&self, user_id: i32, name: &str) -> Result<(), sqlx::Error> {
+    pub async fn change_username(&self, user_id: UserId, name: Name) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "UPDATE users
             SET name = $1
             WHERE id = $2",
-            name,
+            name.as_ref(),
             user_id
         )
         .execute(&self.db_pool)
@@ -110,7 +110,7 @@ impl UserService {
         Ok(())
     }
 
-    pub async fn change_email(&self, user_id: i32, email: Email) -> Result<(), sqlx::Error> {
+    pub async fn change_email(&self, user_id: UserId, email: Email) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "UPDATE users
             SET email = $1
@@ -124,7 +124,7 @@ impl UserService {
         Ok(())
     }
 
-    pub async fn change_password(&self, user_id: i32, password: Password) -> anyhow::Result<()> {
+    pub async fn change_password(&self, user_id: UserId, password: Password) -> anyhow::Result<()> {
         let password_hash = password.hash()?;
         
         sqlx::query!(

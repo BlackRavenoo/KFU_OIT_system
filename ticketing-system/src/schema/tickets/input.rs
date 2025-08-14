@@ -2,7 +2,7 @@ use actix_multipart::form::{bytes::Bytes, json::Json, MultipartForm};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
-use crate::schema::{common::{SortOrder, UserId}, tickets::{OrderBy, TicketPriority, TicketStatus}};
+use crate::{domain::{email::Email, name::Name, password::Password}, schema::{common::{SortOrder, UserId}, tickets::{OrderBy, TicketPriority, TicketStatus}}};
 
 #[derive(Deserialize)]
 pub struct CreateTicketSchema {
@@ -46,4 +46,19 @@ pub struct GetTicketsSchema {
     pub page_size: Option<i8>,
     pub buildings: Option<Vec<i16>>,
     pub assigned_to: Option<UserId>,
+}
+
+#[derive(Deserialize)]
+pub struct ChangeNameSchema {
+    pub name: Name,
+}
+
+#[derive(Deserialize)]
+pub struct ChangeEmailSchema {
+    pub email: Email,
+}
+
+#[derive(Deserialize)]
+pub struct ChangePasswordSchema {
+    pub password: Password,
 }
