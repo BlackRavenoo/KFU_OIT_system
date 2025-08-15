@@ -1,5 +1,6 @@
 .tickets-section {
     width: 100%;
+    max-width: 1200px;
     height: calc(100% - 7rem);
     border-radius: 8px;
     padding: 1.5rem;
@@ -15,7 +16,7 @@ h1 {
     gap: 0.7rem;
     align-items: center;
     justify-content: flex-end;
-    margin-bottom: 4srem;
+    margin-bottom: 4rem;
 }
 
 .view-mode-btn,
@@ -51,9 +52,10 @@ h1 {
 .tickets-list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 2rem;
-    width: 100%;
+    gap: 4rem;
+    width: calc(100% - 4rem);
     margin-bottom: 1.5rem;
+    padding: 0 2rem;
 }
 
 .list-view {

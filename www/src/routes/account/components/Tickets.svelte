@@ -202,5 +202,5 @@
 </div>
 
 <style>
-    @import './Tickets.css'
+    @import './Tickets.css';
 </style>
