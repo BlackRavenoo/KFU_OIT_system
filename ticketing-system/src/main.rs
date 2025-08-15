@@ -1,8 +1,4 @@
-use bb8_redis::{bb8::Pool, RedisConnectionManager};
-use sqlx::postgres::PgPoolOptions;
-use std::{net::TcpListener, time::Duration};
-
-use ticketing_system::{auth::{jwt::JwtService, token_store::TokenStore, user_service::UserService}, config::get_config, services::image::ImageService, startup::run, telemetry::{get_subscriber, init_subscriber}};
+use ticketing_system::{config::get_config, startup::Application, telemetry::{get_subscriber, init_subscriber}};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -11,40 +7,9 @@ async fn main() -> std::io::Result<()> {
 
     let config = get_config().unwrap();
 
-    let connection_pool = PgPoolOptions::new()
-        .connect_lazy_with(config.database.with_db());
+    let server = Application::build(config).await?;
 
-    sqlx::migrate!("./migrations")
-        .run(&connection_pool)
-        .await
-        .expect("Failed to migrate the database");
+    server.run_until_stopped().await?;
 
-    let address = format!("{}:{}", config.application.host, config.application.port);
-
-    let listener = TcpListener::bind(address)?;
-
-    let redis_manager = RedisConnectionManager::new(config.redis.url.clone())
-        .expect("Failed to create Redis manager");
-    let redis_pool = Pool::builder()
-        .connection_timeout(Duration::from_millis(500))
-        .build(redis_manager)
-        .await
-        .expect("Failed to build Redis pool");
-
-    let storage = config.storage.into_storage().await;
-
-    let token_store = TokenStore::new(redis_pool.clone());
-    let jwt_service = JwtService::new(&config.auth).unwrap();
-    let user_service = UserService::new(connection_pool.clone());
-    let image_service = ImageService::new(storage, config.storage.bucket());
-
-
-    run(
-        listener,
-        token_store,
-        jwt_service,
-        user_service,
-        connection_pool,
-        image_service
-    )?.await
+    Ok(())
 }
