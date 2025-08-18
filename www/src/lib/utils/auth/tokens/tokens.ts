@@ -31,7 +31,7 @@ export async function checkToken(): Promise<boolean> {
 /**
  * Проверка валидности токена доступа без обновления.
  */
-function isTokenValid(token: string): boolean {
+export function isTokenValid(token: string): boolean {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         const exp = payload.exp * 1000;

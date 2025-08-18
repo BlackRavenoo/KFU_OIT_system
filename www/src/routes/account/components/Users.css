@@ -49,15 +49,6 @@ h3 {
     box-shadow: 0 0 0 2px rgba(7, 92, 239, 0.15);
 }
 
-.form-select {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid var(--light-blue);
-    border-radius: 6px;
-    font-size: 1rem;
-    background-color: white;
-}
-
 .help-text {
     font-size: 0.875rem;
     color: var(--text-light);
@@ -236,15 +227,6 @@ h3 {
     transition: background-color 0.2s;
 }
 
-.edit-btn {
-    background-color: var(--light-blue);
-    color: var(--blue);
-}
-
-.edit-btn:hover {
-    background-color: #e1effe;
-}
-
 .delete-btn {
     background-color: #ffe5e5;
     color: #e53935;
@@ -333,24 +315,6 @@ h3 {
     gap: 1rem;
 }
 
-.user-edit-info {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.user-details h4 {
-    margin: 0 0 0.25rem;
-    font-size: 1.1rem;
-}
-
-.user-details p {
-    margin: 0;
-    color: var(--text-light);
-    font-size: 0.9rem;
-}
-
 .warning-text {
     color: #e53935;
     font-weight: 500;
@@ -425,10 +389,6 @@ h3 {
 }
 
 @media (max-width: 768px) {
-    .input-group {
-        flex-direction: column;
-    }
-    
     .users-table th:nth-child(2), 
     .users-table td:nth-child(2) {
         display: none;

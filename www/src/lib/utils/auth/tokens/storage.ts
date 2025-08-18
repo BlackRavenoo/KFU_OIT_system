@@ -10,15 +10,34 @@ export class LocalStorageTokenStorage implements ITokenStorage {
         this.tokens = this.readFromLocalStorage();
     }
 
+    /**
+     * Проверяет доступность localStorage
+     * @returns {boolean} true, если localStorage доступен, иначе false
+     */
+    private isStorageAvailable(): boolean {
+        try {
+            const testKey = '__storage_test__';
+            localStorage.setItem(testKey, testKey);
+            localStorage.removeItem(testKey);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
     private readFromLocalStorage(): IAuthTokens | null {
+        if (!this.isStorageAvailable()) return null;
+
         try {
             const storedTokens = localStorage.getItem('auth_tokens');
             if (storedTokens) {
                 const parsed = JSON.parse(storedTokens);
                 return parsed && parsed.accessToken ? parsed : null;
             }
-        } catch {
-            localStorage.removeItem('auth_tokens');
+        } catch (e) {
+            try {
+                localStorage.removeItem('auth_tokens');
+            } catch { }
         }
         return null;
     }
@@ -29,14 +48,28 @@ export class LocalStorageTokenStorage implements ITokenStorage {
 
     set(tokens: IAuthTokens | null): void {
         this.tokens = tokens;
-        tokens ?
-            localStorage.setItem('auth_tokens', JSON.stringify(tokens)) :
-            localStorage.removeItem('auth_tokens');
+        
+        if (!this.isStorageAvailable()) return;
+        
+        try {
+            tokens ?
+                localStorage.setItem('auth_tokens', JSON.stringify(tokens)) :
+                localStorage.removeItem('auth_tokens');
+        } catch (e) {
+            console.warn('Не удалось сохранить токены в localStorage:', e);
+        }
     }
 
     clear(): void {
         this.tokens = null;
-        localStorage.removeItem('auth_tokens');
+        
+        if (!this.isStorageAvailable()) return;
+        
+        try {
+            localStorage.removeItem('auth_tokens');
+        } catch (e) {
+            console.warn('Не удалось очистить токены в localStorage:', e);
+        }
     }
 }
 

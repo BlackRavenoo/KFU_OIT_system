@@ -11,7 +11,7 @@ import { getAuthTokens, clearAuthTokens } from '../tokens/tokens';
 import { setTokenStore } from '../tokens/storage';
 import { currentUser, isAuthenticated } from '../storage/initial';
 import { AUTH_API_ENDPOINTS as Endpoints } from './endpoints';
-import { checkToken } from '$lib/utils/auth/tokens/tokens';
+import { isTokenValid } from '$lib/utils/auth/tokens/tokens';
 
 import type { ILoginRequest, IUserData } from '$lib/utils/auth/types';
 
@@ -71,7 +71,6 @@ async function tryRefresh(token: string) {
     
     const tokensData = getAuthTokens();
     const deadline = getTokenExpiration(tokensData?.accessToken || token);
-
     try {
         const ok = await refreshAuthTokens(true, deadline ?? undefined);
         
@@ -83,6 +82,7 @@ async function tryRefresh(token: string) {
             failedRefreshAttempts++;
             
             if (failedRefreshAttempts >= MAX_REFRESH_ATTEMPTS || Date.now() >= (deadline ?? 0)) {
+                localStorage.setItem('last_failed_refresh', Date.now().toString());
                 logout();
             } else {
                 const backoffDelay = Math.min(1000 * Math.pow(2, failedRefreshAttempts), 60000);
@@ -92,11 +92,9 @@ async function tryRefresh(token: string) {
     } catch (error) {
         failedRefreshAttempts++;
         
-        if (failedRefreshAttempts >= MAX_REFRESH_ATTEMPTS || Date.now() >= (deadline ?? 0)) {
+        if (failedRefreshAttempts >= MAX_REFRESH_ATTEMPTS) {
+            localStorage.setItem('last_failed_refresh', Date.now().toString());
             logout();
-        } else {
-            const backoffDelay = Math.min(1000 * Math.pow(2, failedRefreshAttempts), 60000);
-            refreshTimeout = setTimeout(() => tryRefresh(token), backoffDelay);
         }
     } finally {
         isRefreshing = false;
@@ -111,29 +109,37 @@ async function tryRefresh(token: string) {
 export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: number): Promise<boolean> {
     const tokensData = getAuthTokens();
     if (!tokensData?.refreshToken) return false;
-
+    
     const fp = await FingerprintJS.load();
     const result = await fp.get();
     const fingerprint = result.visitorId;
-
     const requestBody = {
         refresh_token: tokensData.refreshToken,
         fingerprint
     };
-
-    const response: { success: boolean; data?: { access_token: string; refresh_token?: string } } = await api.post(Endpoints.refresh, requestBody);
-
-    if (response.success && response.data?.access_token && response.data?.refresh_token) {
-        setTokenStore({
-            accessToken: response.data.access_token,
-            refreshToken: response.data.refresh_token
-        });
+    
+    try {
+        const response: { success: boolean; data?: { access_token: string; refresh_token?: string } } = 
+            await api.post(Endpoints.refresh, requestBody);
         
-        scheduleTokenRefresh(response.data.access_token);
-        return true;
+        if (response.success && response.data?.access_token && response.data?.refresh_token) {
+            setTokenStore({
+                accessToken: response.data.access_token,
+                refreshToken: response.data.refresh_token
+            });
+            
+            localStorage.removeItem('last_failed_refresh');
+            
+            scheduleTokenRefresh(response.data.access_token);
+            return true;
+        }
+    } catch (error) {
+        localStorage.setItem('last_failed_refresh', Date.now().toString());
     }
-
-    if (!allowRetry || (deadline && Date.now() >= deadline)) logout();
+    
+    if (!allowRetry || (deadline && Date.now() >= deadline)) {
+        logout();
+    }
     return false;
 }
 
@@ -219,17 +225,27 @@ export async function checkAuthentication() {
     
     try {
         const tokenData = localStorage.getItem('auth_tokens');
+        const lastFailedRefresh = localStorage.getItem('last_failed_refresh');
+        const currentTime = Date.now();
+        
+        if (lastFailedRefresh && (currentTime - parseInt(lastFailedRefresh)) < 5 * 60 * 1000) {
+            clearAuthTokens();
+            isAuthenticated.set(false);
+            currentUser.set(null);
+            localStorage.removeItem('last_failed_refresh');
+            return;
+        }
     
         if (tokenData) {
             try {
                 const tokens = JSON.parse(tokenData);
                 if (tokens && tokens.accessToken) {
-                    isAuthenticated.set(true);
+                    const isValid = isTokenValid(tokens.accessToken);
                     
-                    scheduleTokenRefresh(tokens.accessToken);
-          
-                    const isValid = await checkToken();
                     if (isValid) {
+                        isAuthenticated.set(true);
+                        scheduleTokenRefresh(tokens.accessToken);
+                        
                         if (!get(currentUser)) {
                             const user = await getUserData();
                             if (user) currentUser.set(user);
@@ -245,6 +261,7 @@ export async function checkAuthentication() {
             } catch (e) {
                 console.error('Ошибка при разборе токенов:', e);
                 isAuthenticated.set(false);
+                clearAuthTokens();
             }
         }
     } finally {

@@ -1,37 +1,32 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
+    import { browser } from '$app/environment';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { api } from '$lib/utils/api';
     import Avatar from '$lib/components/Avatar/Avatar.svelte';
     
     // Состояние
     let users: any[] = [];
-    let loading = true;
-    let error = false;
+    let loading: boolean = true;
+    let error: boolean = false;
+    let isMobile: boolean = false;
     
     // Форма добавления пользователя
-    let newUserEmail = '';
-    let isAddingUser = false;
+    let newUserEmail: string = '';
+    let isAddingUser: boolean = false;
     
     // Поиск
-    let searchQuery = '';
-    let filteredUsers: any[] = [];
-    let focused = false;
+    let searchQuery: string = '';
+    let focused: boolean = false;
     
     // Пагинация
-    let currentPage = 1;
-    let totalPages = 1;
-    let itemsPerPage = 10;
+    let currentPage: number = 1;
+    let totalPages: number = 1;
+    let itemsPerPage: number = 10;
     
     // Модальные окна
-    let showEditModal = false;
-    let showDeleteModal = false;
-    let editingUser: any = null;
+    let showDeleteModal: boolean = false;
     let deletingUser: any = null;
-    
-    onMount(async () => {
-        await loadUsers();
-    });
     
     async function loadUsers() {
         loading = true;
@@ -39,14 +34,13 @@
             const response = await api.get('/api/v1/admin/users', {
                 page: currentPage,
                 page_size: itemsPerPage,
-                search: searchQuery.trim() || undefined
+                search: searchQuery?.trim() || undefined
             });
             
             if (response.success) {
                 const data = response.data as { items: any[]; max_page: number };
                 users = data.items || [];
                 totalPages = data.max_page || 1;
-                filteredUsers = [...users];
             } else {
                 notification('Ошибка при загрузке пользователей', NotificationType.Error);
                 error = true;
@@ -95,13 +89,9 @@
     }
     
     function validateEmail(email: string): boolean {
+        if (!email) return false;
         const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         return re.test(email);
-    }
-    
-    function openEditModal(user: any) {
-        editingUser = { ...user };
-        showEditModal = true;
     }
     
     function openDeleteModal(user: any) {
@@ -110,30 +100,8 @@
     }
     
     function closeModals() {
-        showEditModal = false;
         showDeleteModal = false;
-        editingUser = null;
         deletingUser = null;
-    }
-    
-    async function updateUser() {
-        if (!editingUser) return;
-        
-        try {
-            const response = await api.post(`/api/v1/admin/users/${editingUser.id}/update`, {
-                role: editingUser.role
-            });
-            
-            if (response.success) {
-                notification('Пользователь успешно обновлен', NotificationType.Success);
-                closeModals();
-                await loadUsers();
-            } else {
-                notification('Ошибка при обновлении пользователя', NotificationType.Error);
-            }
-        } catch (err) {
-            notification('Не удалось обновить пользователя', NotificationType.Error);
-        }
     }
     
     async function deleteUser() {
@@ -158,6 +126,27 @@
         currentPage = 1;
         loadUsers();
     }
+
+    function handleResize() {
+        if (browser) {
+            isMobile = window.innerWidth < 768;
+        }
+    }
+
+    onMount(async () => {
+        if (browser) {
+            // Инициализируем isMobile только на клиенте
+            isMobile = window.innerWidth < 768;
+            window.addEventListener('resize', handleResize);
+        }
+        await loadUsers();
+    });
+
+    onDestroy(() => {
+        if (browser) {
+            window.removeEventListener('resize', handleResize);
+        }
+    });
 </script>
 
 <div class="users-section">
@@ -179,9 +168,9 @@
                     <button 
                         class="btn btn-primary" 
                         on:click={ sendInvitation } 
-                        disabled={ isAddingUser || !newUserEmail.trim() }
+                        disabled={ isAddingUser || !newUserEmail?.trim() }
                     >
-                        { isAddingUser ? 'Отправка...' : 'Отправить приглашение' }
+                        { isAddingUser ? 'Отправка...' : isMobile ? 'Отправить' : 'Отправить приглашение' }
                     </button>
                 </div>
                 <p class="help-text">На указанный email будет отправлено приглашение для регистрации</p>
@@ -249,7 +238,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {#each filteredUsers as user}
+                        {#each users as user}
                             <tr>
                                 <td class="user-info-cell">
                                     <div class="user-info">
@@ -265,14 +254,6 @@
                                 </td>
                                 <td class="actions-cell">
                                     <div class="actions-container">
-                                        <button 
-                                            class="action-btn edit-btn" 
-                                            on:click={ () => openEditModal(user) }
-                                            title="Редактировать"
-                                            aria-label="Редактировать пользователя"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                                        </button>
                                         <button 
                                             class="action-btn delete-btn" 
                                             on:click={ () => openDeleteModal(user) }
@@ -306,43 +287,6 @@
             {/if}
         {/if}
     </div>
-    
-    {#if showEditModal && editingUser}
-        <button 
-            class="modal-backdrop" 
-            on:click={ closeModals } 
-            on:keydown={ (e) => e.key === 'Enter' && closeModals() } 
-            aria-label="Close modal" 
-            type="button">
-        </button>
-        <div class="modal" on:click|stopPropagation role="dialog" aria-modal="true" tabindex="0" on:keydown={ (e) => e.key === 'Escape' && closeModals() }>
-            <div class="modal-header">
-                <h3>Редактирование пользователя</h3>
-                <button class="modal-close" on:click={ closeModals }>×</button>
-            </div>
-            <div class="modal-body">
-                <div class="user-edit-info">
-                    <Avatar width={ 64 } round={ true } userFullName={ editingUser.name || 'Пользователь' } />
-                    <div class="user-details">
-                        <h4>{ editingUser.name || 'Без имени' }</h4>
-                        <p>{ editingUser.email }</p>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="userRole">Роль пользователя</label>
-                    <select id="userRole" class="form-select" bind:value={ editingUser.role }>
-                        <option value="User">Пользователь</option>
-                        <option value="Admin">Администратор</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" on:click={ closeModals }>Отмена</button>
-                <button class="btn btn-primary" on:click={ updateUser }>Сохранить</button>
-            </div>
-        </div>
-    {/if}
     
     {#if showDeleteModal && deletingUser}
         <button class="modal-backdrop" on:click={ closeModals } aria-label="Close modal" type="button" on:keydown={(e) => e.key === 'Enter' && closeModals()}></button>
