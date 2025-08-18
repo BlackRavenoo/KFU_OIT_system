@@ -10,3 +10,4 @@ pub mod services;
 pub mod image;
 pub mod sqlx_macro;
 pub mod domain;
+pub mod email_client;
