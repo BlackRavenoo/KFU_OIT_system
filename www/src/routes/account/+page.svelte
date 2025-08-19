@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
     import { fade } from 'svelte/transition';
+    import { page } from '$app/stores';
     
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
@@ -15,6 +16,7 @@
     import Profile from './components/Profile.svelte';
     import Tickets from './components/Tickets.svelte';
     import Users from './components/Users.svelte';
+    import Bots from './components/Bots.svelte';
     
     const Tab = {
         PROFILE: 'profile',
@@ -47,6 +49,20 @@
     };
     
     let activeTickets: any[] = [];
+
+    $: if (browser && $page.url.searchParams) {
+        const tabParam = $page.url.searchParams.get('tab');
+        if (tabParam) {
+            const isValidTab = Object.values(Tab).includes(tabParam as Tab);
+            
+            if (isValidTab)
+                activeTab = tabParam as Tab;
+            else
+                updateUrlParam(Tab.PROFILE);
+        } else {
+            updateUrlParam(activeTab);
+        }
+    }
     
     $: if ($currentUser) {
         userData = $currentUser;
@@ -59,7 +75,16 @@
 
     function setTab(tab: Tab) {
         activeTab = tab;
+        updateUrlParam(tab);
         isMobileView && toggleMenu();
+    }
+
+    function updateUrlParam(tab: Tab) {
+        if (browser) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tab);
+            goto(url.toString(), { replaceState: true, keepFocus: true });
+        }
     }
 
     function toggleMenu() {
@@ -193,6 +218,8 @@
                 <Tickets />
             {:else if activeTab === Tab.USERS}
                 <Users />
+            {:else if activeTab === Tab.BOTS}
+                <Bots />
             {:else}
                 <div class="content-section">
                     <h1>Страница в разработке</h1>

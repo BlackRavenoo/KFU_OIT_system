@@ -16,12 +16,12 @@ import type { Building, OrderBy, Ticket } from '$lib/utils/tickets/types';
  */
 export async function fetchTickets(search: string = '', search_params: Record<string, any> = {}): Promise<{ tickets: Ticket[]; max_page: number }> {
     const filters = getTicketsFilters();
-    const page = (filters as any).page || 1;
+    const page = search_params.page || 1; 
     const page_size = filters.page_size;
-
+    
     let params: Record<string, any> = {};
     
-    if (Object.keys(search_params).length === 0) {
+    if (Object.keys(search_params).length === 0 || Object.keys(search_params).length === 1 && 'page' in search_params) {
         params = {
             page,
             page_size,
@@ -38,7 +38,7 @@ export async function fetchTickets(search: string = '', search_params: Record<st
         if (filters.selectedBuildings.length > 0)
             params.buildings = filters.selectedBuildings;
             
-        if (filters.search) params.search = filters.search;
+        if (search || filters.search) params.search = search || filters.search;
     } else {
         params = {...search_params};
     }
@@ -48,8 +48,8 @@ export async function fetchTickets(search: string = '', search_params: Record<st
         `${TICKETS_API_ENDPOINTS.read}?${query}`
     );
 
-    if (!response.success)
-        if (response.status === 404) {
+    if (!response.success) {
+        if (response.status === 404)
             return { tickets: [], max_page: 1 };
         throw new Error(response.error || 'Ошибка загрузки тикетов');
     }

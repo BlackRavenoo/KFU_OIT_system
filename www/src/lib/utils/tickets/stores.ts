@@ -11,7 +11,8 @@ const defaultFilters: TicketsFilters = {
     plannedFrom: '',
     plannedTo: '',
     page_size: 10,
-    selectedSort: 0
+    selectedSort: 0,
+    page: 1
 };
 
 /**

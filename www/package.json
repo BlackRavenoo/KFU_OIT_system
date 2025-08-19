@@ -3,7 +3,7 @@
 	"description": "KFU OIT System - A web application for managing IT support requests",
 	"author": "ivanvit, BlackRavenoo",
 	"private": true,
-	"version": "0.0.25",
+	"version": "0.0.26",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",

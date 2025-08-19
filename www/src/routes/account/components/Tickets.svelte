@@ -53,11 +53,6 @@
         }
     }
     
-    function truncateText(text: string, maxLength: number = 100): string {
-        if (!text) return '';
-        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-    }
-    
     function handleToggleSort() {
         sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
         setTicketsFilters({ ...filters, sortOrder });
@@ -126,7 +121,6 @@
     {:else if tickets.length === 0}
         <div class="empty-state">
             <p>У вас нет активных заявок</p>
-            <a href="/tickets/new" class="btn btn-primary">Создать заявку</a>
         </div>
     {:else}
         <div class="tickets-list { viewMode === 'list' ? 'list-view' : 'cards-view' }">

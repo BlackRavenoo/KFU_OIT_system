@@ -48,6 +48,7 @@ export type TicketsFilters = {
     plannedTo: string;
     page_size: number;
     selectedSort: number;
+    page: number;
 };
 
 type StatusOption = {

@@ -1,5 +1,8 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
+    import { page as pageStore } from '$app/stores';
+    import { get } from 'svelte/store';
+    import { goto } from '$app/navigation';
     
     import { formatDate } from '$lib/utils/tickets/support';
     import { isAuthenticated } from '$lib/utils/auth/storage/initial';
@@ -7,6 +10,7 @@
     import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { getTicketsFilters, setTicketsFilters, clearTicketsFilters } from '$lib/utils/tickets/stores';
+    import { browser } from '$app/environment';
 
     let tickets: any[] = [];
     let error: string | null = null;
@@ -14,13 +18,44 @@
     let sortConsts = [{ id: 0, name: 'Загрузка...' }];
 
     let filters = getTicketsFilters();
+    let page = 1;
+    let max_page = 1;
 
     let { search, viewMode, sortOrder, selectedStatus, selectedBuildings, plannedFrom, plannedTo, page_size, selectedSort } = filters;
 
-    $: setTicketsFilters({ search, viewMode, sortOrder, selectedStatus, selectedBuildings, plannedFrom, plannedTo, page_size, selectedSort });
+    /**
+     * Реактивное выражение для обновления фильтров тикетов.
+    */
+    $: setTicketsFilters({ search, viewMode, sortOrder, selectedStatus, selectedBuildings, plannedFrom, plannedTo, page_size, selectedSort, page });
 
-    let page = 1;
-    let max_page = 1;
+    /**
+     * Реактивное выражение для обновления параметра page из URL.
+    */
+    $: {
+        const $page = get(pageStore);
+        if ($page.url.searchParams) {
+            const pageParam = $page.url.searchParams.get('page');
+            if (pageParam && !isNaN(Number(pageParam))) {
+                const pageNumber = Number(pageParam);
+                if (pageNumber > 0)
+                    page = pageNumber;
+            }
+        }
+    }
+
+    /**
+     * Обновляет URL страницы с учётом текущих параметров поиска и пагинации.
+     * Если текущая страница - первая, удаляет параметр page из URL.
+     */
+    function updatePageUrl() {
+        if (browser) {
+            const url = new URL(window.location.href);
+            page > 1 ?
+                url.searchParams.set('page', page.toString()) :
+                url.searchParams.delete('page');
+            goto(url.toString(), { replaceState: true, keepFocus: true });
+        }
+    }
 
     /**
      * Обработчик для перехода на предыдущую страницу тикетов.
@@ -28,7 +63,8 @@
     async function handlePrevPage() {
         if (page > 1) {
             page -= 1;
-            const result = await fetchTickets(search);
+            updatePageUrl();
+            const result = await fetchTickets(search, { page });
             tickets = result.tickets;
             max_page = result.max_page;
         }
@@ -40,7 +76,8 @@
     async function handleNextPage() {
         if (page < max_page) {
             page += 1;
-            const result = await fetchTickets(search);
+            updatePageUrl();
+            const result = await fetchTickets(search, { page }); 
             tickets = result.tickets;
             max_page = result.max_page;
         }
@@ -51,22 +88,27 @@
      * Вызывается по нажатию кнопки "Применить"
      */
     async function handleFilterChange() {
-        const result = await fetchTickets(search);
+        page = 1;
+        updatePageUrl();
+        const result = await fetchTickets(search, { page });
         tickets = result.tickets;
         max_page = result.max_page;
     }
 
     /**
      * Обработчик для переключения порядка сортировки тикетов.
-     * Меняет порядок сортировки между 'asc' и 'desc'.
-     * Синхронизирует состояние фильтров и обновляет список тикетов.
-    */
+     */
     async function handleToggleSort() {
         const filters = getTicketsFilters();
         const newOrder = filters.sortOrder === 'asc' ? 'desc' : 'asc';
         sortOrder = newOrder;
         setTicketsFilters({ ...filters, sortOrder: newOrder });
-        handleFilterChange();
+        
+        page = 1;
+        updatePageUrl();
+        const result = await fetchTickets(search, { page });
+        tickets = result.tickets;
+        max_page = result.max_page;
     }
 
     /**
@@ -85,7 +127,12 @@
             page_size,
             selectedSort
         } = getTicketsFilters());
-        await handleFilterChange();
+        
+        page = 1;
+        updatePageUrl();
+        const result = await fetchTickets(search, { page });
+        tickets = result.tickets;
+        max_page = result.max_page;
     }
 
     /**
@@ -99,9 +146,17 @@
         if (!$isAuthenticated) window.location.href = '/';
 
         try {
-            const result = await fetchTickets();
+            const result = await fetchTickets(search, { page });
             tickets = result.tickets;
             max_page = result.max_page;
+            
+            if (page > max_page && max_page > 0) {
+                page = 1;
+                updatePageUrl();
+                const updatedResult = await fetchTickets(search, { page: 1 });
+                tickets = updatedResult.tickets;
+                max_page = updatedResult.max_page;
+            }
 
             const consts = await fetchConsts();
             sortConsts = consts.order;
