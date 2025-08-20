@@ -78,6 +78,15 @@
     box-shadow: 0px 2px 15px #075cef40;
 }
 
+.btn-secondary {
+    background-color: var(--light-gray);
+    color: var(--text);
+}
+
+.btn-secondary:hover {
+    background-color: var(--gray);
+}
+
 .avatar-edit-container {
     position: relative;
     width: 100px;
@@ -103,8 +112,30 @@
     transition: opacity 0.2s ease;
 }
 
+.avatar-edit-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 30%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
 .avatar-edit-container:hover .avatar-edit-overlay {
     opacity: 1;
+}
+
+.avatar-wrapper {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 50%;
 }
 
 .form-section {
@@ -424,6 +455,163 @@ input:checked + .slider:before {
     margin-top: auto;
 }
 
+.modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    z-index: 1001;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.avatar-modal {
+    max-height: 90vh;
+}
+
+.modal-header {
+    padding: 1.5rem 1.25rem 0 1.25rem;
+    border-bottom: 1px solid var(--light-gray);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text);
+}
+
+.modal-close {
+    top: -.5rem;
+    padding: 0;
+    background: none;
+    border: none;
+    box-shadow: none;
+    font-size: 1.75rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--dark);
+}
+
+.modal-body {
+    padding: 1.5rem;
+    flex-grow: 1;
+    overflow: auto;
+}
+
+.modal-footer {
+    padding: 0 1.5rem 1rem 1.5rem;
+    border-top: 1px solid var(--light-gray);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.crop-frame {
+    position: absolute;
+    border: 2px dashed var(--blue);
+    border-radius: 50%;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    z-index: 10;
+    transition: all 0.2s ease;
+}
+
+.avatar-edit-container {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    margin: 0 auto 1.5rem;
+    cursor: pointer;
+    overflow: hidden;
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+.avatar-editor-container {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    margin: 0 auto 1rem;
+    overflow: hidden;
+    background-color: #f0f0f0;
+    background-image: linear-gradient(45deg, #e0e0e0 25%, transparent 25%, transparent 75%, #e0e0e0 75%, #e0e0e0),
+                      linear-gradient(45deg, #e0e0e0 25%, transparent 25%, transparent 75%, #e0e0e0 75%, #e0e0e0);
+    background-size: 16px 16px;
+    background-position: 0 0, 8px 8px;
+    user-select: none;
+}
+
+.image-editor-view {
+    position: relative;
+    overflow: hidden;
+    cursor: move;
+}
+
+.image-container {
+    position: absolute;
+    transform-origin: 0 0;
+    will-change: transform;
+    top: 0;
+    left: 0;
+}
+
+.image-container img {
+    display: block;
+    max-width: none;
+}
+
+.resize-handle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 24px;
+    height: 24px;
+    background-color: var(--blue);
+    border: 2px solid white;
+    border-radius: 50%;
+    cursor: nwse-resize;
+    pointer-events: auto;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+}
+
+.avatar-edit-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 30%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.avatar-edit-container:hover .avatar-edit-overlay {
+    opacity: 1;
+}
+
 @media (max-width: 1024px) {
     .profile-dashboard {
         grid-template-columns: 1fr;      
@@ -477,5 +665,12 @@ input:checked + .slider:before {
     
     .stat-item {
         flex: 1 0 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .avatar-editor-container {
+        width: 250px;
+        height: 250px;
     }
 }
