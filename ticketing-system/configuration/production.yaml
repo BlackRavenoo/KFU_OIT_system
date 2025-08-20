@@ -12,3 +12,7 @@ storage:
   access_key: "some_access_key"
   secret_key: "some_secret_key"
   bucket: "ticketing-attachments"
+
+email_client:
+  base_url: "https://api.mailersend.com"
+  sender_email: "something@gmail.com"

@@ -2,7 +2,7 @@ use actix_multipart::form::{bytes::Bytes, json::Json, MultipartForm};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
-use crate::{domain::{email::Email, name::Name, password::Password}, schema::{common::{SortOrder, UserId}, tickets::{OrderBy, TicketPriority, TicketStatus}}};
+use crate::{domain::{email::Email, name::Name, password::Password}, schema::{common::{SortOrder, UserId}, tickets::{OrderBy, TicketId, TicketPriority, TicketStatus}}};
 
 #[derive(Deserialize)]
 pub struct CreateTicketSchema {
@@ -42,7 +42,7 @@ pub struct GetTicketsSchema {
     pub planned_to: Option<DateTime<Utc>>,
     pub order_by: Option<OrderBy>,
     pub sort_order: Option<SortOrder>,
-    pub page: Option<i64>,
+    pub page: Option<TicketId>,
     pub page_size: Option<i8>,
     pub buildings: Option<Vec<i16>>,
     pub assigned_to: Option<UserId>,

@@ -1,11 +1,11 @@
 use std::time::Duration;
 
-use secrecy::{ExposeSecret, SecretBox};
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Deserializer};
 use serde_aux::field_attributes::{deserialize_number_from_string, deserialize_bool_from_anything};
 use sqlx::{postgres::{PgConnectOptions, PgSslMode}, ConnectOptions};
 
-use crate::storage::{filesystem::FilesystemStorage, s3::S3Storage, FileStorage};
+use crate::{domain::email::Email, storage::{filesystem::FilesystemStorage, s3::S3Storage, FileStorage}};
 
 #[derive(Deserialize, Debug)]
 pub struct Settings {
@@ -14,6 +14,7 @@ pub struct Settings {
     pub auth: AuthSettings,
     pub redis: RedisSettings,
     pub storage: StorageSettings,
+    pub email_client: EmailClientSettings,
 }
 
 #[derive(Deserialize, Debug)]
@@ -21,12 +22,13 @@ pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
+    pub base_url: String,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct DatabaseSettings {
     pub username: String,
-    pub password: SecretBox<String>,
+    pub password: SecretString,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
@@ -60,7 +62,7 @@ pub enum StorageSettings {
 #[derive(Deserialize, Debug)]
 pub struct S3Settings {
     pub access_key: String,
-    pub secret_key: SecretBox<String>,
+    pub secret_key: SecretString,
     pub region: String,
     pub bucket: String,
     pub endpoint: String,
@@ -141,6 +143,24 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
         .build()?;
 
     settings.try_deserialize::<Settings>()
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EmailClientSettings {
+    pub base_url: String,
+    pub sender_email: String,
+    pub authorization_token: SecretString,
+    pub timeout_milliseconds: u64,
+}
+
+impl EmailClientSettings {
+    pub fn sender(&self) -> Result<Email, String> {
+        Email::parse(self.sender_email.clone())
+    }
+
+    pub fn timeout(&self) -> Duration {
+        Duration::from_millis(self.timeout_milliseconds)
+    }
 }
 
 pub enum Environment {

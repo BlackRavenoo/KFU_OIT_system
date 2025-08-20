@@ -29,6 +29,12 @@ impl TryFrom<String> for Email {
     }
 }
 
+impl std::fmt::Display for Email {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Email;

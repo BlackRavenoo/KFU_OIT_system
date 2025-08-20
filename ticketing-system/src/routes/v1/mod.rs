@@ -1,6 +1,6 @@
 use actix_web::web;
 
-use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{change_email, change_name, change_password, login, me, refresh_token}, images::get_image, tickets::{assign_ticket, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket, update_ticket}, user::get_stats}};
+use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{change_email, change_name, change_password, login, me, refresh_token}, images::get_image, tickets::{assign_ticket, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket, update_ticket}, user::{create_link::create_register_link, get_stats, get_users}}};
 
 pub mod auth;
 pub mod tickets;
@@ -39,12 +39,18 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .route("/{prefix}/{key}", web::get().to(get_image))
             )
             .service(
+                web::scope("/user/admin")
+                .wrap(JwtMiddleware::min_role(UserRole::Admin))
+                .route("/create_link", web::post().to(create_register_link))
+            )
+            .service(
                 web::scope("/user")
                     .wrap(JwtMiddleware::default())
                     .route("/stats", web::get().to(get_stats))
                     .route("/change_email", web::post().to(change_email))
                     .route("/change_name", web::post().to(change_name))
                     .route("/change_password", web::post().to(change_password))
+                    .route("/list", web::get().to(get_users))
             )
     );
 }
