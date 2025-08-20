@@ -15,6 +15,7 @@ services:
       - APP_STORAGE__TYPE=filesystem
       - APP_STORAGE__BASE_PATH=./storage
       - APP_STORAGE__BASE_URL=/storage
+      - APP_APPLICATION__BASE_URL=${APP_BASE_URL:-127.0.0.1}
     volumes:
       - files_storage:/app/server/storage
     healthcheck:

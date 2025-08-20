@@ -17,6 +17,7 @@ services:
       - APP_STORAGE__SECRET_KEY=${S3_SECRET_KEY}
       - APP_STORAGE__PATH_STYLE=false
       - APP_STORAGE__BUCKET=${S3_BUCKET:-ticketing-attachments}
+      - APP_APPLICATION__BASE_URL=${APP_BASE_URL:-127.0.0.1}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
