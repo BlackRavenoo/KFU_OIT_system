@@ -162,14 +162,6 @@ h3 {
     border-collapse: collapse;
 }
 
-.users-table th {
-    text-align: left;
-    padding: 1rem;
-    font-weight: 600;
-    background-color: var(--light-gray);
-    border-bottom: 2px solid var(--gray);
-}
-
 .users-table td {
     padding: 1rem;
     border-bottom: 1px solid var(--light-gray);
@@ -217,23 +209,40 @@ h3 {
 }
 
 .action-btn {
-    padding: 0.5rem;
+    background: transparent;
     border: none;
-    border-radius: 4px;
     cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s;
+    box-shadow: none;
+}
+
+.promote-btn {
+    color: #4caf50;
+}
+
+.promote-btn:hover {
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.demote-btn {
+    color: #ff9800;
+}
+
+.demote-btn:hover {
+    background-color: rgba(255, 152, 0, 0.1);
 }
 
 .delete-btn {
-    background-color: #ffe5e5;
-    color: #e53935;
+    color: #f44336;
 }
 
 .delete-btn:hover {
-    background-color: #ffcccc;
+    background-color: rgba(244, 67, 54, 0.1);
 }
 
 .pagination-block {
@@ -389,7 +398,6 @@ h3 {
 }
 
 @media (max-width: 768px) {
-    .users-table th:nth-child(2), 
     .users-table td:nth-child(2) {
         display: none;
     }
@@ -400,7 +408,7 @@ h3 {
         font-size: 0.9rem;
     }
     
-    .users-table th, .users-table td {
+    .users-table td {
         padding: 0.75rem 0.5rem;
     }
     

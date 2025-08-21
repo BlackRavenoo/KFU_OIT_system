@@ -34,16 +34,15 @@
         users = [];
         
         try {
-            const response = await api.get('/api/v1/admin/users', {
-                page: currentPage,
-                page_size: itemsPerPage,
-                search: searchQuery?.trim() || undefined
-            });
+            const response = await api.get('/api/v1/user/list');
             
             if (response.success) {
-                const data = response.data as { items: any[]; max_page: number };
-                users = data.items || [];
-                totalPages = data.max_page || 1;
+                // !!! TDD !!!
+                // const data = response.data as { items: any[]; max_page: number };
+                // users = data.items || [];
+                // totalPages = data.max_page || 1;
+                users = Array.isArray(response.data) ? response.data : [];
+                totalPages = 1;
             } else {
                 if (response.status === 404) {
                     users = [];
@@ -85,7 +84,7 @@
         isAddingUser = true;
         
         try {
-            const response = await api.post('/api/v1/admin/users/invite', {
+            const response = await api.post('/api/v1/user/admin/invite', {
                 email: newUserEmail
             });
             
@@ -243,14 +242,6 @@
         {:else}
             <div class="users-table-container">
                 <table class="users-table">
-                    <thead>
-                        <tr>
-                            <th>Пользователь</th>
-                            <th>Email</th>
-                            <th>Роль</th>
-                            <th>Действия</th>
-                        </tr>
-                    </thead>
                     <tbody>
                         {#each users as user}
                             <tr>
@@ -266,6 +257,42 @@
                                         { user.role === 'Admin' ? 'Администратор' : 'Пользователь' }
                                     </span>
                                 </td>
+                                <td class="actions-cell">
+                                    <div class="actions-container">
+                                        {#if user.role !== "Admin"}
+                                            <button 
+                                                class="action-btn promote-btn" 
+                                                on:click={ () => console.log("test") }
+                                                title="Повысить"
+                                                aria-label="Повысить роль пользователя"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M12 4v16"></path>
+                                                    <path d="M5 10l7-7 7 7"></path>
+                                                    <path d="M18 20H6"></path>
+                                                </svg>
+                                            </button>
+                                        {/if}
+                                    </div>
+                                </td>
+                                <td class="actions-cell">
+                                    <div class="actions-container">
+                                        {#if user.role !== "User"}
+                                            <button 
+                                                class="action-btn demote-btn" 
+                                                on:click={ () => console.log("test") }
+                                                title="Понизить"
+                                                aria-label="Понизить роль пользователя"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M12 20V4"></path>
+                                                    <path d="M5 14l7 7 7-7"></path>
+                                                    <path d="M18 4H6"></path>
+                                                </svg>
+                                            </button>
+                                        {/if}
+                                        </div>
+                                    </td>
                                 <td class="actions-cell">
                                     <div class="actions-container">
                                         <button 
