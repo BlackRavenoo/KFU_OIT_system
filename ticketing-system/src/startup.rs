@@ -48,20 +48,15 @@ impl Application {
             timeout
         );
 
-        let token_store = TokenStore::new(redis_pool.clone());
-        let reg_store = RegistrationTokenStore::new(redis_pool);
         let jwt_service = JwtService::new(&config.auth).unwrap();
-        let user_service = UserService::new(connection_pool.clone());
         let image_service = ImageService::new(storage, config.storage.bucket());
 
         let port = listener.local_addr().unwrap().port();
 
         let server = run(
             listener,
-            token_store,
-            reg_store,
+            redis_pool,
             jwt_service,
-            user_service,
             connection_pool,
             image_service,
             email_client,
@@ -87,19 +82,17 @@ pub struct ApplicationBaseUrl(pub String);
 
 pub fn run(
     listener: TcpListener,
-    token_store: TokenStore,
-    reg_store: RegistrationTokenStore,
+    redis_pool: Pool<RedisConnectionManager>,
     jwt_service: JwtService,
-    user_service: UserService,
     pool: PgPool,
     image_service: ImageService,
     email_client: MailerSendClient,
     base_url: String,
 ) -> Result<Server, std::io::Error> {
-    let token_store = Data::new(token_store);
-    let reg_store = Data::new(reg_store);
+    let token_store = Data::new(TokenStore::new(redis_pool.clone()));
+    let reg_store = Data::new(RegistrationTokenStore::new(redis_pool));
     let jwt_service = Data::new(jwt_service);
-    let user_service = Data::new(user_service);
+    let user_service = Data::new(UserService::new(pool.clone()));
     let image_service = Data::new(image_service);
     let pool = Data::new(pool);
     let email_client = Data::new(email_client);

@@ -4,7 +4,7 @@ use sqlx::PgPool;
 
 use crate::{auth::extractor::UserId, schema::{tickets::TicketStatus, user::{GetUsersSchema, UserSchema, UserStats}}};
 
-pub mod create_link;
+pub mod invite;
 
 pub async fn get_stats(
     user_id: UserId,
