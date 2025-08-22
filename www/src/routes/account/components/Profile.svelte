@@ -526,19 +526,19 @@
         
         try {
             try {
-                if (editedName.trim()) await api.post('/api/v1/user/change_name', { name: editedName.trim() });
+                if (editedName.trim()) await api.put('/api/v1/user/name', { name: editedName.trim() });
             } catch (error) {
                 notification('Ошибка при обновлении имени', NotificationType.Error);
             }
 
             try {
-                if (editedEmail.trim()) await api.post('/api/v1/user/change_email', { email: editedEmail.trim() });
+                if (editedEmail.trim()) await api.put('/api/v1/user/email', { email: editedEmail.trim() });
             } catch (error) {
                 notification('Ошибка при обновлении email', NotificationType.Error);
             }
 
             try {
-                if (changePassword) await api.post('/api/v1/user/change_password', { password: newPassword.trim() });
+                if (changePassword) await api.put('/api/v1/user/password', { password: newPassword.trim() });
             } catch (error) {
                 notification('Ошибка при смене пароля', NotificationType.Error);
             }

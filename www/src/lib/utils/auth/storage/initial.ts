@@ -7,9 +7,10 @@
 
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
-import type { IUserData } from '../types';
 
+import type { IUserData } from '../types';
 import { LocalStorageAuthStore } from '$lib/utils/auth/storage/storage';
+import { logout } from '../api/api';
 
 const authStore = new LocalStorageAuthStore();
 
@@ -20,12 +21,24 @@ if (browser) {
     try {
         const storedAuth = authStore.get('auth_state');
         const storedUser = authStore.get('auth_user');
-
-        if (storedAuth) initialAuthState = JSON.parse(storedAuth);
-        if (storedUser) initialUserData = JSON.parse(storedUser);
+        
+        const hasInvalidAuthData = 
+            storedAuth === null || 
+            storedUser === null || 
+            storedAuth === undefined || 
+            storedUser === undefined ||
+            storedAuth === '' || 
+            storedUser === '';
+            
+        if (hasInvalidAuthData) {
+            logout();
+        } else {
+            initialAuthState = JSON.parse(storedAuth);
+            initialUserData = JSON.parse(storedUser);
+        } 
 
     } catch (e) {
-        console.error('Ошибка при восстановлении состояния авторизации:', e);
+        logout();
     }
 }
 

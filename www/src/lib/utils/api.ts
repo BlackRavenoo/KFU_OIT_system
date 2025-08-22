@@ -1,9 +1,9 @@
+import axios from 'axios'
+import type { AxiosInstance, AxiosResponse, AxiosRequestConfig, AxiosError } from 'axios';
 import { refreshAuthTokens } from '$lib/utils/auth/api/api';
 import { getAuthTokens } from '$lib/utils/auth/tokens/tokens';
 import { notification, NotificationType } from '$lib/utils/notifications/notification';
 import { logout } from '$lib/utils/auth/api/api';
-
-type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 export interface ApiResponse<T = any> {
     success: boolean;
@@ -12,116 +12,191 @@ export interface ApiResponse<T = any> {
     status: number;
 }
 
-/**
- * Универсальная функция для работы с API
- * @param route - URL маршрут для запроса
- * @param method - HTTP метод
- * @param data - Данные для отправки (опционально)
- * @returns Promise с ответом от сервера
- */
-export async function apiHandler<T = any>(
-    route: string,
-    method: HttpMethod,
-    data?: Record<string, any>,
-    responseType: 'json' | 'blob' = 'json'
-): Promise<ApiResponse<T>> {
-    const headers: HeadersInit = {};
+const apiClient: AxiosInstance = axios.create({
+    baseURL: '',
+    timeout: 30000,
+    headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    },
+    withCredentials: true
+});
 
-    const tokens = getAuthTokens();
-    if (tokens?.accessToken)
-        headers['Authorization'] = `Bearer ${tokens.accessToken}`;
-
-    const requestOptions: RequestInit = {
-        method,
-        headers,
-        credentials: 'include'
-    };
-
-    if (data) {
-        if (data instanceof FormData) {
-            requestOptions.body = data;
-        } else {
-            headers['Content-Type'] = 'application/json';
-            requestOptions.body = JSON.stringify(data);
-        }
+apiClient.interceptors.request.use(
+    (config) => {
+        const tokens = getAuthTokens();
+        if (tokens?.accessToken)
+            config.headers['Authorization'] = `Bearer ${tokens.accessToken}`;
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
     }
+);
 
-    try {
-        let response = await fetch(route, requestOptions);
-        
-        if (response.ok) {
-            if (responseType === 'blob') {
-                const blobData = await response.blob();
-                return { success: true, data: blobData as T, status: response.status };
-            } else {
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const responseData = await response.json();
-                    return { success: true, data: responseData, status: response.status };
-                } else {
-                    return { success: true, status: response.status };
-                }
+apiClient.interceptors.response.use(
+    (response) => {
+        return response;
+    },
+    async (error: AxiosError) => {
+        if (error.response?.status === 401) {
+            const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+            const isRefreshRequest = originalRequest.url?.includes('token');
+            
+            if (isRefreshRequest) {
+                logout();
+                notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
+                return Promise.reject(error);
             }
-        }
-
-        if (response.status === 404)
-            return { success: false, error: 'Данные не были найдены', status: 404 };
-    
-        if (response.status === 401) {
-            const refreshed = await refreshAuthTokens();
-
-            if (refreshed) {
-                const newTokens = getAuthTokens();
-                if (newTokens?.accessToken) {
-                    headers['Authorization'] = `Bearer ${newTokens.accessToken}`;
-                    requestOptions.headers = headers;
-
-                    response = await fetch(route, requestOptions);
-
-                    if (response.ok) {
-                        try {
-                            const contentType = response.headers.get('content-type');
-                            if (contentType && contentType.includes('application/json')) {
-                                const responseData = await response.json();
-                                return { success: true, data: responseData, status: response.status };
-                            } else {
-                                return { success: true, status: response.status };
-                            }
-                        } catch (error) {
-                            return { success: true, status: response.status };
-                        }
+            
+            if (!originalRequest._retry) {
+                originalRequest._retry = true;
+                
+                const refreshed = await refreshAuthTokens();
+                
+                if (refreshed) {
+                    const newTokens = getAuthTokens();
+                    if (newTokens?.accessToken) {
+                        originalRequest.headers = {
+                            ...originalRequest.headers,
+                            'Authorization': `Bearer ${newTokens.accessToken}`
+                        };
+                        return apiClient(originalRequest);
                     }
                 }
+                
+                logout();
+                notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
             }
-
-            logout();
-            notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
-            return { success: false, error: 'Ошибка авторизации', status: 401 };
         }
+        
+        if (error.response) {
+            if (error.response.status >= 500) {
+                const originalRequest = error.config as AxiosRequestConfig & { _retryCount?: number };
+                
+                if (originalRequest._retryCount === undefined) 
+                    originalRequest._retryCount = 0;
+                
+                if (originalRequest._retryCount < 3) {
+                    originalRequest._retryCount++;
 
-        if (response.status >= 500) {
-            notification('Ошибка запроса', NotificationType.Error);
-            return { success: false, error: 'Серверная ошибка', status: response.status };
-        }
-
-        try {
-            const errorData = await response.json();
-            notification(errorData.message || 'Ошибка запроса', NotificationType.Error);
-            return { success: false, error: errorData.message || 'Неизвестная ошибка', status: response.status };
-        } catch (e) {
-            notification('Ошибка запроса', NotificationType.Error);
-            return { success: false, error: 'Неизвестная ошибка', status: response.status };
-        }
-    } catch (error) {
-        notification('Ошибка соединения с сервером', NotificationType.Error);
-        return { success: false, error: 'Ошибка соединения', status: 0 };
+                    const retryDelay = Math.pow(3, originalRequest._retryCount - 1) * 1000;
+                    
+                    return new Promise(resolve => {
+                        setTimeout(() => {
+                            resolve(apiClient(originalRequest));
+                        }, retryDelay);
+                    });
+                } else {
+                    notification('Ошибка запроса', NotificationType.Error);
+                }
+            }
+        } else if (error.request)
+            notification('Ошибка соединения с сервером', NotificationType.Error);
+        
+        return Promise.reject(error);
     }
+);
+
+function formatResponse<T>(response: AxiosResponse): ApiResponse<T> {
+    return {
+        success: true,
+        data: response.data,
+        status: response.status
+    };
+}
+
+function formatError(error: AxiosError): ApiResponse {
+    if (error.response) {
+        if (error.response.status === 404) {
+            return { 
+                success: false, 
+                error: 'Данные не были найдены', 
+                status: 404 
+            };
+        }
+        
+        return {
+            success: false,
+            error: (error.response.data as { message?: string })?.message || 'Ошибка запроса',
+            status: error.response.status
+        };
+    }
+    
+    return {
+        success: false,
+        error: 'Ошибка соединения',
+        status: 0
+    };
 }
 
 export const api = {
-    get: <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json') => apiHandler<T>(route, 'GET', data, responseType),
-    post: <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json') => apiHandler<T>(route, 'POST', data, responseType),
-    put: <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json') => apiHandler<T>(route, 'PUT', data, responseType),
-    patch: <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json') => apiHandler<T>(route, 'PATCH', data, responseType),
-    delete: <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json') => apiHandler<T>(route, 'DELETE', data, responseType)
+    get: async <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json'): Promise<ApiResponse<T>> => {
+        try {
+            const config: AxiosRequestConfig = {
+                params: data,
+                responseType: responseType
+            };
+            
+            const response = await apiClient.get<T>(route, config);
+            return formatResponse<T>(response);
+        } catch (error) {
+            return formatError(error as AxiosError);
+        }
+    },
+    
+    post: async <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json'): Promise<ApiResponse<T>> => {
+        try {
+            const config: AxiosRequestConfig = {
+                responseType: responseType
+            };
+            
+            const response = await apiClient.post<T>(route, data, config);
+            return formatResponse<T>(response);
+        } catch (error) {
+            return formatError(error as AxiosError);
+        }
+    },
+    
+    put: async <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json'): Promise<ApiResponse<T>> => {
+        try {
+            const config: AxiosRequestConfig = {
+                responseType: responseType
+            };
+            
+            const response = await apiClient.put<T>(route, data, config);
+            return formatResponse<T>(response);
+        } catch (error) {
+            return formatError(error as AxiosError);
+        }
+    },
+    
+    patch: async <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json'): Promise<ApiResponse<T>> => {
+        try {
+            const config: AxiosRequestConfig = {
+                responseType: responseType
+            };
+            
+            const response = await apiClient.patch<T>(route, data, config);
+            return formatResponse<T>(response);
+        } catch (error) {
+            return formatError(error as AxiosError);
+        }
+    },
+    
+    delete: async <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json'): Promise<ApiResponse<T>> => {
+        try {
+            const config: AxiosRequestConfig = {
+                data,
+                responseType: responseType
+            };
+            
+            const response = await apiClient.delete<T>(route, config);
+            return formatResponse<T>(response);
+        } catch (error) {
+            return formatError(error as AxiosError);
+        }
+    }
 };
+
+export default apiClient;

@@ -21,9 +21,6 @@ let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
 export const authCheckComplete = writable(false);
 let authChecking = false;
 
-let failedRefreshAttempts = 0;
-const MAX_REFRESH_ATTEMPTS = 3;
-
 /**
  * Парсит время истечения токена из accessToken
  * @param token Токен для проверки
@@ -57,44 +54,24 @@ function scheduleTokenRefresh(token: string) {
     if (delay < 0) delay = 0;
     else if (delay > 2147483647) return;
 
-    refreshTimeout = setTimeout(() => tryRefresh(token), delay);
+    refreshTimeout = setTimeout(() => tryRefresh(), delay);
 }
 
 /**
  * Пытается обновить токен
  * @param token Текущий токен доступа
  */
-async function tryRefresh(token: string) {
+async function tryRefresh() {
     if (isRefreshing) return;
     
     isRefreshing = true;
     
-    const tokensData = getAuthTokens();
-    const deadline = getTokenExpiration(tokensData?.accessToken || token);
     try {
-        const ok = await refreshAuthTokens(true, deadline ?? undefined);
+        const refreshed = await refreshAuthTokens();
         
-        if (ok) {
-            failedRefreshAttempts = 0;
+        if (refreshed) {
             const newToken = getAuthTokens()?.accessToken;
             if (newToken) scheduleTokenRefresh(newToken);
-        } else {
-            failedRefreshAttempts++;
-            
-            if (failedRefreshAttempts >= MAX_REFRESH_ATTEMPTS || Date.now() >= (deadline ?? 0)) {
-                localStorage.setItem('last_failed_refresh', Date.now().toString());
-                logout();
-            } else {
-                const backoffDelay = Math.min(1000 * Math.pow(2, failedRefreshAttempts), 60000);
-                refreshTimeout = setTimeout(() => tryRefresh(token), backoffDelay);
-            }
-        }
-    } catch (error) {
-        failedRefreshAttempts++;
-        
-        if (failedRefreshAttempts >= MAX_REFRESH_ATTEMPTS) {
-            localStorage.setItem('last_failed_refresh', Date.now().toString());
-            logout();
         }
     } finally {
         isRefreshing = false;
@@ -103,10 +80,8 @@ async function tryRefresh(token: string) {
 
 /** 
  * Обновляет токены авторизации через refresh_token.
- * @param allowRetry - если true, не вызывает logout при ошибке, а только если токен истёк
- * @param deadline - время истечения accessToken
  */
-export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: number): Promise<boolean> {
+export async function refreshAuthTokens(): Promise<boolean> {
     const tokensData = getAuthTokens();
     if (!tokensData?.refreshToken) return false;
     
@@ -128,18 +103,13 @@ export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: 
                 refreshToken: response.data.refresh_token
             });
             
-            localStorage.removeItem('last_failed_refresh');
-            
             scheduleTokenRefresh(response.data.access_token);
             return true;
         }
     } catch (error) {
-        localStorage.setItem('last_failed_refresh', Date.now().toString());
+        return false;
     }
     
-    if (!allowRetry || (deadline && Date.now() >= deadline)) {
-        logout();
-    }
     return false;
 }
 
@@ -148,21 +118,18 @@ export async function refreshAuthTokens(allowRetry: boolean = false, deadline?: 
  */
 export async function logout(): Promise<void> {
     clearAuthTokens();
-    
+
     if (refreshTimeout) {
         clearTimeout(refreshTimeout);
         refreshTimeout = null;
     }
     
     isRefreshing = false;
-    failedRefreshAttempts = 0;
     
     isAuthenticated.set(false);
     currentUser.set(null);
 
-    const currentPath = window.location.pathname;
-    if (currentPath !== '/' && currentPath !== '')
-        window.location.href = '/';
+    window.location.href = '/';
 }
 
 /**
@@ -225,16 +192,6 @@ export async function checkAuthentication() {
     
     try {
         const tokenData = localStorage.getItem('auth_tokens');
-        const lastFailedRefresh = localStorage.getItem('last_failed_refresh');
-        const currentTime = Date.now();
-        
-        if (lastFailedRefresh && (currentTime - parseInt(lastFailedRefresh)) < 5 * 60 * 1000) {
-            clearAuthTokens();
-            isAuthenticated.set(false);
-            currentUser.set(null);
-            localStorage.removeItem('last_failed_refresh');
-            return;
-        }
     
         if (tokenData) {
             try {
@@ -251,15 +208,10 @@ export async function checkAuthentication() {
                             if (user) currentUser.set(user);
                         }
                     } else {
-                        const refreshed = await refreshAuthTokens(true);
-                        if (!refreshed) {
-                            isAuthenticated.set(false);
-                            currentUser.set(null);
-                        }
+                        isAuthenticated.set(false);
                     }
                 }
             } catch (e) {
-                console.error('Ошибка при разборе токенов:', e);
                 isAuthenticated.set(false);
                 clearAuthTokens();
             }

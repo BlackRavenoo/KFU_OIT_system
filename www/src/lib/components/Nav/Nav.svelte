@@ -25,6 +25,7 @@
     let username: string = '';
     let userLogin: string = '';
     let userPassword: string = '';
+    let userEmail: string = '';
     let rememberMe: boolean = false;
 
     /**
@@ -34,7 +35,7 @@
     $: {
         if ($currentUser) {
             username = $currentUser.name || '';
-            isAdmin = $currentUser.role !== 0;
+            isAdmin = $currentUser.role === "Admin";
         }
     }
 
@@ -64,6 +65,14 @@
         } catch (error) {
             loginError = 'Неверный логин или пароль.';
         }
+    }
+
+    /**
+     * Обработчик сброса пароля
+     * Подтверждение сброса происходит через письмо на почту
+     */
+    async function resetPasswordHandler() {
+        // !!! TDD !!!
     }
 
     /**
@@ -132,10 +141,12 @@
     <Modal
         bind:modalElement
         on:login={ loginHandler }
+        on:reset={ resetPasswordHandler }
         on:update={ handleModalUpdate }
         on:close={() => { isShowModal = false; }}
         userLogin={ userLogin }
         userPassword={ userPassword }
+        userEmail={ userEmail }
         rememberMe={ rememberMe }
         loginError={ loginError }
     />

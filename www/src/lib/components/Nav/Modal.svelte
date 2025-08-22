@@ -10,6 +10,7 @@
 
     export let userLogin: string;
     export let userPassword: string;
+    export let userEmail: string;
     export let rememberMe: boolean;
     export let loginError: string;
     export let modalElement: HTMLElement;
@@ -17,6 +18,7 @@
     const dispatch = createEventDispatcher();
 
     let isClosing: boolean = false;
+    let isReseting: boolean = false;
 
     /**
      * Обработчик нажатия клавиш в модальном окне
@@ -64,7 +66,7 @@
                     <div class="logo-container">
                         <img src="{ KFU }" alt="KFU logo">
                     </div>
-                    <h2>Авторизация</h2>
+                    <h2>{ isReseting ? "Восстановление пароля" : "Авторизация" }</h2>
                 </div>
                 
                 <div class="warning-message">
@@ -76,47 +78,76 @@
                         <p>Вход в систему доступен только для сотрудников ОИТ</p>
                     </div>
                 </div>
-
+                
                 {#if loginError}
                     <div class="login-error">{ loginError }</div>
                 {/if}
                 
-                <form on:submit|preventDefault={ () => {
-                    dispatch('login', { login: userLogin, password: userPassword, remember: rememberMe })
-                } }>
-                    <div class="form-group">
-                        <div class="input-container">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="input-icon"><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z"/></svg>
-                            <input type="text" id="username" bind:value={ userLogin } on:input={ (e: Event) => {
-                                dispatch('update', { userLogin: ((e.target) as HTMLInputElement).value })
-                            } } placeholder="Введите ваш логин" required />
+                {#if !isReseting}
+                    <form on:submit|preventDefault={ () => {
+                        dispatch('login', { login: userLogin, password: userPassword, remember: rememberMe })
+                    } }>
+                        <div class="form-group">
+                            <div class="input-container">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="input-icon"><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z"/></svg>
+                                <input type="text" id="username" bind:value={ userLogin } on:input={ (e: Event) => {
+                                    dispatch('update', { userLogin: ((e.target) as HTMLInputElement).value })
+                                } } placeholder="Введите ваш логин" required />
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <div class="input-container">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="input-icon"><path d="M144 144v48H304V144c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 192V144C80 64.5 144.5 0 224 0s144 64.5 144 144v48h16c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V256c0-35.3 28.7-64 64-64H80z"/></svg>
-                            <input type="password" id="password" bind:value={ userPassword } on:input={ (e: Event) => {
-                                dispatch('update', { userPassword: ((e.target) as HTMLInputElement).value })
-                            } } placeholder="Введите ваш пароль" required />
+                        
+                        <div class="form-group">
+                            <div class="input-container">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="input-icon"><path d="M144 144v48H304V144c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 192V144C80 64.5 144.5 0 224 0s144 64.5 144 144v48h16c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V256c0-35.3 28.7-64 64-64H80z"/></svg>
+                                <input type="password" id="password" bind:value={ userPassword } on:input={ (e: Event) => {
+                                    dispatch('update', { userPassword: ((e.target) as HTMLInputElement).value })
+                                } } placeholder="Введите ваш пароль" required />
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="remember-container">
-                        <label class="remember-label">
-                            <input type="checkbox" bind:checked={ rememberMe } on:change={ (e: Event) => {
-                                dispatch('update', { rememberMe: ((e.target) as HTMLInputElement).checked })
-                            } } />
-                            <span class="checkmark"></span>
-                            <span>Запомнить меня</span>
-                        </label>
-                    </div>
-                    
-                    <button type="submit" class="submit-btn">
-                        <span>Войти в систему</span>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="btn-icon"><path d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.8 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0L233.4 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z"/></svg>
-                    </button>
-                </form>
+                        
+                        <div class="remember-container">
+                            <label class="remember-label">
+                                <input type="checkbox" bind:checked={ rememberMe } on:change={ (e: Event) => {
+                                    dispatch('update', { rememberMe: ((e.target) as HTMLInputElement).checked })
+                                } } />
+                                <span class="checkmark"></span>
+                                <span>Запомнить меня</span>
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="submit-btn">
+                            <span>Войти в систему</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="btn-icon"><path d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.8 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0L233.4 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z"/></svg>
+                        </button>
+                    </form>
+                {:else}
+                    <form on:submit|preventDefault={ () => {
+                        dispatch('reset', { email: userEmail })
+                    } }>
+                        <div class="form-group">
+                            <div class="input-container">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="input-icon">
+                                    <path d="M48 64C21.5 64 0 85.5 0 112c0 15.1 7.1 29.3 19.2 38.4L236.8 313.6c11.4 8.5 27 8.5 38.4 0L492.8 150.4c12.1-9.1 19.2-23.3 19.2-38.4c0-26.5-21.5-48-48-48H48zM0 176V384c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V176L294.4 339.2c-22.8 17.1-54 17.1-76.8 0L0 176z"/>
+                                </svg>
+                                <input type="email" id="email" bind:value={ userEmail } on:input={ (e: Event) => {
+                                    dispatch('update', { userLogin: ((e.target) as HTMLInputElement).value })
+                                } } placeholder="Введите вашу почту" required />
+                            </div>
+                        </div>
+
+                        <button type="submit" class="submit-btn">
+                            <span>Сбросить пароль</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" class="btn-icon"><path d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.8 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0L233.4 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z"/></svg>
+                        </button>
+                    </form>
+                {/if}
+
+                <button id="change_form"
+                    on:click={() => {
+                        isReseting = !isReseting;
+                    }}>
+                    { isReseting ? "Есть аккаунт?" : "Не помните пароль?" }
+                </button>
             </div>
             
             <div class="modal-background"></div>
