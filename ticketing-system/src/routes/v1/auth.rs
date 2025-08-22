@@ -11,6 +11,10 @@ pub async fn login(
 ) -> impl Responder {
     match user_service.authenticate(req.email, req.password).await {
         Ok(user) => {
+            if !user.status.can_auth() {
+                return HttpResponse::Forbidden().finish()
+            }
+            
             let access_token = match jwt_service.create_access_token(user.id, user.role) {
                 Ok(token) => token,
                 Err(e) => {
@@ -24,7 +28,7 @@ pub async fn login(
                 fingerprint: req.fingerprint,
             };
 
-            let refresh_token = match token_store.generate_refresh_token(&refresh_token_data, None).await {
+            let refresh_token = match token_store.generate_refresh_token(&refresh_token_data).await {
                 Ok(token) => token,
                 Err(e) => {
                     tracing::error!("Failed to create refresh token: {:?}", e);
@@ -72,7 +76,7 @@ pub async fn refresh_token(
     user_service: web::Data<UserService>,
     jwt_service: web::Data<JwtService>,
 ) -> impl Responder {
-    let (token_data, refresh_token) = match token_store.rotate_refresh_token(&req.refresh_token, &req.fingerprint).await {
+    let token_data = match token_store.get_del_refresh_token(&req.refresh_token, &req.fingerprint).await {
         Ok(res) => res,
         Err(e) => return match e {
             TokenStoreError::TokenNotFound
@@ -96,6 +100,14 @@ pub async fn refresh_token(
         Ok(token) => token,
         Err(e) => {
             tracing::error!("Failed to create access token: {:?}", e);
+            return HttpResponse::InternalServerError().finish()
+        },
+    };
+
+    let refresh_token = match token_store.generate_refresh_token(&token_data).await {
+        Ok(token) => token,
+        Err(e) => {
+            tracing::error!("Failed to generate refresh token: {:?}", e);
             return HttpResponse::InternalServerError().finish()
         },
     };

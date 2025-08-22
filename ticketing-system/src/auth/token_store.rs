@@ -53,48 +53,42 @@ impl TokenStore {
             .map_err(|_| TokenStoreError::PoolConnectionError)
     }
 
-    pub async fn generate_refresh_token(&self, token_data: &RefreshToken, conn: Option<PooledConnection<'_, RedisConnectionManager>>) -> Result<String, TokenStoreError> {
-        let mut conn = conn.unwrap_or(
-            self.get_connection().await?
-        );
+    pub async fn generate_refresh_token(&self, token_data: &RefreshToken) -> Result<String, TokenStoreError> {
+        let mut conn = self.get_connection().await?;
         
         let token = Uuid::new_v4().to_string();
         
         let json_data = serde_json::to_string(&token_data)
             .map_err(|e| TokenStoreError::Other(e.to_string()))?;
 
-        conn.set_ex::<_, _, ()>(
-            self.get_key(&token), 
-            json_data, 
-            self.refresh_token_ttl
-        )
-        .await
-        .map_err(|e| TokenStoreError::Other(e.to_string()))?;
-
         let user_tokens_key = self.get_user_tokens_key(token_data.user_id);
 
-        conn.sadd::<_, _, ()>(
-            &user_tokens_key,
-            &token
-        )
-        .await
-        .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+        redis::pipe()
+            .set_ex(
+                self.get_key(&token),
+                json_data,
+                self.refresh_token_ttl
+            )
+            .sadd(
+                &user_tokens_key,
+                &token
+            )
+            .expire(
+                user_tokens_key,
+                self.refresh_token_ttl as i64
+            )
+            .exec_async(&mut *conn)
+            .await
+            .map_err(|e| TokenStoreError::Other(e.to_string()))?;
 
-        conn.expire::<_, ()>(
-            user_tokens_key,
-            self.refresh_token_ttl as i64
-        )
-        .await
-        .map_err(|e| TokenStoreError::Other(e.to_string()))?;
-        
         Ok(token)
     }
 
-    pub async fn rotate_refresh_token(
+    pub async fn get_del_refresh_token(
         &self, 
         refresh_token: &str,
         fingerprint: &str
-    ) -> Result<(RefreshToken, String), TokenStoreError> {
+    ) -> Result<RefreshToken, TokenStoreError> {
         let mut conn = self.get_connection().await?;
         
         let token_data: Option<RefreshToken> = conn.get_del(self.get_key(refresh_token))
@@ -123,13 +117,11 @@ impl TokenStore {
         )
         .await
         .map_err(|e| TokenStoreError::Other(e.to_string()))?;
-
-        let token_str = self.generate_refresh_token(&token, Some(conn)).await?;
         
-        Ok((token, token_str))
+        Ok(token)
     }
 
-    pub async fn revoke_all_user_tokens(&self, user_id: i32, conn: Option<PooledConnection<'_, RedisConnectionManager>>) -> Result<(), TokenStoreError> {
+    async fn revoke_all_user_tokens(&self, user_id: i32, conn: Option<PooledConnection<'_, RedisConnectionManager>>) -> Result<(), TokenStoreError> {
         let mut conn = conn.unwrap_or(self.get_connection().await?);
 
         let user_tokens_key = self.get_user_tokens_key(user_id);

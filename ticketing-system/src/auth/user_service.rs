@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 use anyhow::anyhow;
 
-use crate::{auth::{password::verify_password, types::{User, UserRole}}, domain::{email::Email, name::Name, password::Password}, schema::common::UserId};
+use crate::{auth::{password::verify_password, types::{AuthUser, User, UserRole, UserStatus}}, domain::{email::Email, name::Name, password::Password}, schema::common::UserId};
 
 pub struct UserService {
     db_pool: PgPool,
@@ -12,21 +12,30 @@ impl UserService {
         Self { db_pool }
     }
     
-    pub async fn authenticate(&self, email: Email, password_input: String) -> anyhow::Result<User> {
-        let mut user = sqlx::query_as!(
-            User,
-            r#"SELECT id, name, email, password_hash, role FROM users WHERE email = $1"#,
+    pub async fn authenticate(&self, email: Email, password_input: String) -> anyhow::Result<AuthUser> {
+        struct Row {
+            pub id: i32,
+            pub password_hash: String,
+            pub role: UserRole,
+            pub status: UserStatus,
+        }
+
+        let user = sqlx::query_as!(
+            Row,
+            r#"SELECT id, password_hash, role, status FROM users WHERE email = $1"#,
             email.as_ref()
         )
         .fetch_optional(&self.db_pool)
         .await?
         .ok_or_else(|| anyhow!("Пользователь не найден"))?;
 
-        let password_hash = user.password_hash.take().unwrap_or_default();
-
-        verify_password(password_input.as_ref(), &password_hash)?;
+        verify_password(password_input.as_ref(), &user.password_hash)?;
         
-        Ok(user)
+        Ok(AuthUser {
+            id: user.id,
+            role: user.role,
+            status: user.status
+        })
     }
     
     pub async fn register(&self, name: Name, email: Email, password: Password) -> anyhow::Result<i32> {
@@ -64,7 +73,7 @@ impl UserService {
         sqlx::query_as!(
             User,
             r#"
-            SELECT id, name, email, role, NULL as password_hash
+            SELECT id, name, email, role
             FROM users
             WHERE id = $1
             "#,
@@ -84,16 +93,6 @@ impl UserService {
         .await?;
 
         Ok(UserRole::from(role_num))
-    }
-
-    pub async fn get_username(&self, user_id: UserId) -> Result<String, sqlx::Error> {
-        sqlx::query_scalar!(
-            "SELECT name FROM users
-            WHERE id = $1",
-            user_id
-        )
-        .fetch_one(&self.db_pool)
-        .await
     }
 
     pub async fn change_username(&self, user_id: UserId, name: Name) -> Result<(), sqlx::Error> {

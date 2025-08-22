@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT \n            t.id,\n            title,\n            description,\n            author,\n            author_contacts,\n            status,\n            priority,\n            planned_at,\n            ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL) as assigned_to_id,\n            ARRAY_AGG(DISTINCT u.name) FILTER (WHERE u.name IS NOT NULL) as assigned_to_name,\n            t.created_at,\n            ARRAY_AGG(DISTINCT ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments,\n            b.id as \"building_id\",\n            b.code as \"building_code\",\n            b.name as \"building_name\",\n            note,\n            cabinet\n        FROM tickets t\n        LEFT JOIN tickets_users tu ON tu.ticket_id = t.id \n        LEFT JOIN users u ON u.id = tu.assigned_to\n        LEFT JOIN ticket_attachments ta ON ta.ticket_id = t.id\n        JOIN buildings b ON b.id = t.building_id\n        WHERE t.id = $1\n        GROUP BY t.id, b.id\n        ",
+  "query": "\n        SELECT \n            t.id,\n            title,\n            description,\n            author,\n            author_contacts,\n            t.status,\n            priority,\n            planned_at,\n            ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL) as assigned_to_id,\n            ARRAY_AGG(DISTINCT u.name) FILTER (WHERE u.name IS NOT NULL) as assigned_to_name,\n            t.created_at,\n            ARRAY_AGG(DISTINCT ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments,\n            b.id as \"building_id\",\n            b.code as \"building_code\",\n            b.name as \"building_name\",\n            note,\n            cabinet\n        FROM tickets t\n        LEFT JOIN tickets_users tu ON tu.ticket_id = t.id \n        LEFT JOIN users u ON u.id = tu.assigned_to\n        LEFT JOIN ticket_attachments ta ON ta.ticket_id = t.id\n        JOIN buildings b ON b.id = t.building_id\n        WHERE t.id = $1\n        GROUP BY t.id, b.id\n        ",
   "describe": {
     "columns": [
       {
@@ -114,5 +114,5 @@
       true
     ]
   },
-  "hash": "a0e8427e91876b41642dc559fb1b8114bf0caee696abc04585352e26be13ce03"
+  "hash": "2cd90afbc86cd5984ac82c47f1be101d5ea4a9d82dc8f5bcbc9a86f8def12833"
 }

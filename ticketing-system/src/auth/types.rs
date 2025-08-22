@@ -7,9 +7,14 @@ pub struct User {
     pub id: i32,
     pub name: String,
     pub email: String,
-    #[serde(skip_serializing)]
-    pub password_hash: Option<String>,
     pub role: UserRole
+}
+
+#[derive(Debug)]
+pub struct AuthUser {
+    pub id: i32,
+    pub role: UserRole,
+    pub status: UserStatus,
 }
 
 #[derive(Debug, Clone, Copy, Type, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -37,6 +42,38 @@ impl From<i16> for UserRole {
 impl UserRole {
     pub fn has_access(&self, required_level: Self) -> bool {
         *self >= required_level
+    }
+}
+
+#[derive(Debug, Type, Serialize, Deserialize, Clone)]
+pub enum UserStatus {
+    Active = 0,
+    Sick = 1,
+    Vacation = 2,
+    Inactive = 3,
+}
+
+impl From<i16> for UserStatus {
+    fn from(value: i16) -> Self {
+        match value {
+            0 => UserStatus::Active,
+            1 => UserStatus::Sick,
+            2 => UserStatus::Vacation,
+            3 => UserStatus::Inactive,
+            _ => {
+                tracing::error!("Invalid UserStatus value: {}", value);
+                UserStatus::Inactive
+            }
+        }
+    }
+}
+
+impl UserStatus {
+    pub fn can_auth(&self) -> bool {
+        match self {
+            Self::Inactive => false,
+            _ => true
+        }
     }
 }
 

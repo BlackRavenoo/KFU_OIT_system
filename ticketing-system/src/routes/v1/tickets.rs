@@ -221,7 +221,7 @@ pub async fn get_ticket(
             description,
             author,
             author_contacts,
-            status,
+            t.status,
             priority,
             planned_at,
             ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL) as assigned_to_id,
@@ -281,7 +281,7 @@ pub async fn get_tickets(
             description,
             author,
             author_contacts,
-            status,
+            t.status,
             priority,
             planned_at,
             t.created_at,
@@ -301,7 +301,7 @@ pub async fn get_tickets(
 
     let mut has_filters = false;
 
-    build_where_condition!(builder, has_filters, schema.statuses, "status", in);
+    build_where_condition!(builder, has_filters, schema.statuses, "t.status", in);
     build_where_condition!(builder, has_filters, schema.priorities, "priority", in);
     build_where_condition!(builder, has_filters, schema.planned_from, "planned_at", ">=");
     build_where_condition!(builder, has_filters, schema.planned_to, "planned_at", "<=");
