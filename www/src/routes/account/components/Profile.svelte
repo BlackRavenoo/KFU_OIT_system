@@ -19,6 +19,7 @@
     let isLoading: boolean = false;
     let editedName: string = '';
     let editedEmail: string = '';
+    let currentPassword: string = '';
     let newPassword: string = '';
     let confirmPassword: string = '';
     let avatarFile: File | null = null;
@@ -62,6 +63,7 @@
     function cancelEditing() {
         editedName = '';
         editedEmail = '';
+        currentPassword = '';
         newPassword = '';
         confirmPassword = '';
         avatarFile = null;
@@ -538,7 +540,7 @@
             }
 
             try {
-                if (changePassword) await api.put('/api/v1/user/password', { password: newPassword.trim() });
+                if (changePassword) await api.put('/api/v1/user/password', { current_password: currentPassword.trim(), new_password: newPassword.trim() });
             } catch (error) {
                 notification('Ошибка при смене пароля', NotificationType.Error);
             }
@@ -656,6 +658,19 @@
                         </div>
                         
                         {#if changePassword}
+                            <div class="form-group">
+                                <label for="currentPassword">Текущий пароль</label>
+                                <div class="password-input-wrapper">
+                                    <input 
+                                        type="password" 
+                                        id="currentPassword" 
+                                        class="form-input" 
+                                        bind:value={ currentPassword }
+                                        placeholder="Введите новый пароль"
+                                    />
+                                </div>
+                            </div>
+
                             <div class="form-group">
                                 <label for="newPassword">Новый пароль</label>
                                 <div class="password-input-wrapper">

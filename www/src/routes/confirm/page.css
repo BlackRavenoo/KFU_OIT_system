@@ -1,0 +1,37 @@
+.hero-form h1 {
+    color: #242424;
+}
+
+.hero-description {
+    margin-bottom: 0;
+}
+
+.floating-animation-slow {
+    animation: floating 4s ease-in-out infinite;
+}
+
+.floating-animation {
+    animation: floating2 6s ease-in-out infinite;
+}
+
+.login-link:hover {
+    text-decoration: underline;
+    cursor: pointer;
+    color: var(--dark);
+}
+
+.reset-form {
+    gap: 1rem;
+}
+
+@keyframes floating {
+    0% { transform: translate(0, 0px); }
+    50% { transform: translate(0, 15px); }
+    100% { transform: translate(0, 0px); }
+}
+
+@keyframes floating2 {
+    0% { transform: translate(3rem, 0px); }
+    50% { transform: translate(3rem, 20px); }
+    100% { transform: translate(3rem, 0px); }
+}
