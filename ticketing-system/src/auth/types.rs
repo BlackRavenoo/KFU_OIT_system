@@ -70,10 +70,7 @@ impl From<i16> for UserStatus {
 
 impl UserStatus {
     pub fn can_auth(&self) -> bool {
-        match self {
-            Self::Inactive => false,
-            _ => true
-        }
+        !matches!(self, Self::Inactive)
     }
 }
 
