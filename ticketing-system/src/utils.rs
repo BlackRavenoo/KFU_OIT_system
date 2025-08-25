@@ -1,6 +1,12 @@
 use std::{sync::Arc, time::Duration};
 
 use futures_util::{stream, StreamExt as _};
+use argon2::{
+    password_hash::{
+        self, PasswordHash, PasswordVerifier
+    },
+    Argon2
+};
 
 use crate::services::image::{ImageService, ImageType};
 
@@ -49,4 +55,19 @@ pub fn error_chain_fmt(
         current = cause.source();
     }
     Ok(())
+}
+
+pub fn is_password_valid(
+    password: &str,
+    stored_hash: &str,
+) -> Result<bool, password_hash::Error> {
+    let parsed_hash = PasswordHash::new(stored_hash)?;
+    
+    match Argon2::default().verify_password(password.as_bytes(), &parsed_hash) {
+        Ok(_) => Ok(true),
+        Err(e) => match e {
+            argon2::password_hash::Error::Password => Ok(false),
+            _ => Err(e),
+        },
+    }
 }

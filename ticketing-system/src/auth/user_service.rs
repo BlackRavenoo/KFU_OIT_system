@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 use anyhow::anyhow;
 
-use crate::{auth::{password::verify_password, types::{AuthUser, User, UserRole, UserStatus}}, domain::{email::Email, name::Name, password::Password}, schema::common::UserId};
+use crate::{auth::types::{AuthUser, User, UserRole, UserStatus}, domain::{email::Email, name::Name, password::Password}, schema::common::UserId, utils::is_password_valid};
 
 pub struct UserService {
     db_pool: PgPool,
@@ -27,9 +27,11 @@ impl UserService {
         )
         .fetch_optional(&self.db_pool)
         .await?
-        .ok_or_else(|| anyhow!("Пользователь не найден"))?;
+        .ok_or_else(|| anyhow!("User not found"))?;
 
-        verify_password(password_input.as_ref(), &user.password_hash)?;
+        if !is_password_valid(password_input.as_ref(), &user.password_hash)? {
+            return Err(anyhow!("Invalid password"));
+        }
         
         Ok(AuthUser {
             id: user.id,
@@ -115,22 +117,6 @@ impl UserService {
             SET email = $1
             WHERE id = $2",
             email.as_ref(),
-            user_id
-        )
-        .execute(&self.db_pool)
-        .await?;
-
-        Ok(())
-    }
-
-    pub async fn change_password(&self, user_id: UserId, password: Password) -> anyhow::Result<()> {
-        let password_hash = password.hash()?;
-        
-        sqlx::query!(
-            "UPDATE users
-            SET password_hash = $1
-            WHERE id = $2",
-            password_hash,
             user_id
         )
         .execute(&self.db_pool)

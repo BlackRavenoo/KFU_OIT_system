@@ -1,7 +1,10 @@
 use actix_web::{web, HttpResponse, Responder};
 
-use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::{TokenStore, TokenStoreError}, types::RefreshToken, user_service::UserService}, schema::{auth::{LoginRequest, RefreshTokenRequest, TokenResponse}, tickets::{ChangeEmailSchema, ChangeNameSchema, ChangePasswordSchema}}};
+use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::{TokenStore, TokenStoreError}, types::RefreshToken, user_service::UserService}, schema::{auth::{LoginRequest, RefreshTokenRequest, TokenResponse}, tickets::{ChangeEmailSchema, ChangeNameSchema}}};
 
+pub mod change_password;
+
+pub use change_password::change_password;
 
 pub async fn login(
     web::Json(req): web::Json<LoginRequest>,
@@ -70,6 +73,7 @@ pub async fn me(
     }
 }
 
+// TODO: validate user status
 pub async fn refresh_token(
     req: web::Json<RefreshTokenRequest>,
     token_store: web::Data<TokenStore>,
@@ -153,25 +157,6 @@ pub async fn change_email(
         Ok(_) => HttpResponse::Ok().finish(),
         Err(e) => {
             tracing::error!("Failed to change email: {:?}", e);
-            HttpResponse::InternalServerError().finish()
-        },
-    }
-}
-
-pub async fn change_password(
-    user_id: UserId,
-    web::Json(req): web::Json<ChangePasswordSchema>,
-    user_service: web::Data<UserService>,
-) -> impl Responder {
-    let user_id = match user_id.0 {
-        Some(id) => id,
-        None => return HttpResponse::Unauthorized().finish()
-    };
-
-    match user_service.change_password(user_id, req.password).await {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(e) => {
-            tracing::error!("Failed to change password: {:?}", e);
             HttpResponse::InternalServerError().finish()
         },
     }

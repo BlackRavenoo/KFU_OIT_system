@@ -1,6 +1,6 @@
 [package]
 name = "ticketing-system"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Minnakhmetov Almaz"]
 edition = "2024"
 license = "MIT"
@@ -31,7 +31,7 @@ tracing-actix-web = "0.7.19"
 tokio = { version = "1.47.1", features = ["full"] }
 uuid = "1.18.0"
 jsonwebtoken = "9.3.1"
-argon2 = "0.5.3"
+argon2 = { version = "0.5.3", features = ["std"] }
 chrono = { version = "0.4.41", features = ["serde"] }
 time = "0.3.41"
 num_enum = "0.7"

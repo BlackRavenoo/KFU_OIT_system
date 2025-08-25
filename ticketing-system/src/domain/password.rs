@@ -1,6 +1,5 @@
+use argon2::{password_hash::{self, rand_core::OsRng, SaltString}, Argon2, PasswordHasher as _};
 use serde::Deserialize;
-
-use crate::auth::password::{hash_password, PasswordError};
 
 #[derive(Debug, Deserialize)]
 #[serde(try_from = "String")]
@@ -23,8 +22,13 @@ impl Password {
         }
     }
 
-    pub fn hash(self) -> Result<String, PasswordError> {
-        hash_password(self.0)
+    pub fn hash(self) -> Result<String, password_hash::Error> {
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::default();
+
+        argon2
+            .hash_password(self.0.as_bytes(), &salt)
+            .map(|hash| hash.to_string())
     }
 }
 
