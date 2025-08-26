@@ -48,9 +48,9 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/user")
                     .wrap(JwtMiddleware::default())
                     .route("/stats", web::get().to(get_stats))
-                    .route("/change_email", web::post().to(change_email))
-                    .route("/change_name", web::post().to(change_name))
-                    .route("/change_password", web::post().to(change_password))
+                    .route("/email", web::put().to(change_email))
+                    .route("/name", web::put().to(change_name))
+                    .route("/password", web::put().to(change_password))
                     .route("/list", web::get().to(get_users))
             )
     );
