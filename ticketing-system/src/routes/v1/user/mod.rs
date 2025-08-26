@@ -1,11 +1,15 @@
 use actix_web::{web, HttpResponse, Responder};
-use serde_qs::actix::QsQuery;
 use sqlx::PgPool;
 
-use crate::{auth::extractor::UserId, schema::{tickets::TicketStatus, user::{GetUsersSchema, UserSchema, UserStats}}};
+use crate::{auth::extractor::UserId, schema::{tickets::TicketStatus, user::UserStats}};
 
 pub mod invite;
 pub mod change_user_status;
+pub mod get_list;
+
+pub use invite::invite_user;
+pub use change_user_status::change_user_status;
+pub use get_list::get_users;
 
 pub async fn get_stats(
     user_id: UserId,
@@ -34,37 +38,5 @@ pub async fn get_stats(
             tracing::error!("Failed to get user stats: {:?}", e);
             HttpResponse::InternalServerError().finish()
         },
-    }
-}
-
-pub async fn get_users(
-    schema: QsQuery<GetUsersSchema>,
-    pool: web::Data<PgPool>,
-) -> impl Responder {
-    let schema = schema.into_inner();
-    
-    let page_size = schema.page_size
-        .map(|size| size.clamp(10, 50))
-        .unwrap_or(10) as i64;
-
-    let page = schema.page.unwrap_or(1) - 1;
-
-    match sqlx::query_as!(
-        UserSchema,
-        r#"
-            SELECT id, name, email, role
-            FROM users
-            LIMIT $1 OFFSET $2
-        "#,
-        page_size,
-        page as i64 * page_size
-    )
-    .fetch_all(pool.as_ref())
-    .await {
-        Ok(users) => HttpResponse::Ok().json(users),
-        Err(e) => {
-            tracing::error!("Failed to get list of users: {:?}", e);
-            HttpResponse::InternalServerError().finish()
-        }
     }
 }
