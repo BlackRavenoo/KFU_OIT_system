@@ -2,15 +2,15 @@
     import { onDestroy, onMount } from 'svelte';
     import { fade } from 'svelte/transition';
     import { page } from '$app/stores';
+    import { browser } from '$app/environment';
+    import { goto } from '$app/navigation';
     
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { logout } from '$lib/utils/auth/api/api';
-
     import { authCheckComplete } from '$lib/utils/auth/api/api';
-    import { browser } from '$app/environment';
-    import { goto } from '$app/navigation';
+    import { Tab, type TabType, updateUrlParam, isValidTab } from '$lib/utils/account/tab-manager';
     
     import Avatar from '$lib/components/Avatar/Avatar.svelte';
     import Profile from './components/Profile.svelte';
@@ -18,17 +18,7 @@
     import Users from './components/Users.svelte';
     import Bots from './components/Bots.svelte';
     
-    const Tab = {
-        PROFILE: 'profile',
-        TICKETS: 'tickets',
-        STATS: 'stats',
-        USERS: 'users',
-        BOTS: 'bots'
-    } as const;
-
-    type Tab = typeof Tab[keyof typeof Tab];
-    
-    let activeTab: Tab = Tab.PROFILE;
+    let activeTab: TabType = Tab.PROFILE;
     let isLoading: boolean = false;
     let userRole: string = '';
     let isMenuOpen: boolean = false;
@@ -50,13 +40,14 @@
     
     let activeTickets: any[] = [];
 
+    /**
+     * Подписки на сторы
+    */
     $: if (browser && $page.url.searchParams) {
         const tabParam = $page.url.searchParams.get('tab');
         if (tabParam) {
-            const isValidTab = Object.values(Tab).includes(tabParam as Tab);
-            
-            if (isValidTab)
-                activeTab = tabParam as Tab;
+            if (isValidTab(tabParam))
+                activeTab = tabParam;
             else
                 updateUrlParam(Tab.PROFILE);
         } else {
@@ -64,38 +55,49 @@
         }
     }
     
+    /**
+     * Обновляет данные пользователя и роль при изменении текущего пользователя.
+    */
     $: if ($currentUser) {
         userData = $currentUser;
         userRole = $currentUser.role === "Admin" ? 'Администратор' : 'Пользователь';
     }
 
+    /**
+     * Перенаправляет на главную страницу, если пользователь не аутентифицирован.
+    */
     $: if (browser && $authCheckComplete && !$isAuthenticated) {
         goto('/');
     }
 
-    function setTab(tab: Tab) {
+    /**
+     * Устанавливает активную вкладку и обновляет URL.
+     * @param tab
+     */
+    function setTab(tab: TabType) {
         activeTab = tab;
         updateUrlParam(tab);
         isMobileView && toggleMenu();
     }
 
-    function updateUrlParam(tab: Tab) {
-        if (browser) {
-            const url = new URL(window.location.href);
-            url.searchParams.set('tab', tab);
-            goto(url.toString(), { replaceState: true, keepFocus: true });
-        }
-    }
-
+    /**
+     * Переключает состояние бокового меню на мобильных устройствах.
+     */
     function toggleMenu() {
         isMenuOpen = !isMenuOpen;
         document.body.style.overflow = isMenuOpen ? 'hidden' : '';
     }
     
+    /**
+     * Проверяет ширину окна и устанавливает флаг мобильного вида.
+     */
     function checkMobileView() {
         isMobileView = window.innerWidth < 900;
     }
     
+    /**
+     * Обрабатывает выход пользователя из системы.
+     */
     async function handleLogout() {
         try {
             await logout();
@@ -105,6 +107,10 @@
         }
     }
     
+    /**
+     * Устанавливает заголовок и описание страницы при монтировании компонента,
+     * а также добавляет обработчик изменения размера окна для адаптивного дизайна.
+    */
     onMount(() => {
         pageTitle.set('Личный кабинет | Система управления заявками ЕИ КФУ');
         pageDescription.set('Управление личной учетной записью и просмотр статистики по заявкам.');
@@ -113,10 +119,11 @@
         window.addEventListener('resize', checkMobileView);
     });
 
+    /**
+     * Восстанавливает заголовок и описание страницы при размонтировании компонента,
+     * а также удаляет обработчик изменения размера окна.
+    */
     onDestroy(() => {
-        pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
-        pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
-        
         window.removeEventListener('resize', checkMobileView);
     });
 </script>
