@@ -6,6 +6,7 @@ import { getTicketsFilters } from '$lib/utils/tickets/stores';
 import { orderByMap } from '$lib/utils/tickets/types';
 import { TICKETS_API_ENDPOINTS } from './endpoints';
 import { order, buildings } from '$lib/utils/setup/stores';
+import { notification, NotificationType } from '$lib/utils/notifications/notification';
 import type { Building, OrderBy, Ticket } from '$lib/utils/tickets/types';
 
 /**
@@ -127,4 +128,29 @@ export async function fetchImages(attachments: string[]): Promise<string[]> {
         } catch { }
     }
     return images;
+}
+
+/**
+ * Функция для загрузки активных заявок пользователя
+ * @param userId Идентификатор пользователя
+ * @returns Три активные заявки пользователя
+ */
+export async function loadActiveUserTickets(userId: string): Promise<any[]> {
+    if (!userId) return [];
+    
+    try {
+        const result = await fetchTickets('', {
+            assigned_to: userId,
+            page: 1,
+            page_size: 3,
+            order_by: 'id',
+            sort_order: 'asc',
+            statuses: ['inprogress']
+        });
+        
+        return result.tickets || [];
+    } catch (error) {
+        notification('Ошибка загрузки заявок', NotificationType.Error);
+        return [];
+    }
 }

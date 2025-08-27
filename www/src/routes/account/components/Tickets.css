@@ -218,29 +218,6 @@ h1 {
     color: #9c9c9c;
 }
 
-.pagination-block {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 1.5rem;
-}
-
-.pagination-button {
-    background: transparent !important;
-    box-shadow: none !important;
-    color: var(--blue) !important;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-}
-
-.pagination-button svg {
-    width: 24px;
-    height: 24px;
-    fill: var(--blue);
-}
-
 /* Состояния */
 .loading-state, .error-state, .empty-state {
     display: flex;

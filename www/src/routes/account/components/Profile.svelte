@@ -1,15 +1,17 @@
 <script lang="ts">
-    import { onMount, afterUpdate, tick } from 'svelte';
-    import { get } from 'svelte/store';
-    import { browser } from '$app/environment';
-    
-    import { notification, NotificationType } from '$lib/utils/notifications/notification';
-    import { fetchTickets } from '$lib/utils/tickets/api/get';
+    import { onMount } from 'svelte';
     import { formatDate } from '$lib/utils/tickets/support';
-    import { api } from '$lib/utils/api';
-    
     import Avatar from '$lib/components/Avatar/Avatar.svelte';
-    import { currentUser } from '$lib/utils/auth/storage/initial';
+
+    import { 
+        initAvatarState, centerImage, constrainCrop, updateImagePosition, updateCropFrame,
+        zoomImage, moveImage, addKeyboardHandlers, removeKeyboardHandlers,
+        cropAvatarImage, uploadAvatar, updateAvatarImage
+    } from '$lib/utils/account/avatar';
+    
+    import { saveUserProfile } from '$lib/utils/account/profile';
+    import { loadUserStats } from '$lib/utils/account/stats';
+    import { loadActiveUserTickets } from '$lib/utils/tickets/api/get';
     
     export let userData: { id: string, name: string, email: string, role: string };
     export let stats: { assignedToMe: number, completedTickets: number, cancelledTickets: number };
@@ -22,44 +24,34 @@
     let currentPassword: string = '';
     let newPassword: string = '';
     let confirmPassword: string = '';
-    let avatarFile: File | null = null;
     let changePassword: boolean = false;
     
     let showAvatarModal: boolean = false;
+    let avatarFile: File | null = null;
     let avatarPreviewUrl: string | null = null;
     let localAvatarUrl: string | null = null;
     let fileInput: HTMLInputElement;
     let avatarCanvas: HTMLCanvasElement;
-    
     let avatarComponent: HTMLElement;
-    
-    let isDragging: boolean = false;
-    let isResizing: boolean = false;
-    let resizeStartX: number = 0;
-    let resizeStartY: number = 0;
-    let startCropSize: number = 0;
-    let startX: number = 0;
-    let startY: number = 0;
-    let imgX: number = 0;
-    let imgY: number = 0;
-    let scale: number = 1;
-    let cropSize: number = 150;
-    let maxCropSize: number = 280;
-    let minCropSize: number = 80;
-    let containerSize: number = 300;
-    let imageSize: {width: number, height: number} = {width: 0, height: 0};
+    let avatarUpdateKey = Date.now();
     
     let imageContainer: HTMLDivElement;
     let cropFrame: HTMLDivElement;
     
-    let avatarUpdateKey = Date.now();
+    let avatarState = initAvatarState();
     
+    /**
+     * Начать редактирование профиля
+     */
     function startEditingProfile() {
         editedName = userData.name || '';
         editedEmail = userData.email || '';
         isEditing = true;
     }
     
+    /**
+     * Отменить редактирование профиля
+     */
     function cancelEditing() {
         editedName = '';
         editedEmail = '';
@@ -71,10 +63,17 @@
         isEditing = false;
     }
     
+    /**
+     * Обработчик клика по аватару
+     */
     function handleAvatarClick() {
         isEditing && fileInput && fileInput.click();
     }
-    
+
+    /**
+     * Обработчик выбора файла аватара
+     * @param event
+     */
     function handleFileSelect(event: Event) {
         const input = event.target as HTMLInputElement;
         if (input.files && input.files[0]) {
@@ -83,23 +82,23 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 if (e.target?.result) {
-                    imgX = 0;
-                    imgY = 0;
-                    scale = 1;
-                    cropSize = 150;
+                    avatarState = initAvatarState();
                     
                     avatarPreviewUrl = e.target.result as string;
                     showAvatarModal = true;
-                    addKeyboardHandlers();
+                    addKeyboardHandlers(handleKeyboardNavigation);
                     
                     const img = new Image();
                     img.onload = () => {
-                        imageSize = {
+                        avatarState.imageSize = {
                             width: img.width,
                             height: img.height
                         };
                         
-                        setTimeout(centerImage, 100);
+                        setTimeout(() => {
+                            avatarState = centerImage(avatarState);
+                            updateImagePosition(imageContainer, avatarState.imgX, avatarState.imgY, avatarState.scale);
+                        }, 100);
                     };
                     img.src = avatarPreviewUrl;
                 }
@@ -110,162 +109,135 @@
         }
     }
     
-    function centerImage() {
-        if (!imageSize.width || !imageSize.height) return;
-
-        const isPortrait = imageSize.height > imageSize.width;
-        
-        scale = isPortrait ? 
-            containerSize / (imageSize.width * 1.2) :
-            containerSize / (imageSize.height * 1.2);
-
-        scale = isPortrait && imageSize.width * scale < cropSize * 1.1 ?
-            cropSize * 1.1 / imageSize.width : 
-            !isPortrait && imageSize.height * scale < cropSize * 1.1 ?
-            cropSize * 1.1 / imageSize.height : scale;
-
-        imgX = (containerSize - imageSize.width * scale) / 2;
-        imgY = (containerSize - imageSize.height * scale) / 2;
-
-        constrainCrop();
-        updateImagePosition();
-    }
-    
-    function closeAvatarModal() {
-        showAvatarModal = false;
-        removeKeyboardHandlers();
-        
-        if (avatarPreviewUrl && avatarPreviewUrl.startsWith('blob:')) {
-            URL.revokeObjectURL(avatarPreviewUrl);
-            avatarPreviewUrl = null;
-        }
-    }
-    
-    function constrainCrop() {
-        if (!imageSize.width || !imageSize.height) return;
-        
-        const cropLeft = (containerSize - cropSize) / 2;
-        const cropRight = cropLeft + cropSize;
-        const cropTop = (containerSize - cropSize) / 2;
-        const cropBottom = cropTop + cropSize;
-        
-        const scaledWidth = imageSize.width * scale;
-        const scaledHeight = imageSize.height * scale;
-        
-        imgX = imgX > cropLeft ? cropLeft : imgX;
-        imgX = imgX + scaledWidth < cropRight ? cropRight - scaledWidth : imgX;
-        imgY = imgY > cropTop ? cropTop : imgY;
-        imgY = imgY + scaledHeight < cropBottom ? cropBottom - scaledHeight : imgY;
-    }
-    
+    /**
+     * Обработчик начала перетаскивания изображения
+     * @param event
+     */
     function handleMouseDown(event: MouseEvent) {
-        if (isResizing) return;
-        isDragging = true;
-        startX = event.clientX - imgX;
-        startY = event.clientY - imgY;
+        if (avatarState.isResizing) return;
+        avatarState.isDragging = true;
+        avatarState.startX = event.clientX - avatarState.imgX;
+        avatarState.startY = event.clientY - avatarState.imgY;
         event.preventDefault();
     }
     
+    /**
+     * Обработчик перемещения мыши
+     * Изменяет позицию изображения или размер области кадрирования
+     * @param event
+     */
     function handleMouseMove(event: MouseEvent) {
-        if (isResizing) {
-            const dx = event.clientX - resizeStartX;
-            const dy = event.clientY - resizeStartY;
+        if (avatarState.isResizing) {
+            const dx = event.clientX - avatarState.resizeStartX;
+            const dy = event.clientY - avatarState.resizeStartY;
             
             const change = (dx + dy) / 2;
             
-            let newSize = startCropSize + change;
+            let newSize = avatarState.startCropSize + change;
             
-            newSize = Math.max(minCropSize, Math.min(maxCropSize, newSize));
+            newSize = Math.max(avatarState.minCropSize, Math.min(avatarState.maxCropSize, newSize));
             
-            cropSize = newSize;
-            updateCropFrame();
+            avatarState.cropSize = newSize;
+            updateCropFrame(cropFrame, avatarState.cropSize, avatarState.containerSize);
             event.preventDefault();
-        } else if (isDragging) {
-            const newImgX = event.clientX - startX;
-            const newImgY = event.clientY - startY;
+        } else if (avatarState.isDragging) {
+            const newImgX = event.clientX - avatarState.startX;
+            const newImgY = event.clientY - avatarState.startY;
             
-            imgX = newImgX;
-            imgY = newImgY;
+            avatarState.imgX = newImgX;
+            avatarState.imgY = newImgY;
             
-            constrainCrop();
+            avatarState = constrainCrop(avatarState);
             
-            updateImagePosition();
+            updateImagePosition(imageContainer, avatarState.imgX, avatarState.imgY, avatarState.scale);
             event.preventDefault();
         }
     }
     
+    /**
+     * Обработчик отпускания кнопки мыши
+     * Завершает перетаскивание или изменение размера
+     */
     function handleMouseUp() {
-        isDragging = false;
-        isResizing = false;
+        avatarState.isDragging = false;
+        avatarState.isResizing = false;
     }
     
+    /**
+     * Обработчик начала касания
+     * Начинает перетаскивание изображения
+     * Альтернатива для мобильных устройств
+     * @param event
+     */
     function handleTouchStart(event: TouchEvent) {
         if (event.touches.length !== 1) return;
-        isDragging = true;
-        startX = event.touches[0].clientX - imgX;
-        startY = event.touches[0].clientY - imgY;
+        avatarState.isDragging = true;
+        avatarState.startX = event.touches[0].clientX - avatarState.imgX;
+        avatarState.startY = event.touches[0].clientY - avatarState.imgY;
         event.preventDefault();
     }
     
+    /**
+     * Обработчик перемещения касания
+     * Изменяет позицию изображения
+     * Альтернатива для мобильных устройств
+     * @param event
+     */
     function handleTouchMove(event: TouchEvent) {
-        if (!isDragging || event.touches.length !== 1) return;
+        if (!avatarState.isDragging || event.touches.length !== 1) return;
         
-        const newImgX = event.touches[0].clientX - startX;
-        const newImgY = event.touches[0].clientY - startY;
+        const newImgX = event.touches[0].clientX - avatarState.startX;
+        const newImgY = event.touches[0].clientY - avatarState.startY;
         
-        imgX = newImgX;
-        imgY = newImgY;
+        avatarState.imgX = newImgX;
+        avatarState.imgY = newImgY;
         
-        constrainCrop();
+        avatarState = constrainCrop(avatarState);
         
-        updateImagePosition();
+        updateImagePosition(imageContainer, avatarState.imgX, avatarState.imgY, avatarState.scale);
         event.preventDefault();
     }
     
+    /**
+     * Обработчик окончания касания
+     * Завершает перетаскивание
+     * Альтернатива для мобильных устройств
+     */
     function handleTouchEnd() {
-        isDragging = false;
+        avatarState.isDragging = false;
     }
     
+    /**
+     * Обработчик начала изменения размера области кадрирования
+     * @param event
+     */
     function handleResizeStart(event: MouseEvent) {
-        isResizing = true;
-        resizeStartX = event.clientX;
-        resizeStartY = event.clientY;
-        startCropSize = cropSize;
+        avatarState.isResizing = true;
+        avatarState.resizeStartX = event.clientX;
+        avatarState.resizeStartY = event.clientY;
+        avatarState.startCropSize = avatarState.cropSize;
         event.preventDefault();
         event.stopPropagation();
     }
     
+    /**
+     * Обработчик прокрутки колесика мыши
+     * Масштабирует изображение
+     * @param event
+     */
     function handleWheel(event: WheelEvent) {
         event.preventDefault();
         const delta = event.deltaY > 0 ? -0.05 : 0.05;
-        const newScale = Math.max(0.1, Math.min(5, scale + delta));
         
-        const centerX = containerSize / 2;
-        const centerY = containerSize / 2;
-        
-        imgX = centerX - ((centerX - imgX) / scale * newScale);
-        imgY = centerY - ((centerY - imgY) / scale * newScale);
-        
-        scale = newScale;
-        
-        constrainCrop();
-        updateImagePosition();
+        avatarState = zoomImage(avatarState, delta);
+        updateImagePosition(imageContainer, avatarState.imgX, avatarState.imgY, avatarState.scale);
     }
     
-    function updateImagePosition() {
-        if (imageContainer)
-            imageContainer.style.transform = `translate(${imgX}px, ${imgY}px) scale(${scale})`;
-    }
-    
-    function updateCropFrame() {
-        if (cropFrame) {
-            cropFrame.style.width = `${cropSize}px`;
-            cropFrame.style.height = `${cropSize}px`;
-            cropFrame.style.left = `${(containerSize - cropSize) / 2}px`;
-            cropFrame.style.top = `${(containerSize - cropSize) / 2}px`;
-        }
-    }
-
+    /**
+     * Обработчик клавиатурной навигации
+     * Позволяет управлять масштабом и позицией изображения с клавиатуры
+     * @param event
+     */
     function handleKeyboardNavigation(event: KeyboardEvent) {
         if (!showAvatarModal) return;
         
@@ -275,33 +247,39 @@
         switch (event.key) {
             case "+":
             case "=":
-                zoomImage(scaleStep);
+                avatarState = zoomImage(avatarState, scaleStep);
+                updateImagePosition(imageContainer, avatarState.imgX, avatarState.imgY, avatarState.scale);
                 event.preventDefault();
                 break;
                 
             case "-":
             case "_":
-                zoomImage(-scaleStep);
+                avatarState = zoomImage(avatarState, -scaleStep);
+                updateImagePosition(imageContainer, avatarState.imgX, avatarState.imgY, avatarState.scale);
                 event.preventDefault();
                 break;
                 
             case "ArrowUp":
-                moveImage(0, moveStep);
+                avatarState = moveImage(avatarState, 0, moveStep);
+                updateImagePosition(imageContainer, avatarState.imgX, avatarState.imgY, avatarState.scale);
                 event.preventDefault();
                 break;
                 
             case "ArrowDown":
-                moveImage(0, -moveStep);
+                avatarState = moveImage(avatarState, 0, -moveStep);
+                updateImagePosition(imageContainer, avatarState.imgX, avatarState.imgY, avatarState.scale);
                 event.preventDefault();
                 break;
                 
             case "ArrowLeft":
-                moveImage(moveStep, 0);
+                avatarState = moveImage(avatarState, moveStep, 0);
+                updateImagePosition(imageContainer, avatarState.imgX, avatarState.imgY, avatarState.scale);
                 event.preventDefault();
                 break;
                 
             case "ArrowRight":
-                moveImage(-moveStep, 0);
+                avatarState = moveImage(avatarState, -moveStep, 0);
+                updateImagePosition(imageContainer, avatarState.imgX, avatarState.imgY, avatarState.scale);
                 event.preventDefault();
                 break;
                 
@@ -317,266 +295,96 @@
         }
     }
     
-    function zoomImage(delta: number) {
-        const newScale = Math.max(0.1, Math.min(5, scale + delta));
+    /**
+     * Закрыть модальное окно редактирования аватара
+     */
+    function closeAvatarModal() {
+        showAvatarModal = false;
+        removeKeyboardHandlers(handleKeyboardNavigation);
         
-        const centerX = containerSize / 2;
-        const centerY = containerSize / 2;
-        
-        imgX = centerX - ((centerX - imgX) / scale * newScale);
-        imgY = centerY - ((centerY - imgY) / scale * newScale);
-        
-        scale = newScale;
-        
-        constrainCrop();
-        updateImagePosition();
-    }
-    
-    function moveImage(deltaX: number, deltaY: number) {
-        imgX += deltaX;
-        imgY += deltaY;
-        
-        constrainCrop();
-        updateImagePosition();
-    }
-    
-    function addKeyboardHandlers() {
-        browser && window.addEventListener('keydown', handleKeyboardNavigation);
-    }
-    
-    function removeKeyboardHandlers() {
-        browser && window.removeEventListener('keydown', handleKeyboardNavigation);
-    }
-    
-    async function updateAvatarImage(url: string) {
-        await tick();
-        
-        if (avatarComponent) {
-            const imgElements = avatarComponent.querySelectorAll('img');
-            if (imgElements.length > 0) {
-                imgElements.forEach(img => {
-                    img.src = url;
-                });
-            } else {
-                const possibleAvatarElements = avatarComponent.querySelectorAll('[style*="background"]');
-                possibleAvatarElements.forEach(el => {
-                    (el as HTMLElement).style.backgroundImage = `url(${url})`;
-                });
-            }
-            avatarUpdateKey = Date.now();
+        if (avatarPreviewUrl && avatarPreviewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(avatarPreviewUrl);
+            avatarPreviewUrl = null;
         }
     }
     
+    /**
+     * Применить обрезку аватара и загрузить на сервер
+     */
     async function applyAvatarCrop() {
         if (!avatarPreviewUrl || !avatarCanvas) return;
         
-        const canvas = avatarCanvas;
-        const context = canvas.getContext('2d');
-        if (!context) return;
+        const file = await cropAvatarImage(
+            avatarCanvas,
+            avatarPreviewUrl,
+            avatarState.imgX,
+            avatarState.imgY,
+            avatarState.scale,
+            avatarState.cropSize,
+            avatarState.containerSize
+        );
         
-        const img = new Image();
-        img.onload = async () => {
-            const cropLeft = (containerSize - cropSize) / 2;
-            const cropTop = (containerSize - cropSize) / 2;
+        if (file) {
+            localAvatarUrl && URL.revokeObjectURL(localAvatarUrl);
+            localAvatarUrl = URL.createObjectURL(file);
             
-            const sourceX = (cropLeft - imgX) / scale;
-            const sourceY = (cropTop - imgY) / scale;
-            const sourceWidth = cropSize / scale;
-            const sourceHeight = cropSize / scale;
+            await updateAvatarImage(avatarComponent, localAvatarUrl);
+            avatarUpdateKey = Date.now();
             
-            canvas.width = 256;
-            canvas.height = 256;
+            closeAvatarModal();
             
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            
-            context.beginPath();
-            context.arc(canvas.width / 2, canvas.height / 2, canvas.width / 2, 0, Math.PI * 2, true);
-            context.closePath();
-            context.clip();
-            
-            context.drawImage(
-                img,
-                sourceX, sourceY, sourceWidth, sourceHeight,
-                0, 0, canvas.width, canvas.height
-            );
-            
-            canvas.toBlob(async (blob) => {
-                if (blob) {
-                    localAvatarUrl && URL.revokeObjectURL(localAvatarUrl);
-                    localAvatarUrl = URL.createObjectURL(blob);
-                    
-                    currentUser.update(user => {
-                        if (!user) return user;
-                        return {
-                            ...user,
-                            avatar: localAvatarUrl,
-                            id: user.id || '',
-                            name: user.name || '',
-                            email: user.email || '',
-                            role: user.role || ''
-                        };
-                    });
-                    
-                    await updateAvatarImage(localAvatarUrl);
-                    
-                    const file = new File([blob], avatarFile?.name || 'avatar.jpg', { 
-                        type: 'image/jpeg',
-                        lastModified: Date.now()
-                    });
-                    
-                    closeAvatarModal();
-                    
-                    await uploadAvatar(file);
-                }
-            }, 'image/jpeg', 0.95);
-        };
-        
-        img.src = avatarPreviewUrl;
-    }
-    
-    async function uploadAvatar(file: File) {
-        isLoading = true;
-        
-        try {
-            const formData = new FormData();
-            formData.append('avatar', file);
-            
-            const response = await api.post('/api/v1/user/change_avatar', {
-                body: formData,
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
-            });
-            
-            if (response.success) {
-                notification('Аватар успешно обновлен', NotificationType.Success);
-                
-                const prevLocalUrl = localAvatarUrl;
-                
-                const responseData = response.data as { avatar_url: string };
-                currentUser.update(user => ({
-                    ...user,
-                    avatar: responseData.avatar_url,
-                    id: user?.id || '',
-                    name: user?.name || '',
-                    email: user?.email || '',
-                    role: user?.role || ''
-                }));
-                
-                await updateAvatarImage(responseData.avatar_url);
-                
-                if (prevLocalUrl) {
-                    URL.revokeObjectURL(prevLocalUrl);
-                    if (localAvatarUrl === prevLocalUrl)
-                        localAvatarUrl = null;
-                }
-            } else {
-                notification('Ошибка при обновлении аватара', NotificationType.Warning);
-            }
-        } catch (error) {
-            notification('Ошибка при загрузке аватара', NotificationType.Warning);
-        } finally {
+            isLoading = true;
+            const serverUrl = await uploadAvatar(file);
             isLoading = false;
-        }
-    }
-    
-    async function loadActiveTickets() {
-        if (!userData?.id || userData.id.length === 0) return;
-        try {
-            const result = await fetchTickets('', {
-                assigned_to: userData.id,
-                page: 1,
-                page_size: 3,
-                order_by: 'id',
-                sort_order: 'asc',
-                statuses: ['inprogress']
-            });
-            activeTickets = result.tickets;
-        } catch (error) {
-            notification('Ошибка загрузки заявок', NotificationType.Error);
-        }
-    }
-
-    async function loadStats() {
-        try {
-            const response = await api.get(`/api/v1/user/stats?user_id=${userData.id}`);
-
-            if (response.success){
-                stats.assignedToMe = (response.data as any).active_tickets_count || 0;
-                stats.completedTickets = (response.data as any).closed_tickets_count || 0;
-                stats.cancelledTickets = (response.data as any).cancelled_tickets_count || 0;
+            
+            if (serverUrl) {
+                await updateAvatarImage(avatarComponent, serverUrl);
+                avatarUpdateKey = Date.now();
+                
+                if (localAvatarUrl) {
+                    URL.revokeObjectURL(localAvatarUrl);
+                    localAvatarUrl = null;
+                }
             }
-        } catch (error) {
-            notification('Ошибка загрузки статистики', NotificationType.Error);
         }
     }
-    
-    async function saveProfile() {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        if (editedEmail.trim() && !emailRegex.test(editedEmail.trim())) {
-            notification('Некорректный формат email', NotificationType.Error);
-            return;
-        }
-
-        if (changePassword && newPassword !== confirmPassword) {
-            notification('Пароли не совпадают', NotificationType.Error);
-            return;
-        }
+    /**
+     * Сохранить изменения профиля
+     * Включает в себя обновление имени, email и пароля
+     */
+    async function handleSaveProfile() {
+        if (confirmPassword !== newPassword) return;
         
         isLoading = true;
+        const success = await saveUserProfile(
+            editedName,
+            editedEmail,
+            changePassword,
+            currentPassword,
+            newPassword
+        );
         
-        try {
-            try {
-                if (editedName.trim()) await api.put('/api/v1/user/name', { name: editedName.trim() });
-            } catch (error) {
-                notification('Ошибка при обновлении имени', NotificationType.Error);
-            }
-
-            try {
-                if (editedEmail.trim()) await api.put('/api/v1/user/email', { email: editedEmail.trim() });
-            } catch (error) {
-                notification('Ошибка при обновлении email', NotificationType.Error);
-            }
-
-            try {
-                if (changePassword) await api.put('/api/v1/user/password', { current_password: currentPassword.trim(), new_password: newPassword.trim() });
-            } catch (error) {
-                notification('Ошибка при смене пароля', NotificationType.Error);
-            }
-
-            const userValue = get(currentUser);
-            if (userValue) {
-                currentUser.update(_ => ({
-                    ...userValue,
-                    name: editedName.trim() || userValue.name,
-                    email: editedEmail.trim() || userValue.email
-                }));
-            }
-
-            notification('Профиль успешно обновлен', NotificationType.Success);
-            isEditing = false;
-        } catch (error) {
-            notification('Ошибка при обновлении профиля', NotificationType.Error);
-        } finally {
-            isLoading = false;
-        }
+        if (success) isEditing = false;
+        isLoading = false;
     }
-
+    
+    /**
+     * Инициализация данных при монтировании компонента 
+     * Загрузка активных заявок и статистики пользователя
+    */
     onMount(() => {
-        editedName = userData?.name || '';
-        editedEmail = userData?.email || '';
+        (async () => {
+            editedName = userData?.name || '';
+            editedEmail = userData?.email || '';
+            
+            activeTickets = await loadActiveUserTickets(userData.id);
+            stats = await loadUserStats(userData.id, stats);
+        })();
         
-        loadActiveTickets();
-        loadStats();
-
         return () => {
-            removeKeyboardHandlers();
+            removeKeyboardHandlers(handleKeyboardNavigation);
         };
-    });
-    
-    afterUpdate(() => {
-        localAvatarUrl && avatarComponent && updateAvatarImage(localAvatarUrl);
     });
 </script>
 
@@ -700,7 +508,7 @@
                     </div>
                     
                     <div class="form-actions">
-                        <button class="btn btn-primary" type="button" on:click={ saveProfile } disabled={ isLoading }>
+                        <button class="btn btn-primary" type="button" on:click={ handleSaveProfile } disabled={ isLoading }>
                             { isLoading ? 'Сохранение...' : 'Сохранить' }
                         </button>
                         <button class="btn btn-secondary" type="button" on:click={ cancelEditing }>
@@ -802,7 +610,7 @@
                 <div 
                     class="crop-frame" 
                     bind:this={ cropFrame }
-                    style="width: { cropSize }px; height: { cropSize }px; left: { (containerSize - cropSize) / 2 }px; top: { (containerSize - cropSize) / 2 }px;"
+                    style="width: {avatarState.cropSize}px; height: {avatarState.cropSize}px; left: {(avatarState.containerSize - avatarState.cropSize) / 2}px; top: {(avatarState.containerSize - avatarState.cropSize) / 2}px;"
                 >
                     <div class="resize-handle"
                          on:mousedown={ handleResizeStart }
@@ -821,7 +629,7 @@
                 
                 <div 
                     class="image-editor-view"
-                    style="width: { containerSize }px; height: { containerSize }px;"
+                    style="width: { avatarState.containerSize }px; height: { avatarState.containerSize }px;"
                     on:mousedown={ handleMouseDown }
                     on:mousemove={ handleMouseMove }
                     on:mouseup={ handleMouseUp }
@@ -837,7 +645,7 @@
                     <div 
                         class="image-container" 
                         bind:this={ imageContainer }
-                        style="transform: translate({ imgX }px, { imgY }px) scale({ scale });"
+                        style="transform: translate({ avatarState.imgX }px, { avatarState.imgY }px) scale({ avatarState.scale });"
                     >
                         <img src={ avatarPreviewUrl } alt="" />
                     </div>

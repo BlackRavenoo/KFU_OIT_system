@@ -1,12 +1,14 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+
     import { formatDate } from '$lib/utils/tickets/support';
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { fetchTickets } from '$lib/utils/tickets/api/get';
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { getTicketsFilters, setTicketsFilters } from '$lib/utils/tickets/stores';
-    
+    import Pagination from '$lib/components/Search/Pagination.svelte';
+
     let tickets: any[] = [];
     let loading = true;
     let error = false;
@@ -18,10 +20,9 @@
     let totalPages = 1;
     const itemsPerPage = 10;
     
-    onMount(async () => {
-        await loadTickets();
-    });
-    
+    /**
+     * Загрузка заявок, назначенных текущему пользователю
+     */
     async function loadTickets() {
         loading = true;
         try {
@@ -46,6 +47,10 @@
         }
     }
     
+    /**
+     * Смена страницы
+     * @param page
+     */
     function changePage(page: number) {
         if (page !== currentPage && page > 0 && page <= totalPages) {
             currentPage = page;
@@ -53,16 +58,29 @@
         }
     }
     
+    /**
+     * Переключение порядка сортировки заявок (по возрастанию/убыванию)
+     */
     function handleToggleSort() {
         sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
         setTicketsFilters({ ...filters, sortOrder });
         loadTickets();
     }
     
+    /**
+     * Переключение между режимами отображения заявок (карточки/список)
+     */
     function handleToggleViewMode() {
         viewMode = viewMode === 'cards' ? 'list' : 'cards';
         setTicketsFilters({ ...filters, viewMode });
     }
+
+    /**
+     * Первоначальная загрузка заявок при монтировании компонента
+    */
+    onMount(async () => {
+        await loadTickets();
+    });
 </script>
 
 <div class="tickets-section">
@@ -177,21 +195,11 @@
             {/each}
         </div>
         
-        {#if totalPages > 1}
-            <div class="pagination-block">
-                {#if currentPage > 1}
-                    <button aria-label="Назад" class="pagination-button" on:click={() => changePage(currentPage - 1)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M416 160C416 147.1 408.2 135.4 396.2 130.4C384.2 125.4 370.5 128.2 361.3 137.3L201.3 297.3C188.8 309.8 188.8 330.1 201.3 342.6L361.3 502.6C370.5 511.8 384.2 514.5 396.2 509.5C408.2 504.5 416 492.9 416 480L416 160z"/></svg>
-                    </button>
-                {/if}
-                <span>Стр. { currentPage } из { totalPages }</span>
-                {#if totalPages > 1 && currentPage < totalPages}
-                    <button aria-label="Вперёд" class="pagination-button" on:click={() => changePage(currentPage + 1)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M224.5 160C224.5 147.1 232.3 135.4 244.3 130.4C256.3 125.4 270 128.2 279.1 137.4L439.1 297.4C451.6 309.9 451.6 330.2 439.1 342.7L279.1 502.7C269.9 511.9 256.2 514.6 244.2 509.6C232.2 504.6 224.5 492.9 224.5 480L224.5 160z"/></svg>
-                    </button>
-                {/if}
-            </div>
-        {/if}
+        <Pagination 
+            { currentPage }
+            { totalPages }
+            onPageChange={ changePage }
+        />
     {/if}
 </div>
 
