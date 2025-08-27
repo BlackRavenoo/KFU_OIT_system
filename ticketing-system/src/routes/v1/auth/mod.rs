@@ -1,10 +1,12 @@
 use actix_web::{web, HttpResponse, Responder};
 
-use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::{TokenStore, TokenStoreError}, types::RefreshToken, user_service::UserService}, schema::{auth::{LoginRequest, RefreshTokenRequest, TokenResponse}, tickets::{ChangeEmailSchema, ChangeNameSchema}}};
+use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::TokenStore, types::RefreshToken, user_service::UserService}, schema::{auth::{LoginRequest, TokenResponse}, tickets::{ChangeEmailSchema, ChangeNameSchema}}};
 
 pub mod change_password;
+pub mod refresh_token;
 
 pub use change_password::change_password;
+pub use refresh_token::refresh_token;
 
 pub async fn login(
     web::Json(req): web::Json<LoginRequest>,
@@ -71,57 +73,6 @@ pub async fn me(
             HttpResponse::InternalServerError().finish()
         }
     }
-}
-
-// TODO: validate user status
-pub async fn refresh_token(
-    req: web::Json<RefreshTokenRequest>,
-    token_store: web::Data<TokenStore>,
-    user_service: web::Data<UserService>,
-    jwt_service: web::Data<JwtService>,
-) -> impl Responder {
-    let token_data = match token_store.get_del_refresh_token(&req.refresh_token, &req.fingerprint).await {
-        Ok(res) => res,
-        Err(e) => return match e {
-            TokenStoreError::TokenNotFound
-            | TokenStoreError::FingerprintMismatch => HttpResponse::Unauthorized().finish(),
-            _ => {
-                tracing::error!("{}", e);
-                HttpResponse::InternalServerError().finish()
-            },
-        },
-    };
-
-    let role = match user_service.get_user_role(token_data.user_id).await {
-        Ok(role) => role,
-        Err(e) => {
-            tracing::error!("Failed to get user role: {:?}", e);
-            return HttpResponse::InternalServerError().finish()
-        },
-    };
-
-    let access_token = match jwt_service.create_access_token(token_data.user_id, role) {
-        Ok(token) => token,
-        Err(e) => {
-            tracing::error!("Failed to create access token: {:?}", e);
-            return HttpResponse::InternalServerError().finish()
-        },
-    };
-
-    let refresh_token = match token_store.generate_refresh_token(&token_data).await {
-        Ok(token) => token,
-        Err(e) => {
-            tracing::error!("Failed to generate refresh token: {:?}", e);
-            return HttpResponse::InternalServerError().finish()
-        },
-    };
-
-    HttpResponse::Ok().json(TokenResponse {
-        access_token,
-        refresh_token,
-        token_type: "Bearer".to_string(),
-        expires_in: jwt_service.access_token_lifetime.num_seconds()
-    })
 }
 
 pub async fn change_name(

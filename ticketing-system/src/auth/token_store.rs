@@ -1,3 +1,5 @@
+use actix_web::{http::StatusCode, ResponseError};
+use anyhow::Context as _;
 use bb8_redis::{bb8::{Pool, PooledConnection}, redis::{self, AsyncCommands}, RedisConnectionManager};
 use ring::digest::{Context, SHA256};
 use thiserror::Error;
@@ -17,12 +19,19 @@ pub enum TokenStoreError {
 
     #[error("Fingerprint mismatch")]
     FingerprintMismatch,
-    
-    #[error("Failed to get Redis connection")]
-    PoolConnectionError,
 
-    #[error("Other error: {0}")]
-    Other(String),
+    #[error(transparent)]
+    Unexpected(#[from] anyhow::Error),
+}
+
+impl ResponseError for TokenStoreError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            TokenStoreError::TokenNotFound => StatusCode::UNAUTHORIZED,
+            TokenStoreError::FingerprintMismatch => StatusCode::FORBIDDEN,
+            TokenStoreError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
 }
 
 impl TokenStore {
@@ -47,10 +56,12 @@ impl TokenStore {
     }
 
     async fn get_connection(&self) -> Result<PooledConnection<'_, RedisConnectionManager>, TokenStoreError> {
-        self.redis_pool
-            .get()
-            .await
-            .map_err(|_| TokenStoreError::PoolConnectionError)
+        Ok(
+            self.redis_pool
+                .get()
+                .await
+                .context("Failed to get Redis connection")?
+        )
     }
 
     pub async fn generate_refresh_token(&self, token_data: &RefreshToken) -> Result<String, TokenStoreError> {
@@ -59,7 +70,7 @@ impl TokenStore {
         let token = Uuid::new_v4().to_string();
         
         let json_data = serde_json::to_string(&token_data)
-            .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+            .context("Failed to parse json data")?;
 
         let user_tokens_key = self.get_user_tokens_key(token_data.user_id);
 
@@ -79,7 +90,7 @@ impl TokenStore {
             )
             .exec_async(&mut *conn)
             .await
-            .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+            .context("Failed to insert refresh token into Redis")?;
 
         Ok(token)
     }
@@ -93,7 +104,7 @@ impl TokenStore {
         
         let token_data: Option<RefreshToken> = conn.get_del(self.get_key(refresh_token))
             .await
-            .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+            .context("Failed to get del refresh token from Redis")?;
 
         let token = match token_data {
             Some(token) => token,
@@ -116,7 +127,7 @@ impl TokenStore {
             refresh_token
         )
         .await
-        .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+        .context("Failed to remove refresh token from a set")?;
         
         Ok(token)
     }
@@ -128,14 +139,14 @@ impl TokenStore {
 
         let tokens: Vec<String> = conn.smembers(&user_tokens_key)
             .await
-            .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+            .context("Failed to get set members from Redis")?;
 
         redis::pipe()
             .unlink(tokens)
             .unlink(user_tokens_key)
             .exec_async(&mut *conn)
             .await
-            .map_err(|e| TokenStoreError::Other(e.to_string()))?;
+            .context("Failed to delete all user tokens")?;
 
         Ok(())
     }

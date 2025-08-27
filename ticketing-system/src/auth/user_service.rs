@@ -85,18 +85,6 @@ impl UserService {
         .await
     }
 
-    pub async fn get_user_role(&self, user_id: UserId) -> Result<UserRole, sqlx::Error> {
-        let role_num = sqlx::query_scalar!(
-            "SELECT role FROM users
-            WHERE id = $1",
-            user_id
-        )
-        .fetch_one(&self.db_pool)
-        .await?;
-
-        Ok(UserRole::from(role_num))
-    }
-
     pub async fn change_username(&self, user_id: UserId, name: Name) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "UPDATE users

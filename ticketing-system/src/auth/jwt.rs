@@ -1,5 +1,6 @@
 use std::fs;
 
+use anyhow::Context as _;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode_header, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
@@ -49,7 +50,7 @@ impl JwtService {
         &self,
         user_id: i32,
         role: UserRole,
-    ) -> anyhow::Result<String> {
+    ) -> Result<String, JwtError> {
         let now = Utc::now();
         let expiry = now + self.access_token_lifetime;
         
@@ -65,7 +66,10 @@ impl JwtService {
         let mut header = Header::new(Algorithm::RS256);
         header.kid = Some("default-key-1".to_string());
         
-        Ok(jsonwebtoken::encode(&header, &claims, &self.encoding_key)?)
+        Ok(
+            jsonwebtoken::encode(&header, &claims, &self.encoding_key)
+                .context("Failed to encode token.")?
+        )
     }
 
     pub fn validate_token(&self, token: &str) -> Result<Claims, JwtError> {
@@ -95,4 +99,6 @@ pub enum JwtError {
     InvalidToken(String),
     #[error("Key not found: {0}")]
     KeyNotFound(String),
+    #[error(transparent)]
+    Unexpected(#[from] anyhow::Error),
 }
