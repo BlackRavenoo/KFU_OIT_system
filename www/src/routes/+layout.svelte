@@ -10,7 +10,7 @@
     import Footer from '$lib/components/Footer/Footer.svelte';
     import Nav from '$lib/components/Nav/Nav.svelte';
     
-    const pagesWithFooter = ['/', '/contact'];
+    const pagesWithFooter = ['/', '/contact', '/faq', '/privacy'];
     
     $: showFooter = pagesWithFooter.some(path => $page.url.pathname === path);
     
