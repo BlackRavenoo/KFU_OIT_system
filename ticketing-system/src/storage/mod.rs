@@ -16,12 +16,12 @@ pub enum StorageError {
     Other(String)
 }
 
-type ReponseStream = Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send>>;
+type ResponseStream = Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send>>;
 
 pub enum FileAccess {
     InternalUrl(String),
     ExternalUrl(String),
-    Stream(ReponseStream),
+    Stream(ResponseStream),
 }
 
 #[async_trait]
