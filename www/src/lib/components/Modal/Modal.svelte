@@ -1,9 +1,9 @@
 <script lang="ts">
-    import { handleModalKeydown } from '$lib/utils/notifications/modal';
+    import { handleModalKeydown, setupKeydownListener, removeKeydownListener } from './Modal';
     import { fade, scale } from 'svelte/transition';
-    import { onMount, createEventDispatcher } from 'svelte';
+    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
 
-    export let modalMessage: string = '';;
+    export let modalMessage: string = '';
 
     const dispatch = createEventDispatcher();
     let modalElement: HTMLElement;
@@ -16,17 +16,19 @@
     }
 
     /**
-     * Обработчик нажатия клавиш в модальном окне.
-     * Закрывает модальное окно при нажатии клавиши Escape.
-     * @param {KeyboardEvent} e - Событие клавиатуры.
+     * Обработчик нажатия клавиш для модального окна
      */
-    function modalKeydown(e: KeyboardEvent) {
-        const result = handleModalKeydown(e, modalElement);
-        if (!result) closeModal();
+    function keydownHandler(e: KeyboardEvent) {
+        handleModalKeydown(e, closeModal);
     }
 
     onMount(() => {
         modalElement?.focus();
+        setupKeydownListener(keydownHandler);
+    });
+
+    onDestroy(() => {
+        removeKeydownListener(keydownHandler);
     });
 </script>
 
@@ -44,7 +46,7 @@
         aria-labelledby="modal-title"
         aria-describedby="modal-content"
         on:click|stopPropagation
-        on:keydown={ modalKeydown }
+        on:keydown={ keydownHandler }
         in:scale={{ start: 0.8, duration: 300, delay: 100 }}
         out:scale={{ start: 0.8, duration: 200 }}
         tabindex="-1"

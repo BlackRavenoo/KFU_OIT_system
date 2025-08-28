@@ -1,9 +1,10 @@
-import { loadItems, createItem, deleteItem } from '$lib/utils/admin/api-handlers';
+import { loadItems, createItem } from '$lib/utils/admin/api-handlers';
 import { notification, NotificationType } from '$lib/utils/notifications/notification';
+import { api } from '$lib/utils/api';
 
 const USER_LIST_ENDPOINT = '/api/v1/user/list';
 const USER_INVITE_ENDPOINT = '/api/v1/user/admin/invite';
-const USER_DELETE_ENDPOINT = '/api/v1/admin/users';
+const USER_DELETE_ENDPOINT = '/api/v1/user/admin/status';
 
 export interface User {
     id: string;
@@ -20,6 +21,9 @@ export interface UsersState {
 
 /**
  * Загрузка списка пользователей
+ * @param currentPage Текущая страница
+ * @param itemsPerPage Количество элементов на страницу
+ * @param searchQuery Строка поиска
  */
 export async function loadUsersData(
     currentPage: number,
@@ -52,6 +56,7 @@ export function validateEmail(email: string): boolean {
 
 /**
  * Отправка приглашения на email
+ * @param email Email для приглашения
  */
 export async function sendInvitation(email: string): Promise<boolean> {
     if (!validateEmail(email)) {
@@ -70,13 +75,26 @@ export async function sendInvitation(email: string): Promise<boolean> {
 }
 
 /**
- * Удаление пользователя
+ * Удаление пользователя (фактически изменение статуса на 3 - удален)
+ * @param userId ID пользователя
+ * @returns Успешность операции
  */
 export async function deleteUserData(userId: string): Promise<boolean> {
-    return await deleteItem({
-        endpoint: USER_DELETE_ENDPOINT,
-        id: userId,
-        successMessage: 'Пользователь успешно удален',
-        errorMessage: 'Ошибка при удалении пользователя'
-    });
+    try {
+        const response = await api.patch(USER_DELETE_ENDPOINT, {
+            id: userId,
+            status: 3
+        });
+        
+        if (response.success) {
+            notification('Пользователь успешно удален', NotificationType.Success);
+            return true;
+        } else {
+            notification('Ошибка при удалении пользователя', NotificationType.Error);
+            return false;
+        }
+    } catch (error) {
+        notification('Ошибка при удалении пользователя', NotificationType.Error);
+        return false;
+    }
 }

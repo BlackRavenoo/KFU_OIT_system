@@ -1,15 +1,35 @@
 <script lang="ts">
+    import { handleConfirmationKeydown, setupKeydownListener, removeKeydownListener } from './Modal';
     import { fade } from 'svelte/transition';
+    import { onMount, onDestroy } from 'svelte';
 
-    export let title: string = 'Подтверждите действие';
+    export let title: string = 'Подтвердите действие';
     export let message: string = 'Вы уверены, что хотите продолжить?';
     export let confirmText: string = 'Подтвердить';
     export let cancelText: string = 'Отмена';
     export let onConfirm: () => void;
     export let onCancel: () => void;
+    
+    let modalElement: HTMLElement;
+    
+    /**
+     * Обработчик нажатия клавиш для окна подтверждения
+     */
+    function keydownHandler(e: KeyboardEvent) {
+        handleConfirmationKeydown(e, onConfirm, onCancel);
+    }
+
+    onMount(() => {
+        modalElement?.focus();
+        setupKeydownListener(keydownHandler);
+    });
+
+    onDestroy(() => {
+        removeKeydownListener(keydownHandler);
+    });
 </script>
 
-<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="{ title }" transition:fade={{ duration: 180 }}>
+<div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="{ title }" transition:fade={{ duration: 180 }} bind:this={ modalElement }>
     <div class="modal-image">
         <p>{ message }</p>
         <div class="button-container">
