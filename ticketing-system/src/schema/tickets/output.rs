@@ -10,22 +10,6 @@ pub struct User {
 }
 
 #[derive(Serialize)]
-pub struct TicketSchema {
-    pub id: TicketId,
-    pub title: String,
-    pub description: String,
-    pub author: String,
-    pub author_contacts: String,
-    pub status: TicketStatus,
-    pub priority: TicketPriority,
-    pub planned_at: Option<DateTime<Utc>>,
-    pub assigned_to: Option<Vec<User>>,
-    pub created_at: DateTime<Utc>,
-    pub building: Building,
-    pub cabinet: Option<String>,
-}
-
-#[derive(Serialize)]
 pub struct TicketSchemaWithAttachments {
     pub id: TicketId,
     pub title: String,

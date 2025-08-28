@@ -1,11 +1,14 @@
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpResponse, Responder};
 use futures_util::{stream, StreamExt as _};
-use serde_qs::actix::QsQuery;
 use sqlx::{Execute as _, PgPool};
 use strum::IntoEnumIterator;
 
-use crate::{auth::extractor::UserId, build_update_query, build_where_condition, schema::{common::PaginationResult, tickets::{Building, ConstsSchema, CreateTicketForm, GetTicketsSchema, OrderBy, TicketId, TicketQueryResult, TicketSchema, TicketSchemaWithAttachments, TicketStatus, TicketWithMeta, UpdateTicketSchema}}, services::image::{ImageService, ImageType}, utils::cleanup_images};
+use crate::{auth::extractor::UserId, build_update_query, schema::{tickets::{Building, ConstsSchema, CreateTicketForm, OrderBy, TicketId, TicketQueryResult, TicketSchemaWithAttachments, TicketStatus, UpdateTicketSchema}}, services::image::{ImageService, ImageType}, utils::cleanup_images};
+
+pub mod get_tickets;
+
+pub use get_tickets::get_tickets;
 
 pub async fn create_ticket(
     MultipartForm(ticket): MultipartForm<CreateTicketForm>,
@@ -259,113 +262,6 @@ pub async fn get_ticket(
             tracing::error!("Failed to get ticket by id: {:?}", e);
             HttpResponse::InternalServerError().finish()
         }
-    }
-}
-
-pub async fn get_tickets(
-    schema: QsQuery<GetTicketsSchema>,
-    pool: web::Data<PgPool>,
-) -> impl Responder {
-    let schema = schema.into_inner();
-    
-    let page_size = schema.page_size
-        .map(|size| size.clamp(10, 50))
-        .unwrap_or(10);
-
-    let page = schema.page.unwrap_or(1) - 1;
-        
-    let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new(
-        r#"SELECT 
-            t.id,
-            title,
-            description,
-            author,
-            author_contacts,
-            t.status,
-            priority,
-            planned_at,
-            t.created_at,
-            ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL) as assigned_to_id,
-            ARRAY_AGG(DISTINCT u.name) FILTER (WHERE u.name IS NOT NULL) as assigned_to_name,
-            b.id as "building_id",
-            b.code as "building_code",
-            b.name as "building_name",
-            cabinet,
-            COUNT(*) OVER() as total_items
-        FROM tickets t
-        LEFT JOIN tickets_users tu ON tu.ticket_id = t.id 
-        LEFT JOIN users u ON u.id = tu.assigned_to
-        JOIN buildings b ON b.id = t.building_id
-        "#
-    );
-
-    let mut has_filters = false;
-
-    build_where_condition!(builder, has_filters, schema.statuses, "t.status", in);
-    build_where_condition!(builder, has_filters, schema.priorities, "priority", in);
-    build_where_condition!(builder, has_filters, schema.planned_from, "planned_at", ">=");
-    build_where_condition!(builder, has_filters, schema.planned_to, "planned_at", "<=");
-    build_where_condition!(builder, has_filters, schema.buildings, "building_id", in);
-    build_where_condition!(builder, has_filters, schema.assigned_to, "tu.assigned_to", "=");
-
-    if has_filters {
-        builder.push("\n");
-    }
-
-    let order_by = schema.order_by.unwrap_or_default();
-
-    let order_by_column = match order_by {
-        crate::schema::tickets::OrderBy::Id => "t.id",
-        crate::schema::tickets::OrderBy::PlannedAt => "planned_at",
-        crate::schema::tickets::OrderBy::Priority => "priority",
-    };
-
-    builder
-        .push("GROUP BY t.id, b.id ORDER BY ")
-        .push(order_by_column)
-        .push(" ")
-        .push(schema.sort_order.unwrap_or_default().as_str())
-        .push(" LIMIT ")
-        .push_bind(page_size as i64)
-        .push(" OFFSET ")
-        .push_bind(page_size as i64 * page);
-
-    let query = builder.build_query_as::<TicketWithMeta>();
-
-    match query.fetch_all(pool.as_ref()).await {
-        Ok(tickets) => {
-            let total_items = match tickets.first() {
-                Some(ticket) => ticket.total_items as u64,
-                None => return HttpResponse::NotFound().finish(),
-            };
-
-            let tickets = tickets.into_iter().map(|ticket| TicketSchema {
-                id: ticket.id,
-                title: ticket.title,
-                description: ticket.description,
-                author: ticket.author,
-                author_contacts: ticket.author_contacts,
-                status: ticket.status,
-                priority: ticket.priority,
-                planned_at: ticket.planned_at,
-                assigned_to: ticket.assigned_to,
-                created_at: ticket.created_at,
-                building: ticket.building,
-                cabinet: ticket.cabinet
-            }).collect::<Vec<_>>();
-
-            let res = PaginationResult::new_with_pagination(
-                total_items,
-                page_size,
-                tickets
-            );
-
-            HttpResponse::Ok().json(res)
-        },
-        Err(e) => {
-            tracing::error!("Failed to fetch tickets: {:?}", e);
-            HttpResponse::InternalServerError().finish()
-        },
     }
 }
 

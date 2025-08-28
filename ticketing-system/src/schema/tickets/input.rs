@@ -35,20 +35,6 @@ pub struct UpdateTicketSchema {
 }
 
 #[derive(Deserialize)]
-pub struct GetTicketsSchema {
-    pub statuses: Option<Vec<TicketStatus>>,
-    pub priorities: Option<Vec<TicketPriority>>,
-    pub planned_from: Option<DateTime<Utc>>,
-    pub planned_to: Option<DateTime<Utc>>,
-    pub order_by: Option<OrderBy>,
-    pub sort_order: Option<SortOrder>,
-    pub page: Option<TicketId>,
-    pub page_size: Option<i8>,
-    pub buildings: Option<Vec<i16>>,
-    pub assigned_to: Option<UserId>,
-}
-
-#[derive(Deserialize)]
 pub struct ChangeNameSchema {
     pub name: Name,
 }

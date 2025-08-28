@@ -33,6 +33,15 @@ macro_rules! build_where_condition {
         }
     };
 
+    ($builder:expr, $has_filters:expr, $field:expr, $column:literal, ilike) => {
+        if let Some(value) = &$field {
+            build_where_condition!(@add_where_and $builder, $has_filters);
+            $builder
+                .push(concat!($column, " ILIKE "))
+                .push_bind(format!("%{}%", value));
+        }
+    };
+
     (@add_where_and $builder:expr, $has_filters:expr) => {
         if !$has_filters {
             $builder.push("WHERE ");
