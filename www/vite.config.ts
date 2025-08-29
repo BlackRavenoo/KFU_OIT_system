@@ -17,6 +17,7 @@ export default defineConfig({
       useShortDoctype: true
     })
   ],
+  assetsInclude: ['**/*.yaml'],
   build: {
     minify: 'terser',
     terserOptions: {

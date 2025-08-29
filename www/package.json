@@ -3,7 +3,7 @@
 	"description": "KFU OIT System - A web application for managing IT support requests",
 	"author": "ivanvit, BlackRavenoo",
 	"private": true,
-	"version": "0.0.34",
+	"version": "0.0.35",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -30,6 +30,7 @@
 		"terser": "^5.43.1",
 		"typescript": "^5.0.0",
 		"vite": "^6.2.6",
-		"vite-plugin-html-minifier-terser": "^3.8.0"
+		"vite-plugin-html-minifier-terser": "^3.8.0",
+		"js-yaml": "^4.1.0"
 	}
 }

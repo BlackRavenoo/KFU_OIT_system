@@ -39,6 +39,9 @@
         }
     }
 
+    /**
+     * Обновляет URL страницы, добавляя или удаляя параметр 'page' в зависимости от текущей страницы.
+     */
     function updatePageUrl() {
         if (browser) {
             const url = new URL(window.location.href);
@@ -49,6 +52,10 @@
         }
     }
 
+    /**
+     * Обработчик изменения страницы.
+     * @param newPage - новая страница
+     */
     async function handlePageChange(newPage: number) {
         page = newPage;
         updatePageUrl();
@@ -57,6 +64,10 @@
         maxPage = result.max_page;
     }
 
+    /**
+     * Обработчик поиска.
+     * Вызывается по нажатию кнопки поиска или Enter в поле поиска.
+    */
     async function handleSearch() {
         page = 1;
         updatePageUrl();
@@ -77,6 +88,9 @@
         maxPage = result.max_page;
     }
 
+    /**
+     * Обработчик переключения порядка сортировки.
+     */
     async function handleToggleSort() {
         const filters = getTicketsFilters();
         const newOrder = filters.sortOrder === 'asc' ? 'desc' : 'asc';
@@ -90,6 +104,9 @@
         maxPage = result.max_page;
     }
 
+    /**
+     * Обработчик сброса фильтров.
+     */
     async function handleClearFilters() {
         clearTicketsFilters();
         ({
