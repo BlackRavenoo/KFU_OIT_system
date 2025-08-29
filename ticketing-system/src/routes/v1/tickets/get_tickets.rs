@@ -193,7 +193,15 @@ fn get_builder<'a>(schema: &'a GetTicketsSchema, page: TicketId, page_size: i8) 
     build_where_condition!(builder, has_filters, schema.planned_to, "planned_at", "<=");
     build_where_condition!(builder, has_filters, schema.buildings, "building_id", in);
     build_where_condition!(builder, has_filters, schema.assigned_to, "tu.assigned_to", "=");
-    build_where_condition!(builder, has_filters, schema.search, "title", ilike);
+
+    if let Some(s) = &schema.search {
+        build_where_condition!(@add_where_and builder, has_filters);
+        let s = format!("%{}%", s);
+
+        builder.push("(title ILIKE ").push_bind(s.clone())
+            .push(" OR description ILIKE ").push_bind(s)
+            .push(")");
+    }
 
     if has_filters {
         builder.push("\n");
