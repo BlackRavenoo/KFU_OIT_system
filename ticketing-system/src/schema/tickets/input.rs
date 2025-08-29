@@ -2,12 +2,12 @@ use actix_multipart::form::{bytes::Bytes, json::Json, MultipartForm};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
-use crate::{domain::{email::Email, name::Name}, schema::{common::{SortOrder, UserId}, tickets::{OrderBy, TicketId, TicketPriority, TicketStatus}}};
+use crate::{domain::{description::Description, email::Email, name::Name}, schema::tickets::{TicketPriority, TicketStatus}};
 
 #[derive(Deserialize)]
 pub struct CreateTicketSchema {
     pub title: String,
-    pub description: String,
+    pub description: Description,
     pub author: String,
     pub author_contacts: String,
     pub planned_at: Option<DateTime<Utc>>,
@@ -24,7 +24,7 @@ pub struct CreateTicketForm {
 #[derive(Deserialize)]
 pub struct UpdateTicketSchema {
     pub title: Option<String>,
-    pub description: Option<String>,
+    pub description: Option<Description>,
     pub author: Option<String>,
     pub author_contacts: Option<String>,
     pub status: Option<TicketStatus>,

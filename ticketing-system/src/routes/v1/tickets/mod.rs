@@ -36,7 +36,7 @@ pub async fn create_ticket(
         RETURNING id
         "#,
         fields.title,
-        fields.description,
+        fields.description.as_ref(),
         fields.author,
         fields.author_contacts,
         fields.planned_at,
@@ -131,8 +131,10 @@ pub async fn update_ticket(
     let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new("UPDATE tickets SET ");
     let mut has_fields = false;
 
+    let description = schema.description.as_ref().map(|desc| desc.as_ref());
+
     build_update_query!(builder, has_fields, schema.title, "title");
-    build_update_query!(builder, has_fields, schema.description, "description");
+    build_update_query!(builder, has_fields, description, "description");
     build_update_query!(builder, has_fields, schema.author, "author");
     build_update_query!(builder, has_fields, schema.author_contacts, "author_contacts");
     build_update_query!(builder, has_fields, schema.status, "status");
