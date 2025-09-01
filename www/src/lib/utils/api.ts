@@ -1,9 +1,11 @@
 import axios from 'axios'
 import type { AxiosInstance, AxiosResponse, AxiosRequestConfig, AxiosError } from 'axios';
+
 import { refreshAuthTokens } from '$lib/utils/auth/api/api';
 import { getAuthTokens } from '$lib/utils/auth/tokens/tokens';
 import { notification, NotificationType } from '$lib/utils/notifications/notification';
 import { logout } from '$lib/utils/auth/api/api';
+import { navigateToError } from './error';
 
 export interface ApiResponse<T = any> {
     success: boolean;
@@ -43,7 +45,9 @@ apiClient.interceptors.response.use(
     async (error: AxiosError) => {
         if (error.response?.status === 401) {
             const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
-            const isRefreshRequest = originalRequest.url?.includes('token');
+            const isRefreshRequest = originalRequest.url?.includes('token') || 
+                originalRequest.url?.includes('login') ||
+                originalRequest.url?.includes('logout');
             
             if (isRefreshRequest) {
                 logout();
@@ -73,7 +77,14 @@ apiClient.interceptors.response.use(
         }
         
         if (error.response) {
-            if (error.response.status >= 500) {
+            if (error.response.status === 403 || 
+                error.response.status === 406 || 
+                error.response.status === 407 || 
+                error.response.status === 418 || 
+                error.response.status === 423 || 
+                error.response.status === 451) {
+                navigateToError(error.response.status);
+            } else if (error.response.status >= 500) {
                 const originalRequest = error.config as AxiosRequestConfig & { _retryCount?: number };
                 
                 if (originalRequest._retryCount === undefined) 

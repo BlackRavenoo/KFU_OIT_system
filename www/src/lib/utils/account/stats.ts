@@ -1,5 +1,4 @@
 import { api } from '$lib/utils/api';
-import { notification, NotificationType } from '$lib/utils/notifications/notification';
 
 export interface UserStats {
     assignedToMe: number;
@@ -8,13 +7,18 @@ export interface UserStats {
 }
 
 /**
- * 
- * @param userId Идентификатор пользователя
- * @param stats Статистика пользователя
- * @returns Статистика пользователя
+ * Загрузка статистики пользователя
+ * @param userId ID пользователя
+ * @param stats Текущие статистические данные
+ * @returns Обновленные статистические данные
  */
-export async function loadUserStats(userId: string, stats: UserStats): Promise<UserStats> {
+export async function loadUserStats(
+    userId: string, 
+    stats: { assignedToMe: number, completedTickets: number, cancelledTickets: number }
+): Promise<{ assignedToMe: number, completedTickets: number, cancelledTickets: number }> {
     try {
+        if (!userId) return stats;
+        
         const response = await api.get(`/api/v1/user/stats?user_id=${userId}`);
 
         if (response.success) {
@@ -27,7 +31,6 @@ export async function loadUserStats(userId: string, stats: UserStats): Promise<U
         
         return stats;
     } catch (error) {
-        notification('Ошибка загрузки статистики', NotificationType.Error);
         return stats;
     }
 }

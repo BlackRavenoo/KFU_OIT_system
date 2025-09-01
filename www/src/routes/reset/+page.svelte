@@ -1,12 +1,13 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
-    import { error } from '@sveltejs/kit';
     import { page } from '$app/stores';
     import { browser } from '$app/environment';
+    import { fly } from 'svelte/transition';
+
     import { isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle } from '$lib/utils/setup/stores';
+    import { navigateToError } from '$lib/utils/error';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
-    import { fly } from 'svelte/transition';
     
     let token: string | null = null;
     let loading: boolean = true;
@@ -52,20 +53,15 @@
      * Установка заголовка страницы и проверка авторизации пользователя
      */
     onMount(() => {
-    // TDD: fix error handling
         pageTitle.set('Сброс пароля | Система управления заявками ЕИ КФУ');
 
         try {
-            if ($isAuthenticated)
-                throw error(403, { code: 'FORBIDDEN', message: 'Доступ запрещён: вы уже авторизованы' });
-
+            $isAuthenticated && navigateToError(403);
         } catch (error) { }
 
         if (browser && $page.url.searchParams) {
             token = $page.url.searchParams.get('token');
-
-            if (!token)
-                throw error(403, { code: 'FORBIDDEN', message: 'Доступ запрещён: отсутствует токен сброса пароля' });
+            !token && navigateToError(403);
         }
 
         loading = false;

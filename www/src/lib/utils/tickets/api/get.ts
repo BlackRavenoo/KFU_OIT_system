@@ -131,14 +131,14 @@ export async function fetchImages(attachments: string[]): Promise<string[]> {
 }
 
 /**
- * Функция для загрузки активных заявок пользователя
- * @param userId Идентификатор пользователя
- * @returns Три активные заявки пользователя
+ * Загрузка активных заявок пользователя
+ * @param userId ID пользователя
+ * @returns Массив активных заявок
  */
 export async function loadActiveUserTickets(userId: string): Promise<any[]> {
-    if (!userId) return [];
-    
     try {
+        if (!userId) return [];
+        
         const result = await fetchTickets('', {
             assigned_to: userId,
             page: 1,
@@ -150,7 +150,6 @@ export async function loadActiveUserTickets(userId: string): Promise<any[]> {
         
         return result.tickets || [];
     } catch (error) {
-        notification('Ошибка загрузки заявок', NotificationType.Error);
         return [];
     }
 }

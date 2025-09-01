@@ -12,7 +12,7 @@ import type { IUserData } from '../types';
 import { LocalStorageAuthStore } from '$lib/utils/auth/storage/storage';
 import { logout } from '../api/api';
 
-const authStore = new LocalStorageAuthStore();
+export const authStore = new LocalStorageAuthStore();
 
 let initialAuthState = false;
 let initialUserData: IUserData | null = null;
