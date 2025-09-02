@@ -7,8 +7,10 @@ use strum::IntoEnumIterator;
 use crate::{auth::extractor::UserId, build_update_query, schema::{tickets::{Building, ConstsSchema, CreateTicketForm, OrderBy, TicketId, TicketQueryResult, TicketSchemaWithAttachments, TicketStatus, UpdateTicketSchema}}, services::image::{ImageService, ImageType}, utils::cleanup_images};
 
 pub mod get_tickets;
+pub mod unassign_ticket;
 
 pub use get_tickets::get_tickets;
+pub use unassign_ticket::unassign_ticket;
 
 pub async fn create_ticket(
     MultipartForm(ticket): MultipartForm<CreateTicketForm>,
@@ -332,66 +334,6 @@ pub async fn assign_ticket(
         TicketStatus::InProgress as i16,
         ticket_id,
         TicketStatus::Open as i16
-    )
-    .execute(&mut *transaction)
-    .await {
-        tracing::error!("Failed to update status: {:?}", e);
-        return HttpResponse::InternalServerError().finish()
-    }
-
-    match transaction.commit().await {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(e) => {
-            tracing::error!("Failed to commit transaction: {:?}", e);
-            HttpResponse::InternalServerError().finish()
-        },
-    }
-}
-
-pub async fn unassign_ticket(
-    id: web::Path<TicketId>,
-    user_id: UserId,
-    pool: web::Data<PgPool>,
-) -> impl Responder {
-    let ticket_id = id.into_inner();
-
-    let mut transaction = match pool.begin().await {
-        Ok(t) => t,
-        Err(e) => {
-            tracing::error!("Failed to begin transaction: {:?}", e);
-            return HttpResponse::InternalServerError().finish()
-        },
-    };
-
-    let res = sqlx::query!(
-        r#"
-            DELETE FROM tickets_users
-            WHERE ticket_id = $1 AND assigned_to = $2
-        "#,
-        ticket_id,
-        user_id.0.unwrap(),
-    )
-    .execute(&mut *transaction)
-    .await;
-
-    if let Err(e) = res {
-        tracing::error!("Failed to unassign ticket: {:?}", e);
-        return HttpResponse::InternalServerError().finish()
-    }
-
-    if let Err(e) = sqlx::query!(
-        r#"
-            UPDATE tickets
-            SET status = $1
-            WHERE id = $2 AND status = $3 AND NOT EXISTS (
-                SELECT 1
-                FROM tickets_users tu
-                WHERE tu.ticket_id = tickets.id
-            )
-        "#,
-        TicketStatus::Open as i16,
-        ticket_id,
-        TicketStatus::InProgress as i16
     )
     .execute(&mut *transaction)
     .await {
