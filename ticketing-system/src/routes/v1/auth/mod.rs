@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse, Responder};
 
-use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::TokenStore, types::RefreshToken, user_service::UserService}, schema::{auth::{LoginRequest, TokenResponse}, tickets::{ChangeEmailSchema, ChangeNameSchema}}};
+use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::TokenStore, types::RefreshToken, user_service::UserService}, schema::{auth::{LoginRequest, TokenResponse}}};
 
 pub mod change_password;
 pub mod refresh_token;
@@ -72,43 +72,5 @@ pub async fn me(
             tracing::error!("Failed to get user: {:?}", e);
             HttpResponse::InternalServerError().finish()
         }
-    }
-}
-
-pub async fn change_name(
-    user_id: UserId,
-    web::Json(req): web::Json<ChangeNameSchema>,
-    user_service: web::Data<UserService>,
-) -> impl Responder {
-    let user_id = match user_id.0 {
-        Some(id) => id,
-        None => return HttpResponse::Unauthorized().finish()
-    };
-
-    match user_service.change_username(user_id, req.name).await {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(e) => {
-            tracing::error!("Failed to change username: {:?}", e);
-            HttpResponse::InternalServerError().finish()
-        },
-    }
-}
-
-pub async fn change_email(
-    user_id: UserId,
-    web::Json(req): web::Json<ChangeEmailSchema>,
-    user_service: web::Data<UserService>,
-) -> impl Responder {
-    let user_id = match user_id.0 {
-        Some(id) => id,
-        None => return HttpResponse::Unauthorized().finish()
-    };
-
-    match user_service.change_email(user_id, req.email).await {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(e) => {
-            tracing::error!("Failed to change email: {:?}", e);
-            HttpResponse::InternalServerError().finish()
-        },
     }
 }

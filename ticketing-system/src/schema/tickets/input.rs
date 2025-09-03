@@ -33,13 +33,3 @@ pub struct UpdateTicketSchema {
     pub note: Option<String>,
     pub building_id: Option<i16>,
 }
-
-#[derive(Deserialize)]
-pub struct ChangeNameSchema {
-    pub name: Name,
-}
-
-#[derive(Deserialize)]
-pub struct ChangeEmailSchema {
-    pub email: Email,
-}

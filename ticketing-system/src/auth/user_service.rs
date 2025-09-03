@@ -84,32 +84,4 @@ impl UserService {
         .fetch_optional(&self.db_pool)
         .await
     }
-
-    pub async fn change_username(&self, user_id: UserId, name: Name) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "UPDATE users
-            SET name = $1
-            WHERE id = $2",
-            name.as_ref(),
-            user_id
-        )
-        .execute(&self.db_pool)
-        .await?;
-
-        Ok(())
-    }
-
-    pub async fn change_email(&self, user_id: UserId, email: Email) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "UPDATE users
-            SET email = $1
-            WHERE id = $2",
-            email.as_ref(),
-            user_id
-        )
-        .execute(&self.db_pool)
-        .await?;
-
-        Ok(())
-    }
 }
