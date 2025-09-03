@@ -16,7 +16,7 @@ pub enum InviteUserError {
     #[error("User with this email already exists")]
     EmailAlreadyExists,
     #[error(transparent)]
-    UnexpectedError(#[from] anyhow::Error)
+    Unexpected(#[from] anyhow::Error)
 }
 
 impl std::fmt::Debug for InviteUserError {
@@ -29,7 +29,7 @@ impl ResponseError for InviteUserError {
     fn status_code(&self) -> StatusCode {
         match self {
             InviteUserError::EmailAlreadyExists => StatusCode::BAD_REQUEST,
-            InviteUserError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            InviteUserError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

@@ -17,7 +17,7 @@ pub enum ChangePasswordError {
     #[error("Invalid password")]
     InvalidPassword,
     #[error(transparent)]
-    UnexpectedError(#[from] anyhow::Error)
+    Unexpected(#[from] anyhow::Error)
 }
 
 impl std::fmt::Debug for ChangePasswordError {
@@ -30,7 +30,7 @@ impl ResponseError for ChangePasswordError {
     fn status_code(&self) -> StatusCode {
         match self {
             ChangePasswordError::InvalidPassword => StatusCode::BAD_REQUEST,
-            ChangePasswordError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ChangePasswordError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

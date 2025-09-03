@@ -16,7 +16,7 @@ pub enum ChangeStatusError {
     #[error("User not found")]
     UserNotFound,
     #[error(transparent)]
-    UnexpectedError(#[from] anyhow::Error)
+    Unexpected(#[from] anyhow::Error)
 }
 
 impl std::fmt::Debug for ChangeStatusError {
@@ -29,7 +29,7 @@ impl ResponseError for ChangeStatusError {
     fn status_code(&self) -> StatusCode {
         match self {
             ChangeStatusError::UserNotFound => StatusCode::BAD_REQUEST,
-            ChangeStatusError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            ChangeStatusError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

@@ -33,7 +33,7 @@ pub enum GetUsersError {
     #[error("Page number must be greater than 0")]
     InvalidPage,
     #[error(transparent)]
-    UnexpectedError(#[from] anyhow::Error)
+    Unexpected(#[from] anyhow::Error)
 }
 
 impl std::fmt::Debug for GetUsersError {
@@ -45,7 +45,7 @@ impl std::fmt::Debug for GetUsersError {
 impl ResponseError for GetUsersError {
     fn status_code(&self) -> StatusCode {
         match self {
-            GetUsersError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            GetUsersError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
             GetUsersError::InvalidPage => StatusCode::BAD_REQUEST,
         }
     }
