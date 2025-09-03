@@ -17,29 +17,38 @@ export const authStore = new LocalStorageAuthStore();
 let initialAuthState = false;
 let initialUserData: IUserData | null = null;
 
-if (browser) {
-    try {
-        const storedAuth = authStore.get('auth_state');
-        const storedUser = authStore.get('auth_user');
-        
-        const hasInvalidAuthData = 
-            storedAuth === null || 
-            storedUser === null || 
-            storedAuth === undefined || 
-            storedUser === undefined ||
-            storedAuth === '' || 
-            storedUser === '';
+export function initializeAuth() {
+    if (browser) {
+        try {
+            const storedAuth = authStore.get('auth_state');
+            const storedUser = authStore.get('auth_user');
             
-        if (hasInvalidAuthData) {
-            logout();
-        } else {
-            initialAuthState = JSON.parse(storedAuth);
-            initialUserData = JSON.parse(storedUser);
-        } 
-
-    } catch (e) {
-        logout();
+            const hasInvalidAuthData = 
+                storedAuth === null || 
+                storedUser === null || 
+                storedUser === undefined || 
+                storedAuth === undefined ||
+                storedAuth === '' || 
+                storedUser === '';
+                
+            if (hasInvalidAuthData) {
+                authStore.clear('auth_state');
+                authStore.clear('auth_user');
+                initialAuthState = false;
+                initialUserData = null;
+            } else {
+                initialAuthState = JSON.parse(storedAuth);
+                initialUserData = JSON.parse(storedUser);
+            }
+        } catch (e) {
+            authStore.clear('auth_state');
+            authStore.clear('auth_user');
+            initialAuthState = false;
+            initialUserData = null;
+        }
     }
+
+    return { initialAuthState, initialUserData };
 }
 
 export const currentUser = writable<IUserData | null>(browser ? initialUserData : null);

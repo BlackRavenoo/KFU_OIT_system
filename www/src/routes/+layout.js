@@ -4,11 +4,12 @@
  */
 
 import { setTokenStorage, LocalStorageTokenStorage } from '$lib/utils/auth/tokens/storage';
-import { setTicketsFiltersStorage, LocalStorageTicketsFiltersStorage, } from '$lib/utils/tickets/stores';
+import { setTicketsFiltersStorage, LocalStorageTicketsFiltersStorage } from '$lib/utils/tickets/stores';
 import { fetchConsts } from '$lib/utils/tickets/api/get';
 import { checkToken, refreshAuthTokens } from '$lib/utils/auth/tokens/tokens';
 import { browser } from '$app/environment';
-import { authStore } from '$lib/utils/auth/storage/initial';
+import { authStore, initializeAuth, currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
+import { logout } from '$lib/utils/auth/api/api';
 
 const tokenStorage = new LocalStorageTokenStorage();
 setTokenStorage(tokenStorage);
@@ -16,6 +17,11 @@ setTokenStorage(tokenStorage);
 setTicketsFiltersStorage(new LocalStorageTicketsFiltersStorage());
 
 if (browser) {
+    const { initialAuthState, initialUserData } = initializeAuth();
+    
+    currentUser.set(initialUserData);
+    isAuthenticated.set(initialAuthState);
+    
     (async () => {
         try {
             const tokenData = await tokenStorage.get();
@@ -23,8 +29,10 @@ if (browser) {
             const currentAuthState = authStore.get('auth_state');
             
             if (accessToken) {
-                const isTokenExpired = await checkToken();
-                (isTokenExpired || currentAuthState == "false" || !currentAuthState) && await refreshAuthTokens();
+                let isTokenExpired = await checkToken();
+                (!isTokenExpired || currentAuthState == "false" || !currentAuthState) && await refreshAuthTokens();
+            } else if (initialAuthState) {
+                await logout();
             }
         } catch (error) { }
     })();

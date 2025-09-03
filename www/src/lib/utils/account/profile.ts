@@ -14,61 +14,37 @@ export function validateEmail(email: string): boolean {
 }
 
 /**
- * Функция для обновления имени пользователя
- * @param name Новое имя пользователя
- * @returns Обновлено ли имя
+ * Функция для обновления профиля пользователя
+ * @param name Имя пользователя
+ * @param email Email пользователя
+ * @returns Успешно ли обновление профиля
  */
-export async function updateUserName(name: string): Promise<boolean> {
-    if (!name.trim()) return true;
+export async function updateUserProfile(name?: string, email?: string): Promise<boolean> {
+    const profileData: {name?: string, email?: string} = {};
+    
+    if (name) profileData.name = name.trim();
+    if (email) profileData.email = email.trim();
+    
+    if (Object.keys(profileData).length === 0) return true;
     
     try {
-        const response = await api.put('/api/v1/user/name', { name: name.trim() });
-        
-        if (response.success) {
-            const userValue = get(currentUser);
-            if (userValue) {
-                currentUser.update(_ => ({
-                    ...userValue,
-                    name: name.trim()
-                }));
-            }
-            return true;
-        } else {
-            notification('Ошибка при обновлении имени', NotificationType.Error);
-            return false;
-        }
-    } catch (error) {
-        notification('Ошибка при обновлении имени', NotificationType.Error);
-        return false;
-    }
-}
-
-/**
- * Функция для обновления email пользователя
- * @param email Новый email пользователя
- * @returns Обновлен ли email
- */
-export async function updateUserEmail(email: string): Promise<boolean> {
-    if (!email.trim()) return true;
-    
-    try {
-        const response = await api.put('/api/v1/user/email', { email: email.trim() });
+        const response = await api.put('/api/v1/user/profile', profileData);
         
         if (response.success) {
             const userValue = get(currentUser);
             if (userValue) {
                 currentUser.update(user => ({
-                    ...userValue,
-                    email: email.trim()
+                    ...user,
+                    ...profileData
                 }));
             }
             return true;
         } else {
-            notification('Ошибка при обновлении email', NotificationType.Error);
+            notification('Ошибка при обновлении профиля', NotificationType.Error);
             return false;
         }
     } catch (error) {
-        notification('Ошибка при обновлении email', NotificationType.Error);
+        notification('Ошибка при обновлении профиля', NotificationType.Error);
         return false;
     }
 }
@@ -134,16 +110,18 @@ export async function saveUserProfile(
     let success = true;
     let updated = false;
     
-    if (name.trim() && name.trim() !== currentName) {
-        const nameUpdated = await updateUserName(name);
-        success = success && nameUpdated;
-        updated = updated || nameUpdated;
+    const hasProfileChanges = (name.trim() && name.trim() !== currentName) || 
+                             (email.trim() && email.trim() !== currentEmail);
+    
+    if (hasProfileChanges) {
+        const profileUpdated = await updateUserProfile(
+            name.trim() !== currentName ? name : undefined,
+            email.trim() !== currentEmail ? email : undefined
+        );
+        success = success && profileUpdated;
+        updated = updated || profileUpdated;
     }
-    if (email.trim() && email.trim() !== currentEmail) {
-        const emailUpdated = await updateUserEmail(email);
-        success = success && emailUpdated;
-        updated = updated || emailUpdated;
-    }
+    
     if (changePassword && newPassword && currentPassword) {
         const passwordUpdated = await updateUserPassword(currentPassword, newPassword);
         success = success && passwordUpdated;

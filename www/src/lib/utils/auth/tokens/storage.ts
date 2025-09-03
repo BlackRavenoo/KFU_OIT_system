@@ -25,8 +25,12 @@ export class LocalStorageTokenStorage implements ITokenStorage {
         }
     }
 
-    private readFromLocalStorage(): IAuthTokens | null {
-        if (!this.isStorageAvailable()) return null;
+    private readFromLocalStorage(): IAuthTokens {
+        const template: IAuthTokens = {
+            accessToken: '',
+            refreshToken: ''
+        }
+        if (!this.isStorageAvailable()) return template;
 
         try {
             const storedTokens = localStorage.getItem('auth_tokens');
@@ -39,7 +43,7 @@ export class LocalStorageTokenStorage implements ITokenStorage {
                 localStorage.removeItem('auth_tokens');
             } catch { }
         }
-        return null;
+        return template;
     }
 
     get(): IAuthTokens | null {
@@ -76,7 +80,7 @@ export class LocalStorageTokenStorage implements ITokenStorage {
 /**
  * Абстракция для работы с хранилищем токенов.
  */
-let tokenStorage: ITokenStorage | null = null;
+export let tokenStorage: ITokenStorage | null = null;
 
 export function setTokenStorage(storage: ITokenStorage) {
     tokenStorage = storage;
