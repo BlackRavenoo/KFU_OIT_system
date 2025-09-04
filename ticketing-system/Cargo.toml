@@ -29,11 +29,11 @@ tracing-bunyan-formatter = "0.3"
 tracing-log = "0.2"
 tracing-actix-web = "0.7.19"
 tokio = { version = "1.47.1", features = ["full"] }
-uuid = "1.18.0"
+uuid = "1.18"
 jsonwebtoken = "9.3.1"
 argon2 = { version = "0.5.3", features = ["std"] }
 chrono = { version = "0.4.41", features = ["serde"] }
-time = "0.3.41"
+time = "0.3.43"
 num_enum = "0.7"
 ring = "0.17.14"
 hex = "0.4.3"
@@ -47,15 +47,16 @@ rand = "0.9"
 sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls", "macros", "postgres", "uuid", "chrono", "migrate"] }
 bb8-redis = "0.24.0"
 
-aws-config = { version = "1.8.5", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.103.0"
+aws-config = { version = "1.8.6", features = ["behavior-version-latest"] }
+aws-sdk-s3 = { version = "1.104.0", features = ["test-util"] }
 bytes = "1.10.1"
 tokio-util = "0.7.16"
-image = "0.25.6"
-webp = "0.3.0"
+image = "0.25.8"
+webp = "0.3.1"
 
 [dev-dependencies]
 claim = "0.5"
 fake = "4.4"
 proptest = "1.7"
 wiremock = "0.6"
+aws-smithy-mocks = "0.1.1"
