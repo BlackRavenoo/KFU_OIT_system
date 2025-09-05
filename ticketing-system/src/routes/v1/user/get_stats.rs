@@ -51,6 +51,10 @@ pub async fn get_stats(
     Ok(HttpResponse::Ok().json(stats))
 }
 
+#[tracing::instrument(
+    name = "Get user stats from the database.",
+    skip(pool)
+)]
 async fn get_user_stats(pool: &PgPool, user_id: UserId) -> Result<UserStats, sqlx::Error> {
     sqlx::query_as!(
         UserStats,

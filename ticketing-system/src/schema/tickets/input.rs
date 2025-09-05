@@ -2,7 +2,7 @@ use actix_multipart::form::{bytes::Bytes, json::Json, MultipartForm};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
-use crate::{domain::{description::Description, email::Email, name::Name}, schema::tickets::{TicketPriority, TicketStatus}};
+use crate::{domain::{description::Description}, schema::tickets::{TicketPriority, TicketStatus}};
 
 #[derive(Deserialize)]
 pub struct CreateTicketSchema {

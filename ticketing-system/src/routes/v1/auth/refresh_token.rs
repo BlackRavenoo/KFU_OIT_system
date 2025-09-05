@@ -61,6 +61,10 @@ pub async fn refresh_token(
     }))
 }
 
+#[tracing::instrument(
+    name = "Get user role and status from database.",
+    skip(pool)
+)]
 async fn get_user_role_and_status(pool: &PgPool, user_id: UserId) -> Result<(UserRole, UserStatus), sqlx::Error> {
     let rec = sqlx::query!(
         "SELECT role, status FROM users
