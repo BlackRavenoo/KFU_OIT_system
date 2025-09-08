@@ -1,10 +1,11 @@
-name: Test frontend
+name: Test Frontend
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -18,13 +19,16 @@ jobs:
           node-version: '18'
           
       - name: Install dependencies
-        run: npm ci
+        working-directory: ./www
+        run: npm install
         
       - name: Run tests with coverage
+        working-directory: ./www
         run: npm run test:coverage
         
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODE_COV_KEY }}
+          directory: ./www/coverage
           fail_ci_if_error: false
