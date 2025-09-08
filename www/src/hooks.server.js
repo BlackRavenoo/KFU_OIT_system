@@ -1,3 +1,5 @@
+/* istanbul ignore file */
+
 /**
  * @file Server-side hooks for SvelteKit.
  * This file contains hooks that run on the server side,

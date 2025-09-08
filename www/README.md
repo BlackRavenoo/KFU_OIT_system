@@ -1,6 +1,8 @@
 # Frontend часть системы управления заявками ЕИ КФУ
 Актуально для v0.0.38
 
+[![codecov](https://codecov.io/gh/BlackRavenoo/KFU_OIT_system/branch/main/graph/badge.svg)](https://codecov.io/gh/username/repo/branch/main)
+
 ## Технологический стек
 
 - **Фреймворк**: SvelteKit
@@ -58,12 +60,14 @@ www/
 │       ├── +layout.js           # Глобальная логика
 │       ├── +layout.svelte       # Общий шаблон страниц
 │       └── +page.svelte         # Главная страница
+├── tests/            # Тесты (соответствует структуре src/)
 ├── .env              # Переменные окружения (не включены в репозиторий)
 ├── .env.example      # Пример файла с переменными окружения
 ├── package.json      # Зависимости и скрипты проекта
 ├── svelte.config.js  # Конфигурация Svelte
 ├── tsconfig.json     # Конфигурация TypeScript
-└── vite.config.ts    # Конфигурация Vite
+├── vite.config.ts    # Конфигурация Vite
+└── vitest.config.ts  # Конфигурация Vitest
 ```
 
 ## Установка и запуск
