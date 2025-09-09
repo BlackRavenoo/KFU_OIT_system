@@ -1,6 +1,3 @@
-import { fetchConsts } from '$lib/utils/tickets/api/get';
-import { buildings, order } from '$lib/utils/setup/stores';
-
 /**
  * Интерфейс для отслеживания видимости элементов на странице
  * @interface VisibleElements

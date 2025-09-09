@@ -9,7 +9,7 @@ import { fetchConsts } from '$lib/utils/tickets/api/get';
 import { checkToken, refreshAuthTokens } from '$lib/utils/auth/tokens/tokens';
 import { browser } from '$app/environment';
 import { authStore, initializeAuth, currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
-import { logout } from '$lib/utils/auth/api/api';
+import { logout, getUserData } from '$lib/utils/auth/api/api';
 
 const tokenStorage = new LocalStorageTokenStorage();
 setTokenStorage(tokenStorage);
@@ -26,11 +26,35 @@ if (browser) {
         try {
             const tokenData = await tokenStorage.get();
             const accessToken = tokenData?.accessToken;
-            const currentAuthState = authStore.get('auth_state');
+            const refreshToken = tokenData?.refreshToken;
             
             if (accessToken) {
-                let isTokenExpired = await checkToken();
-                (!isTokenExpired || currentAuthState == "false" || !currentAuthState) && await refreshAuthTokens();
+                const isTokenValid = await checkToken();
+                
+                if (!isTokenValid && refreshToken) {
+                    const refreshed = await refreshAuthTokens();
+                    if (refreshed) {
+                        try {
+                            const userData = await getUserData();
+                            isAuthenticated.set(true);
+                            authStore.set('auth_state', "true");
+                        } catch (error) {
+                            await logout();
+                        }
+                    } else {
+                        await logout();
+                    }
+                } else if (!isTokenValid) {
+                    await logout();
+                } else {
+                    try {
+                        const userData = await getUserData();
+                        isAuthenticated.set(true);
+                        authStore.set('auth_state', "true");
+                    } catch (error) {
+                        await logout();
+                    }
+                }
             } else if (initialAuthState) {
                 await logout();
             }

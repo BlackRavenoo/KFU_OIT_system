@@ -52,4 +52,17 @@ describe('Show notification', () => {
         expect(el.textContent).toBe('Info message');
         expect(el.classList.contains('info')).toBe(true);
     });
+
+    it('Display notification without class', () => {
+        notification('Info message', 'TEST' as NotificationType);
+        const el = document.querySelector('.notification') as HTMLDivElement;
+        expect(el).not.toBeNull();
+        expect(el.textContent).toBe('Info message');
+        expect(el.style.backgroundColor).toBe('rgba(60, 60, 60, 0.92)');
+        expect(el.style.color).toBe('rgb(240, 240, 240)');
+        expect(el.classList.contains('info')).toBe(false);
+        expect(el.classList.contains('success')).toBe(false);
+        expect(el.classList.contains('warning')).toBe(false);
+        expect(el.classList.contains('error')).toBe(false);
+    });
 });
