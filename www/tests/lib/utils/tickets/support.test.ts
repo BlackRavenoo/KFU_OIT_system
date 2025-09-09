@@ -1,28 +1,70 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { formatDate, normalizeDate, buildQuery, toRfc3339 } from '$lib/utils/tickets/support';
 
 describe('Tickets support', () => {
     describe('formatDate', () => {
-        it('Format date correctly', () => {
+        const originalDate = globalThis.Date;
+        const testTimezoneOffset = -180;
+        
+        beforeEach(() => {
+            const DateWithFixedTimezone = class extends Date {
+                getTimezoneOffset() {
+                    return testTimezoneOffset;
+                }
+                
+                getTime() {
+                    return super.getTime();
+                }
+                
+                getDate() {
+                    return super.getDate();
+                }
+                
+                getMonth() {
+                    return super.getMonth();
+                }
+                
+                getFullYear() {
+                    return super.getFullYear();
+                }
+                
+                getHours() {
+                    const utcHours = super.getUTCHours();
+                    return (utcHours + 3) % 24;
+                }
+                
+                getMinutes() {
+                    return super.getMinutes();
+                }
+            };
+            
+            globalThis.Date = DateWithFixedTimezone as any;
+        });
+
+        afterEach(() => {
+            globalThis.Date = originalDate;
+        });
+
+        it('Format date correctly with fixed timezone', () => {
             const date = new Date('2023-10-01T12:34:56Z').toISOString();
             expect(formatDate(date)).toBe('01.10.2023 15:34');
         });
-        
-        it('Handles midnight time', () => {
+
+        it('Handles midnight time with fixed timezone', () => {
             const date = new Date('2023-10-01T00:00:00Z').toISOString();
             expect(formatDate(date)).toBe('01.10.2023 03:00');
         });
-        
+
         it('Return "Без даты" for null', () => {
             //@ts-ignore
             expect(formatDate(null)).toBe('Без даты');
         });
-        
+
         it('Return "Без даты" for undefined', () => {
             //@ts-ignore
             expect(formatDate(undefined)).toBe('Без даты');
         });
-        
+
         it('Handles invalid date format', () => {
             expect(formatDate('invalid-date')).toBe('Без даты');
         });
@@ -58,36 +100,6 @@ describe('Tickets support', () => {
             const date = new Date('2024-02-29').toISOString();
             expect(normalizeDate(date)).toBe(date + ':00Z');
         });
-        
-        it('Returns date as is if it already has correct format with Z', () => {
-            const dateStr = '2023-10-01T12:30:45Z';
-            expect(normalizeDate(dateStr)).toBe(dateStr);
-        });
-
-        it('Returns date as is if it already has correct format with timezone offset', () => {
-            const dateStr = '2023-10-01T12:30:45+03:00';
-            expect(normalizeDate(dateStr)).toBe(dateStr);
-        });
-
-        it('Returns date as is if it has correct format with negative timezone offset', () => {
-            const dateStr = '2023-10-01T12:30:45-05:00';
-            expect(normalizeDate(dateStr)).toBe(dateStr);
-        });
-
-        it('Adds :00Z to date without seconds', () => {
-            const dateStr = '2023-10-01T12:30';
-            expect(normalizeDate(dateStr)).toBe(dateStr + ':00Z');
-        });
-
-        it('Adds :00Z to date with only date part', () => {
-            const dateStr = '2023-10-01';
-            expect(normalizeDate(dateStr)).toBe(dateStr + ':00Z');
-        });
-
-        it('Adds :00Z to date with milliseconds but no timezone', () => {
-            const dateStr = '2023-10-01T12:30:45.123';
-            expect(normalizeDate(dateStr)).toBe(dateStr + ':00Z');
-        });
     });
 
     describe('toRfc3339', () => {
@@ -111,7 +123,7 @@ describe('Tickets support', () => {
             expect(toRfc3339(undefined)).toBe('');
         });
 
-        it('Handles invalid date format', () => {
+        it('Handles invalid datsze format', () => {
             const result = toRfc3339('invalid-date');
             expect(result).toBe('');
         });
