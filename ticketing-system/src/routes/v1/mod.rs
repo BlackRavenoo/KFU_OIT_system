@@ -1,6 +1,6 @@
 use actix_web::web;
 
-use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{change_password, login, me, refresh_token}, images::get_image, tickets::{assign_ticket, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket, update_ticket}, user::{change_user_status, get_stats, get_users, invite_user, update_user_profile}}};
+use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{change_password, login, me, refresh_token, register}, images::get_image, tickets::{assign_ticket, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket, update_ticket}, user::{change_user_status, get_stats, get_users, invite_user, update_user_profile}}};
 
 pub mod auth;
 pub mod tickets;
@@ -16,6 +16,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .route("/me", web::get().to(me)
                         .wrap(JwtMiddleware::default()))
                     .route("/token", web::post().to(refresh_token))
+                    .route("/register", web::post().to(register))
             )
             .service(
                 web::scope("/tickets")

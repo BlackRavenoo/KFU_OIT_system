@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 use anyhow::anyhow;
 
-use crate::{auth::types::{AuthUser, User, UserRole, UserStatus}, domain::{email::Email, name::Name, password::Password}, schema::common::UserId, utils::is_password_valid};
+use crate::{auth::types::{AuthUser, User, UserRole, UserStatus}, domain::email::Email, schema::common::UserId, utils::is_password_valid};
 
 pub struct UserService {
     db_pool: PgPool,
@@ -38,37 +38,6 @@ impl UserService {
             role: user.role,
             status: user.status
         })
-    }
-    
-    pub async fn register(&self, name: Name, email: Email, password: Password) -> anyhow::Result<i32> {
-        let existing_user = sqlx::query!(
-            r#"SELECT id FROM users WHERE email = $1"#,
-            email.as_ref()
-        )
-        .fetch_optional(&self.db_pool)
-        .await?;
-        
-        if existing_user.is_some() {
-            return Err(anyhow!("A user with this email already exists"));
-        }
-        
-        let password_hash = password.hash()?;
-        
-        let user_id = sqlx::query!(
-            r#"
-            INSERT INTO users (name, email, password_hash) 
-            VALUES ($1, $2, $3) 
-            RETURNING id
-            "#,
-            name.as_ref(),
-            email.as_ref(),
-            password_hash
-        )
-        .fetch_one(&self.db_pool)
-        .await?
-        .id;
-        
-        Ok(user_id)
     }
 
     pub async fn get_user(&self, user_id: UserId) -> Result<Option<User>, sqlx::Error> {

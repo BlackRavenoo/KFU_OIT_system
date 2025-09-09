@@ -73,13 +73,24 @@ impl RegistrationTokenStore {
         Ok(token)
     }
 
-    pub async fn get_del_token(&self, email: &Email) -> Result<Option<String>, anyhow::Error> {
+    pub async fn get_del_email(&self, token: &str) -> Result<Option<String>, anyhow::Error> {
         let mut con = self.get_connection().await?;
 
-        let token = con.get(self.get_email_key(email.as_ref()))
+        let email: Option<String> = con.get(self.get_key(token))
             .await
-            .context("Failed to get token by email.")?;
+            .context("Failed to get email by token.")?;
 
-        Ok(token)
+        if let Some(email) = email.as_deref() {
+            let res = redis::pipe()
+                .get_del(self.get_key(token))
+                .del(self.get_email_key(email))
+                .query_async::<(Option<String>, ())>(&mut *con)
+                .await
+                .context("Failed to delete token from redis.")?;
+
+            Ok(res.0)
+        } else {
+            Ok(None)
+        }
     }
 }

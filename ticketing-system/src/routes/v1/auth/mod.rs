@@ -4,9 +4,11 @@ use crate::{auth::{extractor::UserId, jwt::JwtService, token_store::TokenStore, 
 
 pub mod change_password;
 pub mod refresh_token;
+pub mod register;
 
 pub use change_password::change_password;
 pub use refresh_token::refresh_token;
+pub use register::register;
 
 pub async fn login(
     web::Json(req): web::Json<LoginRequest>,
