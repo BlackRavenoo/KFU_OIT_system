@@ -2,14 +2,6 @@ use bb8_redis::redis::{from_redis_value, ErrorKind, FromRedisValue};
 use serde::{Deserialize, Serialize};
 use sqlx::Type;
 
-#[derive(Debug, Serialize)]
-pub struct User {
-    pub id: i32,
-    pub name: String,
-    pub email: String,
-    pub role: UserRole
-}
-
 #[derive(Debug)]
 pub struct AuthUser {
     pub id: i32,

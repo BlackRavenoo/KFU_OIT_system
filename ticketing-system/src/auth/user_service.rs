@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 use anyhow::anyhow;
 
-use crate::{auth::types::{AuthUser, User, UserRole, UserStatus}, domain::email::Email, schema::common::UserId, utils::is_password_valid};
+use crate::{auth::types::{AuthUser, UserRole, UserStatus}, domain::email::Email, utils::is_password_valid};
 
 pub struct UserService {
     db_pool: PgPool,
@@ -38,19 +38,5 @@ impl UserService {
             role: user.role,
             status: user.status
         })
-    }
-
-    pub async fn get_user(&self, user_id: UserId) -> Result<Option<User>, sqlx::Error> {
-        sqlx::query_as!(
-            User,
-            r#"
-            SELECT id, name, email, role
-            FROM users
-            WHERE id = $1
-            "#,
-            user_id
-        )
-        .fetch_optional(&self.db_pool)
-        .await
     }
 }

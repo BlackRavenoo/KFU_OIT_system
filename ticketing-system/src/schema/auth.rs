@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{auth::types::UserRole, domain::email::Email, schema::common::UserId};
+use crate::domain::email::Email;
 
 // Input
 
@@ -25,12 +25,4 @@ pub struct TokenResponse {
     pub refresh_token: String,
     pub token_type: String,
     pub expires_in: i64,
-}
-
-#[derive(Serialize)]
-pub struct MeSchema {
-    pub id: UserId,
-    pub name: String,
-    pub email: String,
-    pub role: UserRole
 }
