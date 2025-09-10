@@ -86,7 +86,7 @@ struct SendEmailRequest<'a> {
 mod tests {
     use std::time::Duration;
 
-    use claim::{assert_err, assert_ok};
+    use claims::{assert_err, assert_ok};
     use fake::{faker::{internet::en::SafeEmail, lorem::en::{Paragraph, Sentence}}, Fake, Faker};
     use secrecy::SecretString;
     use wiremock::{matchers::{any, header, header_exists, method, path}, Match, Mock, MockServer, Request, ResponseTemplate};

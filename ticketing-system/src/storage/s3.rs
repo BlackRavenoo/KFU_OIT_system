@@ -153,7 +153,7 @@ impl FileStorage for S3Storage {
 mod tests {
     use aws_sdk_s3::{operation::{get_object::GetObjectOutput, head_object::HeadObjectOutput, put_object::PutObjectOutput}, Client};
     use aws_smithy_mocks::{mock, Rule, RuleMode};
-    use claim::assert_ok;
+    use claims::assert_ok;
 
     use crate::storage::{FileAccess, FileStorage};
 

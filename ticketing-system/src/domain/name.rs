@@ -46,7 +46,7 @@ impl std::fmt::Display for Name {
 #[cfg(test)]
 mod tests {
     use super::Name;
-    use claim::{assert_err, assert_ok};
+    use claims::{assert_err, assert_ok};
     use fake::{faker::name::en, rand::{rngs::StdRng, SeedableRng as _}, Fake as _};
     use proptest::{prelude::{any, Strategy}, prop_assert, proptest};
 

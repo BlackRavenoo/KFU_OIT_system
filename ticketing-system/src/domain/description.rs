@@ -36,7 +36,7 @@ impl TryFrom<String> for Description {
 #[cfg(test)]
 mod tests {
     use super::Description;
-    use claim::{assert_err, assert_ok};
+    use claims::{assert_err, assert_ok};
 
     #[test]
     fn empty_string_is_rejected() {
