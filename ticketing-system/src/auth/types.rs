@@ -1,13 +1,8 @@
+use std::fmt::Debug;
+
 use bb8_redis::redis::{from_redis_value, ErrorKind, FromRedisValue};
 use serde::{Deserialize, Serialize};
 use sqlx::Type;
-
-#[derive(Debug)]
-pub struct AuthUser {
-    pub id: i32,
-    pub role: UserRole,
-    pub status: UserStatus,
-}
 
 #[derive(Debug, Clone, Copy, Type, Serialize, Deserialize, PartialEq, PartialOrd)]
 #[repr(i16)]
@@ -28,6 +23,22 @@ impl From<i16> for UserRole {
                 UserRole::Employee
             }
         }
+    }
+}
+
+impl std::fmt::Display for UserRole {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            UserRole::Employee => "employee",
+            UserRole::Moderator => "moderator",
+            UserRole::Admin => "admin",
+        };
+
+        write!(
+            f,
+            "{}",
+            s
+        )
     }
 }
 
@@ -57,6 +68,23 @@ impl From<i16> for UserStatus {
                 UserStatus::Inactive
             }
         }
+    }
+}
+
+impl std::fmt::Display for UserStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            UserStatus::Active => "active",
+            UserStatus::Sick => "sick",
+            UserStatus::Vacation => "vacation",
+            UserStatus::Inactive => "inactive",
+        };
+
+        write!(
+            f,
+            "{}",
+            s
+        )
     }
 }
 

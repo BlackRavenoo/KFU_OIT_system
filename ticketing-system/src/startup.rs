@@ -6,7 +6,7 @@ use bb8_redis::{bb8::Pool, RedisConnectionManager};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore, user_service::UserService}, config::Settings, email_client::mailersend::MailerSendClient, routes::v1::config, services::{image::ImageService, registration_token::RegistrationTokenStore}};
+use crate::{auth::{jwt::JwtService, token_store::TokenStore}, config::Settings, email_client::mailersend::MailerSendClient, routes::v1::config, services::{image::ImageService, registration_token::RegistrationTokenStore}};
 
 pub struct Application {
     server: Server,
@@ -92,7 +92,6 @@ pub fn run(
     let token_store = Data::new(TokenStore::new(redis_pool.clone()));
     let reg_store = Data::new(RegistrationTokenStore::new(redis_pool));
     let jwt_service = Data::new(jwt_service);
-    let user_service = Data::new(UserService::new(pool.clone()));
     let image_service = Data::new(image_service);
     let pool = Data::new(pool);
     let email_client = Data::new(email_client);
@@ -104,7 +103,6 @@ pub fn run(
             .app_data(token_store.clone())
             .app_data(reg_store.clone())
             .app_data(jwt_service.clone())
-            .app_data(user_service.clone())
             .app_data(image_service.clone())
             .app_data(pool.clone())
             .app_data(email_client.clone())

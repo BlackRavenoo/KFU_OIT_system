@@ -1,19 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::domain::email::Email;
-
 // Input
 
 #[derive(Debug, Deserialize)]
 pub struct RefreshTokenRequest {
     pub refresh_token: String,
-    pub fingerprint: String
-}
-
-#[derive(Deserialize)]
-pub struct LoginRequest {
-    pub email: Email,
-    pub password: String,
     pub fingerprint: String
 }
 
