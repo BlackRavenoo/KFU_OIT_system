@@ -91,9 +91,14 @@ describe('Tickets support', () => {
             expect(normalizeDate(date)).toBe(date + ':00Z');
         });
 
-        it('Handles correct date format', () => {
-            const date = new Date('2023-12-31T23:59:59Z').toISOString() + ':00Z';
-            expect(normalizeDate(date)).toBe(date + ':00Z');
+        it('Returns date as is when it already matches the format', () => {
+            const date = '2023-12-31T23:59:59Z';
+            expect(normalizeDate(date)).toBe(date);
+        });
+
+        it('Returns date as is when it has timezone offset', () => {
+            const date = '2023-12-31T23:59:59+03:00';
+            expect(normalizeDate(date)).toBe(date);
         });
 
         it('Handles leap year', () => {
