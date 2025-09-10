@@ -40,7 +40,7 @@ pub struct RegisterForm {
 
 #[tracing::instrument(
     name = "Register new user",
-    skip(pool, store, data),
+    skip_all,
     fields(name = %data.name, token = %data.token)
 )]
 pub async fn register(
@@ -56,13 +56,11 @@ pub async fn register(
 
     let res = insert_new_user(&pool, data.name, &email, &password_hash).await;
 
-    if let Err(e) = &res {
-        if let Some(db_err) = e.as_database_error() {
-            if db_err.is_unique_violation() {
+    if let Err(e) = &res
+        && let Some(db_err) = e.as_database_error()
+            && db_err.is_unique_violation() {
                 return Err(RegisterError::EmailAlreadyExists)
-            }
-        }
-    };
+            };
 
     res.context("Failed to insert new user")?;
 
