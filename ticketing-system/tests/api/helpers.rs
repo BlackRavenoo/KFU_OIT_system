@@ -1,9 +1,10 @@
+use fake::{faker::internet::en::SafeEmail, Fake};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use wiremock::MockServer;
 use std::sync::LazyLock;
 use uuid::Uuid;
 use ticketing_system::{
-    config::{get_config, DatabaseSettings, S3Settings}, startup::Application, telemetry::{get_subscriber, init_subscriber}
+    auth::types::UserRole, config::{get_config, DatabaseSettings, S3Settings}, startup::Application, telemetry::{get_subscriber, init_subscriber}
 };
 
 static TRACING: LazyLock<()> = LazyLock::new(|| {
@@ -34,10 +35,10 @@ pub struct TestApp {
 
 impl TestApp {
     // Returns access, refresh tokens
-    pub async fn get_admin_jwt_tokens(&self) -> (String, String) {
+    pub async fn get_jwt_tokens(&self, email: &str, password: &str) -> (String, String) {
         let json = serde_json::json!({
-            "email": "admin@example.com",
-            "password": "admin",
+            "email": email,
+            "password": password,
             "fingerprint": "something",
         });
 
@@ -66,6 +67,34 @@ impl TestApp {
                 .to_string()
         )
     }
+
+    pub async fn get_admin_jwt_tokens(&self) -> (String, String) {
+        self.get_jwt_tokens("admin@example.com", "admin").await
+    }
+
+    // Returns email
+    pub async fn create_user(&self, role: UserRole) -> String {
+        let email = SafeEmail().fake::<String>();
+        
+        // Password: admin
+        sqlx::query!("
+            INSERT INTO users (name, email, password_hash, role)
+            VALUES (
+                'user',
+                $1,
+                '$argon2id$v=19$m=19456,t=2,p=1$842ILagOz0rdwfNELPZhPg$KobLaelwC6ZPo2X0555H1rbyPlBo/+N7G+N2NOvKS7w',
+                $2
+            )",
+            email,
+            role as i16
+        )
+        .execute(&self.db_pool)
+        .await
+        .unwrap();
+
+        email
+    }
+
 
     pub fn get_confirmation_links(
         &self,
@@ -139,6 +168,7 @@ pub async fn spawn_app() -> TestApp {
 
     let _ = tokio::spawn(application.run_until_stopped());
     
+    // TODO: I need to clear my redis instance
     TestApp {
         address,
         port: application_port,
