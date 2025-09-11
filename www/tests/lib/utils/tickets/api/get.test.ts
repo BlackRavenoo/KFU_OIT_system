@@ -153,7 +153,7 @@ if (!globalThis.File) {
 
 import setupApiMock from '../../../../apiClientMock';
 import { it, expect, describe, beforeEach } from 'vitest';
-import { fetchTickets, getById, fetchConsts, fetchImages } from '$lib/utils/tickets/api/get';
+import { fetchTickets, getById, fetchConsts, fetchImages, loadActiveUserTickets } from '$lib/utils/tickets/api/get';
 import { getTicketsFilters } from '$lib/utils/tickets/stores';
 import { get } from 'svelte/store';
 import { order, buildings } from '$lib/utils/setup/stores';
@@ -450,5 +450,93 @@ describe('Fetch consts', () => {
 
         await expect(fetchConsts()).rejects.toThrow('Ошибка загрузки констант');
         expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
+    });
+});
+
+describe('Fetch ticket images', () => {
+    beforeEach(() => {
+        helpers.resetMocks();
+        vi.clearAllMocks();
+        
+        globalThis.URL.createObjectURL = vi.fn((blob) => `mocked-url-for-${blob}`);
+    });
+    
+    it('Fetch images successfully', async () => {
+        const capturedUrls: string[] = [];
+        vi.mocked(apiMock.get).mockImplementation((url, ...args) => {
+            capturedUrls.push(url);
+            const blobData = capturedUrls.length === 1 ? 'fake-image-1' : 'fake-image-2';
+            const blob = new Blob([blobData], { type: 'image/png' });
+            return Promise.resolve({
+                success: true,
+                data: blob,
+                status: 200
+            });
+        });
+        
+        const attachments = ['attachment-1', 'attachment-2'];
+        const result = await fetchImages(attachments);
+        
+        expect(capturedUrls[0]).toContain('attachment-1');
+        expect(capturedUrls[1]).toContain('attachment-2');
+        expect(result.length).toBe(2);
+        expect(result[0]).toMatch(/mocked-url-for-/);
+        expect(result[1]).toMatch(/mocked-url-for-/);
+    });
+    
+    it('Handles failed image requests gracefully', async () => {
+        let callCount = 0;
+        vi.mocked(apiMock.get).mockImplementation(() => {
+            callCount++;
+            if (callCount === 1) {
+                const blob = new Blob(['success'], { type: 'image/png' });
+                return Promise.resolve({
+                    success: true,
+                    data: blob,
+                    status: 200
+                });
+            } else {
+                return Promise.resolve({
+                    success: false,
+                    error: 'Not found',
+                    status: 404
+                });
+            }
+        });
+        
+        const attachments = ['success-attachment', 'fail-attachment'];
+        const result = await fetchImages(attachments);
+        
+        expect(result.length).toBe(1);
+        expect(result[0]).toMatch(/mocked-url-for-/);
+    });
+    
+    it('Returns empty array for empty attachments', async () => {
+        const result = await fetchImages([]);
+        
+        expect(result).toEqual([]);
+        expect(apiMock.get).not.toHaveBeenCalled();
+    });
+});
+
+describe('Load active user tickets', () => {
+    beforeEach(() => {
+        helpers.resetMocks();
+        vi.clearAllMocks();
+    });
+
+    it('Return void with error', async () => {
+        vi.doMock('$lib/utils/tickets/api/get', async () => {
+            const originalModule = await vi.importActual('$lib/utils/tickets/api/get');
+            return {
+                ...originalModule,
+                fetchTickets: vi.fn().mockRejectedValue(new Error('Test error'))
+            };
+        });
+        
+        const { loadActiveUserTickets } = await import('$lib/utils/tickets/api/get');
+        
+        const result = await loadActiveUserTickets('test-id');
+        expect(result).toEqual([]);
     });
 });

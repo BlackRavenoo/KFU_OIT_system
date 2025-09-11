@@ -13,7 +13,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"watch:build": "chokidar 'src/**/*' -c 'vite build'",
-		"test": "vitest run",
+		"test": "vitest run --isolate",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
 		"test:ui": "vitest --ui"
