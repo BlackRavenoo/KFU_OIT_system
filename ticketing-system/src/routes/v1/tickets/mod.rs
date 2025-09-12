@@ -1,16 +1,18 @@
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpResponse, Responder};
 use futures_util::{stream, StreamExt as _};
-use sqlx::{Execute as _, PgPool};
+use sqlx::PgPool;
 use strum::IntoEnumIterator;
 
-use crate::{auth::extractor::UserId, build_update_query, schema::{tickets::{Building, ConstsSchema, CreateTicketForm, OrderBy, TicketId, TicketQueryResult, TicketSchemaWithAttachments, TicketStatus, UpdateTicketSchema}}, services::image::{ImageService, ImageType}, utils::cleanup_images};
+use crate::{auth::extractor::UserId, schema::{tickets::{Building, ConstsSchema, CreateTicketForm, OrderBy, TicketId, TicketQueryResult, TicketSchemaWithAttachments, TicketStatus}}, services::image::{ImageService, ImageType}, utils::cleanup_images};
 
 pub mod get_tickets;
 pub mod unassign_ticket;
+pub mod update_ticket;
 
 pub use get_tickets::get_tickets;
 pub use unassign_ticket::unassign_ticket;
+pub use update_ticket::update_ticket;
 
 pub async fn create_ticket(
     MultipartForm(ticket): MultipartForm<CreateTicketForm>,
@@ -122,46 +124,6 @@ pub async fn create_ticket(
             tracing::error!("Failed to commit transaction: {:?}", e);
             HttpResponse::InternalServerError().finish()
         },
-    }
-}
-
-pub async fn update_ticket(
-    ticket_id: web::Path<TicketId>,
-    web::Json(schema): web::Json<UpdateTicketSchema>,
-    pool: web::Data<PgPool>,
-) -> impl Responder {
-    let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new("UPDATE tickets SET ");
-    let mut has_fields = false;
-
-    let description = schema.description.as_ref().map(|desc| desc.as_ref());
-
-    build_update_query!(builder, has_fields, schema.title, "title");
-    build_update_query!(builder, has_fields, description, "description");
-    build_update_query!(builder, has_fields, schema.author, "author");
-    build_update_query!(builder, has_fields, schema.author_contacts, "author_contacts");
-    build_update_query!(builder, has_fields, schema.status, "status");
-    build_update_query!(builder, has_fields, schema.priority, "priority");
-    build_update_query!(builder, has_fields, schema.cabinet, "cabinet");
-    build_update_query!(builder, has_fields, schema.note, "note");
-    build_update_query!(builder, has_fields, schema.building_id, "building_id");
-
-    if !has_fields {
-        return HttpResponse::BadRequest().finish();
-    }
-
-    builder.push(" WHERE id = ");
-    builder.push_bind(ticket_id.into_inner());
-
-    let query = builder.build();
-    
-    tracing::debug!("Update ticket query: {:?}", query.sql());
-
-    match query.execute(pool.as_ref()).await {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(e) => {
-            tracing::error!("Failed to update ticket: {:?}", e);
-            HttpResponse::InternalServerError().finish()
-        }
     }
 }
 
