@@ -54,7 +54,7 @@ pub async fn unassign_ticket(
 }
 
 #[tracing::instrument(
-    name = "Unassign ticket to a user in the database",
+    name = "Unassign ticket from a user in the database",
     skip(transaction)
 )]
 async fn unassign(transaction: &mut Transaction<'_, Postgres>, ticket_id: TicketId, user_id: UserId) -> Result<(), sqlx::Error> {
