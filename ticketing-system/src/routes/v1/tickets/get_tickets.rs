@@ -121,7 +121,7 @@ pub async fn get_tickets(
     if page < 0 {
         return Err(GetTicketsError::InvalidPage)
     }
-        
+
     let mut builder = get_builder(&schema, page, page_size);
 
     let query = builder.build_query_as::<TicketWithMeta>();
