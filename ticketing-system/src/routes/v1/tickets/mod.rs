@@ -4,14 +4,16 @@ use futures_util::{stream, StreamExt as _};
 use sqlx::PgPool;
 use strum::IntoEnumIterator;
 
-use crate::{auth::extractor::UserId, schema::{tickets::{Building, ConstsSchema, CreateTicketForm, OrderBy, TicketId, TicketQueryResult, TicketSchemaWithAttachments, TicketStatus}}, services::image::{ImageService, ImageType}, utils::cleanup_images};
+use crate::{schema::{tickets::{Building, ConstsSchema, CreateTicketForm, OrderBy, TicketId, TicketQueryResult, TicketSchemaWithAttachments}}, services::image::{ImageService, ImageType}, utils::cleanup_images};
 
 pub mod get_tickets;
 pub mod unassign_ticket;
+pub mod assign_ticket;
 pub mod update_ticket;
 
 pub use get_tickets::get_tickets;
 pub use unassign_ticket::unassign_ticket;
+pub use assign_ticket::assign_ticket;
 pub use update_ticket::update_ticket;
 
 pub async fn create_ticket(
@@ -253,61 +255,4 @@ pub async fn get_consts(pool: web::Data<PgPool>) -> impl Responder {
         order_by: OrderBy::iter().collect::<Vec<_>>(),
         buildings,
     })
-}
-
-pub async fn assign_ticket(
-    id: web::Path<TicketId>,
-    user_id: UserId,
-    pool: web::Data<PgPool>,
-) -> impl Responder {
-    let ticket_id = id.into_inner();
-
-    let mut transaction = match pool.begin().await {
-        Ok(t) => t,
-        Err(e) => {
-            tracing::error!("Failed to begin transaction: {:?}", e);
-            return HttpResponse::InternalServerError().finish()
-        },
-    };
-
-    let res = sqlx::query!(
-        r#"
-            INSERT INTO tickets_users(assigned_to, ticket_id)
-            VALUES ($1, $2)
-            ON CONFLICT DO NOTHING
-        "#,
-        user_id.0.unwrap(),
-        ticket_id
-    )
-    .execute(&mut *transaction)
-    .await;
-
-    if let Err(e) = res {
-        tracing::error!("Failed to assign ticket: {:?}", e);
-        return HttpResponse::InternalServerError().finish()
-    }
-
-    if let Err(e) = sqlx::query!(
-        r#"
-            UPDATE tickets
-            SET status = $1
-            WHERE id = $2 AND status = $3
-        "#,
-        TicketStatus::InProgress as i16,
-        ticket_id,
-        TicketStatus::Open as i16
-    )
-    .execute(&mut *transaction)
-    .await {
-        tracing::error!("Failed to update status: {:?}", e);
-        return HttpResponse::InternalServerError().finish()
-    }
-
-    match transaction.commit().await {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(e) => {
-            tracing::error!("Failed to commit transaction: {:?}", e);
-            HttpResponse::InternalServerError().finish()
-        },
-    }
 }
