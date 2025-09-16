@@ -1,7 +1,7 @@
 use fake::{faker::internet::en::SafeEmail, Fake};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
-use wiremock::MockServer;
-use std::sync::LazyLock;
+use wiremock::{matchers::{method, path}, Mock, MockServer, ResponseTemplate};
+use std::{borrow::Cow, sync::LazyLock};
 use uuid::Uuid;
 use ticketing_system::{
     auth::types::UserRole, config::{get_config, DatabaseSettings, S3Settings}, startup::Application, telemetry::{get_subscriber, init_subscriber}
@@ -95,6 +95,19 @@ impl TestApp {
         email
     }
 
+    pub async fn invite_user(&self, body: &serde_json::Value, access: Option<&str>) -> reqwest::Response {
+        let mut builder = reqwest::Client::new()
+            .post(format!("{}/v1/user/admin/invite", self.address))
+            .json(body);
+
+        if let Some(access) = access {
+            builder = builder.bearer_auth(access)
+        }
+        
+        builder.send()
+            .await
+            .expect("Failed to execute request")
+    }
 
     pub fn get_confirmation_links(
         &self,
@@ -196,4 +209,35 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to migrate the database");
 
     connection_pool
+}
+
+// Returns email + token
+pub async fn create_invitation(app: &TestApp) -> (String, String) {
+    let email = SafeEmail().fake::<String>();
+
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
+    let mock_guard = Mock::given(path("/v1/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount_as_scoped(&app.email_server)
+        .await;
+
+    app.invite_user(
+        &serde_json::json!({
+            "email": email
+        }),
+        Some(&access)
+    ).await;
+
+    let email_request = &mock_guard.received_requests().await[0];
+
+    let url = app.get_confirmation_links(email_request).html;
+
+    let (_, token) = url.query_pairs()
+        .find(|(key, _)| key == &Cow::Borrowed("token"))
+        .unwrap();
+
+    (email, token.to_string())
 }

@@ -16,17 +16,12 @@ async fn invite_sends_a_confirmation_email_with_a_link() {
         .mount(&app.email_server)
         .await;
 
-    reqwest::Client::new()
-        .post(format!("{}/v1/user/admin/invite", app.address))
-        .json(&serde_json::json!({
+    app.invite_user(
+        &serde_json::json!({
             "email": "someone@admin.com"
-        }))
-        .bearer_auth(access)
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap();
+        }),
+        Some(&access)
+    ).await;
 
     let email_request = &app.email_server.received_requests().await.unwrap()[0];
 
@@ -39,14 +34,12 @@ async fn invite_sends_a_confirmation_email_with_a_link() {
 async fn invite_by_unauthorized_user_returns_401() {
     let app = spawn_app().await;
 
-    let response = reqwest::Client::new()
-        .post(format!("{}/v1/user/admin/invite", app.address))
-        .json(&serde_json::json!({
+    let response = app.invite_user(
+        &serde_json::json!({
             "email": "someone@admin.com"
-        }))
-        .send()
-        .await
-        .unwrap();
+        }),
+        None
+    ).await;
 
     assert_eq!(response.status(), 401);
 }
@@ -59,15 +52,12 @@ async fn invite_by_non_admin_user_returns_403() {
 
     let (access, _) = app.get_jwt_tokens(&email, "admin").await;
 
-    let response = reqwest::Client::new()
-        .post(format!("{}/v1/user/admin/invite", app.address))
-        .json(&serde_json::json!({
+    let response = app.invite_user(
+        &serde_json::json!({
             "email": "someone@admin.com"
-        }))
-        .bearer_auth(access)
-        .send()
-        .await
-        .unwrap();
+        }),
+        Some(&access)
+    ).await;
 
     assert_eq!(response.status(), 403);
 }
@@ -78,15 +68,12 @@ async fn invite_with_invalid_email_returns_400() {
 
     let (access, _) = app.get_admin_jwt_tokens().await;
 
-    let response = reqwest::Client::new()
-        .post(format!("{}/v1/user/admin/invite", app.address))
-        .json(&serde_json::json!({
+    let response = app.invite_user(
+        &serde_json::json!({
             "email": "invalid-email"
-        }))
-        .bearer_auth(access)
-        .send()
-        .await
-        .unwrap();
+        }),
+        Some(&access)
+    ).await;
 
     assert_eq!(response.status(), 400);
 }
@@ -97,13 +84,10 @@ async fn invite_with_missing_email_returns_400() {
 
     let (access, _) = app.get_admin_jwt_tokens().await;
 
-    let response = reqwest::Client::new()
-        .post(format!("{}/v1/user/admin/invite", app.address))
-        .json(&serde_json::json!({}))
-        .bearer_auth(access)
-        .send()
-        .await
-        .unwrap();
+    let response = app.invite_user(
+            &serde_json::json!({}),
+            Some(&access)
+        ).await;
 
     assert_eq!(response.status(), 400);
 }
@@ -116,21 +100,18 @@ async fn invite_existing_user_returns_400() {
 
     let (access, _) = app.get_admin_jwt_tokens().await;
 
-    let response = reqwest::Client::new()
-        .post(format!("{}/v1/user/admin/invite", app.address))
-        .json(&serde_json::json!({
+    let response = app.invite_user(
+        &serde_json::json!({
             "email": email
-        }))
-        .bearer_auth(access)
-        .send()
-        .await
-        .unwrap();
+        }),
+        Some(&access)
+    ).await;
 
     assert_eq!(response.status(), 400);
 }
 
 #[tokio::test]
-async fn invite_without_db_returns_500() {
+async fn invite_with_db_err_returns_500() {
     let app = spawn_app().await;
 
     let (access, _) = app.get_admin_jwt_tokens().await;
@@ -142,15 +123,43 @@ async fn invite_without_db_returns_500() {
     .await
     .unwrap();
 
-    let response = reqwest::Client::new()
-        .post(format!("{}/v1/user/admin/invite", app.address))
-        .json(&serde_json::json!({
-            "email": "some@email.com"
-        }))
-        .bearer_auth(access)
-        .send()
-        .await
-        .unwrap();
+    let response = app.invite_user(
+        &serde_json::json!({
+            "email": "someone@admin.com"
+        }),
+        Some(&access)
+    ).await;
 
     assert_eq!(response.status(), 500);
+}
+
+#[tokio::test]
+async fn invite_same_email_twice_returns_same_token() {
+    let app = spawn_app().await;
+
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
+    Mock::given(path("/v1/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(2)
+        .mount(&app.email_server)
+        .await;
+
+    for _ in 0..2 {
+        app.invite_user(
+            &serde_json::json!({
+                "email": "someone@admin.com"
+            }),
+            Some(&access)
+        ).await;
+    }
+
+    let email_requests = &app.email_server.received_requests().await.unwrap();
+
+    let links = email_requests.iter()
+        .map(|email_request|app.get_confirmation_links(email_request))
+        .collect::<Vec<_>>();
+
+    assert_eq!(links[0].html, links[1].html);
 }
