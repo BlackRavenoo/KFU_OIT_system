@@ -40,12 +40,7 @@ pub async fn update_user_profile(
     web::Json(schema): web::Json<UpdateProfileSchema>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, UpdateProfileError> {
-    let user_id = match user_id.0 {
-        Some(id) => id,
-        None => return Ok(HttpResponse::Unauthorized().finish()),
-    };
-
-    update_profile(user_id, &schema, &pool).await?;
+    update_profile(user_id.0, &schema, &pool).await?;
     
     Ok(HttpResponse::Ok().finish())
 }

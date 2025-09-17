@@ -39,12 +39,7 @@ pub async fn get_stats(
     user_id: extractor::UserId,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, GetStatsError> {
-    let user_id = match user_id.0 {
-        Some(id) => id,
-        None => return Err(GetStatsError::Unauthorized),
-    };
-
-    let stats = get_user_stats(&pool, user_id).await
+    let stats = get_user_stats(&pool, user_id.0).await
         .context("Failed to get user stats")?;
 
 

@@ -40,11 +40,8 @@ pub async fn change_password(
     web::Json(req): web::Json<ChangePasswordSchema>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, ChangePasswordError> {
-    let user_id = match user_id.0 {
-        Some(id) => id,
-        None => return Ok(HttpResponse::Unauthorized().finish())
-    };
-
+    let user_id = user_id.0;
+    
     let current_password_hash = get_current_password(user_id, &pool).await
         .context("Failed to get password from database.")?;
 

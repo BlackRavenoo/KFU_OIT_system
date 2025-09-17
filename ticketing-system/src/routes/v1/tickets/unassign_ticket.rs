@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
+use actix_web::{web, HttpResponse, ResponseError};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, Transaction};
 
@@ -16,13 +16,7 @@ impl std::fmt::Debug for UnassignTicketError {
     }
 }
 
-impl ResponseError for UnassignTicketError {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            UnassignTicketError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-}
+impl ResponseError for UnassignTicketError {}
 
 pub async fn unassign_ticket(
     id: web::Path<TicketId>,
@@ -31,16 +25,11 @@ pub async fn unassign_ticket(
 ) -> Result<HttpResponse, UnassignTicketError> {
     let ticket_id = id.into_inner();
 
-    let user_id = match user_id.0 {
-        Some(id) => id,
-        None => return Ok(HttpResponse::Unauthorized().finish()),
-    };
-
     let mut transaction = pool.begin()
         .await
         .context("Failed to acquire a Postgres connection from the pool.")?;
 
-    unassign(&mut transaction, ticket_id, user_id).await
+    unassign(&mut transaction, ticket_id, user_id.0).await
         .context("Failed to unassign ticket.")?;
 
     update_status(&mut transaction, ticket_id).await

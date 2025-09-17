@@ -7,8 +7,6 @@ use crate::{auth::{extractor, types::UserRole}, schema::common::UserId, utils::e
 
 #[derive(thiserror::Error)]
 pub enum MeError {
-    #[error("Missing token")]
-    MissingToken,
     #[error("User does not exist")]
     UserNotExist,
     #[error(transparent)]
@@ -24,7 +22,7 @@ impl std::fmt::Debug for MeError {
 impl ResponseError for MeError {
     fn status_code(&self) -> StatusCode {
         match self {
-            MeError::MissingToken | MeError::UserNotExist => StatusCode::UNAUTHORIZED,
+            MeError::UserNotExist => StatusCode::UNAUTHORIZED,
             MeError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -42,12 +40,7 @@ pub async fn me(
     id: extractor::UserId,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, MeError> {
-    let user_id = match id.0 {
-        Some(id) => id,
-        None => return Err(MeError::MissingToken)
-    };
-
-    let user =  get_user_info(&pool, user_id).await
+    let user =  get_user_info(&pool, id.0).await
         .context("Failed to get user info")?
         .ok_or(MeError::UserNotExist)?;
     

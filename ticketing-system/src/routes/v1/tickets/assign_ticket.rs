@@ -23,17 +23,12 @@ pub async fn assign_ticket(
     user_id: extractor::UserId,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, AssignTicketError> {
-    let user_id = match user_id.0 {
-        Some(id) => id,
-        None => return Ok(HttpResponse::Unauthorized().finish()),
-    };
-
     let ticket_id = id.into_inner();
 
     let mut transaction = pool.begin().await
         .context("Failed to begin transaction")?;
 
-    assign(&mut transaction, ticket_id, user_id).await
+    assign(&mut transaction, ticket_id, user_id.0).await
         .context("Failed to assign ticket")?;
 
     update_status(&mut transaction, ticket_id).await
