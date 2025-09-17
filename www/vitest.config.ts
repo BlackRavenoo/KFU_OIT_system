@@ -32,7 +32,12 @@ export default defineConfig({
         '**/.svelte-kit/**',
         
         '**/stores.ts',
-        '**/routes.ts'
+        '**/routes.ts',
+
+        'tests/**.{js,ts}',
+        'src/**/**/*.svelte',
+        'src/**/+page.ts',
+        '**/+layout.{js,ts}',
       ],
       excludeNodeModules: true,
     }
