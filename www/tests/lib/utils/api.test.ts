@@ -53,7 +53,7 @@ describe('Base API client', () => {
 
     const loadModule = async (axiosFactory: any, navigateMock?: any, notificationMock?: any, authApiMock?: any, tokensMock?: any) => {
         vi.doMock('axios', axiosFactory);
-        vi.doMock('/home/ivanvit/Git/KFU_OIT_system/www/src/lib/utils/error', () => ({ navigateToError: navigateMock ?? vi.fn() }));
+        vi.doMock('$lib/utils/error', () => ({ navigateToError: navigateMock ?? vi.fn() }));
         vi.doMock('$lib/utils/notifications/notification', () => notificationMock ?? ({ notification: vi.fn(), NotificationType: {} }));
         vi.doMock('$lib/utils/auth/api/api', () => authApiMock ?? ({ refreshAuthTokens: vi.fn(), logout: vi.fn() }));
         vi.doMock('$lib/utils/auth/tokens/tokens', () => tokensMock ?? ({ getAuthTokens: vi.fn(() => null) }));

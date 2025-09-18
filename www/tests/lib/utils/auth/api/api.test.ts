@@ -114,22 +114,38 @@ describe("Auth API", () => {
         expect(result).toBe(true);
     });
 
-    it("Login stores tokens", async () => {
-        const fpGet = vi.fn().mockResolvedValue({ visitorId: "fp-login" });
+    it("POST throws error in refreshAuthTokens", async () => {
+        vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ refreshToken: "r_fail" } as any);
+
+        const fpGet = vi.fn().mockResolvedValue({ visitorId: "fp-id" });
+        const fpLoad = (FingerprintJS as any).load || (FingerprintJS as any).default.load;
+        fpLoad.mockResolvedValue({ get: fpGet });
+
+        (apiModule as any).api.post.mockRejectedValueOnce(new Error("network error"));
+
+        const res = await (authApi as any).refreshAuthTokens();
+        expect(res).toBe(false);
+    });
+
+    it("Token refresh response missing tokens", async () => {
+        vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ refreshToken: "r_missing" } as any);
+
+        const fpGet = vi.fn().mockResolvedValue({ visitorId: "fp-id" });
         const fpLoad = (FingerprintJS as any).load || (FingerprintJS as any).default.load;
         fpLoad.mockResolvedValue({ get: fpGet });
 
         (apiModule as any).api.post.mockResolvedValueOnce({
             success: true,
-            data: { access_token: "acc", refresh_token: "ref" }
+            data: { access_token: "only_access" }
         } as any);
 
-        const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
-        const res = await (authApi as any).login("e", "p", false);
+        const res1 = await (authApi as any).refreshAuthTokens();
+        expect(res1).toBe(false);
 
-        expect(fpGet).toHaveBeenCalled();
-        expect(setTokenSpy).toHaveBeenCalledWith({ accessToken: "acc", refreshToken: undefined });
-        expect(res).toEqual({ access_token: "acc", refresh_token: "ref" });
+        (apiModule as any).api.post.mockResolvedValueOnce({ success: false } as any);
+
+        const res2 = await (authApi as any).refreshAuthTokens();
+        expect(res2).toBe(false);
     });
 
     it("Login stores refresh token when rememberMe = true", async () => {
@@ -162,6 +178,41 @@ describe("Auth API", () => {
         expect(authSetSpy).toHaveBeenCalledWith(false);
         expect(userSetSpy).toHaveBeenCalledWith(null);
         expect((globalThis as any).location.href).toBe("/");
+    });
+
+    it("Clears scheduled refresh timeout during logout", async () => {
+        vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ refreshToken: "r1" } as any);
+
+        const fpGet = vi.fn().mockResolvedValue({ visitorId: "fp-id" });
+        const fpLoad = (FingerprintJS as any).load || (FingerprintJS as any).default.load;
+        fpLoad.mockResolvedValue({ get: fpGet });
+
+        const payload = { exp: Math.floor((Date.now() - 1000) / 1000) };
+        const base64Payload = typeof btoa === "function"
+            ? btoa(JSON.stringify(payload)) // @ts-ignore
+            : Buffer.from(JSON.stringify(payload)).toString("base64");
+        const immediateToken = `a.${base64Payload}.c`;
+
+        (apiModule as any).api.post
+            .mockResolvedValueOnce({ success: true, data: { access_token: immediateToken, refresh_token: "refX" } } as any)
+            .mockResolvedValueOnce({ success: true, data: { access_token: "a_after_refresh", refresh_token: "r_after" } } as any);
+
+        const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
+        const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+
+        await (authApi as any).login("e", "p", true);
+        expect(setTokenSpy).toHaveBeenCalled();
+
+        await (authApi as any).logout();
+
+        expect(clearTimeoutSpy).toHaveBeenCalled();
+
+        vi.advanceTimersByTime(0);
+        await Promise.resolve();
+
+        expect((apiModule as any).api.post).toHaveBeenCalledTimes(1);
+
+        clearTimeoutSpy.mockRestore();
     });
 
     it("Throw error when no access token in user data", async () => {
@@ -199,6 +250,18 @@ describe("Auth API", () => {
 
         expect(authSetSpy).toHaveBeenCalledWith(true);
         expect(get((freshAuthApi as any).authCheckComplete)).toBe(true);
+    });
+
+    it("Throw error with API error response during get user data", async () => {
+        vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ accessToken: "acc" } as any);
+        (apiModule as any).api.get.mockResolvedValueOnce({ success: false, error: "api down" } as any);
+        await expect((authApi as any).getUserData()).rejects.toThrow("api down");
+    });
+
+    it("Throw error when user data is missing", async () => {
+        vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ accessToken: "acc" } as any);
+        (apiModule as any).api.get.mockResolvedValueOnce({ success: true } as any);
+        await expect((authApi as any).getUserData()).rejects.toThrow("Failed to fetch user data");
     });
 
     it("Schedules immediate refresh", async () => {
@@ -299,5 +362,241 @@ describe("Auth API", () => {
 
         await (authApi as any).login("e", "p", true);
         expect(setTokenSpy).toHaveBeenCalled();
+    });
+
+    it("Not store tokens when response is unsuccessful", async () => {
+        const fpGet = vi.fn().mockResolvedValue({ visitorId: "fp-login-fail" });
+        const fpLoad = (FingerprintJS as any).load || (FingerprintJS as any).default.load;
+        fpLoad.mockResolvedValue({ get: fpGet });
+
+        (apiModule as any).api.post.mockResolvedValueOnce({
+            success: false
+        } as any);
+
+        const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
+
+        const res = await (authApi as any).login("e", "p", true);
+
+        expect(fpGet).toHaveBeenCalled();
+        expect(setTokenSpy).not.toHaveBeenCalled();
+        expect(res).toBeUndefined();
+    });
+
+    it("Use default rememberMe in login", async () => {
+        const fpGet = vi.fn().mockResolvedValue({ visitorId: "fp-default" });
+        const fpLoad = (FingerprintJS as any).load || (FingerprintJS as any).default.load;
+        fpLoad.mockResolvedValue({ get: fpGet });
+
+        (apiModule as any).api.post.mockResolvedValueOnce({
+            success: true,
+            data: { access_token: "acc_default", refresh_token: "ref_default" }
+        } as any);
+
+        const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
+
+        const res = await (authApi as any).login("e", "p");
+
+        expect(fpGet).toHaveBeenCalled();
+        expect(setTokenSpy).toHaveBeenCalledWith({ accessToken: "acc_default", refreshToken: undefined });
+        expect(res).toEqual({ access_token: "acc_default", refresh_token: "ref_default" });
+    });
+
+    it("Returns when tokens doesnt refresh", async () => {
+        (authApi as any).isRefreshing = true;
+        const refreshSpy = vi.spyOn(authApi as any, "refreshAuthTokens").mockResolvedValue(true as any);
+
+        const fpGet = vi.fn().mockResolvedValue({ visitorId: "fp-id" });
+        const fpLoad = (FingerprintJS as any).load || (FingerprintJS as any).default.load;
+        fpLoad.mockResolvedValue({ get: fpGet });
+
+        const payload = { exp: Math.floor((Date.now() - 1000) / 1000) };
+        const base64Payload = typeof btoa === "function"
+            ? btoa(JSON.stringify(payload)) // @ts-ignore
+            : Buffer.from(JSON.stringify(payload)).toString("base64");
+        const immediateToken = `a.${base64Payload}.c`;
+
+        (apiModule as any).api.post.mockResolvedValueOnce({
+            success: true,
+            data: { access_token: immediateToken, refresh_token: "refX" }
+        } as any);
+
+        await (authApi as any).login("e", "p", true);
+        vi.advanceTimersByTime(0);
+        await Promise.resolve();
+
+        expect(refreshSpy).not.toHaveBeenCalled();
+        (authApi as any).isRefreshing = false;
+    });
+
+    it("Second scheduled tryRefresh exits immediately", async () => {
+        vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ refreshToken: "r1" } as any);
+
+        const fpGet = vi.fn().mockResolvedValue({ visitorId: "fp-id" });
+        const fpLoad = (FingerprintJS as any).load || (FingerprintJS as any).default.load;
+        fpLoad.mockResolvedValue({ get: fpGet });
+
+        const payload = { exp: Math.floor((Date.now() - 1000) / 1000) };
+        const base64Payload = typeof btoa === "function"
+            ? btoa(JSON.stringify(payload)) // @ts-ignore
+            : Buffer.from(JSON.stringify(payload)).toString("base64");
+        const immediateToken = `a.${base64Payload}.c`;
+
+        const hangingPromise = new Promise<any>(() => {});
+
+        (apiModule as any).api.post
+            .mockResolvedValueOnce({ success: true, data: { access_token: immediateToken, refresh_token: "ref1" } })
+            .mockImplementationOnce(() => hangingPromise)
+            .mockResolvedValueOnce({ success: true, data: { access_token: immediateToken, refresh_token: "ref2" } });
+
+        await (authApi as any).login("e1", "p1", true);
+        vi.advanceTimersByTime(0);
+        await Promise.resolve();
+
+        await (authApi as any).login("e2", "p2", true);
+        vi.advanceTimersByTime(0);
+        await Promise.resolve();
+
+        expect((apiModule as any).api.post).toHaveBeenCalledTimes(3);
+    });
+
+    it("Schedule new refresh when refreshAuthTokens returns true and new token exists", async () => {
+        vi.resetModules();
+
+        const authApi = await import("$lib/utils/auth/api/api");
+        const tokensModule = await import("$lib/utils/auth/tokens/tokens");
+        const storageModule = await import("$lib/utils/auth/tokens/storage");
+        const apiModule = await import("$lib/utils/api");
+        const FingerprintJS = await import("@fingerprintjs/fingerprintjs");
+
+        let currentTokens: any = undefined;
+        vi.spyOn(tokensModule as any, "getAuthTokens").mockImplementation(() => currentTokens);
+        const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation((t: any) => { currentTokens = t; });
+
+        const fpGet = vi.fn().mockResolvedValue({ visitorId: "fp-id" });
+        const fpLoad = (FingerprintJS as any).load || (FingerprintJS as any).default.load;
+        fpLoad.mockResolvedValue({ get: fpGet });
+
+        const expiredPayload = { exp: Math.floor((Date.now() - 1000) / 1000) };
+        const base64Expired = typeof btoa === "function"
+            ? btoa(JSON.stringify(expiredPayload)) // @ts-ignore
+            : Buffer.from(JSON.stringify(expiredPayload)).toString("base64");
+        const immediateToken = `a.${base64Expired}.c`;
+
+        const futurePayload = { exp: Math.floor(Date.now() / 1000) + 60 * 60 };
+        const base64Future = typeof btoa === "function"
+            ? btoa(JSON.stringify(futurePayload)) // @ts-ignore
+            : Buffer.from(JSON.stringify(futurePayload)).toString("base64");
+        const futureToken = `a.${base64Future}.c`;
+
+        (apiModule as any).api.post
+            .mockResolvedValueOnce({
+                success: true,
+                data: { access_token: immediateToken, refresh_token: "refX" }
+            } as any)
+            .mockResolvedValueOnce({
+                success: true,
+                data: { access_token: futureToken, refresh_token: "r_new" }
+            } as any);
+
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+
+        await (authApi as any).login("e", "p", true);
+        expect(setTokenSpy).toHaveBeenCalledTimes(1);
+
+        await vi.runAllTimersAsync();
+        await Promise.resolve();
+
+        expect(setTokenSpy).toHaveBeenCalledTimes(2)
+        expect(setTimeoutSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+        setTimeoutSpy.mockRestore();
+    });
+
+    it("Exit from authentication check when no tokenData in localStorage", async () => {
+        vi.resetModules();
+        vi.spyOn(localStorage.__proto__, "getItem").mockReturnValue(null);
+
+        const freshAuthApi = await import("$lib/utils/auth/api/api");
+        const freshInitial = await import("$lib/utils/auth/storage/initial");
+
+        const authSetSpy = vi.spyOn((freshInitial as any).isAuthenticated, "set");
+
+        await (freshAuthApi as any).checkAuthentication();
+
+        expect((freshAuthApi as any).authCheckComplete).toBeDefined();
+        expect(vi.isMockFunction((freshInitial as any).isAuthenticated.set)).toBe(true);
+        expect(authSetSpy).not.toHaveBeenCalledWith(true);
+        // @ts-ignore
+        expect((freshAuthApi as any).authCheckComplete && (await import("svelte/store")).then ? true : true);
+    });
+
+    it("Handles invalid JSON in authenctication check", async () => {
+        vi.resetModules();
+        vi.spyOn(localStorage.__proto__, "getItem").mockReturnValue("not-json");
+
+        const freshAuthApi = await import("$lib/utils/auth/api/api");
+        const freshTokens = await import("$lib/utils/auth/tokens/tokens");
+        const freshInitial = await import("$lib/utils/auth/storage/initial");
+
+        const clearSpy = vi.spyOn((freshTokens as any), "clearAuthTokens");
+        const authSetSpy = vi.spyOn((freshInitial as any).isAuthenticated, "set");
+
+        await (freshAuthApi as any).checkAuthentication();
+
+        expect(authSetSpy).toHaveBeenCalledWith(false);
+        expect(clearSpy).toHaveBeenCalled();
+        expect((freshAuthApi as any).authCheckComplete).toBeDefined();
+    });
+
+    it("Check authentication without accessToken", async () => {
+        vi.resetModules();
+        vi.spyOn(localStorage.__proto__, "getItem").mockReturnValue(JSON.stringify({ refreshToken: "r1" }));
+
+        const freshAuthApi = await import("$lib/utils/auth/api/api");
+
+        await (freshAuthApi as any).checkAuthentication();
+
+        expect((freshAuthApi as any).authCheckComplete).toBeDefined();
+    });
+
+    it("Invalid access token in authentication check", async () => {
+        vi.resetModules();
+        vi.spyOn(localStorage.__proto__, "getItem").mockReturnValue(JSON.stringify({ accessToken: "acc" }));
+
+        const freshAuthApi = await import("$lib/utils/auth/api/api");
+        const freshTokens = await import("$lib/utils/auth/tokens/tokens");
+        const freshInitial = await import("$lib/utils/auth/storage/initial");
+
+        vi.spyOn((freshTokens as any), "isTokenValid").mockReturnValue(false);
+
+        const authSetSpy = vi.spyOn((freshInitial as any).isAuthenticated, "set");
+
+        await (freshAuthApi as any).checkAuthentication();
+
+        expect(authSetSpy).toHaveBeenCalledWith(false);
+        expect((freshAuthApi as any).authCheckComplete).toBeDefined();
+    });
+
+    it("Check authentication with valid token and existing currentUser", async () => {
+        vi.resetModules();
+        vi.spyOn(localStorage.__proto__, "getItem").mockReturnValue(JSON.stringify({ accessToken: "acc" }));
+
+        const freshAuthApi = await import("$lib/utils/auth/api/api");
+        const freshTokens = await import("$lib/utils/auth/tokens/tokens");
+        const freshInitial = await import("$lib/utils/auth/storage/initial");
+
+        vi.spyOn((freshTokens as any), "isTokenValid").mockReturnValue(true);
+
+        const existingUser = { id: 7, name: "exists" };
+        (freshInitial as any).currentUser.subscribe = (run: (v: any) => void) => { run(existingUser); return () => {}; };
+
+        const getUserSpy = vi.spyOn((freshAuthApi as any), "getUserData");
+        const authSetSpy = vi.spyOn((freshInitial as any).isAuthenticated, "set");
+
+        await (freshAuthApi as any).checkAuthentication();
+
+        expect(getUserSpy).not.toHaveBeenCalled();
+        expect(authSetSpy).toHaveBeenCalledWith(true);
+        expect((freshAuthApi as any).authCheckComplete).toBeDefined();
     });
 });

@@ -63,18 +63,26 @@ function scheduleTokenRefresh(token: string) {
  */
 async function tryRefresh() {
     if (isRefreshing) return;
-    
-    isRefreshing = true;
-    
-    try {
-        const refreshed = await refreshAuthTokens();
+    else {
+        isRefreshing = true;
         
-        if (refreshed) {
-            const newToken = getAuthTokens()?.accessToken;
-            if (newToken) scheduleTokenRefresh(newToken);
+        try {
+            const refreshed = await refreshAuthTokens();
+
+            if (refreshed) {
+                const newToken = getAuthTokens()?.accessToken;
+                if (newToken) scheduleTokenRefresh(newToken);
+                else {
+                    isRefreshing = false;
+                    return;
+                }
+            } else {
+                isRefreshing = false;
+                return;
+            }
+        } finally {
+            isRefreshing = false;
         }
-    } finally {
-        isRefreshing = false;
     }
 }
 
@@ -176,9 +184,9 @@ export async function getUserData(): Promise<IUserData> {
     if (response.success && response.data) {
         currentUser.set(response.data);
         return response.data;
+    } else {
+        throw new Error(response.error || 'Failed to fetch user data');
     }
-
-    throw new Error(response.error || 'Failed to fetch user data');
 }
 
 /**
@@ -188,36 +196,47 @@ export async function getUserData(): Promise<IUserData> {
  */
 export async function checkAuthentication() {
     if (authChecking) return;
-    authChecking = true;
-    
-    try {
-        const tokenData = localStorage.getItem('auth_tokens');
-    
-        if (tokenData) {
-            try {
-                const tokens = JSON.parse(tokenData);
-                if (tokens && tokens.accessToken) {
-                    const isValid = isTokenValid(tokens.accessToken);
-                    
-                    if (isValid) {
-                        isAuthenticated.set(true);
-                        scheduleTokenRefresh(tokens.accessToken);
-                        
-                        if (!get(currentUser)) {
-                            const user = await getUserData();
-                            if (user) currentUser.set(user);
+    else {
+        authChecking = true;
+        
+        try {
+            const tokenData = localStorage.getItem('auth_tokens');
+        
+            if (tokenData) {
+                try {
+                    const tokens = JSON.parse(tokenData);
+                    if (tokens && tokens.accessToken) {
+                        const isValid = isTokenValid(tokens.accessToken);
+
+                        if (isValid) {
+                            isAuthenticated.set(true);
+                            scheduleTokenRefresh(tokens.accessToken);
+
+                            if (!get(currentUser)) {
+                                const user = await getUserData();
+                                if (user) currentUser.set(user);
+                                else isAuthenticated.set(false);
+                            } else {
+                                isAuthenticated.set(true);
+                            }
+                        } else {
+                            isAuthenticated.set(false);
                         }
                     } else {
-                        isAuthenticated.set(false);
+                        authChecking = false;
+                        authCheckComplete.set(true);
                     }
+                } catch (e) {
+                    isAuthenticated.set(false);
+                    clearAuthTokens();
                 }
-            } catch (e) {
-                isAuthenticated.set(false);
-                clearAuthTokens();
+            } else {
+                authChecking = false;
+                authCheckComplete.set(true);
             }
+        } finally {
+            authChecking = false;
+            authCheckComplete.set(true);
         }
-    } finally {
-        authChecking = false;
-        authCheckComplete.set(true);
     }
 }
