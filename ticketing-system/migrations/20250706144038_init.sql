@@ -1,40 +1,42 @@
+CREATE EXTENSION pg_trgm;
+
 -- Auth
 CREATE TABLE users (
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     id INT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    name VARCHAR(128) NOT NULL,
-    email VARCHAR(128) NOT NULL UNIQUE,
-    password_hash VARCHAR(100) NOT NULL,
     role SMALLINT NOT NULL DEFAULT 0,
     status SMALLINT NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    name VARCHAR(128) NOT NULL,
+    email VARCHAR(128) NOT NULL UNIQUE,
+    password_hash VARCHAR(100) NOT NULL
 );
 
 -- Tickets
 CREATE TABLE buildings (
     id SMALLINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    is_active BOOLEAN NOT NULL DEFAULT true,
     code VARCHAR(6) NOT NULL UNIQUE,
-    name VARCHAR(255) NOT NULL,
-    is_active BOOLEAN NOT NULL DEFAULT true
+    name VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE tickets (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    author TEXT NOT NULL,
-    author_contacts TEXT NOT NULL,
+    planned_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status SMALLINT NOT NULL DEFAULT 0 CHECK (status BETWEEN 0 AND 3),
     priority SMALLINT NOT NULL DEFAULT 0 CHECK (priority BETWEEN 0 AND 3),
-    planned_at TIMESTAMPTZ,
-    cabinet VARCHAR(16),
-    note VARCHAR(255),
     building_id SMALLINT REFERENCES buildings(id) ON DELETE RESTRICT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    title VARCHAR(256) NOT NULL,
+    author VARCHAR(128) NOT NULL,
+    author_contacts VARCHAR(16) NOT NULL,
+    cabinet VARCHAR(16),
+    note VARCHAR(256),
+    description TEXT NOT NULL
 );
 
 CREATE TABLE tickets_users (
-    assigned_to INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     ticket_id BIGINT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    assigned_to INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     PRIMARY KEY (assigned_to, ticket_id)
 );
 
@@ -43,6 +45,8 @@ CREATE TABLE ticket_attachments (
     key VARCHAR(64) NOT NULL,
     PRIMARY KEY (ticket_id, key)
 );
+
+CREATE INDEX trgm_tickets_title ON tickets USING GIN(title gin_trgm_ops);
 
 -- admin@example.com admin
 INSERT INTO users (name, email, password_hash, role)
