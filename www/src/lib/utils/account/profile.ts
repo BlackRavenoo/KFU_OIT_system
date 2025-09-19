@@ -33,12 +33,16 @@ export async function updateUserProfile(name?: string, email?: string): Promise<
         if (response.success) {
             const userValue = get(currentUser);
             if (userValue) {
+                // @ts-ignore
                 currentUser.update(user => ({
                     ...user,
                     ...profileData
                 }));
+                return true;
+            } else {
+                notification('Ошибка при обновлении профиля', NotificationType.Error);
+                return false;
             }
-            return true;
         } else {
             notification('Ошибка при обновлении профиля', NotificationType.Error);
             return false;

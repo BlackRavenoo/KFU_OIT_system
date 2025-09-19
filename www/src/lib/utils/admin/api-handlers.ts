@@ -40,7 +40,13 @@ export async function loadItems<T>({
                 } else if (Array.isArray(response.data)) {
                     items = response.data;
                     totalPages = 1;
+                } else {
+                    error = true;
+                    notification(errorMessage, NotificationType.Error);
                 }
+            } else {
+                error = true;
+                notification(errorMessage, NotificationType.Error);
             }
         } else {
             if (response.status === 404) {

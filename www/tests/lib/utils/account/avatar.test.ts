@@ -167,6 +167,16 @@ describe('Work with avatar utils', () => {
         expect(div.style.transform).toContain('translate(10px, 20px) scale(1.5)');
     });
 
+    it('Вoes nothing when image container is missing', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+
+        const { updateImagePosition } = await import('$lib/utils/account/avatar');
+        const res = updateImagePosition(null as any, 5, 6, 2);
+
+        expect(res).toBeUndefined();
+    });
+
     it('Sets dimensions and position', async () => {
         vi.resetModules();
         vi.clearAllMocks();
@@ -179,6 +189,16 @@ describe('Work with avatar utils', () => {
         expect(frame.style.height).toBe('120px');
         expect(frame.style.left).toBe(`${(300 - 120) / 2}px`);
         expect(frame.style.top).toBe(`${(300 - 120) / 2}px`);
+    });
+
+    it('Does nothing when frame is missing', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+
+        const { updateCropFrame } = await import('$lib/utils/account/avatar');
+        const res = updateCropFrame(null as any, 120, 300);
+
+        expect(res).toBeUndefined();
     });
 
     it('Changes scale and keeps within limits', async () => {

@@ -29,8 +29,10 @@ apiClient.interceptors.request.use(
         const tokens = getAuthTokens();
         if (tokens?.accessToken)
             config.headers['Authorization'] = `Bearer ${tokens.accessToken}`;
+        else delete config.headers['Authorization'];
         if (config.data instanceof FormData)
             delete config.headers['Content-Type'];
+        else config.headers['Content-Type'] = 'application/json';
         return config;
     },
     (error) => {
@@ -53,30 +55,34 @@ apiClient.interceptors.response.use(
                 logout();
                 notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
                 return Promise.reject(error);
-            }
-            
-            if (!originalRequest._retry) {
-                originalRequest._retry = true;
-                
-                const refreshed = await refreshAuthTokens();
-                
-                if (refreshed) {
-                    const newTokens = getAuthTokens();
-                    if (newTokens?.accessToken) {
-                        originalRequest.headers = {
-                            ...originalRequest.headers,
-                            'Authorization': `Bearer ${newTokens.accessToken}`
-                        };
-                        return apiClient(originalRequest);
+            } else { 
+                if (!originalRequest._retry) {
+                    originalRequest._retry = true;
+                    
+                    const refreshed = await refreshAuthTokens();
+                    
+                    if (refreshed) {
+                        const newTokens = getAuthTokens();
+                        if (newTokens?.accessToken) {
+                            originalRequest.headers = {
+                                ...originalRequest.headers,
+                                'Authorization': `Bearer ${newTokens.accessToken}`
+                            };
+                            return apiClient(originalRequest);
+                        } else {
+                            logout();
+                            notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
+                            return Promise.reject(error);
+                        }
+                    } else {
+                        logout();
+                        notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
+                        return Promise.reject(error);
                     }
                 }
-                
-                logout();
-                notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
             }
-        }
-        
-        if (error.response) {
+            
+        } else if (error.response) {
             if (error.response.status === 403 || 
                 error.response.status === 406 || 
                 error.response.status === 407 || 
@@ -89,8 +95,7 @@ apiClient.interceptors.response.use(
                 
                 if (originalRequest._retryCount === undefined) 
                     originalRequest._retryCount = 0;
-                
-                if (originalRequest._retryCount < 3) {
+                else if (originalRequest._retryCount < 3) {
                     originalRequest._retryCount++;
 
                     const retryDelay = Math.pow(3, originalRequest._retryCount - 1) * 1000;
@@ -100,12 +105,9 @@ apiClient.interceptors.response.use(
                             resolve(apiClient(originalRequest));
                         }, retryDelay);
                     });
-                } else {
-                    notification('Ошибка запроса', NotificationType.Error);
-                }
+                } else notification('Ошибка запроса', NotificationType.Error);
             }
-        } else if (error.request)
-            notification('Ошибка соединения с сервером', NotificationType.Error);
+        } else notification('Ошибка соединения с сервером', NotificationType.Error);
         
         return Promise.reject(error);
     }

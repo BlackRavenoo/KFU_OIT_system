@@ -21,6 +21,8 @@ export function handleModalKeydown(e: KeyboardEvent, modalElement: HTMLElement) 
         } else if (!e.shiftKey && document.activeElement === lastElement) {
             firstElement.focus();
             e.preventDefault();
+        } else {
+            return true;
         }
     }
     return true;

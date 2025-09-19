@@ -115,6 +115,8 @@ export function constrainCrop(state: AvatarState): AvatarState {
 export function updateImagePosition(imageContainer: HTMLDivElement | null, imgX: number, imgY: number, scale: number): void {
     if (imageContainer)
         imageContainer.style.transform = `translate(${imgX}px, ${imgY}px) scale(${scale})`;
+    else
+        console.warn('Image container not found');
 }
 
 /**
@@ -129,6 +131,8 @@ export function updateCropFrame(cropFrame: HTMLDivElement | null, cropSize: numb
         cropFrame.style.height = `${cropSize}px`;
         cropFrame.style.left = `${(containerSize - cropSize) / 2}px`;
         cropFrame.style.top = `${(containerSize - cropSize) / 2}px`;
+    } else {
+        console.warn('Crop frame not found');
     }
 }
 

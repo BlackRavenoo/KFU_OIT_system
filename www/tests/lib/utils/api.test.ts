@@ -118,20 +118,51 @@ describe('Base API client', () => {
         expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', notificationMock.NotificationType.Warning);
     });
 
-    it('Interceptor initializes _retryCount to 0 and retries', async () => {
+    it('Interceptor initializes _retryCount to 0 and rejects (no retry on first 5xx)', async () => {
+        await loadModule(makeAxiosFactory('ok'));
+
+        const config: any = { url: '/server', headers: {} };
+        const error: any = {
+            response: { status: 500 },
+            config,
+            stacks: []
+        };
+
+        await expect(savedResErrorHandler(error)).rejects.toBeDefined();
+        expect(config._retryCount).toBe(0);
+    });
+
+    it('When _retryCount is 0 interceptor increments and retries (resolves)', async () => {
+        await loadModule(makeAxiosFactory('ok'));
+
         vi.useFakeTimers();
-        try {
-            await loadModule(makeAxiosFactory('ok'));
-            const originalRequest: any = { url: '/server', headers: {} };
-            const axiosError: any = { response: { status: 500 }, config: originalRequest };
-            const p = savedResErrorHandler(axiosError);
-            vi.advanceTimersByTime(1000);
-            const res = await p;
-            expect(originalRequest._retryCount).toBe(1);
-            expect(res).toEqual(expect.objectContaining({ data: expect.any(Object) }));
-        } finally {
-            vi.useRealTimers();
-        }
+
+        const config: any = { url: '/server', headers: {}, _retryCount: 0 };
+        const error: any = {
+            response: { status: 500 },
+            config,
+            stacks: []
+        };
+
+        const retryPromise = savedResErrorHandler(error);
+        vi.advanceTimersByTime(1000);
+
+        await expect(retryPromise).resolves.toBeDefined();
+        expect(config._retryCount).toBe(1);
+
+        vi.useRealTimers();
+    });
+
+    it('Delete Authorization when no token', async () => {
+        await loadModule(makeAxiosFactory('ok'), undefined, undefined, undefined, { getAuthTokens: vi.fn(() => undefined) });
+
+        expect(savedReqHandler).toBeInstanceOf(Function);
+
+        const cfg: any = { headers: { Authorization: 'Bearer should-be-removed' }, data: { foo: 'bar' } };
+        const res = await savedReqHandler(cfg);
+
+        expect(res.headers.Authorization).toBeUndefined();
+        expect(res.headers['Content-Type']).toBe('application/json');
     });
 
     it('API methods return successes', async () => {
@@ -247,5 +278,32 @@ describe('Base API client', () => {
             expect(res.error).toBe('Ошибка соединения');
             expect(res.status).toBe(0);
         }
+    });
+
+    it('Rejects and does not call refreshAuthTokens', async () => {
+        const refreshMock = vi.fn();
+        const logoutMock = vi.fn();
+        await loadModule(makeAxiosFactory('ok'), undefined, undefined, { refreshAuthTokens: refreshMock, logout: logoutMock }, { getAuthTokens: vi.fn(() => ({ accessToken: 'OLD' })) });
+
+        const axiosError: any = { response: { status: 401 }, config: { url: '/some', headers: {}, _retry: true } };
+
+        await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
+        expect(refreshMock).not.toHaveBeenCalled();
+        expect(logoutMock).not.toHaveBeenCalled();
+    });
+
+    it('401 when refresh succeeds but getAuthTokens has no accessToken', async () => {
+        const refreshMock = vi.fn(async () => true);
+        const logoutMock = vi.fn();
+        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const tokensMock = { getAuthTokens: vi.fn(() => null) };
+
+        await loadModule(makeAxiosFactory('ok'), undefined, notificationMock, { refreshAuthTokens: refreshMock, logout: logoutMock }, tokensMock);
+        const axiosError: any = { response: { status: 401 }, config: { url: '/some', headers: {}, _retry: false } };
+
+        await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
+        expect(refreshMock).toHaveBeenCalled();
+        expect(logoutMock).toHaveBeenCalled();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', notificationMock.NotificationType.Warning);
     });
 });

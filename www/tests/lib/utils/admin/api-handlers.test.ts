@@ -273,4 +273,50 @@ describe('Admin api handlers', () => {
         expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка при удалении', notificationMock.NotificationType.Error);
         expect(res).toBe(false);
     });
+
+    it('Response data not items/max_page or array', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const api = await import('$lib/utils/api');
+        api.api.get = vi.fn().mockResolvedValue({
+            success: true,
+            data: { foo: 'bar' }
+        });
+
+        const { loadItems } = await import('$lib/utils/admin/api-handlers');
+        const res = await loadItems<any>({ endpoint: '/weird' });
+
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка при загрузке данных', notificationMock.NotificationType.Error);
+        expect(res.error).toBe(true);
+        expect(res.items).toEqual([]);
+        expect(res.totalPages).toBe(1);
+    });
+
+    it('Response data is falsy', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const api = await import('$lib/utils/api');
+        api.api.get = vi.fn().mockResolvedValue({
+            success: true,
+            data: null
+        });
+
+        const { loadItems } = await import('$lib/utils/admin/api-handlers');
+        const res = await loadItems<any>({ endpoint: '/null-data' });
+
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка при загрузке данных', notificationMock.NotificationType.Error);
+        expect(res.error).toBe(true);
+        expect(res.items).toEqual([]);
+        expect(res.totalPages).toBe(1);
+    });
 });

@@ -113,6 +113,31 @@ describe('Profile data for user account', () => {
         expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка при обновлении профиля', notificationMock.NotificationType.Error);
     });
 
+    it('API succeeds but currentUser is missing', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const mockStore = {
+            subscribe: (run: Function) => { run(null); return () => {}; },
+            set: vi.fn(),
+            update: vi.fn()
+        };
+        vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
+
+        const api = await import('$lib/utils/api');
+        api.api.put = vi.fn().mockResolvedValue({ success: true });
+
+        const { updateUserProfile } = await import('$lib/utils/account/profile');
+        const res = await updateUserProfile('Name', 'email@example.com');
+
+        expect(res).toBe(false);
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка при обновлении профиля', notificationMock.NotificationType.Error);
+    });
+
     it('Update user password', async () => {
         vi.resetModules();
         vi.clearAllMocks();

@@ -118,6 +118,37 @@ describe('Handle keydown in modal', () => {
         expect(result).toBe(true);
         expect(preventDefaultSpy).not.toHaveBeenCalled();
     });
+
+    it('Tab pressed with active element in the middle', () => {
+        const focusableElements = Array.from(
+            modalElement.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            )
+        );
+
+        const middleElement = focusableElements[1] as HTMLElement;
+
+        const event = new KeyboardEvent('keydown', {
+            key: 'Tab',
+            shiftKey: false,
+            bubbles: true
+        });
+
+        const preventDefaultSpy = vi.fn();
+        Object.defineProperty(event, 'preventDefault', {
+            value: preventDefaultSpy
+        });
+        Object.defineProperty(document, 'activeElement', {
+            value: middleElement,
+            writable: true,
+            configurable: true
+        });
+
+        const result = handleModalKeydown(event, modalElement);
+
+        expect(result).toBe(true);
+        expect(preventDefaultSpy).not.toHaveBeenCalled();
+    });
 });
 
 describe('Show modal', () => {
