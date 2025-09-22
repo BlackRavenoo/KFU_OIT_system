@@ -7,29 +7,6 @@ use crate::{schema, utils::error_chain_fmt};
 
 use super::jwt::Claims;
 
-pub struct OptionalUserId(pub Option<schema::common::UserId>);
-
-impl FromRequest for OptionalUserId {
-    type Error = actix_web::Error;
-    type Future = Ready<Result<Self, Self::Error>>;
-
-    fn from_request(req: &HttpRequest, _: &mut actix_web::dev::Payload) -> Self::Future {
-        match req.extensions().get::<Claims>() {
-            Some(claims) => {
-                let user_id = match claims.sub.parse() {
-                    Ok(id) => Some(id),
-                    Err(e) => {
-                        tracing::error!("Failed to parse id from sub field: {:?}", e);
-                        None
-                    },
-                };
-                ready(Ok(OptionalUserId(user_id)))
-            },
-            None => ready(Ok(OptionalUserId(None))),
-        }
-    }
-}
-
 pub struct UserId(pub schema::common::UserId);
 
 #[derive(thiserror::Error)]

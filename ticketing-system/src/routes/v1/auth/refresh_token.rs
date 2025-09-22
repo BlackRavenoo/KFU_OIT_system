@@ -1,8 +1,15 @@
 use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use anyhow::Context;
+use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::{auth::{jwt::JwtService, token_store::{TokenStore, TokenStoreError}, types::{UserRole, UserStatus}}, schema::{auth::{RefreshTokenRequest, TokenResponse}, common::UserId}, utils::error_chain_fmt};
+use crate::{auth::{jwt::JwtService, token_store::{TokenStore, TokenStoreError}, types::{UserRole, UserStatus}}, schema::{auth::TokenResponse, common::UserId}, utils::error_chain_fmt};
+
+#[derive(Debug, Deserialize)]
+pub struct RefreshTokenRequest {
+    pub refresh_token: String,
+    pub fingerprint: String
+}
 
 #[derive(thiserror::Error)]
 pub enum RefreshTokenError {
