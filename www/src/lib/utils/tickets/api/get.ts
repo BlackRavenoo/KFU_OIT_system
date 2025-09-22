@@ -148,7 +148,7 @@ export async function loadActiveUserTickets(userId: string): Promise<any[]> {
             statuses: ['inprogress']
         });
         
-        return result.tickets || [];
+        return result.tickets;
     } catch (error) {
         return [];
     }

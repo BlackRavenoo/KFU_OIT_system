@@ -99,6 +99,8 @@ export class LeminCaptcha extends Captcha {
                 const captcha = window.leminCroppedCaptcha.getCaptcha();
                 if (captcha && typeof captcha.getCaptchaValue === 'function')
                     return captcha.getCaptchaValue();
+                else
+                    return null;
             }
             return null;
         } catch (error) {
@@ -128,9 +130,9 @@ export class LeminCaptcha extends Captcha {
             this.scriptElement.parentNode.removeChild(this.scriptElement);
         
         const container = this.getContainer();
-        if (container)
-            container.innerHTML = '';
-        
+        if (container) container.innerHTML = '';
+        else console.warn(`Container with ID ${this.containerId} does not exist during dispose.`);
+
         this.scriptElement = null;
     }
 

@@ -106,7 +106,7 @@ apiClient.interceptors.response.use(
                         }, retryDelay);
                     });
                 } else notification('Ошибка запроса', NotificationType.Error);
-            }
+            } else notification('Ошибка запроса', NotificationType.Error);
         } else notification('Ошибка соединения с сервером', NotificationType.Error);
         
         return Promise.reject(error);

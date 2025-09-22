@@ -19,8 +19,10 @@ export function setupIntersectionObserver(
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const id = entry.target.id;
-                if (id && id in visibleElements)
-                    visibleElements[id] = true;
+                visibleElements[id] = id && id in visibleElements ? true : false;
+            } else {
+                const id = entry.target.id;
+                visibleElements[id] = false;
             }
         });
     }, options);
@@ -28,6 +30,7 @@ export function setupIntersectionObserver(
     elementIds.forEach(id => {
         const element = document.getElementById(id);
         if (element) observer.observe(element);
+        else console.warn(`Element with id "${id}" not found for IntersectionObserver.`);
     });
 
     return observer;
@@ -43,6 +46,7 @@ export function loadStyleContent(css: string, styleElements: HTMLElement[], id?:
     const style = document.createElement('style');
     style.textContent = css;
     if (id) style.id = id;
+    else style.id = `style-${styleElements.length + 1}`;
     document.head.appendChild(style);
     styleElements.push(style);
     return style;

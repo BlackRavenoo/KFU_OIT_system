@@ -486,5 +486,5 @@ describe('Load active user tickets', () => {
         const calledUrl = (apiMock.get as any).mock.calls[0][0] as string;
         expect(calledUrl).toContain('assigned_to=user-123');
         expect(calledUrl).toContain('page_size=3');
-    });
+    }); 
 });

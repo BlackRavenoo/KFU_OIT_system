@@ -153,6 +153,23 @@ describe('Base API client', () => {
         vi.useRealTimers();
     });
 
+    it('Notifies on non-handled response statuses', async () => {
+        const axiosInstance: any = vi.fn(() => Promise.resolve({ data: {}, status: 200 }));
+        axiosInstance.interceptors = {
+            request: { use: (h: any, e: any) => { savedReqHandler = h; savedReqErrorHandler = e; } },
+            response: { use: (h: any, e: any) => { savedResHandler = h; savedResErrorHandler = e; } }
+        };
+
+        const axiosFactory = () => ({ create: () => axiosInstance, default: { create: () => axiosInstance } });
+        const notificationMock = { notification: vi.fn(), NotificationType: { Error: 'err' } };
+
+        await loadModule(axiosFactory, undefined, notificationMock);
+        const error: any = { response: { status: 400 }, config: { url: '/test', headers: {} } };
+
+        await expect(savedResErrorHandler(error)).rejects.toBeDefined();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', notificationMock.NotificationType.Error);
+    });
+
     it('Delete Authorization when no token', async () => {
         await loadModule(makeAxiosFactory('ok'), undefined, undefined, undefined, { getAuthTokens: vi.fn(() => undefined) });
 

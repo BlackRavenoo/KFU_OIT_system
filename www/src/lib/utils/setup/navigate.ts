@@ -15,7 +15,7 @@ export function navigateToForm() {
                 top: formElement.offsetTop - 100,
                 behavior: 'smooth'
             });
-        }
+        } else window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     if (get(page).url.pathname === '/')
