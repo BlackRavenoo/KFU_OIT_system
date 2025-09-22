@@ -2,19 +2,20 @@ use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpResponse, Responder};
 use futures_util::{stream, StreamExt as _};
 use sqlx::PgPool;
-use strum::IntoEnumIterator;
 
-use crate::{schema::{tickets::{Building, ConstsSchema, CreateTicketForm, OrderBy, TicketId, TicketQueryResult, TicketSchemaWithAttachments}}, services::image::{ImageService, ImageType}, utils::cleanup_images};
+use crate::{schema::{tickets::{CreateTicketForm, TicketId, TicketQueryResult, TicketSchemaWithAttachments}}, services::image::{ImageService, ImageType}, utils::cleanup_images};
 
 pub mod get_tickets;
 pub mod unassign_ticket;
 pub mod assign_ticket;
 pub mod update_ticket;
+pub mod consts;
 
 pub use get_tickets::get_tickets;
 pub use unassign_ticket::unassign_ticket;
 pub use assign_ticket::assign_ticket;
 pub use update_ticket::update_ticket;
+pub use consts::get_consts;
 
 pub async fn create_ticket(
     MultipartForm(ticket): MultipartForm<CreateTicketForm>,
@@ -231,28 +232,4 @@ pub async fn get_ticket(
             HttpResponse::InternalServerError().finish()
         }
     }
-}
-
-pub async fn get_consts(pool: web::Data<PgPool>) -> impl Responder {
-    let buildings = match sqlx::query_as!(
-        Building,
-        r#"
-            SELECT id, code, name
-            FROM buildings
-            WHERE is_active
-        "#
-    )
-    .fetch_all(pool.as_ref())
-    .await {
-        Ok(buildings) => buildings,
-        Err(e) => {
-            tracing::error!("Failed to get building: {:?}", e);
-            return HttpResponse::InternalServerError().finish()
-        },
-    };
-
-    HttpResponse::Ok().json(ConstsSchema {
-        order_by: OrderBy::iter().collect::<Vec<_>>(),
-        buildings,
-    })
 }

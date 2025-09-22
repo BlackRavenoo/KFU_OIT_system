@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use crate::schema::{common::UserId, tickets::{OrderBy, TicketId, TicketPriority, TicketQueryResult, TicketStatus}};
+use crate::schema::{common::UserId, tickets::{TicketId, TicketPriority, TicketQueryResult, TicketStatus}};
 
 #[derive(Serialize)]
 pub struct User {
@@ -77,10 +77,4 @@ pub struct Building {
     pub id: i16,
     pub code: String,
     pub name: String,
-}
-
-#[derive(Serialize)]
-pub struct ConstsSchema {
-    pub order_by: Vec<OrderBy>,
-    pub buildings: Vec<Building>,
 }
