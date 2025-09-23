@@ -17,6 +17,11 @@
         <meta name='description ' content='Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.'>
         <meta name='keywords ' content='ОИТ, ЦИТ, ЕИ КФУ, КФУ, отдел информационных технологий, программисты, Елабужский институт КФУ, Казанский федеральный университет, заявки, система заявок, поддержка, помощь, услуги ОИТ, ИТ услуги, ИТ поддержка, CRM, ticket, ticketing system'>
 
+        <link rel="manifest" href="/PWA/manifest.json">
+        <script>
+            if ('serviceWorker' in navigator)
+                navigator.serviceWorker.register('/PWA/service-worker.js');
+        </script>
         <!-- Schema.org structured data -->
         <script type="application/ld+json">
             {

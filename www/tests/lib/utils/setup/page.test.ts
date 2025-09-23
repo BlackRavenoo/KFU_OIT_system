@@ -18,16 +18,19 @@ class MockIntersectionObserver implements IntersectionObserver {
 }
 
 let warnSpy: any;
+let logSpy: any;
 
 beforeEach(() => {
     globalThis.IntersectionObserver = MockIntersectionObserver;
     warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 });
 
 afterEach(() => {
     // @ts-ignore
     delete global.IntersectionObserver;
     warnSpy.mockRestore();
+    logSpy.mockRestore();
 });
 
 describe('Setup IntersectionObserver', () => {
@@ -40,11 +43,11 @@ describe('Setup IntersectionObserver', () => {
         el2.id = 'el2';
         document.body.appendChild(el2);
 
-        const visibleElements = {"el1": false, "el2": false};
+        const setVisible = vi.fn();
         
         const observer = setupIntersectionObserver(
             [el1.id, el2.id], 
-            visibleElements, 
+            setVisible, 
             { threshold: 0.2, rootMargin: "0px 0px -100px 0px" }
         );
 
@@ -75,10 +78,10 @@ describe('Setup IntersectionObserver', () => {
         el1.id = 'el1';
         document.body.appendChild(el1);
         
-        const visibleElements = {"el1": false};
-        
-        setupIntersectionObserver([el1.id], visibleElements);
-        
+        const setVisible = vi.fn();
+
+        setupIntersectionObserver([el1.id], setVisible);
+
         intersectionCallback!([{
             isIntersecting: true,
             target: el1,
@@ -88,9 +91,9 @@ describe('Setup IntersectionObserver', () => {
             rootBounds: null,
             time: 0
         }], {} as IntersectionObserver);
-        
-        expect(visibleElements.el1).toBe(true);
-        
+
+        expect(setVisible).toHaveBeenCalledWith('el1', true);
+
         document.body.removeChild(el1);
     });
 
@@ -105,13 +108,14 @@ describe('Setup IntersectionObserver', () => {
             disconnect() {}
         };
 
-        const visible: Record<string, boolean> = { section1: true };
-        setupIntersectionObserver(['section1'], visible);
+        const setVisible = vi.fn();
+        setupIntersectionObserver(['section1'], setVisible);
 
-        expect(visible.section1).toBe(false);
+        expect(setVisible).not.toHaveBeenCalled();
+        expect(logSpy).toHaveBeenCalledWith('NOT INTERSECTING', 'section1');
     });
 
-    it('Id not present in visibleElements', () => {
+    it('Calls setVisible for id not present initially', () => {
         const el = { id: 'new-section' };
         document.getElementById = vi.fn().mockReturnValue(el);
 
@@ -122,10 +126,10 @@ describe('Setup IntersectionObserver', () => {
             disconnect() {}
         };
 
-        const visible: Record<string, boolean> = { other: false };
-        setupIntersectionObserver(['new-section'], visible);
+        const setVisible = vi.fn();
+        setupIntersectionObserver(['new-section'], setVisible);
 
-        expect(visible['new-section']).toBe(false);
+        expect(setVisible).toHaveBeenCalledWith('new-section', true);
     });
 
     it('Warning when element for id is not found', () => {
@@ -138,8 +142,8 @@ describe('Setup IntersectionObserver', () => {
             disconnect() {}
         };
 
-        const visible: Record<string, boolean> = {};
-        setupIntersectionObserver(['missing-id'], visible);
+        const setVisible = vi.fn();
+        setupIntersectionObserver(['missing-id'], setVisible);
 
         expect(document.getElementById).toHaveBeenCalledWith('missing-id');
         expect(warnSpy).toHaveBeenCalledWith('Element with id "missing-id" not found for IntersectionObserver.');

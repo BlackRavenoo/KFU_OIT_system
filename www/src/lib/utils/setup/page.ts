@@ -12,18 +12,15 @@ export interface VisibleElements {
  */
 export function setupIntersectionObserver(
     elementIds: string[],
-    visibleElements: VisibleElements,
+    setVisible: (id: string, value: boolean) => void,
     options: IntersectionObserverInit = { threshold: 0.2, rootMargin: "0px 0px -100px 0px" }
 ): IntersectionObserver {
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const id = entry.target.id;
-                visibleElements[id] = id && id in visibleElements ? true : false;
-            } else {
-                const id = entry.target.id;
-                visibleElements[id] = false;
-            }
+            if (entry.isIntersecting)
+                setVisible(entry.target.id, true);
+            else
+                console.log('NOT INTERSECTING', entry.target.id);
         });
     }, options);
 

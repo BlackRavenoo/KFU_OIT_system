@@ -1,0 +1,61 @@
+{
+    "display_override": ["window-controls-overlay"], 
+    "protocol_handlers": [{"protocol":"mailto","url":"/newEmail?to=%s"}], 
+    "name": "Сервисный портал ОИТ КФУ",
+    "short_name": "ОИТ КФУ",
+    "start_url": "https://oit.ivanvit.ru",
+    "display": "standalone",
+    "description": "Сервисный портал для сотрудников ЕИ КФУ",
+    "lang": "ru-RU",
+    "dir": "auto",
+    "theme_color": "#004099",
+    "background_color": "#ffffff",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "https://oit.ivanvit.ru/KFU.ico",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "https://oit.ivanvit.ru/PWA/screenshots/homepage.png",
+            "sizes": "1900x1069",
+            "type": "image/png",
+            "description": "Скриншот главной страницы"
+        },
+        {
+            "src": "https://oit.ivanvit.ru/PWA/screenshots/tickets.png",
+            "sizes": "1600x900",
+            "type": "image/png",
+            "description": "Скриншот страницы заявок"
+        },
+        {
+            "src": "https://oit.ivanvit.ru/PWA/screenshots/ticket.png",
+            "sizes": "1600x900",
+            "type": "image/png",
+            "description": "Скриншот заявки"
+        },
+        {
+            "src": "https://oit.ivanvit.ru/PWA/screenshots/profile.png",
+            "sizes": "1600x900",
+            "type": "image/png",
+            "description": "Скриншот страницы профиля"
+        }
+    ],
+    "prefer_related_applications": false,
+    "shortcuts": [
+        {
+            "name":"Заявки",
+            "url":"/tickets",
+            "description":"Перейти к заявкам"
+        },
+        {
+            "name":"Профиль",
+            "url":"/profile",
+            "description":"Перейти к профилю"
+        }
+    ]
+}

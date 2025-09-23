@@ -47,11 +47,20 @@
      */
     let visibleElements: VisibleElements = {
         hero: false,
-        steps: true,
-        cards: true,
-        stats: true,
-        form: true
+        steps: false,
+        cards: false,
+        stats: false,
+        form: false
     };
+
+    /**
+     * Функция для обновления видимости элемента по его идентификатору.
+     * @param id - Идентификатор элемента.
+     * @param value - Новое значение видимости.
+     */
+    function setVisible(id: string, value: boolean) {
+        visibleElements = { ...visibleElements, [id]: value };
+    }
 
     /**
      * Обработчик изменения файла.
@@ -107,8 +116,12 @@
     */
     onMount(() => {
         loadStyleContent(pageCSS, styleElements, 'page-styles');
-        observer = setupIntersectionObserver(['hero', 'steps', 'cards', 'stats', 'form'], visibleElements, { threshold: 0, rootMargin: "0px" });
-
+        observer = setupIntersectionObserver(
+            ['hero', 'steps', 'cards', 'stats', 'form'],
+            setVisible,
+            { threshold: 0, rootMargin: "0px" }
+        );
+        
         pageTitle.set('Главная | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
         

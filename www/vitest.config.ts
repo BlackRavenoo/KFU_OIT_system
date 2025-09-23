@@ -38,6 +38,7 @@ export default defineConfig({
         'src/**/**/*.svelte',
         'src/**/+page.ts',
         '**/+layout.{js,ts}',
+        '**/**/service-worker.js',
       ],
       excludeNodeModules: true,
     }

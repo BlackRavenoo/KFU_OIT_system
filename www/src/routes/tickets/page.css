@@ -279,8 +279,21 @@ main * * {
     cursor: pointer;
 }
 
+.ticket-card.inprogress {
+    border-left-color: #ffd06a;
+}
+.ticket-card.closed {
+    border-left-color: #9c9c9c;
+}
 .ticket-card:hover, .ticket-item:hover {
     box-shadow: 0 6px 24px rgba(7,92,239,0.13);
+}
+
+.ticket-card.inprogress .ticket-title {
+    color: #ffb800;
+}
+.ticket-card.closed .ticket-title {
+    color: #9c9c9c;
 }
 
 .complete-ticket {

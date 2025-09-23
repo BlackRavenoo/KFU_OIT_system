@@ -25,6 +25,10 @@
         map: false
     };
 
+    function setVisible(id: string, value: boolean) {
+        visibleElements = { ...visibleElements, [id]: value };
+    }
+
     let styleElements: HTMLElement[] = [];
     let observer: IntersectionObserver;
 
@@ -34,7 +38,11 @@
      */
     onMount(() => {
         loadStyleContent(pageCSS, styleElements, 'page-styles');
-        observer = setupIntersectionObserver(['hero', 'contacts', 'map'], visibleElements);
+        observer = setupIntersectionObserver(
+            ['hero', 'contacts', 'map'],
+            setVisible,
+            { threshold: 0, rootMargin: "0px" }
+        );
 
         pageTitle.set('Контакты | Система управления заявками ЕИ КФУ');
         pageDescription.set('Контактная информация Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Боты, адреса, телефоны, email и время работы.');
@@ -131,7 +139,7 @@
                     </span>
                     <h3>Телефон</h3>
                     <p>Основной: <a href="tel:+79869142780">+7 (986) 914-27-80</a></p>
-                    <p>Внутренний: <a href="/">+7 (123) 456-78-90</a></p>
+                    <p>Внутренний: <a href="/contact">111</a></p>
                 </div>
                 <div class="contact-card">
                     <span class="icon">
