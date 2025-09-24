@@ -1,14 +1,16 @@
+use std::{ops::Deref, sync::Arc};
+
 use actix_multipart::form::{bytes::Bytes, json::Json, MultipartForm};
 use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use futures_util::{stream, StreamExt as _};
 use serde::Deserialize;
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, Transaction};
 
-use crate::{domain::description::Description, services::image::{ImageService, ImageServiceError, ImageType}, utils::{cleanup_images, error_chain_fmt}};
+use crate::{domain::description::Description, schema::tickets::TicketId, services::image::{ImageService, ImageServiceError, ImageType}, utils::{cleanup_images, error_chain_fmt}};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct CreateTicketSchema {
     pub title: String,
     pub description: Description,
@@ -54,7 +56,7 @@ impl ResponseError for CreateTicketError {
 pub async fn create_ticket(
     MultipartForm(ticket): MultipartForm<CreateTicketForm>,
     pool: web::Data<PgPool>,
-    image_service: web::Data<ImageService>
+    image_service: web::Data<ImageService>,
 ) -> Result<HttpResponse, CreateTicketError> {
     if ticket.attachments.len() > 5 {
         return Err(CreateTicketError::ALotOfAttachments)
@@ -65,7 +67,44 @@ pub async fn create_ticket(
     let mut transaction = pool.begin().await
         .context("Failed to begin transaction")?;
 
-    let ticket_id = sqlx::query!(
+    let ticket_id = insert_ticket(&mut transaction, fields.0).await
+        .context("Failed to create ticket")?;
+
+    let attachments_len = ticket.attachments.len();
+
+    if attachments_len != 0 {
+        let (keys, status) = upload_attachments(image_service.deref().clone(), ticket.attachments).await;
+
+        if let Err(e) = status && !keys.is_empty() {
+            cleanup_images(image_service.into_inner(), keys, 30, ImageType::Attachments).await;
+            return Err(e.into());
+        }
+ 
+        if let Err(e) = insert_attachments(&mut transaction, ticket_id, &keys).await
+            .context("Failed to insert attachments into database") {
+                if !keys.is_empty() {
+                    cleanup_images(image_service.deref().clone(), keys, 30, ImageType::Attachments).await;
+                }
+        
+                return Err(CreateTicketError::Unexpected(e));
+            }
+    }
+
+    transaction.commit().await
+        .context("Failed to commit transaction")?;
+
+    Ok(HttpResponse::Created().finish())
+}
+
+#[tracing::instrument(
+    name = "Insert ticket into database",
+    skip(transaction)
+)]
+async fn insert_ticket(
+    transaction: &mut Transaction<'_, Postgres>,
+    fields: CreateTicketSchema,
+) -> Result<TicketId, sqlx::Error> {
+    sqlx::query!(
         r#"
         INSERT INTO tickets(title, description, author, author_contacts, planned_at, cabinet, building_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -79,62 +118,64 @@ pub async fn create_ticket(
         fields.cabinet,
         fields.building_id,
     )
-    .fetch_one(&mut *transaction)
+    .fetch_one(transaction.as_mut())
     .await
-    .context("Failed to create ticket")?
-    .id;
+    .map(|row| row.id)
+}
 
-    let attachments_len = ticket.attachments.len();
+#[tracing::instrument(
+    name = "Upload attachments",
+    skip_all
+)]
+async fn upload_attachments(
+    image_service: Arc<ImageService>,
+    attachments: Vec<Bytes>,
+) -> (Vec<String>, Result<(), ImageServiceError>) {
+    let attachments_len = attachments.len();
 
-    if attachments_len != 0 {
-        let results = stream::iter(ticket.attachments)
-            .map(|attachment| image_service.upload_image(ImageType::Attachments, attachment.data))
-            .buffer_unordered(attachments_len)
-            .collect::<Vec<_>>()
-            .await;
-    
-        let mut keys = Vec::with_capacity(attachments_len);
-        let mut status = Ok(());
-    
-        for result in results {
-            match result {
-                Ok(file_path) => keys.push(file_path),
-                Err(e) => {
-                    status = Err(e);
-                }
+    let results = stream::iter(attachments)
+        .map(|attachment| image_service.upload_image(ImageType::Attachments, attachment.data))
+        .buffer_unordered(attachments_len)
+        .collect::<Vec<_>>()
+        .await;
+
+    let mut keys = Vec::with_capacity(attachments_len);
+    let mut status = Ok(());
+
+    for result in results {
+        match result {
+            Ok(file_path) => keys.push(file_path),
+            Err(e) => {
+                status = Err(e);
             }
-        }
-    
-        if let Err(e) = status && !keys.is_empty() {
-            cleanup_images(image_service.into_inner(), keys, 30, ImageType::Attachments).await;
-            return Err(e.into());
-        }
-        
-        if let Err(e) = sqlx::query!(
-            r#"
-            INSERT INTO ticket_attachments (ticket_id, key)
-            SELECT * FROM UNNEST(
-                $1::BIGINT[],
-                $2::VARCHAR(64)[]
-            )
-            "#,
-            &vec![ticket_id; keys.len()],
-            &keys
-        )
-        .execute(&mut *transaction)
-        .await
-        .context("Failed to insert data into ticket_attachments") {
-            if !keys.is_empty() {
-                cleanup_images(image_service.into_inner(), keys, 30, ImageType::Attachments).await;
-            }
-
-            return Err(CreateTicketError::Unexpected(e));
         }
     }
 
+    (keys, status)
+}
 
-    transaction.commit().await
-        .context("Failed to commit transaction")?;
+#[tracing::instrument(
+    name = "Insert attachments into database",
+    skip(transaction)
+)]
+async fn insert_attachments(
+    transaction: &mut Transaction<'_, Postgres>,
+    ticket_id: TicketId,
+    keys: &[String],
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"
+        INSERT INTO ticket_attachments (ticket_id, key)
+        SELECT * FROM UNNEST(
+            $1::BIGINT[],
+            $2::VARCHAR(64)[]
+        )
+        "#,
+        &vec![ticket_id; keys.len()],
+        &keys
+    )
+    .execute(transaction.as_mut())
+    .await?;
 
-    Ok(HttpResponse::Created().finish())
+    Ok(())
 }
