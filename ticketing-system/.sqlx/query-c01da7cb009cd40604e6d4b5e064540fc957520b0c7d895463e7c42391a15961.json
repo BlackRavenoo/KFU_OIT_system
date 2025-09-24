@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO ticket_attachments (ticket_id, key)\n        SELECT * FROM UNNEST(\n            $1::BIGINT[],\n            $2::VARCHAR(64)[]\n        )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "VarcharArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c01da7cb009cd40604e6d4b5e064540fc957520b0c7d895463e7c42391a15961"
+}
