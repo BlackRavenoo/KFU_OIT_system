@@ -3,11 +3,9 @@ use serde::{Deserialize, Serialize};
 use sqlx::Type;
 use strum::EnumIter;
 
-pub mod input;
 pub mod output;
 pub mod sql;
 
-pub use input::*;
 pub use output::*;
 pub use sql::*;
 
