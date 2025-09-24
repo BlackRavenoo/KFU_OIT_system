@@ -1,5 +1,7 @@
 use std::marker::PhantomData;
 
+use actix_web::{http::StatusCode, ResponseError};
+use anyhow::Context;
 use bytes::Bytes;
 use thiserror::Error;
 use uuid::Uuid;
@@ -18,10 +20,18 @@ pub enum ImageServiceError {
     ProcessingError(#[from] ProcessingError),
     #[error("Storage error: {0}")]
     StorageError(#[from] StorageError),
-    #[error("Invalid input: {0}")]
-    InvalidInput(String),
-    #[error("Other error: {0}")]
-    Other(String)
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
+
+impl ResponseError for ImageServiceError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            ImageServiceError::ProcessingError(processing_error) => processing_error.status_code(),
+            ImageServiceError::StorageError(storage_error) => storage_error.status_code(),
+            ImageServiceError::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -75,23 +85,15 @@ impl<P: ImageProcessor> Service<P> {
     }
 
     pub async fn upload_image(&self, image_type: ImageType, data: Bytes) -> Result<String, ImageServiceError> {
-        let res = actix_web::web::block(move ||  P::process(&data)).await;
-        let (image, ext) = match res {
-            Ok(Ok(img)) => img,
-            Ok(Err(e)) => return Err(e.into()),
-            Err(e) => return Err(ImageServiceError::Other(e.to_string())),
-        };
+        let (image, ext) = actix_web::web::block(move ||  P::process(&data)).await
+            .context("Failed to process image")??;
 
         let mut key = format!("{}/{}", image_type.prefix(), Uuid::new_v4());
         key.push_str(ext);
 
-        match self.storage.store(&self.bucket, &key, image).await {
-            Ok(_) => Ok(key),
-            Err(e) => {
-                tracing::error!("Failed to upload image: {:?}", e);
-                Err(e.into())
-            },
-        }
+        self.storage.store(&self.bucket, &key, image).await?;
+
+        Ok(key)
     }
 
     pub async fn delete_image(&self, image_type: ImageType, key: &str) -> Result<(), ImageServiceError> {

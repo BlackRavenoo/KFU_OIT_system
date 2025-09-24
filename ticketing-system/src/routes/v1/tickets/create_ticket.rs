@@ -6,7 +6,7 @@ use futures_util::{stream, StreamExt as _};
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::{domain::description::Description, services::image::{ImageService, ImageType}, utils::{cleanup_images, error_chain_fmt}};
+use crate::{domain::description::Description, services::image::{ImageService, ImageServiceError, ImageType}, utils::{cleanup_images, error_chain_fmt}};
 
 #[derive(Deserialize)]
 pub struct CreateTicketSchema {
@@ -27,6 +27,8 @@ pub struct CreateTicketForm {
 
 #[derive(thiserror::Error)]
 pub enum CreateTicketError {
+    #[error("Error in image service")]
+    ImageServiceError(#[from] ImageServiceError),
     #[error("A lot of attachments")]
     ALotOfAttachments,
     #[error(transparent)]
@@ -42,6 +44,7 @@ impl std::fmt::Debug for CreateTicketError {
 impl ResponseError for CreateTicketError {
     fn status_code(&self) -> StatusCode {
         match self {
+            CreateTicketError::ImageServiceError(e) => e.status_code(),
             CreateTicketError::ALotOfAttachments => StatusCode::BAD_REQUEST,
             CreateTicketError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -91,21 +94,20 @@ pub async fn create_ticket(
             .await;
     
         let mut keys = Vec::with_capacity(attachments_len);
-        let mut has_error = false;
+        let mut status = Ok(());
     
         for result in results {
             match result {
                 Ok(file_path) => keys.push(file_path),
-                Err(_) => {
-                    has_error = true;
+                Err(e) => {
+                    status = Err(e);
                 }
             }
         }
     
-        if has_error && !keys.is_empty() {
+        if let Err(e) = status && !keys.is_empty() {
             cleanup_images(image_service.into_inner(), keys, 30, ImageType::Attachments).await;
-            // TODO: Better error handling
-            return Ok(HttpResponse::InternalServerError().finish())
+            return Err(e.into());
         }
         
         if let Err(e) = sqlx::query!(

@@ -1,3 +1,4 @@
+use actix_web::{http::StatusCode, ResponseError};
 use image::ImageError;
 use thiserror::Error;
 
@@ -6,13 +7,22 @@ pub mod webp;
 #[derive(Error, Debug)]
 pub enum ProcessingError {
     #[error("Failed to process image: {0}")]
-    ImageError(ImageError),
-    #[error("Unsupported image format: {0}")]
-    UnsupportedImageFormat(String),
+    ImageError(#[from] ImageError),
     #[error("Empty input")]
     EmptyInput,
+    #[error("Unimplemented")]
+    Unimplemented,
     #[error("Something went wrong: {0}")]
-    Other(String)
+    Other(#[from] anyhow::Error),
+}
+
+impl ResponseError for ProcessingError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            ProcessingError::EmptyInput | ProcessingError::ImageError(_) => StatusCode::BAD_REQUEST,
+            ProcessingError::Unimplemented | ProcessingError::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
 }
 
 pub trait ImageProcessor {

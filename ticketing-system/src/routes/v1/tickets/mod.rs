@@ -1,5 +1,4 @@
 use actix_web::{web, HttpResponse, Responder};
-use futures_util::StreamExt as _;
 use sqlx::PgPool;
 
 use crate::{schema::{tickets::{TicketId, TicketQueryResult, TicketSchemaWithAttachments}}, services::image::{ImageService, ImageType}, utils::cleanup_images};

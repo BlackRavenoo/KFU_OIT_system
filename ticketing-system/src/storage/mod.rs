@@ -3,6 +3,7 @@ pub mod filesystem;
 
 use std::pin::Pin;
 
+use actix_web::{http::StatusCode, ResponseError};
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures_util::Stream;
@@ -14,6 +15,15 @@ pub enum StorageError {
     NotFound,
     #[error("Other error: {0}")]
     Other(String)
+}
+
+impl ResponseError for StorageError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            StorageError::NotFound => StatusCode::NOT_FOUND,
+            StorageError::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
 }
 
 type ResponseStream = Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send>>;
