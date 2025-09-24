@@ -15,6 +15,7 @@
     import Avatar from '$lib/components/Avatar/Avatar.svelte';
     import Profile from './components/Profile.svelte';
     import Tickets from './components/Tickets.svelte';
+    import Statistics from './components/Statistic.svelte';
     import Users from './components/Users.svelte';
     import Bots from './components/Bots.svelte';
     
@@ -223,6 +224,8 @@
                 />
             {:else if activeTab === Tab.TICKETS}
                 <Tickets />
+            {:else if activeTab === Tab.STATS}
+                <Statistics />
             {:else if activeTab === Tab.USERS}
                 <Users />
             {:else if activeTab === Tab.BOTS}

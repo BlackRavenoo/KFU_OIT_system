@@ -1,5 +1,5 @@
 # Frontend часть системы управления заявками ЕИ КФУ
-Актуально для v0.0.38
+Актуально для v0.0.40
 
 [![Test frontend](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml/badge.svg)](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml)
 [![codecov](https://codecov.io/gh/BlackRavenoo/KFU_OIT_system/branch/main/graph/badge.svg)](https://codecov.io/gh/username/repo/branch/main)
@@ -35,6 +35,7 @@ www/
 │   │   └── utils/         # Утилиты и вспомогательные функции
 │   │       ├── account/   # Функции личного кабинета пользователя
 │   │       ├── admin/     # Функции панели администратора
+│   │       │   ├── statistics  # Функции статистики администратора
 │   │       ├── auth/      # Функции для авторизации
 │   │       │   ├── api/        # API для авторизации
 │   │       │   ├── storage/    # Хранение данных авторизации

@@ -5,7 +5,7 @@ import { goto } from '$app/navigation';
 export const Tab = {
     PROFILE: 'profile',
     TICKETS: 'tickets',
-    STATS: 'stats',
+    STATS: 'statistics',
     USERS: 'users',
     BOTS: 'bots'
 } as const;

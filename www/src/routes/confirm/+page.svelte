@@ -8,6 +8,7 @@
     import { pageTitle } from '$lib/utils/setup/stores';
     import { navigateToError } from '$lib/utils/error';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { api } from '$lib/utils/api';
     
     let token: string | null = null;
     let loading: boolean = true;
@@ -77,23 +78,44 @@
         passwordErrors = validatePassword(password);
         confirmPasswordErrors = validatePasswordMatch(password, confirmPassword);
     }
+
+    /**
+     * Проверка токена на валидность
+     * @param token Токен подтверждения регистрации
+    */
+    async function checkToken(token: string): Promise<boolean> {
+        const res = await api.post<{ valid: boolean }>('/api/v1/auth/validate', { token });
+        return res.success;
+    }
+
+    /**
+     * Завершение регистрации, сохранение данных на сервере
+     */
+    async function finishRegistration() {
+        if (!token) return;
+        isSubmitting = true;
+        const res = await api.post('/api/v1/auth/register', {
+            name: fullName,
+            password,
+            token
+        });
+        if (res.success) {
+            notification('Регистрация завершена!', NotificationType.Success);
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1500);
+        } else {
+            notification('Ошибка регистрации', NotificationType.Error);
+        }
+        isSubmitting = false;
+    }
     
     /**
      * Обработчик отправки формы
      */
     async function handleSubmit() {
         if (nameErrors.length > 0 || passwordErrors.length > 0 || confirmPasswordErrors.length > 0) return;
-        
-        isSubmitting = true;
-        
-        try {
-            // !!! TDD !!!
-            
-        } catch (err: any) {
-            notification('Ошибка при подтверждении регистрации', NotificationType.Error);
-        } finally {
-            isSubmitting = false;
-        }
+        await finishRegistration();
     }
     
     /**
@@ -114,17 +136,16 @@
      * Инициализация страницы
      * Установка заголовка страницы и проверка авторизации пользователя
      */
-    onMount(() => {
+    onMount(async () => {
         pageTitle.set('Подтверждение регистрации | Система управления заявками ЕИ КФУ');
-
+        
         try {
             $isAuthenticated && navigateToError(403);
         } catch (error) { }
-
+        
         if (browser && $page.url.searchParams) {
             token = $page.url.searchParams.get('token');
-
-            if (!token) {
+            if (!token || !(await checkToken(token))) {
                 navigateToError(404);
                 return;
             }
@@ -134,7 +155,7 @@
                 return;
             }
         }
-
+        
         loading = false;
     });
     
