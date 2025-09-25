@@ -4,10 +4,8 @@ use sqlx::Type;
 use strum::EnumIter;
 
 pub mod output;
-pub mod sql;
 
 pub use output::*;
-pub use sql::*;
 
 pub type TicketId = i64;
 
