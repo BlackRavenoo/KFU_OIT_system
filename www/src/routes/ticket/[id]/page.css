@@ -68,10 +68,10 @@ main {
 }
 
 .low-priority {
-    color: #a8a8a8 !important;
+    color: #595959 !important;
 }
 .medium-priority {
-    color: #efff5e !important;
+    color: #ffbb29 !important;
 }
 .high-priority {
     color: #ff683a !important;
@@ -83,13 +83,13 @@ main {
     color: var(--blue)  !important;
 }
 .in-progress-status {
-    color: #ffad6a !important;
+    color: #ffbb29 !important;
 }
 .closed-status {
     color: var(--text) !important;
 }
 .cancelled-status {
-    color: #e65400 !important;
+    color: #ff6f6a !important;
 }
 
 .ticket-info-container {

@@ -280,30 +280,36 @@ main * * {
 }
 
 .ticket-card.inprogress {
-    border-left-color: #ffd06a;
+    border-left-color: #ffbb29;
 }
 .ticket-card.closed {
-    border-left-color: #9c9c9c;
+    border-left-color: #595959;
+}
+.ticket-card.cancelled {
+    border-left-color: #ff6f6a;
 }
 .ticket-card:hover, .ticket-item:hover {
     box-shadow: 0 6px 24px rgba(7,92,239,0.13);
 }
 
 .ticket-card.inprogress .ticket-title {
-    color: #ffb800;
+    color: #ffbb29;
 }
 .ticket-card.closed .ticket-title {
-    color: #9c9c9c;
+    color: #595959;
+}
+.ticket-card.cancelled .ticket-title {
+    color: #ff6f6a;
 }
 
 .complete-ticket {
-    border-left-color: #9c9c9c;
+    border-left-color: #595959;
 }
 .canceled-ticket {
-    border-left-color: #ffad6a;
+    border-left-color: #ffbb29;
 }
 .expired-ticket {
-    border-left-color: #e65400;
+    border-left-color: #ff6f6a;
 }
 
 .ticket-title {
@@ -313,13 +319,13 @@ main * * {
     margin-bottom: 0.2rem;
 }
 .complete-ticket .ticket-title {
-    color: #9c9c9c;
+    color: #595959;
 }
 .canceled-ticket .ticket-title {
-    color: #ffad6a;
+    color: #ffbb29;
 }
 .expired-ticket .ticket-title {
-    color: #e65400;
+    color: #ff6f6a;
 }
 
 .ticket-meta {
@@ -346,12 +352,12 @@ main * * {
 }
 
 .low-status {
-    background-color: #a8a8a8;
-    color: #a8a8a8;
+    background-color: #595959;
+    color: #595959;
 }
 .medium-status {
-    background-color: #efff5e;
-    color: #efff5e;
+    background-color: #ffbb29;
+    color: #ffbb29;
 }
 .high-status {
     background-color: #ff683a;
