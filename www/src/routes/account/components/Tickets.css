@@ -130,14 +130,27 @@ h1 {
     margin-bottom: 0.2rem;
 }
 
-.complete-ticket .ticket-title {
-    color: #9c9c9c;
+.ticket-card.inprogress {
+    border-left-color: #ffbb29;
 }
-.canceled-ticket .ticket-title {
-    color: #ffad6a;
+.ticket-card.closed {
+    border-left-color: #595959;
 }
-.expired-ticket .ticket-title {
-    color: #e65400;
+.ticket-card.cancelled {
+    border-left-color: #ff6f6a;
+}
+.ticket-card:hover, .ticket-item:hover {
+    box-shadow: 0 6px 24px rgba(7,92,239,0.13);
+}
+
+.ticket-card.inprogress .ticket-title {
+    color: #ffbb29;
+}
+.ticket-card.closed .ticket-title {
+    color: #595959;
+}
+.ticket-card.cancelled .ticket-title {
+    color: #ff6f6a;
 }
 
 .ticket-title span {
@@ -198,12 +211,12 @@ h1 {
 }
 
 .low-status {
-    background-color: #a8a8a8;
-    color: #a8a8a8;
+    background-color: #595959;
+    color: #595959;
 }
 .medium-status {
-    background-color: #efff5e;
-    color: #efff5e;
+    background-color: #ffbb29;
+    color: #ffbb29;
 }
 .high-status {
     background-color: #ff683a;
@@ -214,8 +227,8 @@ h1 {
     color: #a80000
 }
 .ticket-card.complete-ticket .status {
-    background-color: #9c9c9c;
-    color: #9c9c9c;
+    background-color: #595959;
+    color: #595959;
 }
 
 /* Состояния */

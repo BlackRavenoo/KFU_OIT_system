@@ -3,7 +3,7 @@
     "protocol_handlers": [{"protocol":"mailto","url":"/newEmail?to=%s"}], 
     "name": "Сервисный портал ОИТ КФУ",
     "short_name": "ОИТ КФУ",
-    "start_url": "https://oit.ivanvit.ru",
+    "start_url": "/",
     "display": "standalone",
     "description": "Сервисный портал для сотрудников ЕИ КФУ",
     "lang": "ru-RU",
@@ -13,8 +13,20 @@
     "orientation": "any",
     "icons": [
         {
-            "src": "https://oit.ivanvit.ru/KFU.ico",
+            "src": "/KFU.ico",
             "sizes": "192x192",
+            "type": "image/ico",
+            "purpose": "any"
+        },
+        {
+            "src": "/KFU.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/KFU_512.png",
+            "sizes": "512x512",
             "type": "image/png",
             "purpose": "any"
         }

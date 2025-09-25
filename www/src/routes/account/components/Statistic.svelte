@@ -61,5 +61,5 @@
 </div>
 
 <style scoped>
-    @import './Statistics.css';
+    @import './Statistic.css';
 </style>

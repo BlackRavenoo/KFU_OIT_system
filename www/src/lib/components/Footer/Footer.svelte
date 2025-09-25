@@ -16,7 +16,7 @@
             <div class="footer-column">
                 <h3>Контакты</h3>
                 <p>Телефон: <span><a href="tel:+79869142780">+7 (986) 914-27-80</a></span></p>
-                <p>Email: <span><a href="/">support@kfu.ru</a></span></p>
+                <p>Email: <span><a href="mailto:oit.ei@kpfu.ru">oit.ei@kpfu.ru</a></span></p>
             </div>
             <div class="footer-column">
                 <h3>Ссылки</h3>

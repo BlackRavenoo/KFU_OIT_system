@@ -7,7 +7,7 @@ nav {
     z-index: 3;
     top: 1rem;
     left: max(calc(3vw - 30px), 15px);
-    width: min(94vw, calc(100vw - 30px));
+    width: min(94vw, calc(100vw - 45px));
 }
 
 .logo {

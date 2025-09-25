@@ -368,8 +368,8 @@ main * * {
     color: #a80000
 }
 .ticket-card.complete-ticket .status {
-    background-color: #9c9c9c;
-    color: #9c9c9c;
+    background-color: #595959;
+    color: #595959;
 }
 
 .ticket-title span {

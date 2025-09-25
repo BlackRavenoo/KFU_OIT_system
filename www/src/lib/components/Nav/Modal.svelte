@@ -31,6 +31,10 @@
         if (!result) dispatch('close');
     }
 
+    /**
+     * Обработчик отправки формы логина
+     * Валидирует капчу и отправляет событие 'login' с данными формы
+    */
     async function handleLoginSubmit() {
         try {
             const captchaToken = captchaComponent ? await captchaComponent.validate() : null;
@@ -52,6 +56,10 @@
         }
     }
     
+    /**
+     * Обработчик отправки формы сброса пароля
+     * Валидирует капчу и отправляет событие 'reset' с данными формы
+    */
     async function handleResetSubmit() {
         try {
             const captchaToken = captchaComponent ? await captchaComponent.validate() : null;

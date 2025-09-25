@@ -711,7 +711,7 @@ header {
         display: none;
     }
     
-    .form-row {
+    .form-row, .cards_row {
         flex-direction: column;
     }
 }
