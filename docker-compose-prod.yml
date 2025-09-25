@@ -1,5 +1,6 @@
 services:
   ticketing-system:
+    image: ghcr.io/blackravenoo/ticketing-system
     build:
       context: ticketing-system
       dockerfile: Dockerfile
@@ -18,12 +19,17 @@ services:
       - APP_STORAGE__PATH_STYLE=false
       - APP_STORAGE__BUCKET=${S3_BUCKET:-ticketing-attachments}
       - APP_APPLICATION__BASE_URL=${APP_BASE_URL:-127.0.0.1}
+      - APP_EMAIL_CLIENT__BASE_URL=https://api.mailersend.com
+      - APP_EMAIL_CLIENT__SENDER_EMAIL=${SENDER_EMAIL}
+      - APP_EMAIL_CLIENT__AUTHORIZATION_TOKEN=${EMAIL_CLIENT_TOKEN}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 20s
       retries: 3
-
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   redis:
     image: redis:alpine
@@ -40,17 +46,35 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ticketing_system}
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   nginx:
-    image: nginx:alpine
+    image: ghcr.io/blackravenoo/nginx-ticketing
+    build:
+      context: .
+      dockerfile: infra/Dockerfile-nginx
+    volumes:
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/nginx/ssl:ro
     ports:
       - "80:80"
-    volumes:
-      - ./infra/nginx.conf:/etc/nginx/nginx.conf
-      - ./www/build:/usr/share/nginx/html
+      - "443:443"
     depends_on:
       ticketing-system:
         condition: service_healthy
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot:rw
+      - ./certbot/conf:/etc/letsencrypt:rw
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
   redis_data:
