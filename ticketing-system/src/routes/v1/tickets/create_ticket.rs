@@ -75,8 +75,10 @@ pub async fn create_ticket(
     if attachments_len != 0 {
         let (keys, status) = upload_attachments(image_service.deref().clone(), ticket.attachments).await;
 
-        if let Err(e) = status && !keys.is_empty() {
-            cleanup_images(image_service.into_inner(), keys, 30, ImageType::Attachments).await;
+        if let Err(e) = status {
+            if !keys.is_empty() {
+                cleanup_images(image_service.into_inner(), keys, 30, ImageType::Attachments).await;
+            }
             return Err(e.into());
         }
  

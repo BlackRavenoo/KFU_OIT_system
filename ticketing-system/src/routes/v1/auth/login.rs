@@ -102,7 +102,7 @@ async fn get_token_response(jwt_service: &JwtService, token_store: &TokenStore, 
 
     let refresh_token_data = RefreshToken {
         user_id: user.id,
-        fingerprint: fingerprint,
+        fingerprint,
     };
 
     let refresh_token = token_store.generate_refresh_token(&refresh_token_data).await

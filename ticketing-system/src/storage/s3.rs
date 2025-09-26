@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use anyhow::Context;
 use async_trait::async_trait;
 use aws_config::{meta::credentials::CredentialsProviderChain, BehaviorVersion, Region};
 use aws_sdk_s3::{error::SdkError, operation::{get_object::GetObjectError, head_object::HeadObjectError}, presigning::PresigningConfig, primitives::ByteStream, Client, Config};
@@ -61,13 +62,12 @@ impl FileStorage for S3Storage {
                         Ok(FileAccess::Stream(Box::pin(stream)))
                     },
                     Err(e) => {
-                        tracing::error!("Failed to get file from S3: {:?}", e);
                         match &e {
                             SdkError::ServiceError(err) => match err.err() {
                                 GetObjectError::NoSuchKey(_) => Err(StorageError::NotFound),
-                                _ => Err(StorageError::Other(e.to_string())),
+                                _ => Err(StorageError::Other(e.into())),
                             },
-                            _ => Err(StorageError::Other(e.to_string()))
+                            _ => Err(StorageError::Other(e.into()))
                         } 
                     }
                 }
@@ -89,7 +89,7 @@ impl FileStorage for S3Storage {
                         )
                     } else {
                         let presigning_config = PresigningConfig::expires_in(Duration::from_secs(3600))
-                            .map_err(|e| StorageError::Other(e.to_string()))?;
+                            .context("Failed to create presigned config")?;
 
                         let presigned_url = self.client
                             .get_object()
@@ -97,55 +97,48 @@ impl FileStorage for S3Storage {
                             .key(key)
                             .presigned(presigning_config)
                             .await
-                            .map_err(|e| StorageError::Other(e.to_string()))?;
+                            .context("Failed to get presigned url")?;
 
-                            presigned_url.uri().to_string()
+                        presigned_url.uri().to_string()
                     };
 
                     Ok(FileAccess::ExternalUrl(url))
                 },
                 Err(e) => {
-                    tracing::error!("Failed to get file from S3: {:?}", e);
                     match &e {
                         SdkError::ServiceError(err) => match err.err() {
                             HeadObjectError::NotFound(_) => Err(StorageError::NotFound),
-                            _ => Err(StorageError::Other(e.to_string())),
+                            _ => Err(StorageError::Other(e.into())),
                         },
-                        _ => Err(StorageError::Other(e.to_string()))
+                        _ => Err(StorageError::Other(e.into()))
                     }
                 }
             }
     }
 
     async fn store(&self, bucket: &str, key: &str, data: Vec<u8>) -> Result<(), StorageError> {
-        match self.client
+        self.client
             .put_object()
             .bucket(bucket)
             .key(key)
             .body(ByteStream::from(data))
             .send()
-            .await {
-                Ok(_) => Ok(()),
-                Err(e) => {
-                    tracing::error!("Failed to put object in S3: {:?}", e);
-                    Err(StorageError::Other(e.to_string()))
-                }
-            }
+            .await
+            .context("Failed to put object in S3")?;
+
+        Ok(())
     }
 
     async fn delete(&self, bucket: &str, key: &str) -> Result<(), StorageError> {
-        match self.client
+        self.client
             .delete_object()
             .bucket(bucket)
             .key(key)
             .send()
-            .await {
-                Ok(_) => Ok(()),
-                Err(e) => {
-                    tracing::error!("Failed to delete object from S3: {:?}", e);
-                    Err(StorageError::Other(e.to_string()))
-                }
-            }
+            .await
+            .context("Failed to delete object from S3")?;
+
+        Ok(())
     }
 }
 

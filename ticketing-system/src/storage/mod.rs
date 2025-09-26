@@ -13,8 +13,8 @@ use futures_util::Stream;
 pub enum StorageError {
     #[error("File not found")]
     NotFound,
-    #[error("Other error: {0}")]
-    Other(String)
+    #[error(transparent)]
+    Other(#[from] anyhow::Error)
 }
 
 impl ResponseError for StorageError {

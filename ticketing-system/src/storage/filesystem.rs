@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::Context as _;
 use async_trait::async_trait;
 use tokio::{fs, io::AsyncWriteExt};
 
@@ -33,16 +34,16 @@ impl FileStorage for FilesystemStorage {
         if let Some(parent) = file_path.parent() {
             fs::create_dir_all(parent)
                 .await
-                .map_err(|e| StorageError::Other(format!("Failed to create directory: {}", e)))?;
+                .context("Failed to create directory")?;
         }
 
         let mut file = fs::File::create(&file_path)
             .await
-            .map_err(|e| StorageError::Other(format!("Failed to create file: {}", e)))?;
+            .context("Failed to create file")?;
 
         file.write_all(&data)
             .await
-            .map_err(|e| StorageError::Other(format!("Failed to write file: {}", e)))?;
+            .context("Failed to write file")?;
 
         Ok(())
     }
@@ -53,7 +54,7 @@ impl FileStorage for FilesystemStorage {
         match fs::remove_file(&file_path).await {
             Ok(_) => Ok(()),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(StorageError::NotFound),
-            Err(e) => Err(StorageError::Other(format!("Failed to delete file: {}", e))),
+            Err(e) => Err(StorageError::Other(e.into())),
         }
     }
 
@@ -66,7 +67,7 @@ impl FileStorage for FilesystemStorage {
                 Ok(FileAccess::InternalUrl(url))
             },
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(StorageError::NotFound),
-            Err(e) => Err(StorageError::Other(format!("Failed to access file: {}", e))),
+            Err(e) => Err(StorageError::Other(e.into())),
         }
     }
 }
