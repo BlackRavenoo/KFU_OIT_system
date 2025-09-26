@@ -51,6 +51,8 @@ export async function generateStatisticsReport(
             } else if (createdMs < fromMs) {
                 reachedEnd = true;
                 break;
+            } else {
+                continue;
             }
         }
 
@@ -85,7 +87,7 @@ export async function generateStatisticsReport(
         }
         names.forEach(name => {
             if (!name) return;
-            performerCounts[name] = (performerCounts[name] ?? 0) + 1;
+            else performerCounts[name] = (performerCounts[name] ?? 0) + 1;
         });
     });
 
@@ -201,6 +203,8 @@ export async function generateStatisticsReport(
                     right: { style: "thin", color: { rgb: "000000" } }
                 }
             };
+        } else {
+            console.warn(`Cell at (0, ${c}) not found for header styling.`);
         }
     }
 
@@ -236,6 +240,8 @@ export async function generateStatisticsReport(
                     right: { style: "thin", color: { rgb: "000000" } }
                 }
             };
+        } else {
+            console.warn(`Cell at (${statHeaderRow}, ${col}) not found for stats header styling.`);
         }
     }
 
@@ -265,6 +271,8 @@ export async function generateStatisticsReport(
                 right: { style: "thin", color: { rgb: "000000" } }
             }
         };
+    } else {
+        console.warn(`Cell at (${paramHeaderRow}, 0) not found for parameters header styling.`);
     }
 
     // --- перенос текста и авто-высота строк ---
@@ -278,10 +286,17 @@ export async function generateStatisticsReport(
                 cell.s.alignment = { ...cell.s.alignment, wrapText: true, vertical: "top" };
                 const text = cell.v.toString();
                 if (text.length > maxLen) maxLen = text.length;
+                else {
+                    const lineBreaks = text.split('\n').length;
+                    if (lineBreaks > 1 && lineBreaks * 30 > maxLen) maxLen = lineBreaks * 30;
+                    else maxLen = text.length;
+                }
             }
         }
         if (maxLen > 60) {
             worksheet['!rows'][R] = { hpt: 22 + Math.ceil(maxLen / 60) * 12 };
+        } else {
+            worksheet['!rows'][R] = { hpt: 22 };
         }
     }
 
@@ -315,6 +330,8 @@ export async function generateStatisticsReport(
             if (cell) {
                 cell.s = cell.s || {};
                 cell.s.border = undefined;
+            } else {
+                console.warn(`Cell at (${R}, ${C}) not found for border removal.`);
             }
         }
     }
@@ -334,6 +351,8 @@ export async function generateStatisticsReport(
                     left: { style: "thin", color: { rgb: "000000" } },
                     right: { style: "thin", color: { rgb: "000000" } }
                 } : undefined;
+            } else {
+                console.warn(`Cell at (${R}, ${C}) not found for performer border styling.`);
             }
         }
     }
