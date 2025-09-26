@@ -1,10 +1,10 @@
 use fake::{faker::internet::en::SafeEmail, Fake};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use wiremock::{matchers::{method, path}, Mock, MockServer, ResponseTemplate};
-use std::{borrow::Cow, sync::LazyLock};
+use std::{borrow::Cow, path::Path, sync::LazyLock};
 use uuid::Uuid;
 use ticketing_system::{
-    auth::types::UserRole, config::{get_config, DatabaseSettings, S3Settings}, startup::Application, telemetry::{get_subscriber, init_subscriber}
+    auth::types::{UserRole, UserStatus}, config::{get_config, DatabaseSettings, S3Settings}, schema::{common::UserId, tickets::TicketId}, startup::Application, telemetry::{get_subscriber, init_subscriber}
 };
 
 static TRACING: LazyLock<()> = LazyLock::new(|| {
@@ -20,7 +20,7 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {
     };
 });
 
-pub struct ConfirmationLinks {
+pub struct InvitationLinks {
     pub html: reqwest::Url,
     pub plain_text: reqwest::Url,
 }
@@ -109,10 +109,10 @@ impl TestApp {
             .expect("Failed to execute request")
     }
 
-    pub fn get_confirmation_links(
+    pub fn get_invitation_links(
         &self,
         email_request: &wiremock::Request
-    ) -> ConfirmationLinks {
+    ) -> InvitationLinks {
         let body: serde_json::Value = serde_json::from_slice(
             &email_request.body
         ).unwrap();
@@ -124,20 +124,93 @@ impl TestApp {
                 .collect();
             assert_eq!(links.len(), 1);
             let raw_link = links[0].as_str().to_owned();
-            let mut confirmation_link = reqwest::Url::parse(&raw_link).unwrap();
-            assert_eq!(confirmation_link.host_str().unwrap(), "127.0.0.1");
+            let mut invitation_link = reqwest::Url::parse(&raw_link).unwrap();
+            assert_eq!(invitation_link.host_str().unwrap(), "127.0.0.1");
 
-            confirmation_link.set_port(Some(self.port)).unwrap();
-            confirmation_link
+            invitation_link.set_port(Some(self.port)).unwrap();
+            invitation_link
         };
 
         let html = get_link(&body["html"].as_str().unwrap());
         let plain_text = get_link(&body["text"].as_str().unwrap());
 
-        ConfirmationLinks {
+        InvitationLinks {
             html,
             plain_text
         }
+    }
+
+    pub async fn change_user_status(
+        &self,
+        user_id: UserId,
+        status: UserStatus,
+    ) {
+        sqlx::query!(
+            "
+                UPDATE users
+                SET status = $1
+                WHERE id = $2
+            ",
+            status as i16,
+            user_id
+        )
+        .execute(&self.db_pool)
+        .await
+        .unwrap();
+    }
+
+    pub async fn create_test_ticket(&self) -> reqwest::Response {
+        let json = serde_json::json!({
+            "title": "Test",
+            "description": "Test description",
+            "author": "Test author",
+            "author_contacts": "Test contacts",
+            "building_id": 1
+        });
+
+        self.create_ticket(&json, None).await
+    }
+
+    pub async fn create_ticket(&self, body: &serde_json::Value, attachments: Option<Vec<Attachment>>) -> reqwest::Response {
+        let json_string = serde_json::to_string(body).unwrap();
+
+        let mut form = reqwest::multipart::Form::new();
+    
+        form = form.part("fields", 
+            reqwest::multipart::Part::text(json_string)
+                .mime_str("application/json")
+                .unwrap()
+        );
+
+        if let Some(files) = attachments {
+            for attachment in files.into_iter() {
+                form = form.part(
+                    "attachments",
+                    reqwest::multipart::Part::bytes(attachment.data)
+                        .file_name(attachment.filename)
+                        .mime_str(&attachment.mime_type)
+                        .unwrap()
+                );
+            }
+        }
+
+        reqwest::Client::new()
+            .post(format!("{}/v1/tickets/", self.address))
+            .multipart(form)
+            .send()
+            .await
+            .unwrap()
+    }
+
+    pub async fn get_ticket(&self, ticket_id: TicketId) -> reqwest::Response {
+        let (access, _) = self.get_admin_jwt_tokens().await;
+
+        reqwest::Client::new()
+            .get(format!("{}/v1/tickets/{}", self.address, ticket_id))
+            .bearer_auth(access)
+            .send()
+            .await
+            .unwrap()
     }
 }
 
@@ -163,7 +236,7 @@ pub async fn spawn_app() -> TestApp {
             bucket: "test-bucket".into(),
             endpoint: s3_server.uri(),
             always_proxy: true,
-            path_style: false,
+            path_style: true,
         });
         
         c
@@ -233,11 +306,41 @@ pub async fn create_invitation(app: &TestApp) -> (String, String) {
 
     let email_request = &mock_guard.received_requests().await[0];
 
-    let url = app.get_confirmation_links(email_request).html;
+    let url = app.get_invitation_links(email_request).html;
 
     let (_, token) = url.query_pairs()
         .find(|(key, _)| key == &Cow::Borrowed("token"))
         .unwrap();
 
     (email, token.to_string())
+}
+
+#[derive(Debug, Clone)]
+pub struct Attachment {
+    pub data: Vec<u8>,
+    pub filename: String,
+    pub mime_type: String,
+}
+
+impl Attachment {
+    pub fn new(data: Vec<u8>, filename: impl Into<String>, mime_type: impl Into<String>) -> Self {
+        Self {
+            data,
+            filename: filename.into(),
+            mime_type: mime_type.into(),
+        }
+    }
+
+    pub fn from_filename(data: Vec<u8>, filename: impl Into<String>) -> Self {
+        let filename = filename.into();
+        let mime_type = match Path::new(&filename).extension().and_then(|s| s.to_str()) {
+            Some("jpg") | Some("jpeg") => "image/jpeg",
+            Some("png") => "image/png",
+            Some("gif") => "image/gif",
+            Some("pdf") => "application/pdf",
+            Some("txt") => "text/plain",
+            _ => "application/octet-stream",
+        };
+        Self::new(data, filename, mime_type)
+    }
 }
