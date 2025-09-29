@@ -25,7 +25,7 @@ async fn invite_sends_a_confirmation_email_with_a_link() {
 
     let email_request = &app.email_server.received_requests().await.unwrap()[0];
 
-    let confirmation_links = app.get_confirmation_links(&email_request);
+    let confirmation_links = app.get_invitation_links(&email_request);
 
     assert_eq!(confirmation_links.html, confirmation_links.plain_text);
 }
@@ -158,7 +158,7 @@ async fn invite_same_email_twice_returns_same_token() {
     let email_requests = &app.email_server.received_requests().await.unwrap();
 
     let links = email_requests.iter()
-        .map(|email_request|app.get_confirmation_links(email_request))
+        .map(|email_request|app.get_invitation_links(email_request))
         .collect::<Vec<_>>();
 
     assert_eq!(links[0].html, links[1].html);
