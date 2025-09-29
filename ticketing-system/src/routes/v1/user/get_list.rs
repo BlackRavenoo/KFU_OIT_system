@@ -72,8 +72,8 @@ pub async fn get_users(
         .context("Failed to get users from the database")?;
 
     let total_items = match rows.first() {
-        Some(ticket) => ticket.total_items as u64,
-        None => return Ok(HttpResponse::NotFound().finish()),
+        Some(row) => row.total_items as u64,
+        None => 0,
     };
 
     let users = rows.into_iter().map(|r|UserSchema {
