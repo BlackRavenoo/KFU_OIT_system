@@ -946,4 +946,40 @@ describe('generateStatisticsReport', () => {
         expect(worksheet['C3'].s.border).toBeUndefined();
         expect(worksheet['F3'].s.border).toBeUndefined();
     });
+
+    it('covers branch where lineBreaks * 30 > maxLen for short text with line breaks', async () => {
+        const tickets = [
+            {
+                id: 1,
+                title: 'A'.repeat(61),
+                description: 'a\nb\nc',
+                building: { name: 'Bldg1' },
+                cabinet: '101',
+                created_at: '2024-06-01T10:00:00.000Z',
+                assigned_to: [{ name: 'Ivan' }],
+                status: 'open',
+                note: 'Note 1'
+            }
+        ];
+        (fetchTickets as any).mockResolvedValueOnce({ tickets, max_page: 1 });
+        (getStore as any).mockReturnValue({ name: 'Admin' });
+
+        let worksheet: any = {};
+        // @ts-ignore
+        mockAoaToSheet.mockImplementationOnce((excelData: any[][]) => {
+            worksheet['!cols'] = [];
+            worksheet['!rows'] = [];
+            worksheet['!merges'] = [];
+            worksheet['!ref'] = 'A1:H2';
+            worksheet['B2'] = { v: 'A'.repeat(61) };
+            worksheet['C2'] = { v: 'a\nb\nc' };
+            return worksheet;
+        });
+
+        await generateStatisticsReport('2024-06-01', '2024-06-03');
+
+        expect(Array.isArray(worksheet['!rows'])).toBe(true);
+        expect(worksheet['!rows'].length).toBeGreaterThan(0);
+        expect(mockSaveAs).toHaveBeenCalled();
+    });
 });
