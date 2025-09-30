@@ -76,7 +76,7 @@ h1 {
     gap: 0.5rem;
     background: var(--white);
     border-radius: 18px;
-    box-shadow: 0 2px 8px rgba(7,92,239,0.07);
+    box-shadow: 0 2px 8px #626f8643;
     border: 1.5px solid var(--gray);
     padding: 1.2rem 1.5rem;
     transition: box-shadow 0.2s, border-color 0.2s;
@@ -91,7 +91,7 @@ h1 {
     max-width: 500px;
     background: var(--white);
     border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(7,92,239,0.07);
+    box-shadow: 0 2px 8px #626f8643;
     padding: 1.2rem 1rem;
     display: flex;
     flex-direction: column;
@@ -103,17 +103,17 @@ h1 {
 }
 
 .ticket-card:hover, .ticket-item:hover {
-    box-shadow: 0 6px 24px rgba(7,92,239,0.13);
+    box-shadow: 0 6px 24px #626f8654;
 }
 
 .complete-ticket {
-    border-left-color: #9c9c9c;
+    border-left-color: var(--low);
 }
 .canceled-ticket {
-    border-left-color: #ffad6a;
+    border-left-color: var(--yellow);
 }
 .expired-ticket {
-    border-left-color: #e65400;
+    border-left-color: var(--red);
 }
 
 .list-view .ticket-title {
@@ -131,26 +131,23 @@ h1 {
 }
 
 .ticket-card.inprogress {
-    border-left-color: #ffbb29;
+    border-left-color: var(--yellow);
 }
 .ticket-card.closed {
-    border-left-color: #595959;
+    border-left-color: var(--low);
 }
 .ticket-card.cancelled {
-    border-left-color: #ff6f6a;
-}
-.ticket-card:hover, .ticket-item:hover {
-    box-shadow: 0 6px 24px rgba(7,92,239,0.13);
+    border-left-color: var(--red);
 }
 
 .ticket-card.inprogress .ticket-title {
-    color: #ffbb29;
+    color: var(--yellow);
 }
 .ticket-card.closed .ticket-title {
-    color: #595959;
+    color: var(--low);
 }
 .ticket-card.cancelled .ticket-title {
-    color: #ff6f6a;
+    color: var(--red);
 }
 
 .ticket-title span {
@@ -211,24 +208,24 @@ h1 {
 }
 
 .low-status {
-    background-color: #595959;
-    color: #595959;
+    background-color: var(--low);
+    color: var(--low);
 }
 .medium-status {
-    background-color: #ffbb29;
-    color: #ffbb29;
+    background-color: var(--yellow);
+    color: var(--yellow);
 }
 .high-status {
-    background-color: #ff683a;
-    color: #ff683a;
+    background-color: var(--orange);
+    color: var(--orange);
 }
 .critical-status {
-    background-color: #a80000;
-    color: #a80000
+    background-color: var(--critical);
+    color: var(--critical);
 }
 .ticket-card.complete-ticket .status {
-    background-color: #595959;
-    color: #595959;
+    background-color: var(--low);
+    color: var(--low);
 }
 
 /* Состояния */

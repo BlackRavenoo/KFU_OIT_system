@@ -1,0 +1,64 @@
+html.dark header {
+    background: radial-gradient(circle at top left,rgba(255,255,255,.8) 0%,var(--light-blue) 100%);
+}
+
+html.dark #hero .title h1,
+html.dark .banner p {
+    color: var(--white);
+}
+
+html.dark button.promo {
+    color: initiall;
+}
+
+html.dark #cards {
+    background-color: var(--text);
+}
+
+html.dark #cards .card .card_title {
+    color: var(--light-gray);
+}
+
+html.dark #cards .card p {
+    color: var(--light-blue);
+}
+
+html.dark .ticket-card:hover,
+html.dark .ticket-item:hover {
+    box-shadow: 0 6px 24px #626f8654;
+}
+
+html.dark .ticket-card {
+    box-shadow: 0 2px 8px #626f8643;
+}
+
+html.dark .ticket-card:hover {
+    box-shadow: 6px 6px 16px #626f8650;
+}
+
+html.dark .contact-circle,
+html.dark .quick-contact-item,
+html.dark .contact-card {
+    background-color: var(--gray);
+}
+
+html.dark .contact-card:hover {
+    box-shadow: 0 2px 8px #626f8643;
+}
+
+html.dark .contact-card a {
+    color: #7da7ee;
+}
+
+html.dark #map {
+    background-color: var(--gray);
+}
+
+html.dark footer {
+    background-color: var(--white);
+    color: var(--text);
+}
+
+html.dark footer a {
+    color: var(--text) !important;
+}

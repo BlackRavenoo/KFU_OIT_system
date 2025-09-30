@@ -59,7 +59,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: #fff;
+        background-color: var(--white);
         border-radius: 10px;
         padding: 2em;
         box-shadow: 0 4px 32px rgba(0,0,0,0.25);

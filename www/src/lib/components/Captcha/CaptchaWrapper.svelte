@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
-    import { LeminCaptcha } from '$lib/utils/captcha/Lemin/initial';
+    import { SimpleCaptcha } from '$lib/utils/captcha/Simple/initial';
     import type { Captcha } from '$lib/utils/captcha/initial';
     
     export let containerId: string;
@@ -29,7 +29,7 @@
 
         (async () => {
             try {
-                captchaInstance = new LeminCaptcha(captchaKey, containerId);
+                captchaInstance = new SimpleCaptcha(captchaKey, containerId);
                 await captchaInstance.render();
             } catch (error) { }
         })();

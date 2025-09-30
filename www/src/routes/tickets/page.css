@@ -280,36 +280,37 @@ main * * {
 }
 
 .ticket-card.inprogress {
-    border-left-color: #ffbb29;
+    border-left-color: var(--yellow);
 }
 .ticket-card.closed {
-    border-left-color: #595959;
+    border-left-color: var(--low);
 }
 .ticket-card.cancelled {
-    border-left-color: #ff6f6a;
+    border-left-color: var(--red);
 }
+
 .ticket-card:hover, .ticket-item:hover {
     box-shadow: 0 6px 24px rgba(7,92,239,0.13);
 }
 
 .ticket-card.inprogress .ticket-title {
-    color: #ffbb29;
+    color: var(--yellow);
 }
 .ticket-card.closed .ticket-title {
-    color: #595959;
+    color: var(--low);
 }
 .ticket-card.cancelled .ticket-title {
-    color: #ff6f6a;
+    color: var(--red);
 }
 
 .complete-ticket {
-    border-left-color: #595959;
+    border-left-color: var(--low);
 }
 .canceled-ticket {
-    border-left-color: #ffbb29;
+    border-left-color: var(--yellow);
 }
 .expired-ticket {
-    border-left-color: #ff6f6a;
+    border-left-color: var(--red);
 }
 
 .ticket-title {
@@ -319,13 +320,13 @@ main * * {
     margin-bottom: 0.2rem;
 }
 .complete-ticket .ticket-title {
-    color: #595959;
+    color: var(--low);
 }
 .canceled-ticket .ticket-title {
-    color: #ffbb29;
+    color: var(--yellow);
 }
 .expired-ticket .ticket-title {
-    color: #ff6f6a;
+    color: var(--orange);
 }
 
 .ticket-meta {
@@ -352,24 +353,24 @@ main * * {
 }
 
 .low-status {
-    background-color: #595959;
-    color: #595959;
+    background-color: var(--low);
+    color: var(--low);
 }
 .medium-status {
-    background-color: #ffbb29;
-    color: #ffbb29;
+    background-color: var(--yellow);
+    color: var(--yellow);
 }
 .high-status {
-    background-color: #ff683a;
-    color: #ff683a;
+    background-color: var(--orange);
+    color: var(--orange);
 }
 .critical-status {
-    background-color: #a80000;
-    color: #a80000
+    background-color: var(--critical);
+    color: var(--critical);
 }
 .ticket-card.complete-ticket .status {
-    background-color: #595959;
-    color: #595959;
+    background-color: var(--low);
+    color: var(--low);
 }
 
 .ticket-title span {
@@ -389,15 +390,16 @@ main * * {
         border-right: none;
         box-shadow: none;
         padding: 1.2rem 1rem;
+        width: calc(100vw - 2rem);
     }
     main {
         padding: 1.2rem 0.5rem;
+        width: calc(100vw - 1rem);
     }
 }
 
 @media (max-width: 600px) {
     .tickets-list {
         grid-template-columns: 1fr;
-        gap: 1rem;
     }
 }

@@ -27,7 +27,7 @@
 
 .modal {
     position: relative;
-    background-color: white;
+    background-color: var(--white);
     border-radius: 12px;
     width: 400px;
     max-width: 90%;
@@ -67,6 +67,7 @@
 
 .modal-content {
     position: relative;
+    background-color: var(--white);
     flex-direction: column;
     padding: 30px;
     margin: 0;
@@ -139,7 +140,7 @@
 }
 
 /* Форма */
-form {
+.login-container, .reset-container {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -216,14 +217,14 @@ input[type="email"]:focus {
     position: relative;
     height: 18px;
     width: 18px;
-    background-color: #f5f5f5;
+    background-color: var(--light-gray);
     border: 1px solid #e0e0e0;
     border-radius: 4px;
     transition: all 0.2s ease;
 }
 
 .remember-label:hover .checkmark {
-    background-color: #eef3ff;
+    background-color: var(--gray);
 }
 
 .remember-label input:checked ~ .checkmark {

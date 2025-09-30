@@ -26,7 +26,7 @@ main {
     max-width: 320px;
     background: var(--white);
     border-radius: 18px;
-    box-shadow: 0 2px 12px rgba(7, 92, 239, 0.08);
+    box-shadow: 0 0 2px #626f8654;
     padding: 32px 24px;
     color: var(--dark);
     display: flex;
@@ -68,28 +68,28 @@ main {
 }
 
 .low-priority {
-    color: #595959 !important;
+    color: var(--low) !important;
 }
 .medium-priority {
-    color: #ffbb29 !important;
+    color: var(--yellow) !important;
 }
 .high-priority {
-    color: #ff683a !important;
+    color: var(--orange) !important;
 }
 .critical-priority {
-    color: #a80000 !important;
+    color: var(--critical) !important;
 }
 .open-status {
     color: var(--blue)  !important;
 }
 .in-progress-status {
-    color: #ffbb29 !important;
+    color: var(--yellow) !important;
 }
 .closed-status {
     color: var(--text) !important;
 }
 .cancelled-status {
-    color: #ff6f6a !important;
+    color: var(--red) !important;
 }
 
 .ticket-info-container {
@@ -378,7 +378,7 @@ input.edit-mode, textarea.edit-mode, select.edit-mode {
 
 input.edit-mode:focus, textarea.edit-mode:focus, select.edit-mode:focus {
     border-color: var(--dark);
-    box-shadow: 0 0 0 2px rgba(7, 92, 239, 0.2);
+    box-shadow: 0 0 2px #626f8654;
     outline: none;
 }
 

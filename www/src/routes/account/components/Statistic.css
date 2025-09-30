@@ -19,11 +19,11 @@ h3 {
 }
 
 .generate-report-section {
-    background-color: white;
+    background-color: var(--white);
     padding: 1.5rem;
     border-radius: 8px;
     margin-bottom: 2rem;
-    box-shadow: 0 2px 8px #075cef12;
+    box-shadow: 0 2px 8px #626f8654;
 }
 
 .generate-statistics-form {
@@ -95,7 +95,7 @@ h3 {
 
 .btn-primary {
     background-color: var(--blue);
-    color: white;
+    color: var(--white);
 }
 
 .btn-primary:hover:not(:disabled) {
