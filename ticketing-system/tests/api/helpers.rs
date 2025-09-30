@@ -34,6 +34,15 @@ pub struct TestApp {
 }
 
 impl TestApp {
+    pub async fn login(&self, body: &serde_json::Value) -> reqwest::Response {
+        reqwest::Client::new()
+            .post(format!("{}/v1/auth/login", self.address))
+            .json(&body)
+            .send()
+            .await
+            .expect("Failed to execute request")
+    }
+
     // Returns access, refresh tokens
     pub async fn get_jwt_tokens(&self, email: &str, password: &str) -> (String, String) {
         let json = serde_json::json!({
@@ -42,14 +51,7 @@ impl TestApp {
             "fingerprint": "something",
         });
 
-        let resp = reqwest::Client::new()
-            .post(format!("{}/v1/auth/login", self.address))
-            .json(&json)
-            .send()
-            .await
-            .expect("Failed to execute request")
-            .error_for_status()
-            .expect("Failed to get successful response");
+        let resp = self.login(&json).await;
 
         let response_json: serde_json::Value = resp
             .json()

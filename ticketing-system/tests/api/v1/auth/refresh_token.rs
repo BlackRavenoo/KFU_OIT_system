@@ -1,3 +1,5 @@
+use ticketing_system::auth::types::UserStatus;
+
 use crate::helpers::spawn_app;
 
 #[tokio::test]
@@ -143,4 +145,27 @@ async fn refresh_token_returns_correct_access_token() {
         .unwrap();
 
     assert_eq!(resp.status(), 200);
+}
+
+#[tokio::test]
+async fn refresh_token_with_disabled_user_returns_403() {
+    let app = spawn_app().await;
+
+    let email = app.create_user(ticketing_system::auth::types::UserRole::Employee).await;
+
+    let (_, refresh) = app.get_jwt_tokens(&email, "admin").await;
+
+    app.change_user_status(2, UserStatus::Inactive).await;
+
+    let resp = reqwest::Client::new()
+        .post(format!("{}/v1/auth/token", app.address))
+        .json(&serde_json::json!({
+            "refresh_token": refresh,
+            "fingerprint": "something"
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 403);
 }
