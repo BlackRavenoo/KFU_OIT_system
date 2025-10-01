@@ -3,10 +3,11 @@ use std::{net::TcpListener, time::Duration};
 use actix_multipart::form::MultipartFormConfig;
 use actix_web::{dev::Server, web::{self, Data}, App, HttpResponse, HttpServer};
 use bb8_redis::{bb8::Pool, RedisConnectionManager};
+use moka::future::CacheBuilder;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore}, config::Settings, email_client::mailersend::MailerSendClient, routes::v1::config, services::{image::ImageService, registration_token::RegistrationTokenStore}};
+use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::mailersend::MailerSendClient, routes::v1::{config, tickets::stats::TicketsStats}, services::{image::ImageService, registration_token::RegistrationTokenStore}};
 
 pub struct Application {
     server: Server,
@@ -97,6 +98,12 @@ pub fn run(
     let email_client = Data::new(email_client);
     let base_url = Data::new(ApplicationBaseUrl(base_url));
 
+    let stats_cache = Data::new(
+        CacheBuilder::<(), TicketsStats, _>::new(1)
+            .expire_after(CacheExpiry(Duration::from_secs(300)))
+            .build()
+    );
+
     let server = HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::default())
@@ -107,6 +114,7 @@ pub fn run(
             .app_data(pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())
+            .app_data(stats_cache.clone())
             .app_data(
                 MultipartFormConfig::default()
                     .memory_limit(30 * 1024 * 1024)   
