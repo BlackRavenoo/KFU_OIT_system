@@ -4,14 +4,15 @@
     import { get } from 'svelte/store';
     import { goto } from '$app/navigation';
     import { browser } from '$app/environment';
-    
+    import { fade, slide } from 'svelte/transition';
+
     import { formatDate } from '$lib/utils/tickets/support';
     import { isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription, buildings } from '$lib/utils/setup/stores';
     import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { getTicketsFilters, setTicketsFilters, clearTicketsFilters } from '$lib/utils/tickets/stores';
-    
+
     import SearchBar from '$lib/components/Search/Searchfield.svelte';
     import Pagination from '$lib/components/Search/Pagination.svelte';
 
@@ -39,9 +40,6 @@
         }
     }
 
-    /**
-     * Обновляет URL страницы, добавляя или удаляя параметр 'page' в зависимости от текущей страницы.
-     */
     function updatePageUrl() {
         if (browser) {
             const url = new URL(window.location.href);
@@ -52,10 +50,6 @@
         }
     }
 
-    /**
-     * Обработчик изменения страницы.
-     * @param newPage - новая страница
-     */
     async function handlePageChange(newPage: number) {
         page = newPage;
         updatePageUrl();
@@ -64,10 +58,6 @@
         maxPage = result.max_page;
     }
 
-    /**
-     * Обработчик поиска.
-     * Вызывается по нажатию кнопки поиска или Enter в поле поиска.
-    */
     async function handleSearch() {
         page = 1;
         updatePageUrl();
@@ -76,11 +66,7 @@
         maxPage = result.max_page;
     }
 
-    /**
-     * Обработчик изменения фильтров.
-     * Вызывается по нажатию кнопки "Применить"
-     */
-     async function handleFilterChange() {
+    async function handleFilterChange() {
         page = 1;
         updatePageUrl();
         const result = await fetchTickets(search, { page });
@@ -88,9 +74,6 @@
         maxPage = result.max_page;
     }
 
-    /**
-     * Обработчик переключения порядка сортировки.
-     */
     async function handleToggleSort() {
         const filters = getTicketsFilters();
         const newOrder = filters.sortOrder === 'asc' ? 'desc' : 'asc';
@@ -104,9 +87,6 @@
         maxPage = result.max_page;
     }
 
-    /**
-     * Обработчик сброса фильтров.
-     */
     async function handleClearFilters() {
         clearTicketsFilters();
         ({
@@ -158,86 +138,119 @@
         pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
     });
+
+    // --- Мобильное сворачивание фильтров ---
+    let filtersCollapsed = true;
+    let isMobile = false;
+
+    function checkMobile() {
+        isMobile = window.innerWidth <= 900;
+    }
+
+    function toggleFiltersCollapsed() {
+        filtersCollapsed = !filtersCollapsed;
+    }
+
+    onMount(() => {
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+    });
+
+    onDestroy(() => {
+        window.removeEventListener('resize', checkMobile);
+    });
 </script>
 
 <div id="content-panel">
-    <aside>
-        <button id="clear_filters" on:click={ handleClearFilters }>Сбросить</button>
-        <div class="filter">
-            <span class="filter_name">Статус</span>
-            <div class="filter_case">
-                {#each statusOptions as status, i}
+    {#if isMobile}
+        <button type="button" class="filters-toggle-row" on:click={ toggleFiltersCollapsed } aria-label="Показать/скрыть фильтры">
+            <span>Фильтры</span>
+            <svg class="arrow" width="24" height="24" viewBox="0 0 24 24">
+                <path d={ filtersCollapsed ? "M6 9l6 6 6-6" : "M6 15l6-6 6 6" } stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+            </svg>
+        </button>
+    {/if}
+    {#if !isMobile || !filtersCollapsed}
+        <aside class:collapsed={ filtersCollapsed && isMobile }
+            in:slide={{ duration: 250 }}
+            out:fade={{ duration: 200 }}>
+            <button id="clear_filters" on:click={ handleClearFilters }>Сбросить</button>
+            <div class="filter">
+                <span class="filter_name">Статус</span>
+                <div class="filter_case">
+                    {#each statusOptions as status, i}
+                        <input
+                            type="radio"
+                            name="filter-status"
+                            value={ status.value }
+                            id={ status.value + '-tickets' }
+                            checked={ i === 0 }
+                            bind:group={ selectedStatus }
+                        />
+                        <label for={ status.value + '-tickets' }>{ status.label }</label>
+                    {/each}
+                </div>
+            </div>
+            <div class="filter">
+                <span class="filter_name">Сроки</span>
+                <div class="filter_case filter_case-planned">
+                    <label for="planned-from">От</label>
                     <input
-                        type="radio"
-                        name="filter-status"
-                        value={ status.value }
-                        id={ status.value + '-tickets' }
-                        checked={ i === 0 }
-                        bind:group={ selectedStatus }
+                        type="date"
+                        id="planned-from"
+                        name="planned-from"
+                        bind:value={ plannedFrom }
                     />
-                    <label for={ status.value + '-tickets' }>{ status.label }</label>
-                {/each}
-            </div>
-        </div>
-        <div class="filter">
-            <span class="filter_name">Сроки</span>
-            <div class="filter_case filter_case-planned">
-                <label for="planned-from">От</label>
-                <input
-                    type="date"
-                    id="planned-from"
-                    name="planned-from"
-                    bind:value={ plannedFrom }
-                />
-                <label for="planned-to">До</label>
-                <input
-                    type="date"
-                    id="planned-to"
-                    name="planned-to"
-                    bind:value={ plannedTo }
-                />
-            </div>
-        </div>
-        <div class="filter">
-            <span class="filter_name">Здание</span>
-            <div class="filter_case">
-                {#each $buildings as building}
+                    <label for="planned-to">До</label>
                     <input
-                        type="checkbox"
-                        name="filter-building"
-                        value={ building.id.toString() }
-                        id={ building.id.toString() }
-                        checked={ selectedBuildings.includes(building.id.toString()) }
-                        on:change={() => {
-                            const idStr = building.id.toString();
-                            if (selectedBuildings.includes(idStr))
-                                selectedBuildings = selectedBuildings.filter(b => b !== idStr);
-                            else
-                                selectedBuildings = [...selectedBuildings, idStr];
-                        }}
+                        type="date"
+                        id="planned-to"
+                        name="planned-to"
+                        bind:value={ plannedTo }
                     />
-                    <label for={ building.id.toString() }>{ building.name }</label>
-                {/each}
+                </div>
             </div>
-        </div>
-        <div class="filter">
-            <span class="filter_name">Сортировка</span>
-            <div class="filter_case">
-                {#each sortConsts as sort}
-                    <input
-                        type="radio"
-                        name="filter-sort"
-                        id={ "sort-" + sort.id }
-                        value={ sort.id }
-                        bind:group={ selectedSort }
-                        checked={ selectedSort === sort.id }
-                    />
-                    <label for={ "sort-" + sort.id }>{ sort.name }</label>
-                {/each}
+            <div class="filter">
+                <span class="filter_name">Здание</span>
+                <div class="filter_case">
+                    {#each $buildings as building}
+                        <input
+                            type="checkbox"
+                            name="filter-building"
+                            value={ building.id.toString() }
+                            id={ building.id.toString() }
+                            checked={ selectedBuildings.includes(building.id.toString()) }
+                            on:change={() => {
+                                const idStr = building.id.toString();
+                                if (selectedBuildings.includes(idStr))
+                                    selectedBuildings = selectedBuildings.filter(b => b !== idStr);
+                                else
+                                    selectedBuildings = [...selectedBuildings, idStr];
+                            }}
+                        />
+                        <label for={ building.id.toString() }>{ building.name }</label>
+                    {/each}
+                </div>
             </div>
-        </div>
-        <button class="filter_access" on:click={ handleFilterChange }>Применить</button>
-    </aside>
+            <div class="filter">
+                <span class="filter_name">Сортировка</span>
+                <div class="filter_case">
+                    {#each sortConsts as sort}
+                        <input
+                            type="radio"
+                            name="filter-sort"
+                            id={ "sort-" + sort.id }
+                            value={ sort.id }
+                            bind:group={ selectedSort }
+                            checked={ selectedSort === sort.id }
+                        />
+                        <label for={ "sort-" + sort.id }>{ sort.name }</label>
+                    {/each}
+                </div>
+            </div>
+            <button class="filter_access" on:click={ handleFilterChange }>Применить</button>
+        </aside>
+    {/if}
     <main>
         <div class="search-controls-wrapper">
             <SearchBar 

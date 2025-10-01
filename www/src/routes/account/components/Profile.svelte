@@ -39,7 +39,62 @@
     let cropFrame: HTMLDivElement;
     
     let avatarState = initAvatarState();
-    
+
+    const CACHE_KEY_STATS = 'profile_stats_cache';
+    const CACHE_KEY_TICKETS = 'profile_tickets_cache';
+    const CACHE_TTL = 2 * 60 * 1000;
+
+    /**
+     * Получить кэшированную статистику пользователя
+     * @param userId ID пользователя
+     * @param fallbackStats Статистика по умолчанию, если кэш недоступен
+     */
+    async function getCachedStats(userId: string, fallbackStats: any) {
+        try {
+            const cacheRaw = localStorage.getItem(CACHE_KEY_STATS);
+            if (cacheRaw) {
+                const cache = JSON.parse(cacheRaw);
+                if (cache.userId === userId && Date.now() - cache.timestamp < CACHE_TTL) {
+                    return cache.data;
+                }
+            }
+            const fresh = await loadUserStats(userId, fallbackStats);
+            localStorage.setItem(CACHE_KEY_STATS, JSON.stringify({
+                userId,
+                timestamp: Date.now(),
+                data: fresh
+            }));
+            return fresh;
+        } catch {
+            return fallbackStats;
+        }
+    }
+
+    /**
+     * Получить кэшированные активные заявки пользователя
+     * @param userId ID пользователя
+     */
+    async function getCachedTickets(userId: string) {
+        try {
+            const cacheRaw = localStorage.getItem(CACHE_KEY_TICKETS);
+            if (cacheRaw) {
+                const cache = JSON.parse(cacheRaw);
+                if (cache.userId === userId && Date.now() - cache.timestamp < CACHE_TTL) {
+                    return cache.data;
+                }
+            }
+            const fresh = await loadActiveUserTickets(userId);
+            localStorage.setItem(CACHE_KEY_TICKETS, JSON.stringify({
+                userId,
+                timestamp: Date.now(),
+                data: fresh
+            }));
+            return fresh;
+        } catch {
+            return [];
+        }
+    }
+
     /**
      * Начать редактирование профиля
      */
@@ -378,8 +433,8 @@
             editedName = userData?.name || '';
             editedEmail = userData?.email || '';
             
-            activeTickets = await loadActiveUserTickets(userData.id);
-            stats = await loadUserStats(userData.id, stats);
+            activeTickets = await getCachedTickets(userData.id);
+            stats = await getCachedStats(userData.id, stats);
         })();
         
         return () => {

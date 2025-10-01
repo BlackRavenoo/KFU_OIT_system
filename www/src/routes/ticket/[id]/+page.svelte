@@ -82,13 +82,13 @@
                 notification('Заявка взята в работу', NotificationType.Success);
                 if (ticketData) {
                     const currentAssigned = Array.isArray(ticketData.assigned_to) ? ticketData.assigned_to : [];
-
                     ticketData = {
                         ...ticketData,
                         assigned_to: [
                             ...currentAssigned,
                             { id: $currentUser?.id as string, name: $currentUser?.name as string }
-                        ]
+                        ],
+                        status: 'inprogress'
                     } as Ticket;
                 }
             })

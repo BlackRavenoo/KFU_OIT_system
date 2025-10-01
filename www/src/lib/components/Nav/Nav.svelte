@@ -12,8 +12,6 @@
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { navigateToForm, navigateToHome } from '$lib/utils/setup/navigate';
-    import { showModal } from '$lib/utils/notifications/modal';
-
     import { onMount } from 'svelte';
 
     import Modal from './Modal.svelte';
@@ -108,7 +106,6 @@
      */
     function navLoginHandler() {
         isShowModal = true;
-        showModal();
     }
 
     /**
@@ -123,16 +120,23 @@
     }
 
     /**
+     * Обработчик закрытия модального окна
+     * Сбрасывает флаг отображения модального окна и удаляет обработчик клавиатуры
+     */
+    function handleModalClose() {
+        alert('Модальное окно закрыто');
+        isShowModal = false;
+    }
+
+    /**
      * Устанавливает начальное состояние темы на основе сохраненных данных
      */
     onMount(() => {
         const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark' || savedTheme === 'light') {
+        if (savedTheme === 'dark' || savedTheme === 'light')
             isDarkTheme = savedTheme === 'dark';
-        } else {
-            // Проверка системных предпочтений
+        else
             isDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        }
         document.documentElement.classList.toggle('dark', isDarkTheme);
     });
 </script>
@@ -207,7 +211,7 @@
         on:login={ loginHandler }
         on:reset={ resetPasswordHandler }
         on:update={ handleModalUpdate }
-        on:close={() => { isShowModal = false; }}
+        on:close={ handleModalClose }
         userLogin={ userLogin }
         userPassword={ userPassword }
         userEmail={ userEmail }
