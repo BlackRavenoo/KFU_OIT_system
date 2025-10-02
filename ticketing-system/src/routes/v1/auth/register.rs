@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::{domain::{name::Name, password::Password}, services::registration_token::RegistrationTokenStore, utils::error_chain_fmt};
+use crate::{domain::{login::Login, name::Name, password::Password}, services::registration_token::RegistrationTokenStore, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum RegisterError {
@@ -11,6 +11,8 @@ pub enum RegisterError {
     TokenNotExists,
     #[error("Email already in use")]
     EmailAlreadyExists,
+    #[error("Login already in use")]
+    LoginAlreadyExists,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error)
 }
@@ -25,7 +27,7 @@ impl ResponseError for RegisterError {
     fn status_code(&self) -> StatusCode {
         match self {
             RegisterError::TokenNotExists => StatusCode::UNAUTHORIZED,
-            RegisterError::EmailAlreadyExists => StatusCode::BAD_REQUEST,
+            RegisterError::EmailAlreadyExists | RegisterError::LoginAlreadyExists => StatusCode::BAD_REQUEST,
             RegisterError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -34,6 +36,7 @@ impl ResponseError for RegisterError {
 #[derive(Deserialize)]
 pub struct RegisterForm {
     pub name: Name,
+    pub login: Login,
     pub password: Password,
     pub token: String,
 }
@@ -54,13 +57,18 @@ pub async fn register(
     let password_hash = data.password.hash()
         .context("Failed to hash password")?;
 
-    let res = insert_new_user(&pool, data.name, &email, &password_hash).await;
+    let res = insert_new_user(&pool, data.name, &email, &data.login, &password_hash).await;
 
     if let Err(e) = &res
         && let Some(db_err) = e.as_database_error()
-            && db_err.is_unique_violation() {
-                return Err(RegisterError::EmailAlreadyExists)
-            };
+            && db_err.is_unique_violation() 
+                && let Some(constraint) = db_err.constraint() {
+                    match constraint {
+                        "users_email_key" => return Err(RegisterError::EmailAlreadyExists),
+                        "user_login_key" => return Err(RegisterError::LoginAlreadyExists),
+                        _ => ()
+                    }
+                };
 
     res.context("Failed to insert new user")?;
 
@@ -69,16 +77,17 @@ pub async fn register(
 
 #[tracing::instrument(
     name = "Insert new user into database",
-    skip(password_hash)
+    skip(pool, password_hash)
 )]
-async fn insert_new_user(pool: &PgPool, name: Name, email: &str, password_hash: &str) -> Result<(), sqlx::Error> {
+async fn insert_new_user(pool: &PgPool, name: Name, email: &str, login: &Login, password_hash: &str) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
-        INSERT INTO users (name, email, password_hash) 
-        VALUES ($1, $2, $3)
+        INSERT INTO users (name, email, login, password_hash) 
+        VALUES ($1, $2, $3, $4)
         "#,
         name.as_ref(),
         email,
+        login.as_ref(),
         password_hash
     )
     .execute(pool)

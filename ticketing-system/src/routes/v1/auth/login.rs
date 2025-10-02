@@ -81,7 +81,7 @@ pub async fn login(
 async fn get_user(pool: &PgPool, email: Email) -> Result<Option<User>, sqlx::Error> {
     let row = sqlx::query_as!(
         User,
-        r#"SELECT id, password_hash, role, status FROM users WHERE email = $1"#,
+        r#"SELECT id, password_hash, role, status FROM users WHERE email = $1 OR login = $1"#,
         email.as_ref()
     )
     .fetch_optional(pool)

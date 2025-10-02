@@ -17,6 +17,7 @@ async fn register_returns_200() {
 
     let resp = register(&app, &serde_json::json!({
         "name": "Олег",
+        "login": "some_login",
         "password": "some_pass1",
         "token": token
     })).await;
@@ -30,6 +31,7 @@ async fn register_with_wrong_token_returns_401() {
 
     let resp = register(&app, &serde_json::json!({
         "name": "Олег",
+        "login": "some_login",
         "password": "some_pass1",
         "token": "abcabc"
     })).await;
@@ -43,17 +45,16 @@ async fn register_with_same_token_twice_returns_401() {
 
     let (_, token) = create_invitation(&app).await;
 
-    register(&app, &serde_json::json!({
+    let body = serde_json::json!({
         "name": "Олег",
+        "login": "some_login",
         "password": "some_pass1",
         "token": token
-    })).await;
+    });
 
-    let resp = register(&app, &serde_json::json!({
-        "name": "Олег",
-        "password": "some_pass1",
-        "token": token
-    })).await;
+    register(&app, &body).await;
+
+    let resp = register(&app, &body).await;
 
     assert_eq!(resp.status(), 401);
 }
@@ -66,6 +67,7 @@ async fn register_with_wrong_name_returns_400() {
 
     let resp = register(&app, &serde_json::json!({
         "name": "Sam",
+        "login": "some_login",
         "password": "some_pass1",
         "token": token
     })).await;
@@ -80,8 +82,8 @@ async fn register_with_existing_email_returns_400() {
     let (email, token) = create_invitation(&app).await;
 
     sqlx::query!(
-        "INSERT INTO users(name, email, password_hash)
-        VALUES('Олег', $1, 'something')",
+        "INSERT INTO users(name, email, login, password_hash)
+        VALUES('Олег', $1, 'some_login', 'something')",
         email
     )
     .execute(&app.db_pool)
@@ -90,6 +92,7 @@ async fn register_with_existing_email_returns_400() {
 
     let resp = register(&app, &serde_json::json!({
         "name": "Олег",
+        "login": "some_login",
         "password": "some_pass1",
         "token": token
     })).await;
@@ -112,6 +115,7 @@ async fn register_with_db_error_returns_500() {
 
     let resp = register(&app, &serde_json::json!({
         "name": "Олег",
+        "login": "some_login",
         "password": "some_pass1",
         "token": token
     })).await;

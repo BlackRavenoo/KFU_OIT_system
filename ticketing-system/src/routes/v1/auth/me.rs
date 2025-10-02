@@ -33,6 +33,7 @@ pub struct User {
     pub id: UserId,
     pub name: String,
     pub email: String,
+    pub login: String,
     pub role: UserRole,
 }
 
@@ -55,7 +56,7 @@ async fn get_user_info(pool: &PgPool, user_id: UserId) -> Result<Option<User>, s
     sqlx::query_as!(
         User,
         r#"
-        SELECT id, name, email, role
+        SELECT id, name, login, email, role
         FROM users
         WHERE id = $1
         "#,

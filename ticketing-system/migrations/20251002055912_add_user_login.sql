@@ -1,0 +1,16 @@
+BEGIN;
+
+ALTER TABLE users 
+ADD COLUMN login VARCHAR(128);
+
+UPDATE users 
+SET login = SPLIT_PART(email, '@', 1)
+WHERE login IS NULL;
+
+ALTER TABLE users 
+ALTER COLUMN login SET NOT NULL;
+
+ALTER TABLE users
+ADD CONSTRAINT users_login_key UNIQUE (login);
+
+COMMIT;

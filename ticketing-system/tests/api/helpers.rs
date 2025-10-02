@@ -80,10 +80,11 @@ impl TestApp {
         
         // Password: admin
         sqlx::query!("
-            INSERT INTO users (name, email, password_hash, role)
+            INSERT INTO users (name, email, login, password_hash, role)
             VALUES (
                 'user',
                 $1,
+                'some_login',
                 '$argon2id$v=19$m=19456,t=2,p=1$842ILagOz0rdwfNELPZhPg$KobLaelwC6ZPo2X0555H1rbyPlBo/+N7G+N2NOvKS7w',
                 $2
             )",
