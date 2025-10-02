@@ -17,6 +17,7 @@ pub struct UserSchema {
     pub id: UserId,
     pub name: String,
     pub email: String,
+    pub login: String,
     pub role: UserRole,
 }
 
@@ -24,6 +25,7 @@ struct Row {
     pub id: UserId,
     pub name: String,
     pub email: String,
+    pub login: String,
     pub role: UserRole,
     pub total_items: i64,
 }
@@ -80,6 +82,7 @@ pub async fn get_users(
         id: r.id,
         name: r.name,
         email: r.email,
+        login: r.login,
         role: r.role,
     }).collect();
 
@@ -98,7 +101,7 @@ async fn get_users_page(pool: &PgPool, page_size: i8, page: i32) -> Result<Vec<R
     sqlx::query_as!(
         Row,
         r#"
-            SELECT id, name, email, role, COUNT(*) OVER() as "total_items!"
+            SELECT id, name, email, login, role, COUNT(*) OVER() as "total_items!"
             FROM users
             LIMIT $1 OFFSET $2
         "#,

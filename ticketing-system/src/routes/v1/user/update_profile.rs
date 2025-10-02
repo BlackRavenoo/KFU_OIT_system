@@ -3,13 +3,14 @@ use anyhow::Context;
 use serde::Deserialize;
 use sqlx::{Execute, PgPool};
 
-use crate::{auth::extractor, build_update_query, domain::{email::Email, name::Name}, schema::common::UserId, utils::error_chain_fmt};
+use crate::{auth::extractor, build_update_query, domain::{email::Email, login::Login, name::Name}, schema::common::UserId, utils::error_chain_fmt};
 
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateProfileSchema {
     pub email: Option<Email>,
     pub name: Option<Name>,
+    pub login: Option<Login>,
 }
 
 #[derive(thiserror::Error)]
@@ -58,9 +59,11 @@ async fn update_profile(
 
     let name = schema.name.as_ref().map(|name| name.as_ref());
     let email = schema.email.as_ref().map(|email| email.as_ref());
+    let login = schema.login.as_ref().map(|login| login.as_ref());
 
     build_update_query!(builder, has_fields, name, "name");
     build_update_query!(builder, has_fields, email, "email");
+    build_update_query!(builder, has_fields, login, "login");
 
     if !has_fields {
         return Err(UpdateProfileError::HasNoFields);
