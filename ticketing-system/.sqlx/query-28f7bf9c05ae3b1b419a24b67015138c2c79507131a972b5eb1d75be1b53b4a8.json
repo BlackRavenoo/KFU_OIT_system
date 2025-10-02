@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, password_hash, role, status FROM users WHERE email = $1",
+  "query": "\n        SELECT id, name, login, email, role\n        FROM users\n        WHERE id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -10,31 +10,37 @@
       },
       {
         "ordinal": 1,
-        "name": "password_hash",
+        "name": "name",
         "type_info": "Varchar"
       },
       {
         "ordinal": 2,
-        "name": "role",
-        "type_info": "Int2"
+        "name": "login",
+        "type_info": "Varchar"
       },
       {
         "ordinal": 3,
-        "name": "status",
+        "name": "email",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "role",
         "type_info": "Int2"
       }
     ],
     "parameters": {
       "Left": [
-        "Text"
+        "Int4"
       ]
     },
     "nullable": [
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "c50adf9706496312e9cc06a51385b5e65e6925778bb3b54cab4b9dfd5f33f080"
+  "hash": "28f7bf9c05ae3b1b419a24b67015138c2c79507131a972b5eb1d75be1b53b4a8"
 }
