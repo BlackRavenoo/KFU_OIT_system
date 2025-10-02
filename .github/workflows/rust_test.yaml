@@ -58,14 +58,18 @@ jobs:
         run: |
           export DATABASE_URL=postgres://${{ env.APP_USER }}:${{ env.APP_USER_PWD }}@localhost:5432/${{ env.APP_DB_NAME }}
           sqlx migrate run
+        working-directory: ./ticketing-system
 
       - name: Run clippy
         run: cargo clippy -- -D warnings
+        working-directory: ./ticketing-system
 
       - name: Run tests
         run: |
           export DATABASE_URL=postgres://${{ env.APP_USER }}:${{ env.APP_USER_PWD }}@localhost:5432/${{ env.APP_DB_NAME }}
           cargo test
+        working-directory: ./ticketing-system
 
       - name: Check that queries are fresh
         run: cargo sqlx prepare --workspace --check -- --all-targets
+        working-directory: ./ticketing-system
