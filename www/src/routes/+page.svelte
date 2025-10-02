@@ -13,6 +13,8 @@
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { buildings } from '$lib/utils/setup/stores';
 
+    import { validateFiles, validateName, validatePhone } from '$lib/utils/setup/validate';
+
     import Modal from '$lib/components/Modal/Modal.svelte';
     import pageCSS from './page.css?inline';
 
@@ -53,6 +55,40 @@
         form: false
     };
 
+    let touched = {
+        Title: false,
+        Description: false,
+        Name: false,
+        Contact: false,
+        Building: false
+    };
+
+    let errors = {
+        Title: '',
+        Description: '',
+        Name: '',
+        Contact: '',
+        Building: ''
+    };
+
+    let PrivacyConsent: boolean = false;
+
+    $: nameValid = validateName(Name);
+    $: phoneValid = validatePhone(Contact);
+
+    /**
+     * Проверяет все поля формы и выставляет ошибки.
+     * Возвращает true, если ошибок нет.
+     */
+    function validateForm() {
+        errors.Title = Title.trim() === '' ? 'Заполните заголовок' : '';
+        errors.Description = Description.trim() === '' ? 'Заполните описание' : '';
+        errors.Name = Name.trim() === '' ? 'Введите ФИО' : (!nameValid ? 'Имя должно содержать минимум 3 буквы кириллицей' : '');
+        errors.Contact = Contact.trim() === '' ? 'Введите телефон' : (!phoneValid ? 'Некорректный телефон' : '');
+        errors.Building = !Building ? 'Выберите здание' : '';
+        return Object.values(errors).every(e => e === '');
+    }
+
     /**
      * Функция для обновления видимости элемента по его идентификатору.
      * @param id - Идентификатор элемента.
@@ -88,21 +124,27 @@
     }
 
     /**
-     * Переход к форме создания заявки.
+     * Обработчик отправки формы.
+     * Валидирует все поля, отмечает их как touched, и если ошибок нет — отправляет заявку.
      */
     function onSubmitForm() {
+        (Object.keys(touched) as Array<keyof typeof touched>).forEach(k => touched[k] = true);
+            
+        if (!validateForm() || !validateFiles(File)) return;
+        if (!PrivacyConsent) return;
+
         fetchTicket(Title, Description, Name, Contact, Building, Cabinet, DateVal, File)
             .then(() => {
                 Title = '';
                 Description = '';
                 Name = '';
                 Contact = '';
-                Building;
+                Building = 0;
                 Cabinet = '';
                 DateVal = '';
                 File = [];
                 fileName = [];
-
+                (Object.keys(touched) as Array<keyof typeof touched>).forEach(k => touched[k] = false);
                 notification("Заявка отправлена!", NotificationType.Success);
             })
             .catch((error) => {
@@ -251,9 +293,9 @@
             <div class="stats-container" in:fly={{ y: 30, duration: 800 }}>
                 <div class="stat">
                     <div class="stat-circle">
-                        <h2 class="counter">20+</h2>
+                        <h2 class="counter">20</h2>
                     </div>
-                    <p>заявок ежедневно</p>
+                    <p>заявок за 24 часа</p>
                 </div>
                 <div class="stat">
                     <div class="stat-circle">
@@ -285,36 +327,109 @@
                     <p>Оставьте заявку и мы сделаем всё возможное, чтобы решить Вашу проблему</p>
                     
                     <div class="form-field">
-                        <input type="text" id="Title" name="Title" placeholder=" " required bind:value={ Title }>
+                        <input
+                            type="text"
+                            id="Title"
+                            name="Title"
+                            placeholder=" "
+                            required
+                            bind:value={ Title }
+                            class:red-border={ touched.Title && errors.Title }
+                            on:input={() => {
+                                if (touched.Title) validateForm();
+                            }}
+                            on:blur={() => { touched.Title = true; validateForm(); }}
+                        >
                         <label for="Title">Заголовок заявки</label>
+                        {#if touched.Title && errors.Title}
+                            <div class="input-error">{errors.Title}</div>
+                        {/if}
                     </div>
                     
                     <div class="form-field">
-                        <textarea id="Description" name="Description" placeholder=" " required bind:value={ Description }></textarea>
+                        <textarea
+                            id="Description"
+                            name="Description"
+                            placeholder=" "
+                            required
+                            bind:value={ Description }
+                            class:red-border={ touched.Description && errors.Description }
+                            on:input={() => {
+                                if (touched.Description) validateForm();
+                            }}
+                            on:blur={() => { touched.Description = true; validateForm(); }}
+                        ></textarea>
                         <label for="Description">Описание проблемы</label>
+                        {#if touched.Description && errors.Description}
+                            <div class="input-error">{errors.Description}</div>
+                        {/if}
                     </div>
                     
                     <div class="form-row">
                         <div class="form-field">
-                            <input type="text" id="Name" name="Name" placeholder=" " required bind:value={ Name }>
+                            <input
+                                type="text"
+                                id="Name"
+                                name="Name"
+                                placeholder=" "
+                                required
+                                bind:value={ Name }
+                                class:red-border={ touched.Name && errors.Name }
+                                on:input={() => {
+                                    if (touched.Name) validateForm();
+                                }}
+                                on:blur={() => { touched.Name = true; validateForm(); }}
+                            >
                             <label for="Name">ФИО</label>
+                            {#if touched.Name && errors.Name}
+                                <div class="input-error">{errors.Name}</div>
+                            {/if}
                         </div>
                         
                         <div class="form-field">
-                            <input type="text" id="Contact" name="Contact" placeholder=" " required bind:value={ Contact }>
+                            <input
+                                type="text"
+                                id="Contact"
+                                name="Contact"
+                                placeholder=" "
+                                required
+                                bind:value={ Contact }
+                                class:red-border={ touched.Contact && errors.Contact }
+                                on:input={() => {
+                                    if (touched.Contact) validateForm();
+                                }}
+                                on:blur={() => { touched.Contact = true; validateForm(); }}
+                            >
                             <label for="Contact">Контактный телефон</label>
+                            {#if touched.Contact && errors.Contact}
+                                <div class="input-error">{errors.Contact}</div>
+                            {/if}
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-field">
-                            <select id="Building" name="Building" class="{ Building ? "selected" : "" }" placeholder=" " required bind:value={ Building }>
+                            <select
+                                id="Building"
+                                name="Building"
+                                class="{ Building ? 'selected' : '' } {touched.Building && errors.Building ? 'red-border' : ''}"
+                                placeholder=" "
+                                required
+                                bind:value={ Building }
+                                on:change={() => {
+                                    if (touched.Building) validateForm();
+                                }}
+                                on:blur={() => { touched.Building = true; validateForm(); }}
+                            >
                                 <option value="" disabled selected>Выберите здание</option>
-                                    {#each $buildings as building}
-                                        <option value={ building.id }>{ building.name }</option>
-                                    {/each}
+                                {#each $buildings as building}
+                                    <option value={ building.id }>{ building.name }</option>
+                                {/each}
                             </select>
-                            <label for="Name">Здание</label>
+                            <label for="Building">Здание</label>
+                            {#if touched.Building && errors.Building}
+                                <div class="input-error">{errors.Building}</div>
+                            {/if}
                         </div>
                         
                         <div class="form-field">
@@ -323,9 +438,11 @@
                         </div>
                     </div>
                     
-                    <button class="more_options" on:click|preventDefault={ () => {
-                        moreOptionsVisible = !moreOptionsVisible
-                    } }>
+                    <button class="more_options" 
+                        on:click|preventDefault={ () => {
+                            moreOptionsVisible = !moreOptionsVisible
+                        } }
+                    >
                         Больше опций <span class="arrow {moreOptionsVisible ? 'arrow_up' : ''}">▼</span>
                     </button>
                     
@@ -357,8 +474,22 @@
                             {/if}
                         </div>
                     </div>
+
+                    <div class="form-row checkbox-field">
+                        <label class="checkbox-label">
+                            <input 
+                                type="checkbox" 
+                                id="PrivacyConsent"
+                                name="PrivacyConsent"
+                                bind:checked={ PrivacyConsent }
+                            />
+                            <span class="checkmark"></span>
+                            Даю согласие на обработку 
+                            <a href="/privacy" target="_blank" rel="noopener noreferrer">персональных данных</a>
+                        </label>
+                    </div>
                     
-                    <button class="promo submit-btn" type="submit">
+                    <button class="promo submit-btn" type="submit" disabled={ !PrivacyConsent }>
                         Оставить заявку
                         <span class="btn-arrow">→</span>
                     </button>

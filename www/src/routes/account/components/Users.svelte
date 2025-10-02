@@ -7,6 +7,7 @@
     import Pagination from '$lib/components/Search/Pagination.svelte';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
     
+    import { validateEmail } from '$lib/utils/setup/validate';
     import {
       loadUsersData,
       sendInvitation,
@@ -31,6 +32,8 @@
     
     let showDeleteModal: boolean = false;
     let deletingUser: User | null = null;
+
+    let emailError: string = '';
     
     /**
      * Загрузка списка пользователей
@@ -61,6 +64,13 @@
      */
     async function handleSendInvitation() {
         isAddingUser = true;
+        emailError = '';
+
+        if (!validateEmail(newUserEmail)) {
+            emailError = 'Введите корректный email';
+            isAddingUser = false;
+            return;
+        }
 
         const success = await sendInvitation(newUserEmail);
 
@@ -150,7 +160,7 @@
                         id="newUserEmail" 
                         placeholder="Введите email" 
                         bind:value={ newUserEmail }
-                        class="form-input"
+                        class="form-input { emailError ? 'red-border' : '' }"
                     />
                     <button 
                         class="btn btn-primary" 
@@ -160,6 +170,9 @@
                         { isAddingUser ? 'Отправка...' : isMobile ? 'Отправить' : 'Отправить приглашение' }
                     </button>
                 </div>
+                {#if emailError}
+                    <p class="input-error">{ emailError }</p>
+                {/if}
                 <p class="help-text">На указанный email будет отправлено приглашение для регистрации</p>
             </div>
         </div>

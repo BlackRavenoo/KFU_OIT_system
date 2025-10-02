@@ -66,22 +66,30 @@ Object.defineProperty(globalThis, 'document', {
     writable: true
 });
 
+const localStorageMock = {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn()
+};
+
 Object.defineProperty(globalThis, 'window', {
     value: globalThis.window || {
         document: globalThis.document,
         location: { href: 'http://localhost:3000/' },
         scrollTo: vi.fn(),
-        localStorage: {
-            getItem: vi.fn(),
-            setItem: vi.fn(),
-            removeItem: vi.fn()
-        },
+        localStorage: localStorageMock,
         sessionStorage: {
             getItem: vi.fn(),
             setItem: vi.fn(),
             removeItem: vi.fn()
         }
     },
+    writable: true
+});
+
+Object.defineProperty(globalThis, 'localStorage', {
+    value: localStorageMock,
     writable: true
 });
 
@@ -137,6 +145,11 @@ beforeEach(() => {
     vi.resetModules();
     helpers.resetMocks();
     vi.clearAllMocks();
+
+    localStorageMock.getItem.mockClear();
+    localStorageMock.setItem.mockClear();
+    localStorageMock.removeItem.mockClear();
+    localStorageMock.clear.mockClear();
 
     (getTicketsFilters as any).mockReturnValue({ ...filtersValue });
     (globalThis as any).URL = (globalThis as any).URL || {};
@@ -194,7 +207,7 @@ describe('Tickets API GET methods', () => {
 
         expect(result).toEqual({ tickets: [{ id: 'ticket-3' }, { id: 'ticket-4' }], max_page: 4 });
         expect(apiMock.get).toHaveBeenCalledWith(
-            '/api/tickets/?page=1&page_size=5&order_by=plannedat&sort_order=desc&statuses[]=open&planned_from=2023-01-01T00%3A00%3A00Z&planned_to=2023-12-31T23%3A59%3A59Z&buildings[]=1&buildings[]=2&search=network'
+            '/api/tickets/?page=1&page_size=10&order_by=plannedat&sort_order=desc&statuses[]=open&planned_from=2023-01-01T00%3A00%3A00Z&planned_to=2023-12-31T23%3A59%3A59Z&buildings[]=1&buildings[]=2&search=network'
         );
     });
 
@@ -293,9 +306,10 @@ describe('Get ticket by ID', () => {
     });
 });
 
-describe('Fetch consts', () => {
-    it('Fetch consts successfully', async () => {
+describe('Fetch consts with caching', () => {
+    it('Fetch consts successfully from API when no cache', async () => {
         mockSvelteGet(() => []);
+        localStorageMock.getItem.mockReturnValue(null);
         helpers.mockSuccess('get', { order_by: ['test1', 'test2'], buildings: [1, 2, 3] });
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
@@ -303,32 +317,72 @@ describe('Fetch consts', () => {
 
         expect(result).toEqual({ order: ['test1', 'test2'], buildings: [1, 2, 3] });
         expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+            'tickets_consts_cache',
+            expect.stringContaining('"data":{"buildings":[1,2,3],"order":["test1","test2"]}')
+        );
     });
 
-    it('Fetch void consts', async () => {
-        mockSvelteGet(() => []);
-        helpers.mockSuccess('get', {});
+    it('Uses cached data when available and not expired', async () => {
+        const cachedData = {
+            timestamp: Date.now() - 5 * 60 * 1000,
+            data: { buildings: [4, 5], order: ['cached1', 'cached2'] }
+        };
+        localStorageMock.getItem.mockReturnValue(JSON.stringify(cachedData));
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         const result = await fetchConsts();
 
-        expect(result).toEqual({ order: [], buildings: [] });
+        expect(result).toEqual({ buildings: [4, 5], order: ['cached1', 'cached2'] });
+        expect(apiMock.get).not.toHaveBeenCalled();
+    });
+
+    it('Fetches fresh data when cache is expired', async () => {
+        const expiredCachedData = {
+            timestamp: Date.now() - 20 * 60 * 1000,
+            data: { buildings: [4, 5], order: ['old1', 'old2'] }
+        };
+        localStorageMock.getItem.mockReturnValue(JSON.stringify(expiredCachedData));
+        mockSvelteGet(() => []);
+        helpers.mockSuccess('get', { order_by: ['fresh1', 'fresh2'], buildings: [6, 7, 8] });
+
+        const { fetchConsts } = await import('$lib/utils/tickets/api/get');
+        const result = await fetchConsts();
+
+        expect(result).toEqual({ order: ['fresh1', 'fresh2'], buildings: [6, 7, 8] });
         expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
     });
 
-    it('Returns values from stores when both are not empty', async () => {
+    it('Handles corrupted cache gracefully', async () => {
+        localStorageMock.getItem.mockReturnValue('invalid-json');
+        mockSvelteGet(() => []);
+        helpers.mockSuccess('get', { order_by: ['recovered1'], buildings: [9] });
+
+        const { fetchConsts } = await import('$lib/utils/tickets/api/get');
+        const result = await fetchConsts();
+
+        expect(result).toEqual({ order: ['recovered1'], buildings: [9] });
+        expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
+    });
+
+    it('Returns values from stores when both are not empty and saves to cache', async () => {
         const modStores = await import('$lib/utils/setup/stores');
         mockSvelteGet((store: any) => {
             if (store === (modStores as any).order) return ['id', 'created_at'];
             if (store === (modStores as any).buildings) return [1, 2, 3];
             return undefined;
         });
+        localStorageMock.getItem.mockReturnValue(null);
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         const result = await fetchConsts();
 
         expect(result).toEqual({ order: ['id', 'created_at'], buildings: [1, 2, 3] });
         expect(apiMock.get).not.toHaveBeenCalled();
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+            'tickets_consts_cache',
+            expect.stringContaining('"data":{"buildings":[1,2,3],"order":["id","created_at"]}')
+        );
     });
 
     it('Calls API when buildings store is empty', async () => {
@@ -338,6 +392,7 @@ describe('Fetch consts', () => {
             if (store === (modStores as any).buildings) return [];
             return undefined;
         });
+        localStorageMock.getItem.mockReturnValue(null);
         helpers.mockSuccess('get', { order_by: ['id', 'name'], buildings: [4, 5, 6] });
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
@@ -358,6 +413,7 @@ describe('Fetch consts', () => {
             if (store === (modStores as any).buildings) return [1, 2];
             return undefined;
         });
+        localStorageMock.getItem.mockReturnValue(null);
         helpers.mockSuccess('get', { order_by: ['title', 'date'], buildings: [7, 8] });
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
@@ -371,8 +427,21 @@ describe('Fetch consts', () => {
         expect((modStoresAfter as any).buildings.set).toHaveBeenCalledWith([7, 8]);
     });
 
+    it('Fetch void consts', async () => {
+        mockSvelteGet(() => []);
+        localStorageMock.getItem.mockReturnValue(null);
+        helpers.mockSuccess('get', {});
+
+        const { fetchConsts } = await import('$lib/utils/tickets/api/get');
+        const result = await fetchConsts();
+
+        expect(result).toEqual({ order: [], buildings: [] });
+        expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
+    });
+
     it('Handle API error', async () => {
         mockSvelteGet(() => []);
+        localStorageMock.getItem.mockReturnValue(null);
         helpers.mockError('get', 'API Error', 500);
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
@@ -383,12 +452,164 @@ describe('Fetch consts', () => {
 
     it('Handle unknown error', async () => {
         mockSvelteGet(() => []);
+        localStorageMock.getItem.mockReturnValue(null);
         helpers.mockError('get', '', 500);
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         await expect(fetchConsts()).rejects.toThrow('Ошибка загрузки констант');
 
         expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
+    });
+
+    it('Handles localStorage setItem errors gracefully', async () => {
+        mockSvelteGet(() => []);
+        localStorageMock.getItem.mockReturnValue(null);
+        localStorageMock.setItem.mockImplementation(() => {
+            throw new Error('LocalStorage is full');
+        });
+        helpers.mockSuccess('get', { order_by: ['test1'], buildings: [1] });
+
+        const { fetchConsts } = await import('$lib/utils/tickets/api/get');
+        const result = await fetchConsts();
+
+        expect(result).toEqual({ order: ['test1'], buildings: [1] });
+        expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
+    });
+
+    it('Handles localStorage setItem errors when stores are not empty', async () => {
+        const modStores = await import('$lib/utils/setup/stores');
+        mockSvelteGet((store: any) => {
+            if (store === (modStores as any).order) return ['id', 'created_at'];
+            if (store === (modStores as any).buildings) return [1, 2, 3];
+            return undefined;
+        });
+        localStorageMock.getItem.mockReturnValue(null);
+        localStorageMock.setItem.mockImplementation(() => {
+            throw new Error('LocalStorage quota exceeded');
+        });
+
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const { fetchConsts } = await import('$lib/utils/tickets/api/get');
+        const result = await fetchConsts();
+
+        expect(result).toEqual({ order: ['id', 'created_at'], buildings: [1, 2, 3] });
+        expect(apiMock.get).not.toHaveBeenCalled();
+        expect(consoleWarnSpy).toHaveBeenCalledWith('Не удалось сохранить константы в кеш');
+        expect(localStorageMock.setItem).toHaveBeenCalled();
+
+        consoleWarnSpy.mockRestore();
+    });
+
+    it('Handles localStorage setItem errors after successful API call', async () => {
+        mockSvelteGet(() => []);
+        localStorageMock.getItem.mockReturnValue(null);
+        localStorageMock.setItem.mockImplementation(() => {
+            throw new Error('Storage error');
+        });
+        helpers.mockSuccess('get', { order_by: ['test1'], buildings: [1] });
+
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const { fetchConsts } = await import('$lib/utils/tickets/api/get');
+        const result = await fetchConsts();
+
+        expect(result).toEqual({ order: ['test1'], buildings: [1] });
+        expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
+        expect(consoleWarnSpy).toHaveBeenCalledWith('Не удалось сохранить константы в кеш');
+        expect(localStorageMock.setItem).toHaveBeenCalled();
+
+        consoleWarnSpy.mockRestore();
+    });
+
+    it('Handles localStorage setItem SecurityError gracefully', async () => {
+        const modStores = await import('$lib/utils/setup/stores');
+        mockSvelteGet((store: any) => {
+            if (store === (modStores as any).order) return ['title'];
+            if (store === (modStores as any).buildings) return [10];
+            return undefined;
+        });
+        localStorageMock.getItem.mockReturnValue(null);
+        localStorageMock.setItem.mockImplementation(() => {
+            const error = new Error('SecurityError: The operation is insecure');
+            error.name = 'SecurityError';
+            throw error;
+        });
+
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const { fetchConsts } = await import('$lib/utils/tickets/api/get');
+        const result = await fetchConsts();
+
+        expect(result).toEqual({ order: ['title'], buildings: [10] });
+        expect(consoleWarnSpy).toHaveBeenCalledWith('Не удалось сохранить константы в кеш');
+
+        consoleWarnSpy.mockRestore();
+    });
+
+    it('Successfully saves to cache when localStorage works', async () => {
+        const modStores = await import('$lib/utils/setup/stores');
+        mockSvelteGet((store: any) => {
+            if (store === (modStores as any).order) return ['name'];
+            if (store === (modStores as any).buildings) return [5, 6];
+            return undefined;
+        });
+        localStorageMock.getItem.mockReturnValue(null);
+        localStorageMock.setItem.mockImplementation(() => {});
+
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const { fetchConsts } = await import('$lib/utils/tickets/api/get');
+        const result = await fetchConsts();
+
+        expect(result).toEqual({ order: ['name'], buildings: [5, 6] });
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+            'tickets_consts_cache',
+            expect.stringContaining('"data":{"buildings":[5,6],"order":["name"]}')
+        );
+
+        consoleWarnSpy.mockRestore();
+    });
+
+    it('Uses fallback empty array when buildings is not array in cache', async () => {
+        const modStores = await import('$lib/utils/setup/stores');
+        const invalidCacheData = {
+            timestamp: Date.now() - 5 * 60 * 1000,
+            data: { 
+                buildings: "not-an-array",
+                order: ['valid1', 'valid2']
+            }
+        };
+        localStorageMock.getItem.mockReturnValue(JSON.stringify(invalidCacheData));
+        
+        const { fetchConsts } = await import('$lib/utils/tickets/api/get');
+        const result = await fetchConsts();
+    
+        expect((modStores as any).buildings.set).toHaveBeenCalledWith([]);
+        expect((modStores as any).order.set).toHaveBeenCalledWith(['valid1', 'valid2']);
+        expect(result).toEqual({ buildings: "not-an-array", order: ['valid1', 'valid2'] });
+        expect(apiMock.get).not.toHaveBeenCalled();
+    });
+    
+    it('Uses fallback empty array when order is not array in cache', async () => {
+        const modStores = await import('$lib/utils/setup/stores');
+        const invalidCacheData = {
+            timestamp: Date.now() - 5 * 60 * 1000,
+            data: { 
+                buildings: [1, 2, 3],
+                order: null
+            }
+        };
+        localStorageMock.getItem.mockReturnValue(JSON.stringify(invalidCacheData));
+        
+        const { fetchConsts } = await import('$lib/utils/tickets/api/get');
+        const result = await fetchConsts();
+    
+        expect((modStores as any).buildings.set).toHaveBeenCalledWith([1, 2, 3]);
+        expect((modStores as any).order.set).toHaveBeenCalledWith([]);
+        expect(result).toEqual({ buildings: [1, 2, 3], order: null });
+        expect(apiMock.get).not.toHaveBeenCalled();
     });
 });
 
@@ -473,18 +694,4 @@ describe('Load active user tickets', () => {
         expect(calledUrl).toContain('assigned_to=user-123');
         expect(calledUrl).toContain('page_size=3');
     });
-
-    it('Returns tickets successfully', async () => {
-        const tickets = [{ id: 't1' }, { id: 't2' }];
-        helpers.mockSuccess('get', { items: tickets, max_page: 1 });
-        const { loadActiveUserTickets } = await import('$lib/utils/tickets/api/get');
-        const result = await loadActiveUserTickets('user-123');
-
-        expect(result).toEqual(tickets);
-        expect(apiMock.get).toHaveBeenCalled();
-
-        const calledUrl = (apiMock.get as any).mock.calls[0][0] as string;
-        expect(calledUrl).toContain('assigned_to=user-123');
-        expect(calledUrl).toContain('page_size=3');
-    }); 
 });

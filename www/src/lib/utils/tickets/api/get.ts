@@ -6,8 +6,11 @@ import { getTicketsFilters } from '$lib/utils/tickets/stores';
 import { orderByMap } from '$lib/utils/tickets/types';
 import { TICKETS_API_ENDPOINTS } from './endpoints';
 import { order, buildings } from '$lib/utils/setup/stores';
-import { notification, NotificationType } from '$lib/utils/notifications/notification';
+import { validatePageSize } from '$lib/utils/setup/validate';
 import type { Building, OrderBy, Ticket } from '$lib/utils/tickets/types';
+
+const CACHE_KEY_CONSTS = 'tickets_consts_cache';
+const CACHE_TTL_CONSTS = 15 * 60 * 1000;
 
 /**
  * Получение списка тикетов с учётом фильтров.
@@ -18,7 +21,7 @@ import type { Building, OrderBy, Ticket } from '$lib/utils/tickets/types';
 export async function fetchTickets(search: string = '', search_params: Record<string, any> = {}): Promise<{ tickets: Ticket[]; max_page: number }> {
     const filters = getTicketsFilters();
     const page = search_params.page || 1; 
-    const page_size = filters.page_size;
+    const page_size = validatePageSize(filters.page_size) ? filters.page_size : 10;
     
     let params: Record<string, any> = {};
     
@@ -69,9 +72,8 @@ export async function fetchTickets(search: string = '', search_params: Record<st
 export async function getById(id: string): Promise<Ticket> {
     const response = await api.get<Ticket>(`${TICKETS_API_ENDPOINTS.read}${id}`);
 
-    if (!response.success) {
+    if (!response.success)
         throw new Error(response.error || 'Ошибка получения заявки');
-    }
 
     return response.data!;
 }
@@ -82,27 +84,62 @@ export async function getById(id: string): Promise<Ticket> {
  * @returns {Promise<{ buildings: Building[], order: OrderBy[] }>}
  */
 export async function fetchConsts(): Promise<{ buildings: Building[], order: OrderBy[] }> {
+    try {
+        const cacheRaw = localStorage.getItem(CACHE_KEY_CONSTS);
+        if (cacheRaw) {
+            const cache = JSON.parse(cacheRaw);
+            if (Date.now() - cache.timestamp < CACHE_TTL_CONSTS) {
+                buildings.set(Array.isArray(cache.data.buildings) ? cache.data.buildings : []);
+                order.set(Array.isArray(cache.data.order) ? cache.data.order : []);
+                return cache.data;
+            }
+        }
+    } catch {
+        console.warn('Не удалось загрузить константы из кеша');
+    }
+
     if (get(order).length === 0 || get(buildings).length === 0) {
         const response = await api.get<{ buildings: Building[]; order_by: OrderBy[] }>(
             TICKETS_API_ENDPOINTS.consts
         );
 
-        if (!response.success) {
+        if (!response.success)
             throw new Error(response.error || 'Ошибка загрузки констант');
-        }
 
         const data = response.data!;
-        buildings.set(Array.isArray(data.buildings) ? data.buildings : []);
-        order.set(Array.isArray(data.order_by) ? data.order_by : []);
-        return {
+        const result = {
             buildings: Array.isArray(data.buildings) ? data.buildings : [],
             order: Array.isArray(data.order_by) ? data.order_by : []
         };
+
+        buildings.set(result.buildings);
+        order.set(result.order);
+
+        try {
+            localStorage.setItem(CACHE_KEY_CONSTS, JSON.stringify({
+                timestamp: Date.now(),
+                data: result
+            }));
+        } catch {
+            console.warn('Не удалось сохранить константы в кеш');}
+
+        return result;
     } else {
-        return {
+        const result = {
             buildings: get(buildings),
             order: get(order)
         };
+
+        try {
+            localStorage.setItem(CACHE_KEY_CONSTS, JSON.stringify({
+                timestamp: Date.now(),
+                data: result
+            }));
+        } catch {
+            console.warn('Не удалось сохранить константы в кеш');
+        }
+
+        return result;
     }
 }
 

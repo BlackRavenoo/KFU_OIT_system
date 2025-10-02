@@ -12,6 +12,8 @@
     import { saveUserProfile } from '$lib/utils/account/profile';
     import { loadUserStats } from '$lib/utils/account/stats';
     import { loadActiveUserTickets } from '$lib/utils/tickets/api/get';
+
+    import { validateEmail, validateName, validatePassword } from '$lib/utils/setup/validate';
     
     export let userData: { id: string, name: string, email: string, role: string };
     export let stats: { assignedToMe: number, completedTickets: number, cancelledTickets: number };
@@ -95,6 +97,21 @@
         }
     }
 
+    let nameError = '';
+    let emailError = '';
+    let passwordError = '';
+    let confirmPasswordError = '';
+
+    $: nameValid = validateName(editedName);
+    $: emailValid = validateEmail(editedEmail);
+    $: passwordValid = !changePassword || validatePassword(newPassword);
+    $: confirmPasswordValid = !changePassword || (confirmPassword === newPassword);
+
+    $: nameError = nameValid ? '' : 'Имя должно содержать минимум 3 буквы кириллицей';
+    $: emailError = emailValid ? '' : 'Некорректный email';
+    $: passwordError = passwordValid ? '' : 'Пароль должен быть не менее 8 символов, содержать буквы в верхнем и нижнем регистре, а также цифры';
+    $: confirmPasswordError = confirmPasswordValid ? '' : 'Пароли не совпадают';
+
     /**
      * Начать редактирование профиля
      */
@@ -116,6 +133,10 @@
         avatarFile = null;
         changePassword = false;
         isEditing = false;
+        nameError = '';
+        emailError = '';
+        passwordError = '';
+        confirmPasswordError = '';
     }
     
     /**
@@ -409,6 +430,7 @@
      * Включает в себя обновление имени, email и пароля
      */
     async function handleSaveProfile() {
+        if (!nameValid || !emailValid || !passwordValid || !confirmPasswordValid) return;
         if (confirmPassword !== newPassword) return;
         
         isLoading = true;
@@ -420,7 +442,10 @@
             newPassword
         );
         
-        if (success) isEditing = false;
+        if (success) {
+            isEditing = false;
+            cancelEditing();
+        }
         isLoading = false;
     }
     
@@ -487,27 +512,35 @@
                     
                     <div class="form-section">
                         <h3>Основная информация</h3>
-                        
                         <div class="form-group">
                             <label for="name">Имя пользователя</label>
                             <input 
                                 type="text" 
                                 id="name" 
-                                class="form-input" 
+                                class="form-input"
+                                class:red-border={!nameValid}
                                 bind:value={ editedName }
                                 placeholder="Введите имя"
+                                on:input={() => { nameError = validateName(editedName) ? '' : 'Имя должно содержать минимум 3 буквы кириллицей'; }}
                             />
+                            {#if nameError}
+                                <div class="input-error">{nameError}</div>
+                            {/if}
                         </div>
-                        
                         <div class="form-group">
                             <label for="email">Email</label>
                             <input 
                                 type="email" 
                                 id="email" 
-                                class="form-input" 
+                                class="form-input"
+                                class:red-border={!emailValid}
                                 bind:value={ editedEmail }
                                 placeholder="Введите email"
+                                on:input={() => { emailError = validateEmail(editedEmail) ? '' : 'Некорректный email'; }}
                             />
+                            {#if emailError}
+                                <div class="input-error">{emailError}</div>
+                            {/if}
                         </div>
                     </div>
                     
@@ -529,35 +562,43 @@
                                         id="currentPassword" 
                                         class="form-input" 
                                         bind:value={ currentPassword }
-                                        placeholder="Введите новый пароль"
+                                        placeholder="Введите текущий пароль"
                                     />
                                 </div>
                             </div>
-
                             <div class="form-group">
                                 <label for="newPassword">Новый пароль</label>
                                 <div class="password-input-wrapper">
                                     <input 
                                         type="password" 
                                         id="newPassword" 
-                                        class="form-input" 
+                                        class="form-input"
+                                        class:red-border={!passwordValid}
                                         bind:value={ newPassword }
                                         placeholder="Введите новый пароль"
+                                        on:input={() => { passwordError = validatePassword(newPassword) ? '' : 'Пароль должен быть не менее 8 символов, содержать буквы и цифры'; }}
                                     />
                                 </div>
+                                {#if passwordError}
+                                    <div class="input-error">{passwordError}</div>
+                                {/if}
                             </div>
-                            
                             <div class="form-group">
                                 <label for="confirmPassword">Подтвердите пароль</label>
                                 <div class="password-input-wrapper">
                                     <input 
                                         type="password" 
                                         id="confirmPassword" 
-                                        class="form-input" 
+                                        class="form-input"
+                                        class:red-border={!confirmPasswordValid}
                                         bind:value={ confirmPassword }
                                         placeholder="Подтвердите новый пароль"
+                                        on:input={() => { confirmPasswordError = (confirmPassword === newPassword) ? '' : 'Пароли не совпадают'; }}
                                     />
                                 </div>
+                                {#if confirmPasswordError}
+                                    <div class="input-error">{confirmPasswordError}</div>
+                                {/if}
                             </div>
                         {/if}
                     </div>

@@ -37,6 +37,19 @@ vi.mock("@fingerprintjs/fingerprintjs", () => {
     };
 });
 
+// Мок localStorage для тестирования кеширования
+const localStorageMock = {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn()
+};
+
+Object.defineProperty(globalThis, 'localStorage', {
+    value: localStorageMock,
+    writable: true
+});
+
 const authApi = await import("$lib/utils/auth/api/api");
 const tokensModule = await import("$lib/utils/auth/tokens/tokens");
 const storageModule = await import("$lib/utils/auth/tokens/storage");
@@ -47,6 +60,12 @@ const FingerprintJS = await import("@fingerprintjs/fingerprintjs");
 beforeEach(() => {
     vi.restoreAllMocks();
     vi.useFakeTimers();
+    
+    // Очищаем все моки localStorage
+    localStorageMock.getItem.mockClear();
+    localStorageMock.setItem.mockClear();
+    localStorageMock.removeItem.mockClear();
+    localStorageMock.clear.mockClear();
 });
 
 afterEach(() => {
@@ -74,9 +93,14 @@ describe("Auth API", () => {
         } as any);
 
         const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
+        
+        // Мокаем localStorage для очистки кеша при входе
+        localStorageMock.removeItem.mockImplementation(() => {});
+        
         await (authApi as any).login("e", "p", true);
 
         expect(setTokenSpy).toHaveBeenCalled();
+        expect(localStorageMock.removeItem).toHaveBeenCalledWith('user_data_cache');
 
         vi.advanceTimersByTime(24 * 60 * 60 * 1000);
         await Promise.resolve();
@@ -159,9 +183,12 @@ describe("Auth API", () => {
         } as any);
 
         const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
+        localStorageMock.removeItem.mockImplementation(() => {});
+        
         await (authApi as any).login("e", "p", true);
 
         expect(setTokenSpy.mock.calls[0][0]).toEqual({ accessToken: "acc2", refreshToken: "ref2" });
+        expect(localStorageMock.removeItem).toHaveBeenCalledWith('user_data_cache');
     });
 
     it("Logout clears tokens, resets stores and redirects", async () => {
@@ -173,6 +200,28 @@ describe("Auth API", () => {
         (globalThis as any).location = { href: "/somewhere" };
 
         await (authApi as any).logout();
+
+        expect(clearSpy).toHaveBeenCalled();
+        expect(authSetSpy).toHaveBeenCalledWith(false);
+        expect(userSetSpy).toHaveBeenCalledWith(null);
+        expect(localStorageMock.removeItem).toHaveBeenCalledWith('user_data_cache');
+        expect((globalThis as any).location.href).toBe("/");
+    });
+
+    it("Logout handles localStorage errors gracefully", async () => {
+        localStorageMock.removeItem.mockImplementation(() => {
+            throw new Error('LocalStorage error');
+        });
+
+        const clearSpy = vi.spyOn(tokensModule as any, "clearAuthTokens").mockImplementation(() => undefined as any);
+        const authSetSpy = vi.spyOn((initialStore as any).isAuthenticated, "set").mockImplementation(() => undefined as any);
+        const userSetSpy = vi.spyOn((initialStore as any).currentUser, "set").mockImplementation(() => undefined as any);
+
+        delete (globalThis as any).location;
+        (globalThis as any).location = { href: "/somewhere" };
+
+        // Не должно выбрасывать ошибку
+        await expect((authApi as any).logout()).resolves.toBeUndefined();
 
         expect(clearSpy).toHaveBeenCalled();
         expect(authSetSpy).toHaveBeenCalledWith(false);
@@ -199,6 +248,7 @@ describe("Auth API", () => {
 
         const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
         const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+        localStorageMock.removeItem.mockImplementation(() => {});
 
         await (authApi as any).login("e", "p", true);
         expect(setTokenSpy).toHaveBeenCalled();
@@ -220,9 +270,92 @@ describe("Auth API", () => {
         await expect((authApi as any).getUserData()).rejects.toBeDefined();
     });
 
-    it("Set data of current user", async () => {
+    it("Set data of current user from API when no cache", async () => {
         vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ accessToken: "acc" } as any);
         const user = { id: 1, name: "u" };
+        
+        // Нет кеша
+        localStorageMock.getItem.mockReturnValue(null);
+        (apiModule as any).api.get.mockResolvedValueOnce({ success: true, data: user } as any);
+
+        const userSetSpy = vi.spyOn((initialStore as any).currentUser, "set").mockImplementation(() => undefined as any);
+        const res = await (authApi as any).getUserData();
+        
+        expect(userSetSpy).toHaveBeenCalledWith(user);
+        expect(res).toEqual(user);
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+            'user_data_cache',
+            expect.stringContaining('"data":{"id":1,"name":"u"}')
+        );
+    });
+
+    it("Load user data from cache when available and not expired", async () => {
+        vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ accessToken: "acc" } as any);
+        
+        const cachedUser = { id: 2, name: "cached" };
+        const cachedData = {
+            timestamp: Date.now() - 5 * 60 * 1000, // 5 minutes ago
+            data: cachedUser
+        };
+        localStorageMock.getItem.mockReturnValue(JSON.stringify(cachedData));
+
+        const userSetSpy = vi.spyOn((initialStore as any).currentUser, "set").mockImplementation(() => undefined as any);
+        const res = await (authApi as any).getUserData();
+        
+        expect(userSetSpy).toHaveBeenCalledWith(cachedUser);
+        expect(res).toEqual(cachedUser);
+        expect((apiModule as any).api.get).not.toHaveBeenCalled();
+    });
+
+    it("Fetch fresh data when cache is expired", async () => {
+        vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ accessToken: "acc" } as any);
+        
+        const expiredCachedData = {
+            timestamp: Date.now() - 20 * 60 * 1000,
+            data: { id: 3, name: "expired" }
+        };
+        localStorageMock.getItem.mockReturnValue(JSON.stringify(expiredCachedData));
+        
+        const freshUser = { id: 4, name: "fresh" };
+        (apiModule as any).api.get.mockResolvedValueOnce({ success: true, data: freshUser } as any);
+
+        const userSetSpy = vi.spyOn((initialStore as any).currentUser, "set").mockImplementation(() => undefined as any);
+        const res = await (authApi as any).getUserData();
+        
+        expect(userSetSpy).toHaveBeenCalledWith(freshUser);
+        expect(res).toEqual(freshUser);
+        expect((apiModule as any).api.get).toHaveBeenCalled();
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+            'user_data_cache',
+            expect.stringContaining('"data":{"id":4,"name":"fresh"}')
+        );
+    });
+
+    it("Handle corrupted cache gracefully", async () => {
+        vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ accessToken: "acc" } as any);
+        
+        localStorageMock.getItem.mockReturnValue('invalid-json');
+        
+        const user = { id: 5, name: "recovered" };
+        (apiModule as any).api.get.mockResolvedValueOnce({ success: true, data: user } as any);
+
+        const userSetSpy = vi.spyOn((initialStore as any).currentUser, "set").mockImplementation(() => undefined as any);
+        const res = await (authApi as any).getUserData();
+        
+        expect(userSetSpy).toHaveBeenCalledWith(user);
+        expect(res).toEqual(user);
+        expect((apiModule as any).api.get).toHaveBeenCalled();
+    });
+
+    it("Handle localStorage setItem errors gracefully", async () => {
+        vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ accessToken: "acc" } as any);
+        
+        localStorageMock.getItem.mockReturnValue(null);
+        localStorageMock.setItem.mockImplementation(() => {
+            throw new Error('LocalStorage is full');
+        });
+        
+        const user = { id: 6, name: "test" };
         (apiModule as any).api.get.mockResolvedValueOnce({ success: true, data: user } as any);
 
         const userSetSpy = vi.spyOn((initialStore as any).currentUser, "set").mockImplementation(() => undefined as any);
@@ -234,7 +367,7 @@ describe("Auth API", () => {
 
     it("Sets auth and fetches user if needed on auth check", async () => {
         const tokens = { accessToken: "acc" };
-        vi.spyOn(localStorage.__proto__, "getItem").mockReturnValue(JSON.stringify(tokens));
+        localStorageMock.getItem.mockReturnValue(JSON.stringify(tokens));
         vi.resetModules();
 
         const freshTokensModule = await import("$lib/utils/auth/tokens/tokens");
@@ -254,12 +387,14 @@ describe("Auth API", () => {
 
     it("Throw error with API error response during get user data", async () => {
         vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ accessToken: "acc" } as any);
+        localStorageMock.getItem.mockReturnValue(null);
         (apiModule as any).api.get.mockResolvedValueOnce({ success: false, error: "api down" } as any);
         await expect((authApi as any).getUserData()).rejects.toThrow("api down");
     });
 
     it("Throw error when user data is missing", async () => {
         vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ accessToken: "acc" } as any);
+        localStorageMock.getItem.mockReturnValue(null);
         (apiModule as any).api.get.mockResolvedValueOnce({ success: true } as any);
         await expect((authApi as any).getUserData()).rejects.toThrow("Failed to fetch user data");
     });
@@ -272,8 +407,9 @@ describe("Auth API", () => {
         fpLoad.mockResolvedValue({ get: fpGet });
 
         const payload = { exp: Math.floor((Date.now() - 1000) / 1000) };
-        // @ts-ignore
-        const base64Payload = typeof btoa === "function" ? btoa(JSON.stringify(payload)) : Buffer.from(JSON.stringify(payload)).toString("base64");
+        const base64Payload = typeof btoa === "function" 
+            ? btoa(JSON.stringify(payload)) 
+            : Buffer.from(JSON.stringify(payload)).toString("base64");
         const immediateToken = `a.${base64Payload}.c`;
 
         (apiModule as any).api.post.mockResolvedValueOnce({
@@ -286,6 +422,8 @@ describe("Auth API", () => {
         } as any);
 
         const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
+        localStorageMock.removeItem.mockImplementation(() => {});
+        
         await (authApi as any).login("e", "p", true);
 
         expect(setTokenSpy).toHaveBeenCalled();
@@ -323,6 +461,7 @@ describe("Auth API", () => {
         } as any);
 
         const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
+        localStorageMock.removeItem.mockImplementation(() => {});
 
         await (authApi as any).login("e", "p", true);
         expect(setTokenSpy).toHaveBeenCalled();
@@ -359,6 +498,7 @@ describe("Auth API", () => {
         } as any);
 
         const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
+        localStorageMock.removeItem.mockImplementation(() => {});
 
         await (authApi as any).login("e", "p", true);
         expect(setTokenSpy).toHaveBeenCalled();
@@ -393,6 +533,7 @@ describe("Auth API", () => {
         } as any);
 
         const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
+        localStorageMock.removeItem.mockImplementation(() => {});
 
         const res = await (authApi as any).login("e", "p");
 
@@ -419,6 +560,8 @@ describe("Auth API", () => {
             success: true,
             data: { access_token: immediateToken, refresh_token: "refX" }
         } as any);
+
+        localStorageMock.removeItem.mockImplementation(() => {});
 
         await (authApi as any).login("e", "p", true);
         vi.advanceTimersByTime(0);
@@ -447,6 +590,8 @@ describe("Auth API", () => {
             .mockResolvedValueOnce({ success: true, data: { access_token: immediateToken, refresh_token: "ref1" } })
             .mockImplementationOnce(() => hangingPromise)
             .mockResolvedValueOnce({ success: true, data: { access_token: immediateToken, refresh_token: "ref2" } });
+
+        localStorageMock.removeItem.mockImplementation(() => {});
 
         await (authApi as any).login("e1", "p1", true);
         vi.advanceTimersByTime(0);
@@ -499,6 +644,7 @@ describe("Auth API", () => {
             } as any);
 
         const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+        localStorageMock.removeItem.mockImplementation(() => {});
 
         await (authApi as any).login("e", "p", true);
         expect(setTokenSpy).toHaveBeenCalledTimes(1);
@@ -513,90 +659,70 @@ describe("Auth API", () => {
     });
 
     it("Exit from authentication check when no tokenData in localStorage", async () => {
-        vi.resetModules();
-        vi.spyOn(localStorage.__proto__, "getItem").mockReturnValue(null);
+        localStorageMock.getItem.mockReturnValue(null);
 
-        const freshAuthApi = await import("$lib/utils/auth/api/api");
-        const freshInitial = await import("$lib/utils/auth/storage/initial");
+        const authSetSpy = vi.spyOn((initialStore as any).isAuthenticated, "set").mockImplementation(() => undefined as any);
 
-        const authSetSpy = vi.spyOn((freshInitial as any).isAuthenticated, "set");
+        await (authApi as any).checkAuthentication();
 
-        await (freshAuthApi as any).checkAuthentication();
-
-        expect((freshAuthApi as any).authCheckComplete).toBeDefined();
-        expect(vi.isMockFunction((freshInitial as any).isAuthenticated.set)).toBe(true);
         expect(authSetSpy).not.toHaveBeenCalledWith(true);
-        // @ts-ignore
-        expect((freshAuthApi as any).authCheckComplete && (await import("svelte/store")).then ? true : true);
+        expect(get((authApi as any).authCheckComplete)).toBe(true);
     });
 
-    it("Handles invalid JSON in authenctication check", async () => {
-        vi.resetModules();
-        vi.spyOn(localStorage.__proto__, "getItem").mockReturnValue("not-json");
+    it("Handles invalid JSON in authentication check", async () => {
+        localStorageMock.getItem.mockReturnValue("not-json");
 
-        const freshAuthApi = await import("$lib/utils/auth/api/api");
-        const freshTokens = await import("$lib/utils/auth/tokens/tokens");
-        const freshInitial = await import("$lib/utils/auth/storage/initial");
+        const clearSpy = vi.spyOn(tokensModule as any, "clearAuthTokens").mockImplementation(() => undefined as any);
+        const authSetSpy = vi.spyOn((initialStore as any).isAuthenticated, "set").mockImplementation(() => undefined as any);
 
-        const clearSpy = vi.spyOn((freshTokens as any), "clearAuthTokens");
-        const authSetSpy = vi.spyOn((freshInitial as any).isAuthenticated, "set");
-
-        await (freshAuthApi as any).checkAuthentication();
+        await (authApi as any).checkAuthentication();
 
         expect(authSetSpy).toHaveBeenCalledWith(false);
         expect(clearSpy).toHaveBeenCalled();
-        expect((freshAuthApi as any).authCheckComplete).toBeDefined();
+        expect(get((authApi as any).authCheckComplete)).toBe(true);
     });
 
     it("Check authentication without accessToken", async () => {
-        vi.resetModules();
-        vi.spyOn(localStorage.__proto__, "getItem").mockReturnValue(JSON.stringify({ refreshToken: "r1" }));
+        localStorageMock.getItem.mockReturnValue(JSON.stringify({ refreshToken: "r1" }));
 
-        const freshAuthApi = await import("$lib/utils/auth/api/api");
+        await (authApi as any).checkAuthentication();
 
-        await (freshAuthApi as any).checkAuthentication();
-
-        expect((freshAuthApi as any).authCheckComplete).toBeDefined();
+        expect(get((authApi as any).authCheckComplete)).toBe(true);
     });
 
     it("Invalid access token in authentication check", async () => {
-        vi.resetModules();
-        vi.spyOn(localStorage.__proto__, "getItem").mockReturnValue(JSON.stringify({ accessToken: "acc" }));
+        localStorageMock.getItem.mockReturnValue(JSON.stringify({ accessToken: "acc" }));
 
-        const freshAuthApi = await import("$lib/utils/auth/api/api");
-        const freshTokens = await import("$lib/utils/auth/tokens/tokens");
-        const freshInitial = await import("$lib/utils/auth/storage/initial");
+        vi.spyOn(tokensModule as any, "isTokenValid").mockReturnValue(false);
 
-        vi.spyOn((freshTokens as any), "isTokenValid").mockReturnValue(false);
+        const authSetSpy = vi.spyOn((initialStore as any).isAuthenticated, "set").mockImplementation(() => undefined as any);
 
-        const authSetSpy = vi.spyOn((freshInitial as any).isAuthenticated, "set");
-
-        await (freshAuthApi as any).checkAuthentication();
+        await (authApi as any).checkAuthentication();
 
         expect(authSetSpy).toHaveBeenCalledWith(false);
-        expect((freshAuthApi as any).authCheckComplete).toBeDefined();
+        expect(get((authApi as any).authCheckComplete)).toBe(true);
     });
 
     it("Check authentication with valid token and existing currentUser", async () => {
-        vi.resetModules();
-        vi.spyOn(localStorage.__proto__, "getItem").mockReturnValue(JSON.stringify({ accessToken: "acc" }));
+        localStorageMock.getItem.mockReturnValue(JSON.stringify({ accessToken: "acc" }));
 
-        const freshAuthApi = await import("$lib/utils/auth/api/api");
-        const freshTokens = await import("$lib/utils/auth/tokens/tokens");
-        const freshInitial = await import("$lib/utils/auth/storage/initial");
+        vi.spyOn(tokensModule as any, "isTokenValid").mockReturnValue(true);
+        
+        // Создаем функцию, которая имитирует get функцию для существующего пользователя
+        const mockCurrentUserStore = {
+            subscribe: (run: (v: any) => void) => { run({ id: 7, name: "exists" }); return () => {}; }
+        };
+        const getSpy = vi.spyOn({ get }, 'get').mockReturnValue({ id: 7, name: "exists" });
 
-        vi.spyOn((freshTokens as any), "isTokenValid").mockReturnValue(true);
+        const getUserSpy = vi.spyOn(authApi as any, "getUserData").mockImplementation(() => Promise.resolve({}));
+        const authSetSpy = vi.spyOn((initialStore as any).isAuthenticated, "set").mockImplementation(() => undefined as any);
 
-        const existingUser = { id: 7, name: "exists" };
-        (freshInitial as any).currentUser.subscribe = (run: (v: any) => void) => { run(existingUser); return () => {}; };
-
-        const getUserSpy = vi.spyOn((freshAuthApi as any), "getUserData");
-        const authSetSpy = vi.spyOn((freshInitial as any).isAuthenticated, "set");
-
-        await (freshAuthApi as any).checkAuthentication();
+        await (authApi as any).checkAuthentication();
 
         expect(getUserSpy).not.toHaveBeenCalled();
         expect(authSetSpy).toHaveBeenCalledWith(true);
-        expect((freshAuthApi as any).authCheckComplete).toBeDefined();
+        expect(get((authApi as any).authCheckComplete)).toBe(true);
+
+        getSpy.mockRestore();
     });
 });

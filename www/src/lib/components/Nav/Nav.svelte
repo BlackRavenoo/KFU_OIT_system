@@ -5,8 +5,8 @@
 -->
 
 <script lang="ts">
-    import KFU_large from '../../../assets/KFU_large.webp';
-    import KFU from '../../../assets/KFU.webp';
+    import KFU_large from '../../../assets/temp_logo.png';
+    import KFU from '../../../assets/temp_logo(1).webp';
 
     import { login, getUserData } from '$lib/utils/auth/api/api';
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
@@ -124,7 +124,6 @@
      * Сбрасывает флаг отображения модального окна и удаляет обработчик клавиатуры
      */
     function handleModalClose() {
-        alert('Модальное окно закрыто');
         isShowModal = false;
     }
 
@@ -155,8 +154,8 @@
         on:click={ navigateToHome }
         on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigateToHome; }}
     >
-        <img src="{ KFU_large }" alt="KFU Logo" class="large-logo" />
-        <img src="{ KFU }" alt="KFU Logo Small" class="small-logo" />
+        <img src="{ KFU_large }" alt="Logo" class="large-logo" />
+        <img src="{ KFU }" alt="Logo Small" class="small-logo" />
     </div>
     <ul>
         <li>

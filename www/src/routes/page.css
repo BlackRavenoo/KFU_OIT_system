@@ -618,6 +618,27 @@ header {
     transform: translateX(5px);
 }
 
+.submit-btn:disabled {
+    background: var(--gray);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.submit-btn:disabled:hover {
+    transform: none;
+}
+
+.checkbox-field {
+    position: relative;
+    top: -10px;
+    color: var(--text)
+}
+
+#PrivacyConsent {
+    margin: 10px 15px 10px 0;
+    transform: translate(0, 13px);
+}
+
 /* ------------ */
 /*    MEDIA     */
 /* ------------ */

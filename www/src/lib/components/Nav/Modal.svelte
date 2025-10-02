@@ -1,5 +1,5 @@
 <script lang="ts">
-    import KFU from '../../../assets/KFU.webp';
+    import KFU from '../../../assets/temp_logo(1).webp';
     import CaptchaWrapper from '$lib/components/Captcha/CaptchaWrapper.svelte';
 
     import { fade, scale } from 'svelte/transition';

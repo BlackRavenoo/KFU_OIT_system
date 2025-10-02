@@ -21,6 +21,9 @@ let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
 export const authCheckComplete = writable(false);
 let authChecking = false;
 
+const CACHE_KEY_USER_DATA = 'user_data_cache';
+const CACHE_TTL_USER_DATA = 15 * 60 * 1000;
+
 /**
  * Парсит время истечения токена из accessToken
  * @param token Токен для проверки
@@ -125,6 +128,12 @@ export async function refreshAuthTokens(): Promise<boolean> {
  * Выход пользователя из системы.
  */
 export async function logout(): Promise<void> {
+    try {
+        localStorage.removeItem(CACHE_KEY_USER_DATA);
+    } catch {
+        console.warn('Не удалось очистить кеш пользователя');
+    }
+
     clearAuthTokens();
 
     if (refreshTimeout) {
@@ -161,6 +170,12 @@ export async function login(email: string, password: string, rememberMe: boolean
     const response: { success: boolean; data?: { access_token: string; refresh_token?: string } } = await api.post(Endpoints.login, requestBody);
 
     if (response.success && response.data?.access_token) {
+        try {
+            localStorage.removeItem(CACHE_KEY_USER_DATA);
+        } catch {
+            console.warn('Не удалось очистить кеш пользователя');
+        }
+
         setTokenStore({
             accessToken: response.data.access_token,
             refreshToken: rememberMe ? response.data.refresh_token : undefined
@@ -179,10 +194,33 @@ export async function getUserData(): Promise<IUserData> {
     const tokens = getAuthTokens();
     if (!tokens?.accessToken) throw new Error('Access token is missing');
 
+    try {
+        const cacheRaw = localStorage.getItem(CACHE_KEY_USER_DATA);
+        if (cacheRaw) {
+            const cache = JSON.parse(cacheRaw);
+            if (Date.now() - cache.timestamp < CACHE_TTL_USER_DATA) {
+                currentUser.set(cache.data);
+                return cache.data;
+            }
+        }
+    } catch {
+        console.warn('Не удалось загрузить данные пользователя из кеша');
+    }
+
     const response = await api.get<IUserData>(Endpoints.getUserData);
 
     if (response.success && response.data) {
         currentUser.set(response.data);
+
+        try {
+            localStorage.setItem(CACHE_KEY_USER_DATA, JSON.stringify({
+                timestamp: Date.now(),
+                data: response.data
+            }));
+        } catch {
+            console.warn('Не удалось сохранить данные пользователя в кеш');
+        }
+
         return response.data;
     } else {
         throw new Error(response.error || 'Failed to fetch user data');
