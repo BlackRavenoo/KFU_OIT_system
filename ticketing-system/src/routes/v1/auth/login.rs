@@ -3,11 +3,12 @@ use anyhow::Context;
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore, types::{RefreshToken, UserRole, UserStatus}}, domain::email::Email, schema::auth::TokenResponse, utils::{error_chain_fmt, is_password_valid}};
+use crate::{auth::{jwt::JwtService, token_store::TokenStore, types::{RefreshToken, UserRole, UserStatus}}, schema::auth::TokenResponse, utils::{error_chain_fmt, is_password_valid}};
 
 #[derive(Deserialize)]
 pub struct LoginRequest {
-    pub email: Email,
+    #[serde(alias = "email", alias = "login")]
+    pub login: String,
     pub password: String,
     pub fingerprint: String,
 }
@@ -53,7 +54,7 @@ pub async fn login(
     jwt_service: web::Data<JwtService>,
     token_store: web::Data<TokenStore>
 ) -> Result<HttpResponse, LoginError> {
-    let user = get_user(&pool, req.email)
+    let user = get_user(&pool, &req.login)
         .await
         .context("Failed to get user from db")?
         .ok_or(LoginError::UserNotExist)?;
@@ -78,11 +79,11 @@ pub async fn login(
     name = "Get user from database",
     skip(pool)
 )]
-async fn get_user(pool: &PgPool, email: Email) -> Result<Option<User>, sqlx::Error> {
+async fn get_user(pool: &PgPool, login: &str) -> Result<Option<User>, sqlx::Error> {
     let row = sqlx::query_as!(
         User,
         r#"SELECT id, password_hash, role, status FROM users WHERE email = $1 OR login = $1"#,
-        email.as_ref()
+        login
     )
     .fetch_optional(pool)
     .await?;
@@ -96,7 +97,6 @@ async fn get_user(pool: &PgPool, email: Email) -> Result<Option<User>, sqlx::Err
     fields(id = %user.id, role = %user.role, status = %user.status)
 )]
 async fn get_token_response(jwt_service: &JwtService, token_store: &TokenStore, user: User, fingerprint: String) -> Result<TokenResponse, anyhow::Error> {
-
     let access_token = jwt_service.create_access_token(user.id, user.role)
         .context("Failed to create access token.")?;
 

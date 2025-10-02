@@ -7,7 +7,7 @@ async fn login_returns_200() {
     let email = app.create_user(ticketing_system::auth::types::UserRole::Employee).await;
 
     let body = serde_json::json!({
-        "email": email,
+        "login": email,
         "password": "admin",
         "fingerprint": "something",
     });
@@ -24,7 +24,7 @@ async fn login_returns_tokens() {
     let email = app.create_user(ticketing_system::auth::types::UserRole::Employee).await;
 
     let body = serde_json::json!({
-        "email": email,
+        "login": email,
         "password": "admin",
         "fingerprint": "something",
     });
@@ -48,7 +48,7 @@ async fn login_with_wrong_password_returns_401() {
     let email = app.create_user(ticketing_system::auth::types::UserRole::Employee).await;
 
     let body = serde_json::json!({
-        "email": email,
+        "login": email,
         "password": "admin123",
         "fingerprint": "something",
     });
@@ -67,7 +67,7 @@ async fn login_for_inactive_user_returns_403() {
     app.change_user_status(2, ticketing_system::auth::types::UserStatus::Inactive).await;
 
     let body = serde_json::json!({
-        "email": email,
+        "login": email,
         "password": "admin",
         "fingerprint": "something",
     });
@@ -84,7 +84,7 @@ async fn login_with_db_error_returns_500() {
     let email = app.create_user(ticketing_system::auth::types::UserRole::Employee).await;
 
     let body = serde_json::json!({
-        "email": email,
+        "login": email,
         "password": "admin",
         "fingerprint": "something",
     });

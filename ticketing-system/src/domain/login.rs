@@ -65,4 +65,10 @@ mod tests {
         let name = "a".repeat(65);
         assert_err!(Login::parse(name));
     }
+
+    #[test]
+    fn login_with_wrong_characters_is_rejected() {
+        let name = "Олег".to_string();
+        assert_err!(Login::parse(name));
+    }
 }

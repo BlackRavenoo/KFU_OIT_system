@@ -46,12 +46,14 @@ impl TestApp {
     // Returns access, refresh tokens
     pub async fn get_jwt_tokens(&self, email: &str, password: &str) -> (String, String) {
         let json = serde_json::json!({
-            "email": email,
+            "login": email,
             "password": password,
             "fingerprint": "something",
         });
 
-        let resp = self.login(&json).await;
+        let resp = self.login(&json).await
+            .error_for_status()
+            .unwrap();
 
         let response_json: serde_json::Value = resp
             .json()
