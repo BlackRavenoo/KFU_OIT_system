@@ -46,6 +46,7 @@ rand = "0.9"
 
 sqlx = { version = "0.8.6", features = ["runtime-tokio", "tls-rustls", "macros", "postgres", "uuid", "chrono", "migrate"] }
 bb8-redis = "0.24.0"
+moka = { version = "0.12", features = ["future"] }
 
 aws-config = { version = "1.8.6", features = ["behavior-version-latest"] }
 aws-sdk-s3 = { version = "1", features = ["test-util"] }
