@@ -161,6 +161,7 @@ main {
     display: flex;
     flex-direction: row;
     gap: 1rem;
+    margin-top: 1rem;
 }
 
 .executor-text {

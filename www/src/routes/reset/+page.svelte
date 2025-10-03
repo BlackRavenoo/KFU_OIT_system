@@ -8,6 +8,8 @@
     import { pageTitle } from '$lib/utils/setup/stores';
     import { navigateToError } from '$lib/utils/error';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { validatePassword } from '$lib/utils/setup/validate';
+    import { api } from '$lib/utils/api';
     
     let token: string | null = null;
     let loading: boolean = true;
@@ -17,21 +19,63 @@
     let confirmPasswordVisible: boolean = false;
     let isSubmitting: boolean = false;
     
-    let passwordErrors: string[] = [];
-    let confirmPasswordErrors: string[] = [];
+    let passwordError: string = '';
+    let confirmPasswordError: string = '';
     
-    function validatePassword(password: string): string[] {
-        // !!! TDD !!!
-        return [];
+    /**
+     * Валидация пароля
+     */
+    function getPasswordError(password: string): string {
+        if (!password) return '';
+        if (!validatePassword(password)) return 'Пароль должен содержать минимум 8 символов, включая буквы и цифры';
+        return '';
     }
     
-    function validatePasswordMatch(password: string, confirmPassword: string): string[] {
-        // !!! TDD !!!
-        return [];
+    /**
+     * Валидация совпадения паролей
+     */
+    function getConfirmPasswordError(password: string, confirmPassword: string): string {
+        if (!confirmPassword) return '';
+        if (password !== confirmPassword) return 'Пароли не совпадают';
+        return '';
     }
     
+    /**
+     * Обработка валидации при вводе
+     */
+    $: passwordError = getPasswordError(newPassword);
+    $: confirmPasswordError = getConfirmPasswordError(newPassword, confirmPassword);
+
+    /**
+     * Проверка формы на валидность
+     */
+    $: isFormValid = newPassword && 
+                     confirmPassword &&
+                     !passwordError && 
+                     !confirmPasswordError;
+
+    /**
+     * Проверка токена на валидность
+     * @param token Токен сброса пароля
+    */
+    async function checkToken(token: string): Promise<boolean> {
+        // !!!TDD!!!
+    }
+
+    /**
+     * Сброс пароля
+     */
+    async function resetPassword() {
+        if (!token) return;
+        // !!!TDD!!!
+    }
+    
+    /**
+     * Обработчик отправки формы
+     */
     async function handleSubmit() {
-        // !!! TDD !!!
+        if (!isFormValid) return;
+        await resetPassword();
     }
     
     /**
@@ -52,7 +96,7 @@
      * Инициализация страницы
      * Установка заголовка страницы и проверка авторизации пользователя
      */
-    onMount(() => {
+    onMount(async () => {
         pageTitle.set('Сброс пароля | Система управления заявками ЕИ КФУ');
 
         try {
@@ -61,7 +105,15 @@
 
         if (browser && $page.url.searchParams) {
             token = $page.url.searchParams.get('token');
-            !token && navigateToError(403);
+            if (!token || !(await checkToken(token))) {
+                navigateToError(404);
+                return;
+            }
+        } else {
+            if (browser) {
+                navigateToError(404);
+                return;
+            }
         }
 
         loading = false;
@@ -93,7 +145,7 @@
                                         id="password" 
                                         bind:value={ newPassword }
                                         placeholder="Введите новый пароль"
-                                        class={ passwordErrors.length > 0 ? "error" : "" }
+                                        class={ passwordError ? "red-border" : "" }
                                         autocomplete="new-password"
                                     />
                                     <button 
@@ -113,12 +165,8 @@
                                         {/if}
                                     </button>
                                 </div>
-                                {#if passwordErrors.length > 0}
-                                    <ul class="error-list">
-                                        {#each passwordErrors as error}
-                                            <li>{ error }</li>
-                                        {/each}
-                                    </ul>
+                                {#if passwordError}
+                                    <div class="input-error">{ passwordError }</div>
                                 {/if}
                             </div>
                             
@@ -130,7 +178,7 @@
                                         id="confirmPassword" 
                                         bind:value={ confirmPassword }
                                         placeholder="Подтвердите новый пароль"
-                                        class={ confirmPasswordErrors.length > 0 ? "error" : "" }
+                                        class={ confirmPasswordError ? "red-border" : "" }
                                         autocomplete="new-password"
                                     />
                                     <button 
@@ -150,12 +198,8 @@
                                         {/if}
                                     </button>
                                 </div>
-                                {#if confirmPasswordErrors.length > 0}
-                                    <ul class="error-list">
-                                        {#each confirmPasswordErrors as error}
-                                            <li>{ error }</li>
-                                        {/each}
-                                    </ul>
+                                {#if confirmPasswordError}
+                                    <div class="input-error">{ confirmPasswordError }</div>
                                 {/if}
                             </div>
                             
@@ -163,7 +207,7 @@
                                 <button 
                                     type="submit" 
                                     class="submit-button pulse-animation"
-                                    disabled={  isSubmitting || passwordErrors.length > 0 || confirmPasswordErrors.length > 0 }
+                                    disabled={ isSubmitting || !isFormValid }
                                 >
                                     {#if isSubmitting}
                                         <div class="spinner-small"></div>
@@ -204,5 +248,5 @@
 </header>
 
 <style>
-    @import './page.css'
+    @import './page.css';
 </style>

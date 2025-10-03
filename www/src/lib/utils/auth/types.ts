@@ -5,7 +5,7 @@
  */
 
 export interface ILoginRequest {
-    email: string;
+    login: string;
     password: string;
     fingerprint: string;
 }
@@ -39,4 +39,10 @@ export interface IAuthApiEndpoints {
     logout: string;
     refresh: string;
     getUserData: string;
+}
+
+export enum UserRole {
+    Programmer = "User",
+    Moderator = "Moderator",
+    Administrator = "Admin"
 }

@@ -99,8 +99,13 @@ h3 {
 }
 
 .admin-role {
+    background-color: var(--blue);
+    color: var(--white);
+}
+
+.moderator-role {
     background-color: var(--light-blue);
-    color: var(--blue);
+    color: var(--text);
 }
 
 .user-role {

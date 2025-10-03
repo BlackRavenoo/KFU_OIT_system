@@ -151,18 +151,18 @@ export async function logout(): Promise<void> {
 
 /**
  * Аутентификация пользователя с использованием email и пароля.
- * @param email
- * @param password
+ * @param login Логин или почта пользователя
+ * @param password Пароль
  * @param rememberMe Флаг "запомнить меня"
  * @returns {Promise<any>} Ответ сервера с данными пользователя или ошибкой.
  */
-export async function login(email: string, password: string, rememberMe: boolean = false): Promise<any> {
+export async function login(login: string, password: string, rememberMe: boolean = false): Promise<any> {
     const fp = await FingerprintJS.load();
     const result = await fp.get();
     const fingerprint = result.visitorId;
 
     const requestBody: ILoginRequest = {
-        email,
+        login,
         password,
         fingerprint
     };

@@ -11,6 +11,7 @@
     import { getById, fetchImages } from '$lib/utils/tickets/api/get';
     import { unassign, assign } from '$lib/utils/tickets/api/assign';
     import { updateTicket, deleteTicket } from '$lib/utils/tickets/api/set';
+    import { UserRole } from '$lib/utils/auth/types';
 
     import type { Ticket, Building, UiStatus, PriorityStatus } from '$lib/utils/tickets/types';
 
@@ -461,7 +462,7 @@
                     {#if ticketData && ticketData.status !== 'cancelled'}
                         <button class="btn btn-secondary" on:click={ handleCancel }>Отменить</button>
                     {/if}
-                    {#if $currentUser && $currentUser.role === "Admin"}
+                    {#if $currentUser && ($currentUser.role === UserRole.Administrator || $currentUser.role === UserRole.Moderator) }
                         <button class="btn btn-danger" on:click={ handleDelete }>Удалить</button>
                     {/if}
                 {:else}

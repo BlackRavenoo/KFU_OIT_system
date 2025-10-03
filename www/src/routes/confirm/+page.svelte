@@ -9,75 +9,92 @@
     import { navigateToError } from '$lib/utils/error';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { api } from '$lib/utils/api';
+    import { validateName, validateLogin, validatePassword, validateEmail } from '$lib/utils/setup/validate';
     
     let token: string | null = null;
     let loading: boolean = true;
     let fullName: string = '';
+    let login: string = '';
+    let email: string = '';
     let password: string = '';
     let confirmPassword: string = '';
     let passwordVisible: boolean = false;
     let confirmPasswordVisible: boolean = false;
     let isSubmitting: boolean = false;
     
-    let nameErrors: string[] = [];
-    let passwordErrors: string[] = [];
-    let confirmPasswordErrors: string[] = [];
+    let nameError: string = '';
+    let loginError: string = '';
+    let emailError: string = '';
+    let passwordError: string = '';
+    let confirmPasswordError: string = '';
     
     /**
-     * Валидация имени - должно быть не менее 2 символов
+     * Валидация имени
      */
-    function validateName(name: string): string[] {
-        const errors = [];
-        if (!name.trim())
-            errors.push('Имя не может быть пустым');
-        else if (name.trim().length < 2)
-            errors.push('Имя должно содержать не менее 2 символов');
-        return errors;
+    function getNameError(name: string): string {
+        if (!name.trim()) return '';
+        if (!validateName(name)) return 'Имя должно содержать только русские буквы и пробелы, минимум 3 символа';
+        return '';
     }
     
     /**
-     * Валидация пароля - минимум 8 символов, заглавные, строчные и цифры
+     * Валидация логина
      */
-    function validatePassword(password: string): string[] {
-        const errors = [];
-        
-        if (!password) {
-            errors.push('Пароль не может быть пустым');
-            return errors;
-        }
-        
-        if (password.length < 8)
-            errors.push('Пароль должен содержать не менее 8 символов');
-        if (!/[A-Z]/.test(password))
-            errors.push('Пароль должен содержать хотя бы одну заглавную букву');
-        if (!/[a-z]/.test(password))
-            errors.push('Пароль должен содержать хотя бы одну строчную букву');
-        if (!/[0-9]/.test(password))
-            errors.push('Пароль должен содержать хотя бы одну цифру');
-        
-        return errors;
+    function getLoginError(login: string): string {
+        if (!login.trim()) return '';
+        if (!validateLogin(login)) return 'Логин должен содержать от 5 до 64 символов, только латинские буквы, цифры и подчеркивания';
+        return '';
+    }
+    
+    /**
+     * Валидация email
+     */
+    function getEmailError(email: string): string {
+        if (!email.trim()) return '';
+        if (!validateEmail(email)) return 'Введите корректный email адрес';
+        return '';
+    }
+    
+    /**
+     * Валидация пароля
+     */
+    function getPasswordError(password: string): string {
+        if (!password) return '';
+        if (!validatePassword(password)) return 'Пароль должен содержать минимум 8 символов, включая буквы и цифры';
+        return '';
     }
     
     /**
      * Валидация совпадения паролей
      */
-    function validatePasswordMatch(password: string, confirmPassword: string): string[] {
-        const errors = [];
-        
-        if (password !== confirmPassword)
-            errors.push('Пароли не совпадают');
-        
-        return errors;
+    function getConfirmPasswordError(password: string, confirmPassword: string): string {
+        if (!confirmPassword) return '';
+        if (password !== confirmPassword) return 'Пароли не совпадают';
+        return '';
     }
     
     /**
      * Обработка валидации при вводе
      */
-    $: {
-        nameErrors = validateName(fullName);
-        passwordErrors = validatePassword(password);
-        confirmPasswordErrors = validatePasswordMatch(password, confirmPassword);
-    }
+    $: nameError = getNameError(fullName);
+    $: loginError = getLoginError(login);
+    $: emailError = getEmailError(email);
+    $: passwordError = getPasswordError(password);
+    $: confirmPasswordError = getConfirmPasswordError(password, confirmPassword);
+
+    /**
+     * Проверка формы на валидность
+     */
+    $: isFormValid = fullName.trim() && 
+                     login.trim() && 
+                     email.trim() && 
+                     password && 
+                     confirmPassword &&
+                     !nameError && 
+                     !loginError && 
+                     !emailError && 
+                     !passwordError && 
+                     !confirmPasswordError;
 
     /**
      * Проверка токена на валидность
@@ -96,6 +113,8 @@
         isSubmitting = true;
         const res = await api.post('/api/v1/auth/register', {
             name: fullName,
+            login,
+            email,
             password,
             token
         });
@@ -114,7 +133,7 @@
      * Обработчик отправки формы
      */
     async function handleSubmit() {
-        if (nameErrors.length > 0 || passwordErrors.length > 0 || confirmPasswordErrors.length > 0) return;
+        if (!isFormValid) return;
         await finishRegistration();
     }
     
@@ -184,15 +203,41 @@
                                     id="fullName" 
                                     bind:value={ fullName }
                                     placeholder="Введите ваше полное имя"
-                                    class={ nameErrors.length > 0 ? "error" : "" }
+                                    class={ nameError ? "red-border" : "" }
                                     autocomplete="name"
                                 />
-                                {#if nameErrors.length > 0}
-                                    <ul class="error-list">
-                                        {#each nameErrors as error}
-                                            <li>{ error }</li>
-                                        {/each}
-                                    </ul>
+                                {#if nameError}
+                                    <div class="input-error">{ nameError }</div>
+                                {/if}
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="login">Логин</label>
+                                <input 
+                                    type="text" 
+                                    id="login" 
+                                    bind:value={ login }
+                                    placeholder="Введите логин"
+                                    class={ loginError ? "red-border" : "" }
+                                    autocomplete="username"
+                                />
+                                {#if loginError}
+                                    <div class="input-error">{ loginError }</div>
+                                {/if}
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="email">Email</label>
+                                <input 
+                                    type="email" 
+                                    id="email" 
+                                    bind:value={ email }
+                                    placeholder="Введите email адрес"
+                                    class={ emailError ? "red-border" : "" }
+                                    autocomplete="email"
+                                />
+                                {#if emailError}
+                                    <div class="input-error">{ emailError }</div>
                                 {/if}
                             </div>
                             
@@ -204,7 +249,7 @@
                                         id="password" 
                                         bind:value={ password }
                                         placeholder="Введите пароль"
-                                        class={ passwordErrors.length > 0 ? "error" : "" }
+                                        class={ passwordError ? "red-border" : "" }
                                         autocomplete="new-password"
                                     />
                                     <button 
@@ -224,12 +269,8 @@
                                         {/if}
                                     </button>
                                 </div>
-                                {#if passwordErrors.length > 0}
-                                    <ul class="error-list">
-                                        {#each passwordErrors as error}
-                                            <li>{ error }</li>
-                                        {/each}
-                                    </ul>
+                                {#if passwordError}
+                                    <div class="input-error">{ passwordError }</div>
                                 {/if}
                             </div>
                             
@@ -241,7 +282,7 @@
                                         id="confirmPassword" 
                                         bind:value={ confirmPassword }
                                         placeholder="Подтвердите пароль"
-                                        class={ confirmPasswordErrors.length > 0 ? "error" : "" }
+                                        class={ confirmPasswordError ? "red-border" : "" }
                                         autocomplete="new-password"
                                     />
                                     <button 
@@ -261,12 +302,8 @@
                                         {/if}
                                     </button>
                                 </div>
-                                {#if confirmPasswordErrors.length > 0}
-                                    <ul class="error-list">
-                                        {#each confirmPasswordErrors as error}
-                                            <li>{ error }</li>
-                                        {/each}
-                                    </ul>
+                                {#if confirmPasswordError}
+                                    <div class="input-error">{ confirmPasswordError }</div>
                                 {/if}
                             </div>
                             
@@ -274,7 +311,7 @@
                                 <button 
                                     type="submit" 
                                     class="submit-button pulse-animation"
-                                    disabled={ isSubmitting || nameErrors.length > 0 || passwordErrors.length > 0 || confirmPasswordErrors.length > 0 }
+                                    disabled={ isSubmitting || !isFormValid }
                                 >
                                     {#if isSubmitting}
                                         <div class="spinner-small"></div>

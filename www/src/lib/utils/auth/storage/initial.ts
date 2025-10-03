@@ -10,7 +10,6 @@ import { writable } from 'svelte/store';
 
 import type { IUserData } from '../types';
 import { LocalStorageAuthStore } from '$lib/utils/auth/storage/storage';
-import { logout } from '../api/api';
 
 export const authStore = new LocalStorageAuthStore();
 
