@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Serialize;
 use sqlx::PgPool;
 
-use crate::{auth::{extractor, types::UserRole}, schema::common::UserId, utils::error_chain_fmt};
+use crate::{auth::{extractor::UserIdExtractor, types::UserRole}, schema::common::UserId, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum MeError {
@@ -38,7 +38,7 @@ pub struct User {
 }
 
 pub async fn me(
-    id: extractor::UserId,
+    id: UserIdExtractor,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, MeError> {
     let user =  get_user_info(&pool, id.0).await

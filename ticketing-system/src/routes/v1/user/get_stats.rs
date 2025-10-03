@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Serialize;
 use sqlx::PgPool;
 
-use crate::{auth::extractor, schema::{common::UserId, tickets::TicketStatus}, utils::error_chain_fmt};
+use crate::{auth::extractor::UserIdExtractor, schema::{common::UserId, tickets::TicketStatus}, utils::error_chain_fmt};
 
 #[derive(Serialize)]
 pub struct UserStats {
@@ -36,7 +36,7 @@ impl ResponseError for GetStatsError {
 }
 
 pub async fn get_stats(
-    user_id: extractor::UserId,
+    user_id: UserIdExtractor,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, GetStatsError> {
     let stats = get_user_stats(&pool, user_id.0).await

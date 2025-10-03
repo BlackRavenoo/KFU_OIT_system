@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Deserialize;
 use sqlx::{Execute, PgPool};
 
-use crate::{auth::extractor, build_update_query, domain::{email::Email, login::Login, name::Name}, schema::common::UserId, utils::error_chain_fmt};
+use crate::{auth::extractor::UserIdExtractor, build_update_query, domain::{email::Email, login::Login, name::Name}, schema::common::UserId, utils::error_chain_fmt};
 
 
 #[derive(Debug, Deserialize)]
@@ -37,7 +37,7 @@ impl ResponseError for UpdateProfileError {
 }
 
 pub async fn update_user_profile(
-    user_id: extractor::UserId,
+    user_id: UserIdExtractor,
     web::Json(schema): web::Json<UpdateProfileSchema>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, UpdateProfileError> {

@@ -2,7 +2,7 @@ use actix_web::{web, HttpResponse, ResponseError};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, Transaction};
 
-use crate::{auth::extractor, schema::{common::UserId, tickets::{TicketId, TicketStatus}}, utils::error_chain_fmt};
+use crate::{auth::extractor::UserIdExtractor, schema::{common::UserId, tickets::{TicketId, TicketStatus}}, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum AssignTicketError {
@@ -20,7 +20,7 @@ impl ResponseError for AssignTicketError {}
 
 pub async fn assign_ticket(
     id: web::Path<TicketId>,
-    user_id: extractor::UserId,
+    user_id: UserIdExtractor,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, AssignTicketError> {
     let ticket_id = id.into_inner();

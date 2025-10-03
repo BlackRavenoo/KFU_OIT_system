@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::{auth::extractor, domain::password::Password, schema::common::UserId, utils::{error_chain_fmt, is_password_valid}};
+use crate::{auth::extractor::UserIdExtractor, domain::password::Password, schema::common::UserId, utils::{error_chain_fmt, is_password_valid}};
 
 
 #[derive(Deserialize)]
@@ -36,7 +36,7 @@ impl ResponseError for ChangePasswordError {
 }
 
 pub async fn change_password(
-    user_id: extractor::UserId,
+    user_id: UserIdExtractor,
     web::Json(req): web::Json<ChangePasswordSchema>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, ChangePasswordError> {
