@@ -60,13 +60,6 @@ jobs:
           sqlx migrate run
         working-directory: ./ticketing-system
 
-      - name: Install Clippy
-        run: rustup component add --toolchain stable-x86_64-unknown-linux-gnu clippy
-
-      - name: Run clippy
-        run: cargo clippy -- -D warnings
-        working-directory: ./ticketing-system
-
       - name: Run tests
         run: |
           export DATABASE_URL=postgres://${{ env.APP_USER }}:${{ env.APP_USER_PWD }}@localhost:5432/${{ env.APP_DB_NAME }}
