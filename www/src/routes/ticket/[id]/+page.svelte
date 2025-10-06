@@ -6,7 +6,7 @@
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription, buildings } from '$lib/utils/setup/stores';
-    import { formatDate } from '$lib/utils/tickets/support';
+    import { formatDate, formatDescription } from '$lib/utils/setup/validate';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { getById, fetchImages } from '$lib/utils/tickets/api/get';
     import { unassign, assign } from '$lib/utils/tickets/api/assign';
@@ -372,7 +372,7 @@
                 {#if isEditing}
                     <textarea bind:value={ description } rows="5" style="width: 100%; margin-bottom: 1em;" class="edit-mode"></textarea>
                 {:else}
-                    <p>{ ticketData.description }</p>
+                    <p>{ formatDescription(ticketData.description, false) }</p>
                 {/if}
             {:else}
                 <p>Загрузка...</p>
@@ -588,7 +588,7 @@
                 {#if isEditing}
                     <textarea bind:value={ description } rows="5" style="width: 100%; margin-bottom: 1em;" class="edit-mode"></textarea>
                 {:else}
-                    <p>{ ticketData.description }</p>
+                    <p>{ formatDescription(ticketData.description, false) }</p>
                 {/if}
             {:else}
                 <p>Загрузка...</p>

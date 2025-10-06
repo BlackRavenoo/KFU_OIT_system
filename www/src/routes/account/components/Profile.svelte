@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { formatDate } from '$lib/utils/tickets/support';
+    import { formatDate } from '$lib/utils/setup/validate';
     import Avatar from '$lib/components/Avatar/Avatar.svelte';
 
     import { 

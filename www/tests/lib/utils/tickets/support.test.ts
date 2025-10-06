@@ -1,75 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { formatDate, normalizeDate, buildQuery, toRfc3339 } from '$lib/utils/tickets/support';
+import { describe, it, expect } from 'vitest';
+import { normalizeDate, buildQuery, toRfc3339 } from '$lib/utils/tickets/support';
 
 describe('Tickets support', () => {
-    describe('formatDate', () => {
-        const originalDate = globalThis.Date;
-        const testTimezoneOffset = -180;
-        
-        beforeEach(() => {
-            const DateWithFixedTimezone = class extends Date {
-                getTimezoneOffset() {
-                    return testTimezoneOffset;
-                }
-                
-                getTime() {
-                    return super.getTime();
-                }
-                
-                getDate() {
-                    return super.getDate();
-                }
-                
-                getMonth() {
-                    return super.getMonth();
-                }
-                
-                getFullYear() {
-                    return super.getFullYear();
-                }
-                
-                getHours() {
-                    const utcHours = super.getUTCHours();
-                    return (utcHours + 3) % 24;
-                }
-                
-                getMinutes() {
-                    return super.getMinutes();
-                }
-            };
-            
-            globalThis.Date = DateWithFixedTimezone as any;
-        });
-
-        afterEach(() => {
-            globalThis.Date = originalDate;
-        });
-
-        it('Format date correctly with fixed timezone', () => {
-            const date = new Date('2023-10-01T12:34:56Z').toISOString();
-            expect(formatDate(date)).toBe('01.10.2023 15:34');
-        });
-
-        it('Handles midnight time with fixed timezone', () => {
-            const date = new Date('2023-10-01T00:00:00Z').toISOString();
-            expect(formatDate(date)).toBe('01.10.2023 03:00');
-        });
-
-        it('Return "Без даты" for null', () => {
-            //@ts-ignore
-            expect(formatDate(null)).toBe('Без даты');
-        });
-
-        it('Return "Без даты" for undefined', () => {
-            //@ts-ignore
-            expect(formatDate(undefined)).toBe('Без даты');
-        });
-
-        it('Handles invalid date format', () => {
-            expect(formatDate('invalid-date')).toBe('Без даты');
-        });
-    });
-    
     describe('normalizeDate', () => {
         it('Normalize date correctly', () => {
             const date = new Date('2023-10-01').toISOString();

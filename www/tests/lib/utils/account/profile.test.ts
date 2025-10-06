@@ -25,18 +25,6 @@ function createMockStore(initial: any) {
 }
 
 describe('Profile data for user account', () => {
-    it('Validate various email formats', async () => {
-        vi.resetModules();
-        vi.clearAllMocks();
-
-        const { validateEmail } = await import('$lib/utils/account/profile');
-
-        expect(validateEmail('')).toBe(false);
-        expect(validateEmail('invalid')).toBe(false);
-        expect(validateEmail('a@b.c')).toBe(true);
-        expect(validateEmail('user.name+tag@sub.domain.co')).toBe(true);
-    });
-
     it('Update user profile with empty data', async () => {
         vi.resetModules();
         vi.clearAllMocks();

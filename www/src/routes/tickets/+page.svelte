@@ -6,7 +6,7 @@
     import { browser } from '$app/environment';
     import { fade, slide } from 'svelte/transition';
 
-    import { formatDate } from '$lib/utils/tickets/support';
+    import { formatDate, formatName, formatTitle, formatDescription } from '$lib/utils/setup/validate';
     import { isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription, buildings } from '$lib/utils/setup/stores';
     import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';
@@ -23,6 +23,9 @@
     let filters = getTicketsFilters();
     let page = 1;
     let maxPage = 1;
+
+    let filtersCollapsed = true;
+    let isMobile = false;
 
     let { search, viewMode, sortOrder, selectedStatus, selectedBuildings, plannedFrom, plannedTo, page_size, selectedSort } = filters;
 
@@ -108,11 +111,28 @@
         maxPage = result.max_page;
     }
 
+    /**
+     * Проверка ширины отображения для изменения макета
+    */
+    function checkMobile() {
+        isMobile = window.innerWidth <= 900;
+    }
+
+    /**
+     * Переключение макета фильтров
+    */
+    function toggleFiltersCollapsed() {
+        filtersCollapsed = !filtersCollapsed;
+    }
+
     onMount(async () => {
         pageTitle.set('Заявки | Система управления заявками ЕИ КФУ');
         pageDescription.set('Отслеживайте статус заявок, принимайте к выполнению новые. Настройте рабочее пространство под себя с множеством гибких фильтров и сортировок.');
         
         if (!$isAuthenticated) window.location.href = '/';
+
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
 
         try {
             const result = await fetchTickets(search, { page });
@@ -135,29 +155,10 @@
     });
 
     onDestroy(() => {
+        window.removeEventListener('resize', checkMobile);
+
         pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
-    });
-
-    // --- Мобильное сворачивание фильтров ---
-    let filtersCollapsed = true;
-    let isMobile = false;
-
-    function checkMobile() {
-        isMobile = window.innerWidth <= 900;
-    }
-
-    function toggleFiltersCollapsed() {
-        filtersCollapsed = !filtersCollapsed;
-    }
-
-    onMount(() => {
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-    });
-
-    onDestroy(() => {
-        window.removeEventListener('resize', checkMobile);
     });
 </script>
 
@@ -254,9 +255,9 @@
     <main>
         <div class="search-controls-wrapper">
             <SearchBar 
-                bind:searchQuery={search}
+                bind:searchQuery={ search }
                 placeholder="Поиск по заявкам..."
-                onSearch={handleSearch}
+                onSearch={ handleSearch }
             />
             <div class="search-controls">
                 <input type="number" bind:value={ page_size } placeholder="Количество тикетов" min="10" max="50" class="page-size-input">
@@ -310,7 +311,7 @@
                         <div class="ticket-item" 
                             role="link"
                             tabindex="0"
-                            aria-label={`Открыть заявку ${ticket.title}`}
+                            aria-label={`Открыть заявку ${formatTitle(ticket.title)}`}
                             on:click={() => window.location.href = `/ticket/${ ticket.id }`}
                             on:keydown={(e) => {
                                 if (e.key === 'Enter' || e.key === ' ')
@@ -318,18 +319,16 @@
                             }}
                         >
                             <div class="ticket-title">
-                                { ticket.title } 
+                                { formatTitle(ticket.title) } 
                                 <span class="{ statusPriority.find(option => option.serverValue === ticket.priority)?.value + '-status' || '' }">
                                     { statusOptions.find(option => option.serverValue === ticket.status)?.label || '' }
                                 </span>
                             </div>
                             <div class="ticket-meta">
-                                { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
+                                { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
                             </div>
                             <div class="ticket-desc">
-                                { ticket.description.length > 100
-                                    ? ticket.description.slice(0, 100) + '...'
-                                    : ticket.description }
+                                { formatDescription(ticket.description) }
                             </div>
                         </div>
                     {:else}
@@ -344,14 +343,12 @@
                                     window.location.href = `/ticket/${ ticket.id }`;
                             }}
                         >
-                            <div class="ticket-title">{ ticket.title  }</div>
+                            <div class="ticket-title">{ formatTitle(ticket.title) }</div>
                             <div class="ticket-meta">
-                                { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
+                                { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
                             </div>
                             <div class="ticket-desc">
-                                { ticket.description.length > 100
-                                    ? ticket.description.slice(0, 100) + '...'
-                                    : ticket.description }
+                                { formatDescription(ticket.description) }
                             </div>
                             <div class="status { statusPriority.find(option => option.serverValue === ticket.priority)?.value + '-status' || '' }"></div>
                         </div>

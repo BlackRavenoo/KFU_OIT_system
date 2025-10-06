@@ -2,16 +2,7 @@ import { api } from '$lib/utils/api';
 import { notification, NotificationType } from '$lib/utils/notifications/notification';
 import { currentUser } from '$lib/utils/auth/storage/initial';
 import { get } from 'svelte/store';
-
-/**
- * Функция для валидации email
- * @param email Email для валидации
- * @returns Валиден ли email
- */
-export function validateEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email.trim());
-}
+import { validateEmail } from '$lib/utils/setup/validate';
 
 /**
  * Функция для обновления профиля пользователя

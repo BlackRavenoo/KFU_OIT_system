@@ -1,12 +1,13 @@
 <script lang="ts">
     import { onMount } from 'svelte';
 
-    import { formatDate } from '$lib/utils/tickets/support';
+    import { formatDate, formatName, formatTitle, formatDescription } from '$lib/utils/setup/validate';
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { fetchTickets } from '$lib/utils/tickets/api/get';
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { getTicketsFilters, setTicketsFilters } from '$lib/utils/tickets/stores';
+    
     import Pagination from '$lib/components/Search/Pagination.svelte';
 
     let tickets: any[] = [];
@@ -155,18 +156,16 @@
                         }}
                     >
                         <div class="ticket-title">
-                            { ticket.title } 
+                            { formatTitle(ticket.title) } 
                             <span class="{ statusPriority.find(option => option.serverValue === ticket.priority)?.value + '-status' || '' }">
                                 { statusOptions.find(option => option.serverValue === ticket.status)?.label || '' }
                             </span>
                         </div>
                         <div class="ticket-meta">
-                            { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
+                            { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
                         </div>
                         <div class="ticket-desc">
-                            { ticket.description.length > 100
-                                ? ticket.description.slice(0, 100) + '...'
-                                : ticket.description }
+                            { formatDescription(ticket.description) }
                         </div>
                     </div>
                 {:else}
@@ -180,14 +179,12 @@
                                 window.location.href = `/ticket/${ticket.id}`;
                         }}
                     >
-                        <div class="ticket-title">{ ticket.title }</div>
+                        <div class="ticket-title">{ formatTitle(ticket.title) }</div>
                         <div class="ticket-meta">
-                            { ticket.author ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
+                            { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
                         </div>
                         <div class="ticket-desc">
-                            { ticket.description.length > 100
-                                ? ticket.description.slice(0, 100) + '...'
-                                : ticket.description }
+                            { formatDescription(ticket.description) }
                         </div>
                         <div class="status { statusPriority.find(option => option.serverValue === ticket.priority)?.value + '-status' || '' }"></div>
                     </div>

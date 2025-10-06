@@ -1,18 +1,6 @@
 import { notification, NotificationType } from "../notifications/notification";
 
 /**
- * Преобразует строку даты в формат "ДД.ММ.ГГГГ ЧЧ:ММ"
- * @param dateStr - строка даты
- */
-export function formatDate(dateStr: string): string {
-    if (!dateStr) return 'Без даты';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return 'Без даты';
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-/**
  * Нормализует дату в формате ISO 8601.
  * @param {string} date - Дата в строковом формате.
  */

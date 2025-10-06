@@ -1,8 +1,3 @@
-<!--
---- @file +page.svelte
---- Файл главной страницы системы управления заявками ЕИ КФУ.
--->
-
 <script lang="ts">
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { setupIntersectionObserver, loadStyleContent, cleanupStyleElements, type VisibleElements } from '$lib/utils/setup/page';
@@ -12,22 +7,24 @@
     import { showModalWithFocus } from '$lib/components/Modal/Modal';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { buildings } from '$lib/utils/setup/stores';
-
     import { validateFiles, validateName, validatePhone } from '$lib/utils/setup/validate';
+    import { getPublicStats } from '$lib/utils/account/stats';
 
     import Modal from '$lib/components/Modal/Modal.svelte';
     import pageCSS from './page.css?inline';
 
     import product from '../assets/product.webp';
+    import product_dark from '../assets/product_dark.webp';
     import support from '../assets/support.webp';
-    import card1 from '../assets/card_filler.svg';
-    import card2 from '../assets/card_filler.svg';
+    import card1 from '../assets/card_fill_1.webp';
+    import card2 from '../assets/card_fill_2.webp';
 
     import { onMount, onDestroy } from 'svelte';
     import { fade, fly } from 'svelte/transition';
 
     let moreOptionsVisible: boolean = false;
     let showModal: boolean = false;
+    let isDarkTheme: boolean = false;
     
     let Title: string = '';
     let Description: string = '';
@@ -38,10 +35,15 @@
     let DateVal: string = '';
     let fileName: string[] = [];
     let File: File[] = [];
+
+    let todayCount: number = 0;
+    let totalCount: number = 0;
+    let percentOfSolutions: number = 0;
     
     let modalElement: Modal;
     let styleElements: HTMLElement[] = [];
     let observer: IntersectionObserver;
+    let themeObserver: MutationObserver;
 
     /**
      * Объект для отслеживания видимости элементов на странице.
@@ -75,6 +77,13 @@
 
     $: nameValid = validateName(Name);
     $: phoneValid = validatePhone(Contact);
+
+    /**
+     * Обновляет состояние темы на основе класса html элемента
+     */
+    function updateTheme() {
+        isDarkTheme = document.querySelector("html")?.classList.contains("dark") || false;
+    }
 
     /**
      * Проверяет все поля формы и выставляет ошибки.
@@ -153,6 +162,20 @@
     }
 
     /**
+     * Загружает статистику с сервера
+     */
+    async function loadStats() {
+        try {
+            const stats = await getPublicStats();
+            todayCount = stats.todayCount;
+            totalCount = stats.totalCount;
+            percentOfSolutions = stats.percentOfSolutions;
+        } catch (error) {
+            console.warn('Не удалось загрузить статистику:', error);
+        }
+    }
+
+    /**
      * Инициализирует страницу при монтировании компонента.
      * Устанавливает стили, настраивает наблюдатель за пересечением элементов и обновляет метаданные страницы.
     */
@@ -163,6 +186,23 @@
             setVisible,
             { threshold: 0, rootMargin: "0px" }
         );
+
+        updateTheme();
+        loadStats();
+        
+        themeObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.type === 'attributes' && mutation.attributeName === 'class' && updateTheme();
+            });
+        });
+
+        const htmlElement = document.querySelector('html');
+        if (htmlElement) {
+            themeObserver.observe(htmlElement, {
+                attributes: true,
+                attributeFilter: ['class']
+            });
+        }
         
         pageTitle.set('Главная | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
@@ -178,6 +218,7 @@
     onDestroy(() => {
         cleanupStyleElements(styleElements);
         observer?.disconnect();
+        themeObserver?.disconnect();
     
         pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
@@ -201,7 +242,7 @@
                     <button class="promo pulse-animation" on:click={ navigateToForm }>Оставить заявку</button>
                 </div>
                 <div class="image-container" in:fly={{ x: 50, duration: 800, delay: 600 }}>
-                    <img src={product} alt="Product Banner" class="floating-animation" />
+                    <img src={ isDarkTheme ? product_dark : product } alt="Product Banner" class="floating-animation" />
                     <div class="glow-effect"></div>
                 </div>
             </div>
@@ -209,6 +250,7 @@
     </div>
 </header>
 
+<!-- Остальная часть HTML остается без изменений -->
 <main>
     <!---------------->
     <!--    STEPS   -->
@@ -255,7 +297,7 @@
                     </span>
                     <h3 class="card_title">Интуитивный интерфейс</h3>
                     <div class="card-image-container">
-                        <img src="{card2}" alt="card" />
+                        <img src="{card2}" alt="card" style="position: relative; top: 10px;" />
                     </div>
                     <p>Простой доступ к заявкам без лишних сложностей</p>
                 </div>
@@ -293,19 +335,19 @@
             <div class="stats-container" in:fly={{ y: 30, duration: 800 }}>
                 <div class="stat">
                     <div class="stat-circle">
-                        <h2 class="counter">20</h2>
+                        <h2 class="counter">{ todayCount }</h2>
                     </div>
                     <p>заявок за 24 часа</p>
                 </div>
                 <div class="stat">
                     <div class="stat-circle">
-                        <h2 class="counter">1024</h2>
+                        <h2 class="counter">{ totalCount }</h2>
                     </div>
                     <p>решенных проблем</p>
                 </div>
                 <div class="stat">
                     <div class="stat-circle">
-                        <h2 class="counter">99%</h2>
+                        <h2 class="counter">{ percentOfSolutions.toFixed(0) }%</h2>
                     </div>
                     <p>проблем решается</p>
                 </div>

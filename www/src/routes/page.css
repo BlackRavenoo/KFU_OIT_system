@@ -54,8 +54,8 @@ header {
     width: 100%;
     height: auto;
     max-width: 800px;
-    border-radius: 8px;
-    filter: hue-rotate(180deg) invert(1);
+    border: 6px solid var(--gray);
+    border-radius: 16px;
 }
 
 .glow-effect {
@@ -237,6 +237,7 @@ header {
     height: auto;
     object-fit: contain;
     transition: transform 0.5s ease;
+    filter: brightness(1.12);
 }
 
 .card:hover img {

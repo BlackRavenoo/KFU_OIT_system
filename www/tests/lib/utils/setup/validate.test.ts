@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 
 import {
     validateEmail,
@@ -7,7 +7,11 @@ import {
     validatePassword,
     validatePageSize,
     validatePhone,
-    validateFiles
+    validateFiles,
+    formatDate,
+    formatName,
+    formatTitle,
+    formatDescription
 } from '$lib/utils/setup/validate';
 
 describe('Validate email', () => {
@@ -168,5 +172,183 @@ describe('Validate files', () => {
             makeFile('text/plain')
         ];
         expect(validateFiles(files)).toBe(false);
+    });
+});
+
+describe('formatName', () => {
+    it('Formats name with first full name and abbreviated others', () => {
+        expect(formatName('иван петрович сидоров')).toBe('Иван П. С.');
+        expect(formatName('мария александровна')).toBe('Мария А.');
+        expect(formatName('петр')).toBe('Петр');
+        expect(formatName('анна сергеевна иванова')).toBe('Анна С. И.');
+    });
+
+    it('Handles mixed case input', () => {
+        expect(formatName('ИВАН ПЕТРОВИЧ')).toBe('Иван П.');
+        expect(formatName('иВаН пЕтРоВиЧ')).toBe('Иван П.');
+        expect(formatName('Иван ПЕТРОВИЧ сидоров')).toBe('Иван П. С.');
+    });
+
+    it('Handles extra spaces', () => {
+        expect(formatName('  иван   петрович  сидоров  ')).toBe('Иван П. С.');
+        expect(formatName(' анна  мария ')).toBe('Анна М.');
+        expect(formatName('   петр   ')).toBe('Петр');
+    });
+
+    it('Returns empty string for empty or whitespace input', () => {
+        expect(formatName('')).toBe('');
+        expect(formatName('   ')).toBe('');
+        expect(formatName('\t\n')).toBe('');
+    });
+
+    it('Handles single character names', () => {
+        expect(formatName('а')).toBe('А');
+        expect(formatName('а б в')).toBe('А Б. В.');
+    });
+});
+
+describe('formatTitle', () => {
+    it('Returns title as-is when 25 chars or less', () => {
+        expect(formatTitle('короткий заголовок')).toBe('короткий заголовок');
+        expect(formatTitle('точно двадцать пять симв')).toBe('точно двадцать пять симв'); // 25 chars
+        expect(formatTitle('краткий')).toBe('краткий');
+    });
+
+    it('Truncates title to 22 chars plus ellipsis when longer than 25', () => {
+        expect(formatTitle('очень длинный заголовок который не помещается')).toBe('очень длинный заголово...');
+        expect(formatTitle('это заголовок больше двадцати пяти символов')).toBe('это заголовок больше д...');
+    });
+
+    it('Handles extra spaces and filters empty parts', () => {
+        expect(formatTitle('  заголовок   с   пробелами  ')).toBe('заголовок с пробелами');
+        expect(formatTitle('   короткий   ')).toBe('короткий');
+    });
+
+    it('Handles empty or whitespace input', () => {
+        expect(formatTitle('')).toBe('');
+        expect(formatTitle('   ')).toBe('');
+        expect(formatTitle('\t\n')).toBe('');
+    });
+
+    it('Handles edge case exactly at truncation boundary', () => {
+        expect(formatTitle('это двадцать семь символов?')).toBe('это двадцать семь симв...');
+    });
+});
+
+describe('formatDescription', () => {
+    it('Returns description as-is when 100 chars or less', () => {
+        expect(formatDescription('короткое описание')).toBe('короткое описание');
+        expect(formatDescription('a'.repeat(100))).toBe('a'.repeat(100));
+        expect(formatDescription('это описание меньше ста символов')).toBe('это описание меньше ста символов');
+    });
+
+    it('Truncates to 97 chars plus ellipsis when longer and short=true', () => {
+        const longText = 'это очень длинное описание которое совершенно точно значительно превышает сто символов и должно быть обрезано с многоточием';
+        const result = formatDescription(longText, true);
+        expect(result).toBe('это очень длинное описание которое совершенно точно значительно превышает сто символов и должно б...');
+        expect(result.length).toBe(100);
+    });
+
+    it('Returns full text when longer but short=false', () => {
+        const longText = 'это очень длинное описание которое совершенно точно значительно превышает сто символов но не должно быть обрезано';
+        expect(formatDescription(longText, false)).toBe(longText);
+    });
+
+    it('Uses short=true by default', () => {
+        const longText = 'это очень длинное описание которое точно превышает сто символов и обязательно должно быть обрезано по умолчанию';
+        const result = formatDescription(longText);
+        expect(result).toBe('это очень длинное описание которое точно превышает сто символов и обязательно должно быть обрезан...');
+        expect(result.length).toBe(100);
+    });
+
+    it('Handles extra spaces and filters empty parts', () => {
+        expect(formatDescription('  описание   с   пробелами  ')).toBe('описание с пробелами');
+        expect(formatDescription('   короткое   ')).toBe('короткое');
+    });
+
+    it('Handles empty or whitespace input', () => {
+        expect(formatDescription('')).toBe('');
+        expect(formatDescription('   ')).toBe('');
+        expect(formatDescription('\t\n')).toBe('');
+    });
+
+    it('Handles long word with truncation when short=true', () => {
+        const textWithLongWord = 'начало сверхдлинноесловокотороепревышаетдвадцатьсимволовизаконченныйтексттекстбудетпродолжатьсяболее100';
+        const result = formatDescription(textWithLongWord, true);
+        expect(result.length).toBe(100);
+        expect(result.endsWith('...')).toBe(true);
+    });
+
+    it('Does not break words 20 chars or less', () => {
+        expect(formatDescription('короткоеслово среднееслово')).toBe('короткоеслово среднееслово');
+        expect(formatDescription('a'.repeat(20) + ' ' + 'b'.repeat(20))).toBe('a'.repeat(20) + ' ' + 'b'.repeat(20));
+    });
+});
+
+describe('formatDate', () => {
+    const originalDate = globalThis.Date;
+    const testTimezoneOffset = -180;
+    
+    beforeEach(() => {
+        const DateWithFixedTimezone = class extends Date {
+            getTimezoneOffset() {
+                return testTimezoneOffset;
+            }
+            
+            getTime() {
+                return super.getTime();
+            }
+            
+            getDate() {
+                return super.getDate();
+            }
+            
+            getMonth() {
+                return super.getMonth();
+            }
+            
+            getFullYear() {
+                return super.getFullYear();
+            }
+            
+            getHours() {
+                const utcHours = super.getUTCHours();
+                return (utcHours + 3) % 24;
+            }
+            
+            getMinutes() {
+                return super.getMinutes();
+            }
+        };
+        
+        globalThis.Date = DateWithFixedTimezone as any;
+    });
+
+    afterEach(() => {
+        globalThis.Date = originalDate;
+    });
+
+    it('Format date correctly with fixed timezone', () => {
+        const date = new Date('2023-10-01T12:34:56Z').toISOString();
+        expect(formatDate(date)).toBe('01.10.2023 15:34');
+    });
+
+    it('Handles midnight time with fixed timezone', () => {
+        const date = new Date('2023-10-01T00:00:00Z').toISOString();
+        expect(formatDate(date)).toBe('01.10.2023 03:00');
+    });
+
+    it('Return "Без даты" for null', () => {
+        //@ts-ignore
+        expect(formatDate(null)).toBe('Без даты');
+    });
+
+    it('Return "Без даты" for undefined', () => {
+        //@ts-ignore
+        expect(formatDate(undefined)).toBe('Без даты');
+    });
+
+    it('Handles invalid date format', () => {
+        expect(formatDate('invalid-date')).toBe('Без даты');
     });
 });
