@@ -6,6 +6,7 @@ use sqlx::Type;
 
 #[derive(Debug, Clone, Copy, Type, Serialize, Deserialize, PartialEq, PartialOrd)]
 #[repr(i16)]
+#[serde(rename_all = "lowercase")]
 pub enum UserRole {
     Employee = 0,
     Moderator = 1,
