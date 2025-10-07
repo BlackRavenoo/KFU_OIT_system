@@ -217,6 +217,18 @@ impl TestApp {
             .await
             .unwrap()
     }
+
+    pub async fn update_ticket(&self, ticket_id: TicketId, body: &serde_json::Value) -> reqwest::Response {
+        let (access, _) = self.get_admin_jwt_tokens().await;
+
+        reqwest::Client::new()
+            .put(format!("{}/v1/tickets/{}", self.address, ticket_id))
+            .json(body)
+            .bearer_auth(access)
+            .send()
+            .await
+            .unwrap()
+    }
 }
 
 pub async fn spawn_app() -> TestApp {

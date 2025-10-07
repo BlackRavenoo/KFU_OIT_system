@@ -10,7 +10,7 @@ use crate::{schema::tickets::TicketStatus, utils::error_chain_fmt};
 pub struct TicketsStats {
     pub daily_tickets: i64,
     pub tickets_count: i64,
-    pub percent_of_closed: f32,
+    pub percent_of_closed: f64,
 }
 
 #[derive(thiserror::Error)]
@@ -60,12 +60,8 @@ async fn fetch_stats(
             COUNT(*) AS "tickets_count!",
             CASE
                 WHEN COUNT(*) = 0 THEN 0
-                ELSE (
-                    SELECT COUNT(*)
-                    FROM tickets
-                    WHERE status = $1
-                )::float / COUNT(*)::float
-            END AS "percent_of_closed!: f32"
+                ELSE (COUNT(*) FILTER (WHERE status = $1)::float / COUNT(*) * 100)
+            END AS "percent_of_closed!: f64"
             FROM tickets
         "#,
         TicketStatus::Closed as i16
