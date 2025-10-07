@@ -13,9 +13,9 @@
     import { loadUserStats } from '$lib/utils/account/stats';
     import { loadActiveUserTickets } from '$lib/utils/tickets/api/get';
 
-    import { validateEmail, validateName, validatePassword } from '$lib/utils/setup/validate';
+    import { validateEmail, validateName, validatePassword, validateLogin } from '$lib/utils/setup/validate';
     
-    export let userData: { id: string, name: string, email: string, role: string };
+    export let userData: { id: string, name: string, email: string, login: string, role: string };
     export let stats: { assignedToMe: number, completedTickets: number, cancelledTickets: number };
     export let activeTickets: any[] = [];
     
@@ -23,6 +23,7 @@
     let isLoading: boolean = false;
     let editedName: string = '';
     let editedEmail: string = '';
+    let editedLogin: string = '';
     let currentPassword: string = '';
     let newPassword: string = '';
     let confirmPassword: string = '';
@@ -99,16 +100,19 @@
 
     let nameError = '';
     let emailError = '';
+    let loginError = '';
     let passwordError = '';
     let confirmPasswordError = '';
 
     $: nameValid = validateName(editedName);
     $: emailValid = validateEmail(editedEmail);
+    $: loginValid = validateLogin(editedLogin);
     $: passwordValid = !changePassword || validatePassword(newPassword);
     $: confirmPasswordValid = !changePassword || (confirmPassword === newPassword);
 
     $: nameError = nameValid ? '' : 'Имя должно содержать минимум 3 буквы кириллицей';
     $: emailError = emailValid ? '' : 'Некорректный email';
+    $: loginError = loginValid ? '' : 'Логин должен быть длиннее 4 символов и содержать только латинские буквы, цифры и символ подчеркивания';
     $: passwordError = passwordValid ? '' : 'Пароль должен быть не менее 8 символов, содержать буквы в верхнем и нижнем регистре, а также цифры';
     $: confirmPasswordError = confirmPasswordValid ? '' : 'Пароли не совпадают';
 
@@ -118,6 +122,7 @@
     function startEditingProfile() {
         editedName = userData.name || '';
         editedEmail = userData.email || '';
+        editedLogin = userData.login || '';
         isEditing = true;
     }
     
@@ -127,6 +132,7 @@
     function cancelEditing() {
         editedName = '';
         editedEmail = '';
+        editedLogin = '';
         currentPassword = '';
         newPassword = '';
         confirmPassword = '';
@@ -135,6 +141,7 @@
         isEditing = false;
         nameError = '';
         emailError = '';
+        loginError = '';
         passwordError = '';
         confirmPasswordError = '';
     }
@@ -427,16 +434,17 @@
 
     /**
      * Сохранить изменения профиля
-     * Включает в себя обновление имени, email и пароля
+     * Включает в себя обновление имени, email, логина и пароля
      */
     async function handleSaveProfile() {
-        if (!nameValid || !emailValid || !passwordValid || !confirmPasswordValid) return;
+        if (!nameValid || !emailValid || !loginValid || !passwordValid || !confirmPasswordValid) return;
         if (confirmPassword !== newPassword) return;
         
         isLoading = true;
         const success = await saveUserProfile(
             editedName,
             editedEmail,
+            editedLogin,
             changePassword,
             currentPassword,
             newPassword
@@ -457,6 +465,7 @@
         (async () => {
             editedName = userData?.name || '';
             editedEmail = userData?.email || '';
+            editedLogin = userData?.login || '';
             
             activeTickets = await getCachedTickets(userData.id);
             stats = await getCachedStats(userData.id, stats);
@@ -505,7 +514,7 @@
                                 </div>
                             </div>
                             <div class="avatar-edit-overlay">
-                                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                             </div>
                         </button>
                     </div>
@@ -540,6 +549,21 @@
                             />
                             {#if emailError}
                                 <div class="input-error">{emailError}</div>
+                            {/if}
+                        </div>
+                        <div class="form-group">
+                            <label for="login">Логин</label>
+                            <input 
+                                type="text" 
+                                id="login" 
+                                class="form-input"
+                                class:red-border={!loginValid}
+                                bind:value={ editedLogin }
+                                placeholder="Введите логин"
+                                on:input={() => { loginError = validateLogin(editedLogin) ? '' : 'Логин должен быть длиннее 4 символов и содержать только латинские буквы, цифры и символ подчеркивания'; }}
+                            />
+                            {#if loginError}
+                                <div class="input-error">{loginError}</div>
                             {/if}
                         </div>
                     </div>
@@ -633,6 +657,15 @@
                                     <div>
                                         <span class="info-label">Email</span>
                                         <span class="info-value">{ userData?.email || '' }</span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-icon">
+                                        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                    </div>
+                                    <div>
+                                        <span class="info-label">Логин</span>
+                                        <span class="info-value">{ userData?.login || '' }</span>
                                     </div>
                                 </div>
                             </div>

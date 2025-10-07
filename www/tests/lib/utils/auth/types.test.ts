@@ -3,9 +3,9 @@ import { UserRole, type ILoginRequest, type IAuthTokens, type IUserData, type IT
 
 describe("UserRole enum", () => {
     it("Should have correct values for UserRole enum", () => {
-        expect(UserRole.Programmer).toBe("User");
-        expect(UserRole.Moderator).toBe("Moderator");
-        expect(UserRole.Administrator).toBe("Admin");
+        expect(UserRole.Programmer).toBe("employee");
+        expect(UserRole.Moderator).toBe("moderator");
+        expect(UserRole.Administrator).toBe("admin");
     });
 
     it("Should have all expected enum keys", () => {
@@ -18,9 +18,9 @@ describe("UserRole enum", () => {
 
     it("Should have all expected enum values", () => {
         const roleValues = Object.values(UserRole);
-        expect(roleValues).toContain("User");
-        expect(roleValues).toContain("Moderator");
-        expect(roleValues).toContain("Admin");
+        expect(roleValues).toContain("employee");
+        expect(roleValues).toContain("moderator");
+        expect(roleValues).toContain("admin");
         expect(roleValues).toHaveLength(3);
     });
 });
@@ -62,13 +62,14 @@ describe("Auth interface type compatibility", () => {
             id: "user123",
             name: "John Doe",
             email: "john@example.com",
-            role: "Admin"
+            login: 'user',
+            role: "admin"
         };
 
         expect(userData.id).toBe("user123");
         expect(userData.name).toBe("John Doe");
         expect(userData.email).toBe("john@example.com");
-        expect(userData.role).toBe("Admin");
+        expect(userData.role).toBe("admin");
     });
 
     it("Should accept valid IUserData object with UserRole enum", () => {
@@ -79,7 +80,7 @@ describe("Auth interface type compatibility", () => {
             role: UserRole.Moderator
         };
 
-        expect(userData.role).toBe("Moderator");
+        expect(userData.role).toBe("moderator");
     });
 
     it("Should accept valid IAuthApiEndpoints object", () => {
@@ -152,14 +153,14 @@ describe("Auth type flexibility", () => {
 
     it("Should work with different UserRole enum values", () => {
         const users: IUserData[] = [
-            { id: "1", name: "User 1", email: "user1@test.com", role: UserRole.Programmer },
-            { id: "2", name: "User 2", email: "user2@test.com", role: UserRole.Moderator },
-            { id: "3", name: "User 3", email: "user3@test.com", role: UserRole.Administrator }
+            { id: "1", name: "User 1", email: "user1@test.com", login: 'user1', role: UserRole.Programmer },
+            { id: "2", name: "User 2", email: "user2@test.com", login: 'user2', role: UserRole.Moderator },
+            { id: "3", name: "User 3", email: "user3@test.com", login: 'user3', role: UserRole.Administrator }
         ];
 
-        expect(users[0].role).toBe("User");
-        expect(users[1].role).toBe("Moderator");
-        expect(users[2].role).toBe("Admin");
+        expect(users[0].role).toBe("employee");
+        expect(users[1].role).toBe("moderator");
+        expect(users[2].role).toBe("admin");
     });
 
     it("Should allow ITokenStorage to work with null values", () => {
@@ -202,11 +203,13 @@ describe("Auth types required properties validation", () => {
             id: "1",
             name: "Test",
             email: "test@test.com",
-            role: "User"
+            login: 'test',
+            role: "employee"
         };
 
         expect(validUser).toHaveProperty("id");
         expect(validUser).toHaveProperty("name");
+        expect(validUser).toHaveProperty("login");
         expect(validUser).toHaveProperty("email");
         expect(validUser).toHaveProperty("role");
     });

@@ -30,6 +30,7 @@
         id: '',
         name: '',
         email: '',
+        login: '',
         role: ''
     };
     
@@ -182,7 +183,7 @@
                 Мои заявки
             </button>
 
-            {#if $currentUser?.role === "Admin" || $currentUser?.role === "Moderator"}
+            {#if $currentUser?.role === UserRole.Administrator || $currentUser?.role === UserRole.Moderator}
                 <button 
                     class={ activeTab === Tab.STATS? 'active' : '' } 
                     on:click={ () => setTab(Tab.STATS) }

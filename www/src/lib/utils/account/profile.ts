@@ -10,11 +10,12 @@ import { validateEmail } from '$lib/utils/setup/validate';
  * @param email Email пользователя
  * @returns Успешно ли обновление профиля
  */
-export async function updateUserProfile(name?: string, email?: string): Promise<boolean> {
-    const profileData: {name?: string, email?: string} = {};
+export async function updateUserProfile(name?: string, email?: string, login?: string): Promise<boolean> {
+    const profileData: {name?: string, email?: string, login?: string} = {};
     
     if (name) profileData.name = name.trim();
     if (email) profileData.email = email.trim();
+    if (login) profileData.login = login.trim();
     
     if (Object.keys(profileData).length === 0) return true;
     
@@ -24,11 +25,32 @@ export async function updateUserProfile(name?: string, email?: string): Promise<
         if (response.success) {
             const userValue = get(currentUser);
             if (userValue) {
-                // @ts-ignore
-                currentUser.update(user => ({
-                    ...user,
+                const updatedUser = {
+                    ...userValue,
                     ...profileData
-                }));
+                };
+                
+                // @ts-ignore
+                currentUser.update(user => updatedUser);
+                
+                try {
+                    const cacheKey = 'user_data_cache';
+                    const cachedData = localStorage.getItem(cacheKey);
+                    
+                    if (cachedData) {
+                        const cache = JSON.parse(cachedData);
+                        if (cache.data) {
+                            cache.data = updatedUser;
+                            cache.timestamp = Date.now();
+                            localStorage.setItem(cacheKey, JSON.stringify(cache));
+                        }
+                    } else {
+                        localStorage.removeItem(cacheKey);
+                    }
+                } catch (cacheError) {
+                    localStorage.removeItem('user_data_cache');
+                }
+                
                 return true;
             } else {
                 notification('Ошибка при обновлении профиля', NotificationType.Error);
@@ -81,6 +103,7 @@ export async function updateUserPassword(currentPassword: string, newPassword: s
 export async function saveUserProfile(
     name: string,
     email: string,
+    login: string,
     changePassword: boolean,
     currentPassword: string,
     newPassword: string
@@ -88,6 +111,7 @@ export async function saveUserProfile(
     const userValue = get(currentUser);
     const currentName = userValue?.name || '';
     const currentEmail = userValue?.email || '';
+    const currentLogin = userValue?.login || '';
     
     if (email.trim() && !validateEmail(email)) {
         notification('Некорректный формат email', NotificationType.Error);
@@ -106,12 +130,14 @@ export async function saveUserProfile(
     let updated = false;
     
     const hasProfileChanges = (name.trim() && name.trim() !== currentName) || 
-                             (email.trim() && email.trim() !== currentEmail);
+                             (email.trim() && email.trim() !== currentEmail) ||
+                             (login.trim() && login.trim() !== currentLogin);
     
     if (hasProfileChanges) {
         const profileUpdated = await updateUserProfile(
             name.trim() !== currentName ? name : undefined,
-            email.trim() !== currentEmail ? email : undefined
+            email.trim() !== currentEmail ? email : undefined,
+            login.trim() !== currentLogin ? login : undefined
         );
         success = success && profileUpdated;
         updated = updated || profileUpdated;

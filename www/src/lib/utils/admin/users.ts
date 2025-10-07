@@ -1,10 +1,13 @@
 import { loadItems, createItem } from '$lib/utils/admin/api-handlers';
 import { notification, NotificationType } from '$lib/utils/notifications/notification';
 import { api } from '$lib/utils/api';
+import { validateEmail } from '$lib/utils/setup/validate'
+import { UserRole } from '$lib/utils/auth/types';
 
 const USER_LIST_ENDPOINT = '/api/v1/user/list';
 const USER_INVITE_ENDPOINT = '/api/v1/user/admin/invite';
 const USER_DELETE_ENDPOINT = '/api/v1/user/admin/status';
+const USER_CHANGE_ROLE_ENDPOINT = '/api/v1/user/admin/role';
 
 export interface User {
     id: string;
@@ -46,15 +49,6 @@ export async function loadUsersData(
 }
 
 /**
- * Валидация email
- */
-export function validateEmail(email: string): boolean {
-    if (!email) return false;
-    const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return re.test(email);
-}
-
-/**
  * Отправка приглашения на email
  * @param email Email для приглашения
  */
@@ -83,7 +77,7 @@ export async function deleteUserData(userId: string): Promise<boolean> {
     try {
         const response = await api.patch(USER_DELETE_ENDPOINT, {
             id: userId,
-            status: 3
+            status: 'Inactive'
         });
         
         if (response.success) {
@@ -95,6 +89,31 @@ export async function deleteUserData(userId: string): Promise<boolean> {
         }
     } catch (error) {
         notification('Ошибка при удалении пользователя', NotificationType.Error);
+        return false;
+    }
+}
+
+/**
+ * Смена роли пользователя
+ * @param userId - id пользователя для смены
+ * @param newRole - новая роль для установки пользователю
+ */
+export async function changeRole(userId: string, newRole: string): Promise<boolean> {
+    try {
+        const response = await api.patch(USER_CHANGE_ROLE_ENDPOINT, {
+            id: userId,
+            role: newRole
+        });
+
+        if (response.success) {
+            notification('Роль успешно изменена', NotificationType.Success);
+            return true;
+        } else {
+            notification('Ошибка при обновлении роли пользователя', NotificationType.Error);
+            return false;
+        }
+    } catch (error) {
+        notification('Ошибка при обновлении роли пользователя', NotificationType.Error);
         return false;
     }
 }

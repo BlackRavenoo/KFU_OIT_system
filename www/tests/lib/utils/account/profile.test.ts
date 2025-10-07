@@ -174,7 +174,7 @@ describe('Profile data for user account', () => {
         vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
 
         const { saveUserProfile } = await import('$lib/utils/account/profile');
-        const res = await saveUserProfile('Name', 'bad-email', false, '', '');
+        const res = await saveUserProfile('Name', 'bad-email', 'login', false, '', '');
         expect(res).toBe(false);
         expect(notificationMock.notification).toHaveBeenCalledWith('Некорректный формат email', notificationMock.NotificationType.Error);
     });
@@ -184,11 +184,11 @@ describe('Profile data for user account', () => {
         vi.clearAllMocks();
         setupApiMock();
 
-        const mockStore = createMockStore({ id: 'u1', name: 'Same', email: 'same@example.com' });
+        const mockStore = createMockStore({ id: 'u1', name: 'Same', email: 'same@example.com', login: 'login' });
         vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
 
         const { saveUserProfile } = await import('$lib/utils/account/profile');
-        const res = await saveUserProfile('Same', 'same@example.com', false, '', '');
+        const res = await saveUserProfile('Same', 'same@example.com', 'login', false, '', '');
         expect(res).toBe(true);
     });
 
@@ -207,11 +207,11 @@ describe('Profile data for user account', () => {
         const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
         vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
 
-        const mockStore = createMockStore({ id: 'u1', name: 'Old', email: 'old@example.com' });
+        const mockStore = createMockStore({ id: 'u1', name: 'Old', email: 'old@example.com', login: 'oldLogin' });
         vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
 
         const { saveUserProfile } = await import('$lib/utils/account/profile');
-        const res = await saveUserProfile('NewName', 'new@example.com', false, '', '');
+        const res = await saveUserProfile('NewName', 'new@example.com', 'login', false, '', '');
         expect(res).toBe(true);
         expect(notificationMock.notification).toHaveBeenCalledWith('Профиль успешно обновлен', notificationMock.NotificationType.Success);
         expect(get(mockStore)).toEqual(expect.objectContaining({ name: 'NewName', email: 'new@example.com' }));
@@ -232,11 +232,11 @@ describe('Profile data for user account', () => {
         const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
         vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
 
-        const mockStore = createMockStore({ id: 'u1', name: 'Old', email: 'old@example.com' });
+        const mockStore = createMockStore({ id: 'u1', name: 'Old', email: 'old@example.com', login: 'oldLogin' });
         vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
 
         const { saveUserProfile } = await import('$lib/utils/account/profile');
-        const res = await saveUserProfile('NewName', 'new@example.com', true, 'cur', 'newp');
+        const res = await saveUserProfile('NewName', 'new@example.com', 'login', true, 'cur', 'newp');
         expect(res).toBe(false);
         expect(notificationMock.notification).not.toHaveBeenCalledWith('Профиль успешно обновлен', notificationMock.NotificationType.Success);
     });
@@ -256,11 +256,11 @@ describe('Profile data for user account', () => {
         const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
         vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
 
-        const mockStore = createMockStore({ id: 'u1', name: 'Old', email: 'old@example.com' });
+        const mockStore = createMockStore({ id: 'u1', name: 'Old', email: 'old@example.com', login: 'oldLogin' });
         vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
 
         const { saveUserProfile } = await import('$lib/utils/account/profile');
-        const res = await saveUserProfile('NewName', 'new@example.com', true, '', 'test');
+        const res = await saveUserProfile('NewName', 'new@example.com', 'login', true, '', 'test');
         expect(res).toBe(false);
         expect(notificationMock.notification).toHaveBeenCalledWith('Введите текущий пароль', notificationMock.NotificationType.Error);
     });
@@ -280,11 +280,11 @@ describe('Profile data for user account', () => {
         const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
         vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
 
-        const mockStore = createMockStore({ id: 'u1', name: 'Old', email: 'old@example.com' });
+        const mockStore = createMockStore({ id: 'u1', name: 'Old', email: 'old@example.com', login: 'oldLogin' });
         vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
 
         const { saveUserProfile } = await import('$lib/utils/account/profile');
-        const res = await saveUserProfile('NewName', 'new@example.com', true, 'test', '');
+        const res = await saveUserProfile('NewName', 'new@example.com', 'login', true, 'test', '');
         expect(res).toBe(false);
         expect(notificationMock.notification).toHaveBeenCalledWith('Введите новый пароль', notificationMock.NotificationType.Error);
     });
@@ -304,11 +304,11 @@ describe('Profile data for user account', () => {
         const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
         vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
         
-        const mockStore = createMockStore({ id: 'u1', name: null, email: null });
+        const mockStore = createMockStore({ id: 'u1', name: null, email: null, login: null });
         vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
 
         const { saveUserProfile } = await import('$lib/utils/account/profile');
-        const res = await saveUserProfile('NewName', 'new@example.com', false, '', '');
+        const res = await saveUserProfile('NewName', 'new@example.com', 'login', false, '', '');
         expect(res).toBe(true);
     });
 
@@ -323,11 +323,11 @@ describe('Profile data for user account', () => {
         const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
         vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
         
-        const mockStore = createMockStore({ id: 'u1', name: 'Test', email: 'x@example.com' });
+        const mockStore = createMockStore({ id: 'u1', name: 'Test', email: 'x@example.com', login: 'login' });
         vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
 
         const { saveUserProfile } = await import('$lib/utils/account/profile');
-        const res = await saveUserProfile('Test', 'new@example.com', false, '', '');
+        const res = await saveUserProfile('Test', 'new@example.com', 'login', false, '', '');
         expect(res).toBe(true);
         expect(api.api.put).toHaveBeenCalledWith('/api/v1/user/profile', { email: 'new@example.com' });
     });
@@ -343,11 +343,11 @@ describe('Profile data for user account', () => {
         const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
         vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
         
-        const mockStore = createMockStore({ id: 'u1', name: 'Test', email: 'x@example.com' });
+        const mockStore = createMockStore({ id: 'u1', name: 'Test', email: 'x@example.com', login: 'login' });
         vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
 
         const { saveUserProfile } = await import('$lib/utils/account/profile');
-        const res = await saveUserProfile('NewName', 'x@example.com', false, '', '');
+        const res = await saveUserProfile('NewName', 'x@example.com', 'login', false, '', '');
         expect(res).toBe(true);
         expect(api.api.put).toHaveBeenCalledWith('/api/v1/user/profile', { name: 'NewName' });
     });
@@ -363,12 +363,246 @@ describe('Profile data for user account', () => {
         const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
         vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
         
-        const mockStore = createMockStore({ id: 'u1', name: 'Test', email: 'x@example.com' });
+        const mockStore = createMockStore({ id: 'u1', name: 'Test', email: 'x@example.com', login: 'login' });
         vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
 
         const { saveUserProfile } = await import('$lib/utils/account/profile');
-        const res = await saveUserProfile('Test', 'x@example.com', true, 'oldPSWD', 'newPSWD');
+        const res = await saveUserProfile('Test', 'x@example.com', 'login', true, 'oldPSWD', 'newPSWD');
         expect(res).toBe(true);
         expect(api.api.put).toHaveBeenCalledWith('/api/v1/user/password', { current_password: 'oldPSWD', new_password: 'newPSWD' });
     });
+
+    it('Updates localStorage cache when profile update succeeds', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+    
+        const localStorageMock = {
+            getItem: vi.fn(),
+            setItem: vi.fn(),
+            removeItem: vi.fn()
+        };
+        Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+    
+        const api = await import('$lib/utils/api');
+        api.api.put = vi.fn().mockResolvedValue({ success: true });
+    
+        const initialUser = { id: 'u1', name: 'Old', email: 'old@example.com', login: 'oldLogin' };
+        const mockStore = createMockStore(initialUser);
+        vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
+    
+        const cachedData = {
+            timestamp: Date.now() - 5000,
+            data: initialUser
+        };
+        localStorageMock.getItem.mockReturnValue(JSON.stringify(cachedData));
+    
+        const { updateUserProfile } = await import('$lib/utils/account/profile');
+        const res = await updateUserProfile('New Name', 'new@example.com', 'newLogin');
+    
+        expect(res).toBe(true);
+        expect(localStorageMock.getItem).toHaveBeenCalledWith('user_data_cache');
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+            'user_data_cache',
+            expect.stringContaining('"name":"New Name"')
+        );
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+            'user_data_cache',
+            expect.stringContaining('"email":"new@example.com"')
+        );
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+            'user_data_cache',
+            expect.stringContaining('"login":"newLogin"')
+        );
+    });
+    
+    it('Updates cache timestamp when profile update succeeds', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+    
+        const localStorageMock = {
+            getItem: vi.fn(),
+            setItem: vi.fn(),
+            removeItem: vi.fn()
+        };
+        Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+    
+        const api = await import('$lib/utils/api');
+        api.api.put = vi.fn().mockResolvedValue({ success: true });
+    
+        const initialUser = { id: 'u1', name: 'Old', email: 'old@example.com' };
+        const mockStore = createMockStore(initialUser);
+        vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
+    
+        const oldTimestamp = Date.now() - 10000;
+        const cachedData = {
+            timestamp: oldTimestamp,
+            data: initialUser
+        };
+        localStorageMock.getItem.mockReturnValue(JSON.stringify(cachedData));
+    
+        const mockNow = Date.now() + 1000;
+        vi.spyOn(Date, 'now').mockReturnValue(mockNow);
+    
+        const { updateUserProfile } = await import('$lib/utils/account/profile');
+        await updateUserProfile('New Name');
+    
+        expect(localStorageMock.setItem).toHaveBeenCalledWith(
+            'user_data_cache',
+            expect.stringContaining(`"timestamp":${mockNow}`)
+        );
+    });
+    
+    it('Removes cache when no cached data exists during profile update', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+    
+        const localStorageMock = {
+            getItem: vi.fn(),
+            setItem: vi.fn(),
+            removeItem: vi.fn()
+        };
+        Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+    
+        const api = await import('$lib/utils/api');
+        api.api.put = vi.fn().mockResolvedValue({ success: true });
+    
+        const initialUser = { id: 'u1', name: 'Old', email: 'old@example.com' };
+        const mockStore = createMockStore(initialUser);
+        vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
+    
+        localStorageMock.getItem.mockReturnValue(null);
+    
+        const { updateUserProfile } = await import('$lib/utils/account/profile');
+        await updateUserProfile('New Name');
+    
+        expect(localStorageMock.removeItem).toHaveBeenCalledWith('user_data_cache');
+    });
+    
+    it('Removes cache when cached data has no data property', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+        
+        const localStorageMock = {
+            getItem: vi.fn(),
+            setItem: vi.fn(),
+            removeItem: vi.fn()
+        };
+        Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+
+        const api = await import('$lib/utils/api');
+        api.api.put = vi.fn().mockResolvedValue({ success: true });
+
+        const initialUser = { id: 'u1', name: 'Old', email: 'old@example.com' };
+        const mockStore = createMockStore(initialUser);
+        vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
+
+        const invalidCachedData = {
+            timestamp: Date.now() - 5000
+        };
+        localStorageMock.getItem.mockReturnValue(JSON.stringify(invalidCachedData));
+
+        const { updateUserProfile } = await import('$lib/utils/account/profile');
+        await updateUserProfile('New Name');
+
+        expect(localStorageMock.getItem).toHaveBeenCalledWith('user_data_cache');
+        expect(localStorageMock.setItem).not.toHaveBeenCalled();
+        expect(localStorageMock.removeItem).not.toHaveBeenCalled();
+    });
+    
+    it('Removes cache when JSON.parse fails during cache update', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+    
+        const localStorageMock = {
+            getItem: vi.fn(),
+            setItem: vi.fn(),
+            removeItem: vi.fn()
+        };
+        Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+    
+        const api = await import('$lib/utils/api');
+        api.api.put = vi.fn().mockResolvedValue({ success: true });
+    
+        const initialUser = { id: 'u1', name: 'Old', email: 'old@example.com' };
+        const mockStore = createMockStore(initialUser);
+        vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
+    
+        localStorageMock.getItem.mockReturnValue('invalid-json');
+    
+        const { updateUserProfile } = await import('$lib/utils/account/profile');
+        await updateUserProfile('New Name');
+    
+        expect(localStorageMock.removeItem).toHaveBeenCalledWith('user_data_cache');
+    });
+    
+    it('Removes cache when localStorage.setItem fails', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+    
+        const localStorageMock = {
+            getItem: vi.fn(),
+            setItem: vi.fn(),
+            removeItem: vi.fn()
+        };
+        Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+    
+        const api = await import('$lib/utils/api');
+        api.api.put = vi.fn().mockResolvedValue({ success: true });
+    
+        const initialUser = { id: 'u1', name: 'Old', email: 'old@example.com' };
+        const mockStore = createMockStore(initialUser);
+        vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
+    
+        const cachedData = {
+            timestamp: Date.now() - 5000,
+            data: initialUser
+        };
+        localStorageMock.getItem.mockReturnValue(JSON.stringify(cachedData));
+        localStorageMock.setItem.mockImplementation(() => {
+            throw new Error('LocalStorage quota exceeded');
+        });
+    
+        const { updateUserProfile } = await import('$lib/utils/account/profile');
+        const res = await updateUserProfile('New Name');
+    
+        expect(res).toBe(true);
+        expect(localStorageMock.removeItem).toHaveBeenCalledWith('user_data_cache');
+    });
+    
+    it('Does not update cache when profile update fails', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+    
+        const localStorageMock = {
+            getItem: vi.fn(),
+            setItem: vi.fn(),
+            removeItem: vi.fn()
+        };
+        Object.defineProperty(global, 'localStorage', { value: localStorageMock });
+    
+        const api = await import('$lib/utils/api');
+        api.api.put = vi.fn().mockResolvedValue({ success: false });
+    
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+    
+        const initialUser = { id: 'u1', name: 'Old', email: 'old@example.com' };
+        const mockStore = createMockStore(initialUser);
+        vi.doMock('$lib/utils/auth/storage/initial', () => ({ currentUser: mockStore }));
+    
+        const { updateUserProfile } = await import('$lib/utils/account/profile');
+        const res = await updateUserProfile('New Name');
+    
+        expect(res).toBe(false);
+        expect(localStorageMock.getItem).not.toHaveBeenCalled();
+        expect(localStorageMock.setItem).not.toHaveBeenCalled();
+        expect(localStorageMock.removeItem).not.toHaveBeenCalled();
+});
 });

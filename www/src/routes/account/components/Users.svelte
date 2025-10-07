@@ -10,6 +10,7 @@
     import { validateEmail } from '$lib/utils/setup/validate';
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { UserRole } from '$lib/utils/auth/types';
+    import { changeRole } from '$lib/utils/admin/users';
     import {
       loadUsersData,
       sendInvitation,
@@ -83,6 +84,24 @@
 
         isAddingUser = false;
     }
+
+    /**
+     * Обработчик пзменения роли пользователя
+     * @param id - ID пользователя
+     * @param promote - true для повышения, false для понижения
+    */
+    async function handleChangeRole(id: string, promote: boolean) {
+        const user = users.find(u => u.id === id);
+        if (!user) return;
+
+        const newRole = promote
+            ? user.role === UserRole.Programmer ? UserRole.Moderator : UserRole.Administrator
+            : user.role === UserRole.Administrator ? UserRole.Moderator : UserRole.Programmer;
+
+        const success = await changeRole(id, newRole);
+        if (success)
+            users = users.map(u => u.id === id ? { ...u, role: newRole } : u);
+    }
     
     /**
      * Открытие модального окна удаления пользователя
@@ -109,8 +128,8 @@
         const success = await deleteUserData(deletingUser.id);
         
         if (success) {
+            users = users.filter(user => user.id !== deletingUser?.id);
             closeModals();
-            await loadUsers();
         }
     }
     
@@ -229,7 +248,7 @@
                                             {#if user.role !== UserRole.Administrator}
                                                 <button 
                                                     class="action-btn promote-btn" 
-                                                    on:click={ () => console.log("test") }
+                                                    on:click={ () => handleChangeRole(user.id, true) }
                                                     title="Повысить"
                                                     aria-label="Повысить роль пользователя"
                                                 >
@@ -244,10 +263,10 @@
                                     </td>
                                     <td class="actions-cell">
                                         <div class="actions-container">
-                                            {#if user.role !== UserRole.Programmer}
+                                            {#if user.role !== UserRole.Programmer && user.role !== UserRole.Administrator}
                                                 <button 
                                                     class="action-btn demote-btn" 
-                                                    on:click={ () => console.log("test") }
+                                                    on:click={ () => handleChangeRole(user.id, false) }
                                                     title="Понизить"
                                                     aria-label="Понизить роль пользователя"
                                                 >

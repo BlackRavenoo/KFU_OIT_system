@@ -19,6 +19,7 @@ export interface IUserData {
     id: string;
     name: string;
     email: string;
+    login: string;
     role: string;
 }
 
@@ -42,7 +43,7 @@ export interface IAuthApiEndpoints {
 }
 
 export enum UserRole {
-    Programmer = "User",
-    Moderator = "Moderator",
-    Administrator = "Admin"
+    Programmer = "employee",
+    Moderator = "moderator",
+    Administrator = "admin"
 }

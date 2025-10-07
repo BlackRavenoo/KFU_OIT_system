@@ -36,11 +36,11 @@ describe('Administration users', () => {
         vi.resetModules();
         vi.clearAllMocks();
 
-        const { validateEmail } = await import('$lib/utils/admin/users');
+        const { validateEmail } = await import('$lib/utils/setup/validate');
 
         expect(validateEmail('')).toBe(false);
         expect(validateEmail('invalid-email')).toBe(false);
-        expect(validateEmail('a@b.c')).toBe(false);
+        expect(validateEmail('a@b.c')).toBe(true);
         expect(validateEmail('user@example.com')).toBe(true);
         expect(validateEmail('user.name+tag@sub.domain.co')).toBe(true);
     });
@@ -123,7 +123,7 @@ describe('Administration users', () => {
         const { deleteUserData } = await import('$lib/utils/admin/users');
         const result = await deleteUserData('user-1');
 
-        expect(apiModule.api.patch).toHaveBeenCalledWith('/api/v1/user/admin/status', { id: 'user-1', status: 3 });
+        expect(apiModule.api.patch).toHaveBeenCalledWith('/api/v1/user/admin/status', { id: 'user-1', status: 'Inactive' });
         expect(notificationMock.notification).toHaveBeenCalledWith('Пользователь успешно удален', notificationMock.NotificationType.Success);
         expect(result).toBe(true);
     });
@@ -163,4 +163,59 @@ describe('Administration users', () => {
         expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка при удалении пользователя', notificationMock.NotificationType.Error);
         expect(result).toBe(false);
     });
+
+    it('Change user role successfully', async () => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    setupApiMock();
+
+    const apiModule = await import('$lib/utils/api');
+    apiModule.api.patch = vi.fn().mockResolvedValue({ success: true });
+
+    const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+    vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+    const { changeRole } = await import('$lib/utils/admin/users');
+    const result = await changeRole('user-1', 'admin');
+
+    expect(apiModule.api.patch).toHaveBeenCalledWith('/api/v1/user/admin/role', { id: 'user-1', role: 'admin' });
+    expect(notificationMock.notification).toHaveBeenCalledWith('Роль успешно изменена', notificationMock.NotificationType.Success);
+    expect(result).toBe(true);
+});
+
+it('Change user role error and notifies on failure', async () => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    setupApiMock();
+
+    const apiModule = await import('$lib/utils/api');
+    apiModule.api.patch = vi.fn().mockResolvedValue({ success: false });
+
+    const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+    vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+    const { changeRole } = await import('$lib/utils/admin/users');
+    const result = await changeRole('user-2', 'moderator');
+
+    expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка при обновлении роли пользователя', notificationMock.NotificationType.Error);
+    expect(result).toBe(false);
+});
+
+it('Change user role catches errors and notifies on exception', async () => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    setupApiMock();
+
+    const apiModule = await import('$lib/utils/api');
+    apiModule.api.patch = vi.fn().mockRejectedValue(new Error('network'));
+
+    const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+    vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+    const { changeRole } = await import('$lib/utils/admin/users');
+    const result = await changeRole('user-3', 'programmer');
+
+    expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка при обновлении роли пользователя', notificationMock.NotificationType.Error);
+    expect(result).toBe(false);
+});
 });
