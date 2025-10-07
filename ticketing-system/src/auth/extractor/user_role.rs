@@ -1,7 +1,6 @@
 use std::future::{ready, Ready};
 
 use actix_web::{FromRequest, HttpMessage, HttpRequest};
-use anyhow::Context;
 
 use crate::{auth::{extractor::JwtExtractorError, jwt::Claims, types::UserRole}};
 
@@ -17,12 +16,8 @@ impl FromRequest for UserRoleExtractor {
             .get::<Claims>()
             .ok_or(JwtExtractorError::MissingClaims)
             .and_then(|claims| {
-                claims.sub.parse::<i16>()
-                    .context("Failed to parse id from claims")
-                    .map_err(Into::into)
-                    .map(Into::into)
-            })
-            .map(UserRoleExtractor);
+                Ok(UserRoleExtractor(claims.role))
+            });
 
         ready(result)
     }

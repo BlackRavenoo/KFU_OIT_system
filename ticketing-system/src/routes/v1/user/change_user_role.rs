@@ -46,7 +46,7 @@ pub async fn change_user_role(
         return Err(ChangeRoleError::InsufficientPermissions)
     }
 
-    let res = change_role(schema.id, schema.role, &pool).await
+    let res = change_role(schema.id, schema.role, &pool, role.0).await
         .context("Failed to change user role in the database.")?;
 
     if res.rows_affected() == 0 {
@@ -62,17 +62,19 @@ pub async fn change_user_role(
 )]
 async fn change_role(
     id: UserId,
-    role: UserRole,
+    new_role: UserRole,
     pool: &PgPool,
+    user_role: UserRole,
 ) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query!(
         r#"
             UPDATE users
             SET role = $1
-            WHERE id = $2
+            WHERE id = $2 AND role < $3
         "#,
-        role as i16,
-        id
+        new_role as i16,
+        id,
+        user_role as i16,
     )
     .execute(pool)
     .await
