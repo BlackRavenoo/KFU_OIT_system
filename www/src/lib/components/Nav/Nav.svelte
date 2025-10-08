@@ -14,12 +14,9 @@
     import { navigateToForm, navigateToHome } from '$lib/utils/setup/navigate';
     import { formatName } from '$lib/utils/setup/validate';
 
-    import { onMount } from 'svelte';
-
     import Modal from './Modal.svelte';
 
     let isAdmin: boolean = false;
-    let isDarkTheme = false;
 
     let isShowModal: boolean = false;
     let modalElement: HTMLElement;
@@ -41,17 +38,6 @@
             username = $currentUser.name || '';
             isAdmin = $currentUser.role === "Admin";
         }
-    }
-
-    /**
-     * Переключение темы оформления
-     * Меняет значение isDarkTheme и обновляет класс на элементе <html>
-     * для применения соответствующих стилей
-     */
-    function toggleTheme() {
-        isDarkTheme = !isDarkTheme;
-        document.documentElement.classList.toggle('dark', isDarkTheme);
-        localStorage.setItem('theme', isDarkTheme ? 'dark' : 'light');
     }
 
     /**
@@ -128,18 +114,6 @@
     function handleModalClose() {
         isShowModal = false;
     }
-
-    /**
-     * Устанавливает начальное состояние темы на основе сохраненных данных
-     */
-    onMount(() => {
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'dark' || savedTheme === 'light')
-            isDarkTheme = savedTheme === 'dark';
-        else
-            isDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.classList.toggle('dark', isDarkTheme);
-    });
 </script>
 
 <svelte:head>
@@ -160,29 +134,6 @@
         <img src="{ KFU }" alt="Logo Small" class="small-logo" />
     </div>
     <ul>
-        <li>
-            <button class="theme-toggle-btn" on:click={ toggleTheme } aria-label="Сменить тему">
-                {#if isDarkTheme}
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 1 0 9.79 9.79z" fill="rgba(255, 255, 255, 0.87)"/>
-                    </svg>
-                {:else}
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="5" fill="rgba(0, 0, 0, 0.87)"/>
-                        <g stroke="rgba(0, 0, 0, 0.87)" stroke-width="2">
-                            <line x1="12" y1="1" x2="12" y2="3"/>
-                            <line x1="12" y1="21" x2="12" y2="23"/>
-                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                            <line x1="1" y1="12" x2="3" y2="12"/>
-                            <line x1="21" y1="12" x2="23" y2="12"/>
-                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                        </g>
-                    </svg>
-                {/if}
-            </button>
-        </li>
         <li><a href="/" class="big nav-link">Главная</a></li>
         {#if $isAuthenticated}
             <li><a href="/tickets" class="nav-link">Заявки</a></li>

@@ -150,20 +150,6 @@ li {
     fill: white;
 }
 
-.theme-toggle-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0.5em;
-    margin-top: 0;
-    box-shadow: none !important;
-    color: inherit;
-    transition: color 0.2s;
-}
-.theme-toggle-btn svg {
-    vertical-align: middle;
-}
-
 /* Медиа запросы */
 @media (max-width: 980px) {
     ul {
