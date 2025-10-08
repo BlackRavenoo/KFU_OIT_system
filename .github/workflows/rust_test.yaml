@@ -60,6 +60,11 @@ jobs:
           sqlx migrate run
         working-directory: ./ticketing-system
 
+      - name: Generate RSA keypair
+        run: |
+          openssl genpkey -algorithm RSA -out ticketing-system/keys/private.pem -pkeyopt rsa_keygen_bits:2048
+          openssl rsa -pubout -in ticketing-system/keys/private.pem -out ticketing-system/keys/public.pem
+
       - name: Run tests
         run: |
           export DATABASE_URL=postgres://${{ env.APP_USER }}:${{ env.APP_USER_PWD }}@localhost:5432/${{ env.APP_DB_NAME }}
