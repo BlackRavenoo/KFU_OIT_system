@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_qs::actix::QsQuery;
 use sqlx::PgPool;
 
-use crate::{auth::types::UserRole, schema::common::{PaginationResult, UserId}, utils::error_chain_fmt};
+use crate::{auth::types::{UserRole, UserStatus}, schema::common::{PaginationResult, UserId}, utils::error_chain_fmt};
 
 #[derive(Deserialize)]
 pub struct GetUsersSchema {
@@ -103,10 +103,12 @@ async fn get_users_page(pool: &PgPool, page_size: i8, page: i32) -> Result<Vec<R
         r#"
             SELECT id, name, email, login, role, COUNT(*) OVER() as "total_items!"
             FROM users
+            WHERE status != $3
             LIMIT $1 OFFSET $2
         "#,
         page_size as i64,
-        page as i64 * page_size as i64
+        page as i64 * page_size as i64,
+        UserStatus::Inactive as i16
     )
     .fetch_all(pool)
     .await
