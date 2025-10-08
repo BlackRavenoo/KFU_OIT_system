@@ -1,8 +1,8 @@
 # Frontend часть системы управления заявками ЕИ КФУ
-Актуально для v0.0.40
+Актуально для v0.0.46
 
 [![Test frontend](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml/badge.svg)](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml)
-[![codecov](https://codecov.io/gh/BlackRavenoo/KFU_OIT_system/branch/main/graph/badge.svg)](https://codecov.io/gh/username/repo/branch/main)
+![Code Coverage](https://img.shields.io/badge/Coverage-98.98%25-brightgreen)
 
 ## Технологический стек
 
@@ -104,6 +104,14 @@ npm run dev
 npm run build
 ```
 
+### Быстрая сборка без тестов
+
+Для создания продакшен-сборки:
+
+```sh
+npm run build:no-test
+```
+
 ### Hot-reload сервер для Docker
 
 Для автоматической пересборки клиенсткой части в запущенном Docker контейнере во время разработки:
@@ -116,7 +124,7 @@ npm run watch:build
 
 Создайте файл .env на основе .env.example и заполните необходимые переменные:
 
-- VITE_CAPTCHA_KEY - Публичный ключ для капчи Lemin
+- VITE_CAPTCHA_KEY - Публичный ключ для капчи Lemin (если используется)
 
 ## Логика работы
 
@@ -149,3 +157,4 @@ npm run watch:build
    - auth_tokens - access и refresh токены для сохранения авторизации между сессиями и запросов к API
    - auth_user - данные пользователя
    - ticketsFilter - выбранные параметры отображения тикетов на странице заявок
+   - Кеш повторяющихся запросов
