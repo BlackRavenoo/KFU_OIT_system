@@ -6,7 +6,7 @@
     import { browser } from '$app/environment';
     import { fade, slide } from 'svelte/transition';
 
-    import { formatDate, formatName, formatTitle, formatDescription } from '$lib/utils/setup/validate';
+    import { formatDate, formatName, formatTitle, formatDescription } from '$lib/utils/validation/validate';
     import { isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription, buildings } from '$lib/utils/setup/stores';
     import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';

@@ -1,8 +1,7 @@
 import { loadItems, createItem } from '$lib/utils/admin/api-handlers';
 import { notification, NotificationType } from '$lib/utils/notifications/notification';
 import { api } from '$lib/utils/api';
-import { validateEmail } from '$lib/utils/setup/validate'
-import { UserRole } from '$lib/utils/auth/types';
+import { validateEmail } from '$lib/utils/validation/validate'
 
 const USER_LIST_ENDPOINT = '/api/v1/user/list';
 const USER_INVITE_ENDPOINT = '/api/v1/user/admin/invite';

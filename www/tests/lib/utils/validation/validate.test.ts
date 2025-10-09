@@ -12,7 +12,7 @@ import {
     formatName,
     formatTitle,
     formatDescription
-} from '$lib/utils/setup/validate';
+} from '$lib/utils/validation/validate';
 
 describe('Validate email', () => {
     it('Returns true for valid emails', () => {

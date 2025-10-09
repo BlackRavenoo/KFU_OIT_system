@@ -37,7 +37,6 @@ vi.mock("@fingerprintjs/fingerprintjs", () => {
     };
 });
 
-// Мок localStorage для тестирования кеширования
 const localStorageMock = {
     getItem: vi.fn(),
     setItem: vi.fn(),
@@ -61,7 +60,6 @@ beforeEach(() => {
     vi.restoreAllMocks();
     vi.useFakeTimers();
     
-    // Очищаем все моки localStorage
     localStorageMock.getItem.mockClear();
     localStorageMock.setItem.mockClear();
     localStorageMock.removeItem.mockClear();
@@ -94,7 +92,6 @@ describe("Auth API", () => {
 
         const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
         
-        // Мокаем localStorage для очистки кеша при входе
         localStorageMock.removeItem.mockImplementation(() => {});
         
         await (authApi as any).login("e", "p", true);
@@ -220,7 +217,6 @@ describe("Auth API", () => {
         delete (globalThis as any).location;
         (globalThis as any).location = { href: "/somewhere" };
 
-        // Не должно выбрасывать ошибку
         await expect((authApi as any).logout()).resolves.toBeUndefined();
 
         expect(clearSpy).toHaveBeenCalled();
@@ -274,7 +270,6 @@ describe("Auth API", () => {
         vi.spyOn(tokensModule as any, "getAuthTokens").mockReturnValue({ accessToken: "acc" } as any);
         const user = { id: 1, name: "u" };
         
-        // Нет кеша
         localStorageMock.getItem.mockReturnValue(null);
         (apiModule as any).api.get.mockResolvedValueOnce({ success: true, data: user } as any);
 
@@ -294,7 +289,7 @@ describe("Auth API", () => {
         
         const cachedUser = { id: 2, name: "cached" };
         const cachedData = {
-            timestamp: Date.now() - 5 * 60 * 1000, // 5 minutes ago
+            timestamp: Date.now() - 5 * 60 * 1000,
             data: cachedUser
         };
         localStorageMock.getItem.mockReturnValue(JSON.stringify(cachedData));
@@ -708,15 +703,9 @@ describe("Auth API", () => {
 
         vi.spyOn(tokensModule as any, "isTokenValid").mockReturnValue(true);
         
-        // Создаем функцию, которая имитирует get функцию для существующего пользователя
-        const mockCurrentUserStore = {
-            subscribe: (run: (v: any) => void) => { run({ id: 7, name: "exists" }); return () => {}; }
-        };
         const getSpy = vi.spyOn({ get }, 'get').mockReturnValue({ id: 7, name: "exists" });
-
         const getUserSpy = vi.spyOn(authApi as any, "getUserData").mockImplementation(() => Promise.resolve({}));
         const authSetSpy = vi.spyOn((initialStore as any).isAuthenticated, "set").mockImplementation(() => undefined as any);
-
         await (authApi as any).checkAuthentication();
 
         expect(getUserSpy).not.toHaveBeenCalled();
@@ -724,5 +713,136 @@ describe("Auth API", () => {
         expect(get((authApi as any).authCheckComplete)).toBe(true);
 
         getSpy.mockRestore();
+    });
+});
+
+describe('Finish registration function', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.resetModules();
+    });
+
+    it("Finish registration successfully", async () => {
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const apiModule = await import('$lib/utils/api');
+        apiModule.api.post = vi.fn().mockResolvedValueOnce({
+            success: true
+        } as any);
+
+        delete (globalThis as any).location;
+        (globalThis as any).location = { href: "/somewhere" };
+
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout").mockImplementation((fn, delay) => {
+            if (typeof fn === "function") fn();
+            return 1 as any;
+        });
+
+        const { finishRegistration } = await import("$lib/utils/auth/api/api");
+        const result = await finishRegistration("Иван Петров", "ivan123", "ivan@example.com", "password123", "token123");
+
+        expect(apiModule.api.post).toHaveBeenCalledWith('/api/v1/auth/register', {
+            name: "Иван Петров",
+            login: "ivan123",
+            email: "ivan@example.com",
+            password: "password123",
+            token: "token123"
+        });
+        expect(notificationMock.notification).toHaveBeenCalledWith('Регистрация завершена!', notificationMock.NotificationType.Success);
+        expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 1500);
+        expect((globalThis as any).location.href).toBe("/");
+        expect(result).toBe(true);
+
+        setTimeoutSpy.mockRestore();
+    });
+
+    it("Finish registration with API error response", async () => {
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const apiModule = await import('$lib/utils/api');
+        apiModule.api.post = vi.fn().mockResolvedValueOnce({
+            success: false
+        } as any);
+
+        const { finishRegistration } = await import("$lib/utils/auth/api/api");
+        const result = await finishRegistration("Анна Смирнова", "anna456", "anna@example.com", "mypass456", "badtoken");
+
+        expect(apiModule.api.post).toHaveBeenCalledWith('/api/v1/auth/register', {
+            name: "Анна Смирнова",
+            login: "anna456",
+            email: "anna@example.com",
+            password: "mypass456",
+            token: "badtoken"
+        });
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка регистрации', notificationMock.NotificationType.Error);
+        expect(result).toBe(false);
+    });
+
+    it("Finish registration with API exception", async () => {
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const apiModule = await import('$lib/utils/api');
+        apiModule.api.post = vi.fn().mockRejectedValueOnce(new Error("Network error"));
+
+        const { finishRegistration } = await import("$lib/utils/auth/api/api");
+        const result = await finishRegistration("Петр Козлов", "petr789", "petr@example.com", "secret789", "errortoken");
+
+        expect(apiModule.api.post).toHaveBeenCalledWith('/api/v1/auth/register', {
+            name: "Петр Козлов",
+            login: "petr789",
+            email: "petr@example.com",
+            password: "secret789",
+            token: "errortoken"
+        });
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка регистрации', notificationMock.NotificationType.Error);
+        expect(result).toBe(false);
+    });
+
+    it("Finish registration does not redirect on failure", async () => {
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const apiModule = await import('$lib/utils/api');
+        apiModule.api.post = vi.fn().mockResolvedValueOnce({
+            success: false
+        } as any);
+
+        delete (globalThis as any).location;
+        (globalThis as any).location = { href: "/current-page" };
+
+        const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+
+        const { finishRegistration } = await import("$lib/utils/auth/api/api");
+        await finishRegistration("Мария Волкова", "maria000", "maria@example.com", "pass000", "failtoken");
+
+        expect(setTimeoutSpy).not.toHaveBeenCalled();
+        expect((globalThis as any).location.href).toBe("/current-page");
+
+        setTimeoutSpy.mockRestore();
+    });
+
+    it("Finish registration with empty parameters", async () => {
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const apiModule = await import('$lib/utils/api');
+        apiModule.api.post = vi.fn().mockResolvedValueOnce({
+            success: true
+        } as any);
+
+        const { finishRegistration } = await import("$lib/utils/auth/api/api");
+        const result = await finishRegistration("", "", "", "", "");
+
+        expect(apiModule.api.post).toHaveBeenCalledWith('/api/v1/auth/register', {
+            name: "",
+            login: "",
+            email: "",
+            password: "",
+            token: ""
+        });
+        expect(result).toBe(true);
     });
 });

@@ -7,9 +7,9 @@
     import { isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle } from '$lib/utils/setup/stores';
     import { navigateToError } from '$lib/utils/error';
-    import { notification, NotificationType } from '$lib/utils/notifications/notification';
-    import { api } from '$lib/utils/api';
-    import { validateName, validateLogin, validatePassword, validateEmail } from '$lib/utils/setup/validate';
+    import { finishRegistration } from '$lib/utils/auth/api/api';
+    import { getNameError, getLoginError, getPasswordError, getEmailError, getConfirmPasswordError } from '$lib/utils/validation/error_messages';
+    import { checkConfirmationToken } from '$lib/utils/auth/tokens/confirmation';
     
     let token: string | null = null;
     let loading: boolean = true;
@@ -27,51 +27,6 @@
     let emailError: string = '';
     let passwordError: string = '';
     let confirmPasswordError: string = '';
-    
-    /**
-     * Валидация имени
-     */
-    function getNameError(name: string): string {
-        if (!name.trim()) return '';
-        if (!validateName(name)) return 'Имя должно содержать только русские буквы и пробелы, минимум 3 символа';
-        return '';
-    }
-    
-    /**
-     * Валидация логина
-     */
-    function getLoginError(login: string): string {
-        if (!login.trim()) return '';
-        if (!validateLogin(login)) return 'Логин должен содержать от 5 до 64 символов, только латинские буквы, цифры и подчеркивания';
-        return '';
-    }
-    
-    /**
-     * Валидация email
-     */
-    function getEmailError(email: string): string {
-        if (!email.trim()) return '';
-        if (!validateEmail(email)) return 'Введите корректный email адрес';
-        return '';
-    }
-    
-    /**
-     * Валидация пароля
-     */
-    function getPasswordError(password: string): string {
-        if (!password) return '';
-        if (!validatePassword(password)) return 'Пароль должен содержать минимум 8 символов, включая буквы и цифры';
-        return '';
-    }
-    
-    /**
-     * Валидация совпадения паролей
-     */
-    function getConfirmPasswordError(password: string, confirmPassword: string): string {
-        if (!confirmPassword) return '';
-        if (password !== confirmPassword) return 'Пароли не совпадают';
-        return '';
-    }
     
     /**
      * Обработка валидации при вводе
@@ -97,35 +52,12 @@
                      !confirmPasswordError;
 
     /**
-     * Проверка токена на валидность
-     * @param token Токен подтверждения регистрации
-    */
-    async function checkToken(token: string): Promise<boolean> {
-        const res = await api.post<{ valid: boolean }>('/api/v1/auth/validate', { token });
-        return res.success;
-    }
-
-    /**
      * Завершение регистрации, сохранение данных на сервере
      */
-    async function finishRegistration() {
+    async function handleFinishRegistration() {
         if (!token) return;
         isSubmitting = true;
-        const res = await api.post('/api/v1/auth/register', {
-            name: fullName,
-            login,
-            email,
-            password,
-            token
-        });
-        if (res.success) {
-            notification('Регистрация завершена!', NotificationType.Success);
-            setTimeout(() => {
-                window.location.href = '/';
-            }, 1500);
-        } else {
-            notification('Ошибка регистрации', NotificationType.Error);
-        }
+        await finishRegistration(fullName, login, email, password, token);
         isSubmitting = false;
     }
     
@@ -134,7 +66,7 @@
      */
     async function handleSubmit() {
         if (!isFormValid) return;
-        await finishRegistration();
+        await handleFinishRegistration();
     }
     
     /**
@@ -164,7 +96,7 @@
         
         if (browser && $page.url.searchParams) {
             token = $page.url.searchParams.get('token');
-            if (!token || !(await checkToken(token))) {
+            if (!token || !(await checkConfirmationToken(token))) {
                 navigateToError(404);
                 return;
             }

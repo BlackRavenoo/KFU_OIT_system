@@ -12,7 +12,7 @@
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { navigateToForm, navigateToHome } from '$lib/utils/setup/navigate';
-    import { formatName } from '$lib/utils/setup/validate';
+    import { formatName } from '$lib/utils/validation/validate';
 
     import Modal from './Modal.svelte';
 

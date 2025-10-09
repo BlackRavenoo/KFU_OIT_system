@@ -6,7 +6,7 @@
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription, buildings } from '$lib/utils/setup/stores';
-    import { formatDate, formatDescription } from '$lib/utils/setup/validate';
+    import { formatDate, formatDescription } from '$lib/utils/validation/validate';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { getById, fetchImages } from '$lib/utils/tickets/api/get';
     import { unassign, assign } from '$lib/utils/tickets/api/assign';

@@ -12,6 +12,7 @@ import { setTokenStore } from '../tokens/storage';
 import { currentUser, isAuthenticated } from '../storage/initial';
 import { AUTH_API_ENDPOINTS as Endpoints } from './endpoints';
 import { isTokenValid } from '$lib/utils/auth/tokens/tokens';
+import { NotificationType, notification } from '$lib/utils/notifications/notification';
 
 import type { ILoginRequest, IUserData } from '$lib/utils/auth/types';
 
@@ -276,5 +277,46 @@ export async function checkAuthentication() {
             authChecking = false;
             authCheckComplete.set(true);
         }
+    }
+}
+
+/**
+ * Завершение регистрации пользователя
+ * @param fullName Полное имя пользователя
+ * @param login Логин пользователя
+ * @param email Email пользователя
+ * @param password Пароль пользователя
+ * @param token Токен подтверждения регистрации
+ * @returns Promise<boolean> - true если регистрация успешна, false в противном случае
+ */
+export async function finishRegistration(
+    fullName: string,
+    login: string,
+    email: string,
+    password: string,
+    token: string
+): Promise<boolean> {
+    try {
+        const res = await api.post('/api/v1/auth/register', {
+            name: fullName,
+            login,
+            email,
+            password,
+            token
+        });
+        
+        if (res.success) {
+            notification('Регистрация завершена!', NotificationType.Success);
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1500);
+            return true;
+        } else {
+            notification('Ошибка регистрации', NotificationType.Error);
+            return false;
+        }
+    } catch (error) {
+        notification('Ошибка регистрации', NotificationType.Error);
+        return false;
     }
 }

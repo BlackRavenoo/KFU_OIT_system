@@ -2,7 +2,7 @@ import { api } from '$lib/utils/api';
 import { notification, NotificationType } from '$lib/utils/notifications/notification';
 import { currentUser } from '$lib/utils/auth/storage/initial';
 import { get } from 'svelte/store';
-import { validateEmail } from '$lib/utils/setup/validate';
+import { validateEmail } from '$lib/utils/validation/validate';
 
 /**
  * Функция для обновления профиля пользователя

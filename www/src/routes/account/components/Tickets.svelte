@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
 
-    import { formatDate, formatName, formatTitle, formatDescription } from '$lib/utils/setup/validate';
+    import { formatDate, formatName, formatTitle, formatDescription } from '$lib/utils/validation/validate';
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { fetchTickets } from '$lib/utils/tickets/api/get';
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';

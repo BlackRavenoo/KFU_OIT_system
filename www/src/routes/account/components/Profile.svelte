@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { formatDate } from '$lib/utils/setup/validate';
+    import { formatDate } from '$lib/utils/validation/validate';
     import Avatar from '$lib/components/Avatar/Avatar.svelte';
 
     import { 
@@ -13,7 +13,14 @@
     import { loadUserStats } from '$lib/utils/account/stats';
     import { loadActiveUserTickets } from '$lib/utils/tickets/api/get';
 
-    import { validateEmail, validateName, validatePassword, validateLogin } from '$lib/utils/setup/validate';
+    import { validateEmail, validateName, validatePassword, validateLogin } from '$lib/utils/validation/validate';
+    import { 
+        getNameError, 
+        getLoginError, 
+        getEmailError, 
+        getPasswordError, 
+        getConfirmPasswordError 
+    } from '$lib/utils/validation/error_messages';
     
     export let userData: { id: string, name: string, email: string, login: string, role: string };
     export let stats: { assignedToMe: number, completedTickets: number, cancelledTickets: number };
@@ -98,23 +105,17 @@
         }
     }
 
-    let nameError = '';
-    let emailError = '';
-    let loginError = '';
-    let passwordError = '';
-    let confirmPasswordError = '';
-
     $: nameValid = validateName(editedName);
     $: emailValid = validateEmail(editedEmail);
     $: loginValid = validateLogin(editedLogin);
     $: passwordValid = !changePassword || validatePassword(newPassword);
     $: confirmPasswordValid = !changePassword || (confirmPassword === newPassword);
 
-    $: nameError = nameValid ? '' : 'Имя должно содержать минимум 3 буквы кириллицей';
-    $: emailError = emailValid ? '' : 'Некорректный email';
-    $: loginError = loginValid ? '' : 'Логин должен быть длиннее 4 символов и содержать только латинские буквы, цифры и символ подчеркивания';
-    $: passwordError = passwordValid ? '' : 'Пароль должен быть не менее 8 символов, содержать буквы в верхнем и нижнем регистре, а также цифры';
-    $: confirmPasswordError = confirmPasswordValid ? '' : 'Пароли не совпадают';
+    $: nameError = getNameError(editedName);
+    $: emailError = getEmailError(editedEmail);
+    $: loginError = getLoginError(editedLogin);
+    $: passwordError = getPasswordError(newPassword);
+    $: confirmPasswordError = getConfirmPasswordError(newPassword, confirmPassword);
 
     /**
      * Начать редактирование профиля
@@ -139,11 +140,6 @@
         avatarFile = null;
         changePassword = false;
         isEditing = false;
-        nameError = '';
-        emailError = '';
-        loginError = '';
-        passwordError = '';
-        confirmPasswordError = '';
     }
     
     /**
@@ -527,13 +523,12 @@
                                 type="text" 
                                 id="name" 
                                 class="form-input"
-                                class:red-border={!nameValid}
+                                class:red-border={ !nameValid }
                                 bind:value={ editedName }
                                 placeholder="Введите имя"
-                                on:input={() => { nameError = validateName(editedName) ? '' : 'Имя должно содержать минимум 3 буквы кириллицей'; }}
                             />
                             {#if nameError}
-                                <div class="input-error">{nameError}</div>
+                                <div class="input-error">{ nameError }</div>
                             {/if}
                         </div>
                         <div class="form-group">
@@ -542,13 +537,12 @@
                                 type="email" 
                                 id="email" 
                                 class="form-input"
-                                class:red-border={!emailValid}
+                                class:red-border={ !emailValid }
                                 bind:value={ editedEmail }
                                 placeholder="Введите email"
-                                on:input={() => { emailError = validateEmail(editedEmail) ? '' : 'Некорректный email'; }}
                             />
                             {#if emailError}
-                                <div class="input-error">{emailError}</div>
+                                <div class="input-error">{ emailError }</div>
                             {/if}
                         </div>
                         <div class="form-group">
@@ -557,13 +551,12 @@
                                 type="text" 
                                 id="login" 
                                 class="form-input"
-                                class:red-border={!loginValid}
+                                class:red-border={ !loginValid }
                                 bind:value={ editedLogin }
                                 placeholder="Введите логин"
-                                on:input={() => { loginError = validateLogin(editedLogin) ? '' : 'Логин должен быть длиннее 4 символов и содержать только латинские буквы, цифры и символ подчеркивания'; }}
                             />
                             {#if loginError}
-                                <div class="input-error">{loginError}</div>
+                                <div class="input-error">{ loginError }</div>
                             {/if}
                         </div>
                     </div>
@@ -597,14 +590,13 @@
                                         type="password" 
                                         id="newPassword" 
                                         class="form-input"
-                                        class:red-border={!passwordValid}
+                                        class:red-border={ !passwordValid }
                                         bind:value={ newPassword }
                                         placeholder="Введите новый пароль"
-                                        on:input={() => { passwordError = validatePassword(newPassword) ? '' : 'Пароль должен быть не менее 8 символов, содержать буквы и цифры'; }}
                                     />
                                 </div>
                                 {#if passwordError}
-                                    <div class="input-error">{passwordError}</div>
+                                    <div class="input-error">{ passwordError }</div>
                                 {/if}
                             </div>
                             <div class="form-group">
@@ -614,14 +606,13 @@
                                         type="password" 
                                         id="confirmPassword" 
                                         class="form-input"
-                                        class:red-border={!confirmPasswordValid}
+                                        class:red-border={ !confirmPasswordValid }
                                         bind:value={ confirmPassword }
                                         placeholder="Подтвердите новый пароль"
-                                        on:input={() => { confirmPasswordError = (confirmPassword === newPassword) ? '' : 'Пароли не совпадают'; }}
                                     />
                                 </div>
                                 {#if confirmPasswordError}
-                                    <div class="input-error">{confirmPasswordError}</div>
+                                    <div class="input-error">{ confirmPasswordError }</div>
                                 {/if}
                             </div>
                         {/if}
@@ -673,7 +664,7 @@
                     </div>
 
                     <button class="btn edit-btn" type="button" on:click={ startEditingProfile }>
-                        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                         Редактировать профиль
                     </button>
                 </div>

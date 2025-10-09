@@ -7,7 +7,7 @@
     import Pagination from '$lib/components/Search/Pagination.svelte';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
     
-    import { validateEmail } from '$lib/utils/setup/validate';
+    import { validateEmail } from '$lib/utils/validation/validate';
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { UserRole } from '$lib/utils/auth/types';
     import { changeRole } from '$lib/utils/admin/users';

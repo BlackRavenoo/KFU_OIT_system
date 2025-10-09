@@ -6,7 +6,7 @@ import { getTicketsFilters } from '$lib/utils/tickets/stores';
 import { orderByMap } from '$lib/utils/tickets/types';
 import { TICKETS_API_ENDPOINTS } from './endpoints';
 import { order, buildings } from '$lib/utils/setup/stores';
-import { validatePageSize } from '$lib/utils/setup/validate';
+import { validatePageSize } from '$lib/utils/validation/validate';
 import type { Building, OrderBy, Ticket } from '$lib/utils/tickets/types';
 
 const CACHE_KEY_CONSTS = 'tickets_consts_cache';

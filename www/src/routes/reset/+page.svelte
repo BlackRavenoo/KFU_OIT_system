@@ -7,9 +7,8 @@
     import { isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle } from '$lib/utils/setup/stores';
     import { navigateToError } from '$lib/utils/error';
-    import { notification, NotificationType } from '$lib/utils/notifications/notification';
-    import { validatePassword } from '$lib/utils/setup/validate';
-    import { api } from '$lib/utils/api';
+    import { checkConfirmationToken } from '$lib/utils/auth/tokens/confirmation';
+    import { getPasswordError, getConfirmPasswordError } from '$lib/utils/validation/error_messages';
     
     let token: string | null = null;
     let loading: boolean = true;
@@ -21,24 +20,6 @@
     
     let passwordError: string = '';
     let confirmPasswordError: string = '';
-    
-    /**
-     * Валидация пароля
-     */
-    function getPasswordError(password: string): string {
-        if (!password) return '';
-        if (!validatePassword(password)) return 'Пароль должен содержать минимум 8 символов, включая буквы и цифры';
-        return '';
-    }
-    
-    /**
-     * Валидация совпадения паролей
-     */
-    function getConfirmPasswordError(password: string, confirmPassword: string): string {
-        if (!confirmPassword) return '';
-        if (password !== confirmPassword) return 'Пароли не совпадают';
-        return '';
-    }
     
     /**
      * Обработка валидации при вводе
@@ -53,14 +34,6 @@
                      confirmPassword &&
                      !passwordError && 
                      !confirmPasswordError;
-
-    /**
-     * Проверка токена на валидность
-     * @param token Токен сброса пароля
-    */
-    async function checkToken(token: string): Promise<boolean> {
-        // !!!TDD!!!
-    }
 
     /**
      * Сброс пароля
@@ -105,7 +78,7 @@
 
         if (browser && $page.url.searchParams) {
             token = $page.url.searchParams.get('token');
-            if (!token || !(await checkToken(token))) {
+            if (!token || !(await checkConfirmationToken(token))) {
                 navigateToError(404);
                 return;
             }

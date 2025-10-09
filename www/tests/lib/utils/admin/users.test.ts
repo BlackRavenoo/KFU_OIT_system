@@ -36,7 +36,7 @@ describe('Administration users', () => {
         vi.resetModules();
         vi.clearAllMocks();
 
-        const { validateEmail } = await import('$lib/utils/setup/validate');
+        const { validateEmail } = await import('$lib/utils/validation/validate');
 
         expect(validateEmail('')).toBe(false);
         expect(validateEmail('invalid-email')).toBe(false);

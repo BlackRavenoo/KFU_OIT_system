@@ -7,7 +7,7 @@
     import { showModalWithFocus } from '$lib/components/Modal/Modal';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { buildings } from '$lib/utils/setup/stores';
-    import { validateFiles, validateName, validatePhone } from '$lib/utils/setup/validate';
+    import { validateFiles, validateName, validatePhone } from '$lib/utils/validation/validate';
     import { getPublicStats } from '$lib/utils/account/stats';
 
     import Modal from '$lib/components/Modal/Modal.svelte';
