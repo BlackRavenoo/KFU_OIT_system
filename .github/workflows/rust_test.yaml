@@ -15,6 +15,8 @@ env:
   APP_USER_PWD: secret
   APP_DB_NAME: ticketing
   TEST_LOG: enabled
+  AWS_ACCESS_KEY_ID: access_key
+  AWS_SECRET_ACCESS_KEY: secret_key
 
 jobs:
   test:
