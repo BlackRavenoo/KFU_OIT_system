@@ -43,7 +43,7 @@ pub async fn change_user_status(
     web::Json(schema): web::Json<ChangeStatusSchema>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, ChangeStatusError> {
-    if role.0 < UserRole::Moderator || id.0 != schema.id {
+    if role.0 < UserRole::Moderator && id.0 != schema.id {
         return Err(ChangeStatusError::InsufficientPermissions)
     }
 
