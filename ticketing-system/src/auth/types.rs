@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::Type;
 
 #[derive(Debug, Clone, Copy, Type, Serialize, Deserialize, PartialEq, PartialOrd)]
-#[repr(i16)]
 #[serde(rename_all = "lowercase")]
 pub enum UserRole {
     Employee = 0,
@@ -50,6 +49,7 @@ impl UserRole {
 }
 
 #[derive(Debug, Type, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "lowercase")]
 pub enum UserStatus {
     Active = 0,
     Sick = 1,
