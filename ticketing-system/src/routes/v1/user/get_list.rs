@@ -19,6 +19,7 @@ pub struct UserSchema {
     pub email: String,
     pub login: String,
     pub role: UserRole,
+    pub status: UserStatus,
 }
 
 struct Row {
@@ -27,6 +28,7 @@ struct Row {
     pub email: String,
     pub login: String,
     pub role: UserRole,
+    pub status: UserStatus,
     pub total_items: i64,
 }
 
@@ -84,6 +86,7 @@ pub async fn get_users(
         email: r.email,
         login: r.login,
         role: r.role,
+        status: r.status,
     }).collect();
 
     Ok(HttpResponse::Ok().json(PaginationResult::new_with_pagination(
@@ -101,7 +104,7 @@ async fn get_users_page(pool: &PgPool, page_size: i8, page: i32) -> Result<Vec<R
     sqlx::query_as!(
         Row,
         r#"
-            SELECT id, name, email, login, role, COUNT(*) OVER() as "total_items!"
+            SELECT id, name, email, login, role, status, COUNT(*) OVER() as "total_items!"
             FROM users
             WHERE status != $3
             LIMIT $1 OFFSET $2

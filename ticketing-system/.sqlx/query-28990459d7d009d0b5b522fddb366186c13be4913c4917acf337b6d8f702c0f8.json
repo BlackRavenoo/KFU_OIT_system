@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, name, email, login, role, COUNT(*) OVER() as \"total_items!\"\n            FROM users\n            WHERE status != $3\n            LIMIT $1 OFFSET $2\n        ",
+  "query": "\n        SELECT id, name, login, email, role, status\n        FROM users\n        WHERE id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -15,12 +15,12 @@
       },
       {
         "ordinal": 2,
-        "name": "email",
+        "name": "login",
         "type_info": "Varchar"
       },
       {
         "ordinal": 3,
-        "name": "login",
+        "name": "email",
         "type_info": "Varchar"
       },
       {
@@ -30,15 +30,13 @@
       },
       {
         "ordinal": 5,
-        "name": "total_items!",
-        "type_info": "Int8"
+        "name": "status",
+        "type_info": "Int2"
       }
     ],
     "parameters": {
       "Left": [
-        "Int8",
-        "Int8",
-        "Int2"
+        "Int4"
       ]
     },
     "nullable": [
@@ -47,8 +45,8 @@
       false,
       false,
       false,
-      null
+      false
     ]
   },
-  "hash": "671037b3b70b0070829c938530cfeb05d64090fe7f32b7f072ed46c4f34056ec"
+  "hash": "28990459d7d009d0b5b522fddb366186c13be4913c4917acf337b6d8f702c0f8"
 }

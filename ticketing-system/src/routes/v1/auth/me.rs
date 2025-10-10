@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Serialize;
 use sqlx::PgPool;
 
-use crate::{auth::{extractor::UserIdExtractor, types::UserRole}, schema::common::UserId, utils::error_chain_fmt};
+use crate::{auth::{extractor::UserIdExtractor, types::{UserRole, UserStatus}}, schema::common::UserId, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum MeError {
@@ -35,6 +35,7 @@ pub struct User {
     pub email: String,
     pub login: String,
     pub role: UserRole,
+    pub status: UserStatus,
 }
 
 pub async fn me(
@@ -56,7 +57,7 @@ async fn get_user_info(pool: &PgPool, user_id: UserId) -> Result<Option<User>, s
     sqlx::query_as!(
         User,
         r#"
-        SELECT id, name, login, email, role
+        SELECT id, name, login, email, role, status
         FROM users
         WHERE id = $1
         "#,
