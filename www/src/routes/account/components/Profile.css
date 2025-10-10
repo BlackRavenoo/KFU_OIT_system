@@ -612,6 +612,55 @@ input:checked + .slider:before {
     opacity: 1;
 }
 
+.role-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.status-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.status-badge-select {
+    color: var(--white);
+    width: fit-content;
+    padding: .4rem .7rem;
+    border: none;
+    box-shadow: none;
+}
+
+.status-badge-select:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.status-badge-select:focus {
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.status-badge-select.status-active {
+    background-color: var(--low);
+}
+
+.status-badge-select.status-sick {
+    background-color: var(--orange);
+}
+
+.status-badge-select.status-vacation {
+    background-color: var(--yellow);
+}
+
+.status-badge-select option {
+    padding: 12px 16px;
+    font-weight: 600;
+    color: var(--gray);
+    background: var(--white);
+}
+
 @media (max-width: 1024px) {
     .profile-dashboard {
         grid-template-columns: 1fr;      

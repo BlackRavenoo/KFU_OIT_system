@@ -20,7 +20,8 @@ export interface IUserData {
     name: string;
     email: string;
     login: string;
-    role: string;
+    role: UserRole;
+    status: UserStatus
 }
 
 export interface ITokenStorage {
@@ -47,3 +48,10 @@ export enum UserRole {
     Moderator = "moderator",
     Administrator = "admin"
 }
+
+export enum UserStatus {
+    Active = 'active',
+    Sick = 'sick',
+    Vacation = 'vacation',
+    Inactive = 'inactive'
+};

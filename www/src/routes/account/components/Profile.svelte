@@ -10,6 +10,7 @@
     } from '$lib/utils/account/avatar';
     
     import { saveUserProfile } from '$lib/utils/account/profile';
+    import { setUserStatus } from '$lib/utils/admin/users';
     import { loadUserStats } from '$lib/utils/account/stats';
     import { loadActiveUserTickets } from '$lib/utils/tickets/api/get';
 
@@ -22,7 +23,9 @@
         getConfirmPasswordError 
     } from '$lib/utils/validation/error_messages';
     
-    export let userData: { id: string, name: string, email: string, login: string, role: string };
+    import { UserStatus } from '$lib/utils/auth/types';
+    
+    export let userData: { id: string, name: string, email: string, login: string, role: string, status?: UserStatus };
     export let stats: { assignedToMe: number, completedTickets: number, cancelledTickets: number };
     export let activeTickets: any[] = [];
     
@@ -53,6 +56,23 @@
     const CACHE_KEY_STATS = 'profile_stats_cache';
     const CACHE_KEY_TICKETS = 'profile_tickets_cache';
     const CACHE_TTL = 2 * 60 * 1000;
+
+    /**
+     * Обработчик изменения статуса пользователя
+     * @param newStatus - Новый статус пользователя
+     */
+    async function handleStatusChange(newStatus: UserStatus) {
+        const previousStatus = userData.status || UserStatus.Active;
+        userData = { ...userData, status: newStatus };
+        
+        try {
+            const success = await setUserStatus(parseInt(userData.id), newStatus);
+            if (!success)
+                userData = { ...userData, status: previousStatus };
+        } catch (error) {
+            userData = { ...userData, status: previousStatus };
+        }
+    }
 
     /**
      * Получить кэшированную статистику пользователя
@@ -657,6 +677,23 @@
                                     <div>
                                         <span class="info-label">Логин</span>
                                         <span class="info-value">{ userData?.login || '' }</span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-icon">
+                                        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"></path></svg>
+                                    </div>
+                                    <div class="status-info">
+                                        <span class="info-label">Статус</span>
+                                        <select 
+                                            class="role-badge status-badge-select { 'status-' + (userData.status || UserStatus.Active) }"
+                                            value={ userData.status || UserStatus.Active }
+                                            on:change={ (e: Event) => handleStatusChange((e.currentTarget as HTMLSelectElement).value as unknown as UserStatus) }
+                                        >
+                                            <option value={ UserStatus.Active }>Активен</option>
+                                            <option value={ UserStatus.Sick }>Больничный</option>
+                                            <option value={ UserStatus.Vacation }>Отпуск</option>
+                                        </select>
                                     </div>
                                 </div>
                             </div>

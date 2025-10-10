@@ -2,21 +2,17 @@ import { loadItems, createItem } from '$lib/utils/admin/api-handlers';
 import { notification, NotificationType } from '$lib/utils/notifications/notification';
 import { api } from '$lib/utils/api';
 import { validateEmail } from '$lib/utils/validation/validate'
+import { UserStatus } from '$lib/utils/auth/types';
+
+import type { IUserData } from '$lib/utils/auth/types';
 
 const USER_LIST_ENDPOINT = '/api/v1/user/list';
 const USER_INVITE_ENDPOINT = '/api/v1/user/admin/invite';
-const USER_DELETE_ENDPOINT = '/api/v1/user/admin/status';
+const USER_DELETE_ENDPOINT = '/api/v1/user/status';
 const USER_CHANGE_ROLE_ENDPOINT = '/api/v1/user/admin/role';
 
-export interface User {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-}
-
 export interface UsersState {
-    users: User[];
+    users: IUserData[];
     totalPages: number;
     error: boolean;
 }
@@ -41,7 +37,7 @@ export async function loadUsersData(
     });
 
     return {
-        users: result.items as User[],
+        users: result.items as IUserData[],
         totalPages: result.totalPages,
         error: result.error
     };
@@ -68,31 +64,6 @@ export async function sendInvitation(email: string): Promise<boolean> {
 }
 
 /**
- * Удаление пользователя (фактически изменение статуса на 3 - удален)
- * @param userId ID пользователя
- * @returns Успешность операции
- */
-export async function deleteUserData(userId: string): Promise<boolean> {
-    try {
-        const response = await api.patch(USER_DELETE_ENDPOINT, {
-            id: userId,
-            status: 'Inactive'
-        });
-        
-        if (response.success) {
-            notification('Пользователь успешно удален', NotificationType.Success);
-            return true;
-        } else {
-            notification('Ошибка при удалении пользователя', NotificationType.Error);
-            return false;
-        }
-    } catch (error) {
-        notification('Ошибка при удалении пользователя', NotificationType.Error);
-        return false;
-    }
-}
-
-/**
  * Смена роли пользователя
  * @param userId - id пользователя для смены
  * @param newRole - новая роль для установки пользователю
@@ -113,6 +84,30 @@ export async function changeRole(userId: string, newRole: string): Promise<boole
         }
     } catch (error) {
         notification('Ошибка при обновлении роли пользователя', NotificationType.Error);
+        return false;
+    }
+}
+
+/**
+ * Установка статуса пользователя
+ * @param id - ID пользователя
+ * @param status - Новый статус пользователя
+ */
+export async function setUserStatus(id: number, status: UserStatus): Promise<boolean> {
+    try {
+        const response = await api.patch(USER_DELETE_ENDPOINT, { 
+            id,
+            status
+        });
+        
+        if (response.success) {
+            return true;
+        } else {
+            notification('Ошибка при смене статуса', NotificationType.Error);
+            return false;
+        }
+    } catch (error) {
+        notification('Ошибка при смене статуса', NotificationType.Error);
         return false;
     }
 }

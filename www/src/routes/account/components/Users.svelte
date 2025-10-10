@@ -11,15 +11,15 @@
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { UserRole } from '$lib/utils/auth/types';
     import { changeRole } from '$lib/utils/admin/users';
+    import { UserStatus, type IUserData } from '$lib/utils/auth/types';
     import {
       loadUsersData,
       sendInvitation,
-      deleteUserData,
-      type User,
+      setUserStatus,
       type UsersState
     } from '$lib/utils/admin/users';
     
-    let users: User[] = [];
+    let users: IUserData[] = [];
     let loading: boolean = true;
     let error: boolean = false;
     let isMobile: boolean = false;
@@ -34,9 +34,76 @@
     let itemsPerPage: number = 10;
     
     let showDeleteModal: boolean = false;
-    let deletingUser: User | null = null;
+    let deletingUser: IUserData | null = null;
 
     let emailError: string = '';
+
+    $: canManageStatus = $currentUser?.role === UserRole.Administrator || $currentUser?.role === UserRole.Moderator;
+    
+    /**
+     * Получить текст статуса пользователя
+     */
+    function getStatusText(status: UserStatus): string {
+        switch (status) {
+            case UserStatus.Active:
+                return 'Активен';
+            case UserStatus.Sick:
+                return 'Больничный';
+            case UserStatus.Vacation:
+                return 'Отпуск';
+            default:
+                return 'Неизвестно';
+        }
+    }
+
+    /**
+     * Получить CSS класс для статуса
+     */
+    function getStatusClass(status: UserStatus): string {
+        switch (status) {
+            case UserStatus.Active:
+                return 'status-active';
+            case UserStatus.Sick:
+                return 'status-sick';
+            case UserStatus.Vacation:
+                return 'status-vacation';
+            default:
+                return 'status-unknown';
+        }
+    }
+
+    /**
+     * Обработчик изменения статуса пользователя
+     */
+    async function handleStatusChange(userId: string, newStatus: UserStatus) {
+        const user = users.find(u => u.id === userId);
+        if (!user) return;
+        
+        const previousStatus = user.status || UserStatus.Active;
+        
+        users = users.map(user => 
+            user.id === userId 
+                ? { ...user, status: newStatus }
+                : user
+        );
+        
+        try {
+            const success = await setUserStatus(parseInt(userId), newStatus);
+            if (!success) {
+                users = users.map(user => 
+                    user.id === userId 
+                        ? { ...user, status: previousStatus }
+                        : user
+                );
+            }
+        } catch (error) {
+            users = users.map(user => 
+                user.id === userId 
+                    ? { ...user, status: previousStatus }
+                    : user
+            );
+        }
+    }
     
     /**
      * Загрузка списка пользователей
@@ -106,7 +173,7 @@
     /**
      * Открытие модального окна удаления пользователя
      */
-    function openDeleteModal(user: User) {
+    function openDeleteModal(user: IUserData) {
         deletingUser = user;
         showDeleteModal = true;
     }
@@ -125,7 +192,7 @@
     async function deleteUser() {
         if (!deletingUser) return;
 
-        const success = await deleteUserData(deletingUser.id);
+        const success = await setUserStatus(parseInt(deletingUser.id), UserStatus.Inactive);
         
         if (success) {
             users = users.filter(user => user.id !== deletingUser?.id);
@@ -236,12 +303,25 @@
                                         <span class="user-name">{ user.name || 'Без имени' }</span>
                                     </div>
                                 </td>
-                                <td>{ user.email }</td>
-                                <td>
+                                <td class="email-cell">{ user.email }</td>
+                                <td class="role-cell">
                                     <span class="role-badge { user.role === UserRole.Administrator ? 'admin-role' : user.role === UserRole.Moderator ? 'moderator-role' : 'user-role' }">
                                         { user.role === UserRole.Administrator ? 'Администратор' : user.role === UserRole.Moderator ? 'Модератор' : 'Программист' }
                                     </span>
                                 </td>
+                                {#if canManageStatus}
+                                    <td class="status-cell">
+                                        <select 
+                                            class="role-badge status-badge-select { getStatusClass(user.status || UserStatus.Active) }"
+                                            value={ user.status || UserStatus.Active }
+                                            on:change={(e: Event) => handleStatusChange(user.id, (e.target as HTMLSelectElement).value as unknown as UserStatus)}
+                                        >
+                                            <option value={ UserStatus.Active }>Активен</option>
+                                            <option value={ UserStatus.Sick }>Больничный</option>
+                                            <option value={ UserStatus.Vacation }>Отпуск</option>
+                                        </select>
+                                    </td>
+                                {/if}
                                 {#if $currentUser?.role === UserRole.Administrator}
                                     <td class="actions-cell">
                                         <div class="actions-container">
@@ -249,50 +329,46 @@
                                                 <button 
                                                     class="action-btn promote-btn" 
                                                     on:click={ () => handleChangeRole(user.id, true) }
-                                                    title="Повысить"
+                                                    title="Повысить роль"
                                                     aria-label="Повысить роль пользователя"
                                                 >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                        <path d="M12 4v16"></path>
-                                                        <path d="M5 10l7-7 7 7"></path>
-                                                        <path d="M18 20H6"></path>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="m18 15-6-6-6 6"/>
                                                     </svg>
                                                 </button>
                                             {/if}
-                                        </div>
-                                    </td>
-                                    <td class="actions-cell">
-                                        <div class="actions-container">
+                                            
                                             {#if user.role !== UserRole.Programmer && user.role !== UserRole.Administrator}
                                                 <button 
                                                     class="action-btn demote-btn" 
                                                     on:click={ () => handleChangeRole(user.id, false) }
-                                                    title="Понизить"
+                                                    title="Понизить роль"
                                                     aria-label="Понизить роль пользователя"
                                                 >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                        <path d="M12 20V4"></path>
-                                                        <path d="M5 14l7 7 7-7"></path>
-                                                        <path d="M18 4H6"></path>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="m6 9 6 6 6-6"/>
+                                                    </svg>
+                                                </button>
+                                            {/if}
+                                            
+                                            {#if user.role !== UserRole.Administrator}
+                                                <button 
+                                                    class="action-btn delete-btn" 
+                                                    on:click={ () => openDeleteModal(user) }
+                                                    title="Удалить пользователя"
+                                                    aria-label="Удалить пользователя"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M3 6h18"/>
+                                                        <path d="M19 6v14c0 1 0 2-2 2H7c-2 0-2-1-2-2V6"/>
+                                                        <path d="M8 6V4c0-1 0-2 2-2h4c2 0 2 1 2 2v2"/>
+                                                        <line x1="10" y1="11" x2="10" y2="17"/>
+                                                        <line x1="14" y1="11" x2="14" y2="17"/>
                                                     </svg>
                                                 </button>
                                             {/if}
                                         </div>
                                     </td>
-                                    {#if user.role !== UserRole.Administrator}
-                                        <td class="actions-cell">
-                                            <div class="actions-container">
-                                                <button 
-                                                    class="action-btn delete-btn" 
-                                                    on:click={ () => openDeleteModal(user) }
-                                                    title="Удалить"
-                                                    aria-label="Удалить пользователя"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    {/if}
                                 {/if}
                             </tr>
                         {/each}

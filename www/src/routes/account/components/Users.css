@@ -113,6 +113,56 @@ h3 {
     color: var(--text);
 }
 
+.users-table tbody td {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f3f4;
+    vertical-align: middle;
+}
+
+.users-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.status-cell {
+    padding: 16px 20px;
+    width: 160px;
+}
+
+.status-badge-select {
+    color: var(--white);
+    width: fit-content;
+    padding: .4rem .7rem;
+    border: none;
+    box-shadow: none;
+}
+
+.status-badge-select:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.status-badge-select:focus {
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1), 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.status-badge-select.status-active {
+    background-color: var(--low);
+}
+
+.status-badge-select.status-sick {
+    background-color: var(--orange);
+}
+
+.status-badge-select.status-vacation {
+    background-color: var(--yellow);
+}
+
+.status-badge-select option {
+    padding: 12px 16px;
+    font-weight: 600;
+    color: var(--gray);
+    background: var(--white);
+}
+
 .actions-cell {
     width: 100px;
 }
@@ -212,6 +262,39 @@ h3 {
 @media (max-width: 768px) {
     .users-table td:nth-child(2) {
         display: none;
+    }
+
+    .status-cell {
+        width: auto;
+        min-width: 130px;
+        padding: 12px 16px;
+    }
+    
+    .status-badge-select {
+        min-width: 110px;
+        font-size: 12px;
+        padding: 6px 28px 6px 12px;
+        background-size: 14px;
+        background-position: right 6px center;
+    }
+    
+    .actions-container {
+        gap: 6px;
+    }
+    
+    .action-btn {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .users-table tbody td {
+        padding: 12px 16px;
+    }
+    
+    .actions-cell {
+        width: auto;
+        min-width: 120px;
+        padding: 12px 16px;
     }
 }
 
