@@ -45,7 +45,6 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/user/admin")
                 .wrap(JwtMiddleware::min_role(UserRole::Admin))
                 .route("/invite", web::post().to(invite_user))
-                .route("/status", web::patch().to(change_user_status))
                 .route("/role", web::patch().to(change_user_role))
             )
             .service(
@@ -55,6 +54,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .route("/profile", web::put().to(update_user_profile))
                     .route("/password", web::put().to(change_password))
                     .route("/list", web::get().to(get_users))
+                    .route("/status", web::patch().to(change_user_status))
             )
     );
 }

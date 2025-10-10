@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Deserialize;
 use sqlx::{postgres::PgQueryResult, PgPool};
 
-use crate::{auth::types::UserStatus, schema::common::UserId, utils::error_chain_fmt};
+use crate::{auth::{extractor::{UserIdExtractor, UserRoleExtractor}, types::{UserRole, UserStatus}}, schema::common::UserId, utils::error_chain_fmt};
 
 #[derive(Deserialize)]
 pub struct ChangeStatusSchema {
@@ -13,6 +13,8 @@ pub struct ChangeStatusSchema {
 
 #[derive(thiserror::Error)]
 pub enum ChangeStatusError {
+    #[error("Insufficient permissions to change user role")]
+    InsufficientPermissions,
     #[error("User not found")]
     UserNotFound,
     #[error(transparent)]
@@ -28,6 +30,7 @@ impl std::fmt::Debug for ChangeStatusError {
 impl ResponseError for ChangeStatusError {
     fn status_code(&self) -> StatusCode {
         match self {
+            ChangeStatusError::InsufficientPermissions => StatusCode::FORBIDDEN,
             ChangeStatusError::UserNotFound => StatusCode::BAD_REQUEST,
             ChangeStatusError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -35,9 +38,15 @@ impl ResponseError for ChangeStatusError {
 }
 
 pub async fn change_user_status(
+    role: UserRoleExtractor,
+    id: UserIdExtractor,
     web::Json(schema): web::Json<ChangeStatusSchema>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, ChangeStatusError> {
+    if role.0 < UserRole::Moderator || id.0 != schema.id {
+        return Err(ChangeStatusError::InsufficientPermissions)
+    }
+
     let res = change_status(schema.id, schema.status, &pool).await
         .context("Failed to change user status in the database.")?;
 
