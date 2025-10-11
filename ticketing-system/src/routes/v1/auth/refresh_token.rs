@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::{auth::{jwt::JwtService, token_store::{TokenStore, TokenStoreError}, types::{UserRole, UserStatus}}, schema::{auth::TokenResponse, common::UserId}, utils::error_chain_fmt};
+use crate::{auth::{jwt::JwtService, token_store::{TokenStore, TokenStoreError}, types::UserRole}, schema::{auth::TokenResponse, common::UserId}, utils::error_chain_fmt};
 
 #[derive(Debug, Deserialize)]
 pub struct RefreshTokenRequest {
@@ -45,11 +45,11 @@ pub async fn refresh_token(
 ) -> Result<HttpResponse, RefreshTokenError> {
     let token_data = token_store.get_del_refresh_token(&req.refresh_token, &req.fingerprint).await?;
 
-    let (role, status) = get_user_role_and_status(&pool, token_data.user_id)
+    let (role, is_active) = get_user_role_and_is_active(&pool, token_data.user_id)
         .await
         .context("Failed to get user role and status from database.")?;
 
-    if !status.can_auth() {
+    if !is_active {
         return Err(RefreshTokenError::UserAccountDeactivated)
     }
 
@@ -72,14 +72,14 @@ pub async fn refresh_token(
     name = "Get user role and status from database.",
     skip(pool)
 )]
-async fn get_user_role_and_status(pool: &PgPool, user_id: UserId) -> Result<(UserRole, UserStatus), sqlx::Error> {
+async fn get_user_role_and_is_active(pool: &PgPool, user_id: UserId) -> Result<(UserRole, bool), sqlx::Error> {
     let rec = sqlx::query!(
-        "SELECT role, status FROM users
+        "SELECT role, is_active FROM users
         WHERE id = $1",
         user_id
     )
     .fetch_one(pool)
     .await?;
 
-    Ok((UserRole::from(rec.role), UserStatus::from(rec.status)))
+    Ok((UserRole::from(rec.role), rec.is_active))
 }

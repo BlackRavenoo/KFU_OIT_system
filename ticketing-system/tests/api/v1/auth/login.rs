@@ -59,12 +59,12 @@ async fn login_with_wrong_password_returns_401() {
 }
 
 #[tokio::test]
-async fn login_for_inactive_user_returns_403() {
+async fn login_for_deactived_user_returns_403() {
     let app = spawn_app().await;
 
     let email = app.create_user(ticketing_system::auth::types::UserRole::Employee).await;
 
-    app.change_user_status(2, ticketing_system::auth::types::UserStatus::Inactive).await;
+    app.deactivate_user_account(2).await;
 
     let body = serde_json::json!({
         "login": email,

@@ -4,7 +4,7 @@ use wiremock::{matchers::{method, path}, Mock, MockServer, ResponseTemplate};
 use std::{borrow::Cow, path::Path, sync::LazyLock};
 use uuid::Uuid;
 use ticketing_system::{
-    auth::types::{UserRole, UserStatus}, config::{get_config, DatabaseSettings, S3Settings}, schema::{common::UserId, tickets::TicketId}, startup::Application, telemetry::{get_subscriber, init_subscriber}
+    auth::types::UserRole, config::{get_config, DatabaseSettings, S3Settings}, schema::{common::UserId, tickets::TicketId}, startup::Application, telemetry::{get_subscriber, init_subscriber}
 };
 
 static TRACING: LazyLock<()> = LazyLock::new(|| {
@@ -145,25 +145,6 @@ impl TestApp {
         }
     }
 
-    pub async fn change_user_status(
-        &self,
-        user_id: UserId,
-        status: UserStatus,
-    ) {
-        sqlx::query!(
-            "
-                UPDATE users
-                SET status = $1
-                WHERE id = $2
-            ",
-            status as i16,
-            user_id
-        )
-        .execute(&self.db_pool)
-        .await
-        .unwrap();
-    }
-
     pub async fn create_test_ticket(&self) -> reqwest::Response {
         let json = serde_json::json!({
             "title": "Test",
@@ -224,6 +205,17 @@ impl TestApp {
         reqwest::Client::new()
             .put(format!("{}/v1/tickets/{}", self.address, ticket_id))
             .json(body)
+            .bearer_auth(access)
+            .send()
+            .await
+            .unwrap()
+    }
+
+    pub async fn deactivate_user_account(&self, user_id: UserId) -> reqwest::Response {
+        let (access, _) = self.get_admin_jwt_tokens().await;
+
+        reqwest::Client::new()
+            .post(format!("{}/v1/user/{}/deactivate", self.address, user_id))
             .bearer_auth(access)
             .send()
             .await

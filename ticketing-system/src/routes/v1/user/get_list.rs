@@ -106,12 +106,11 @@ async fn get_users_page(pool: &PgPool, page_size: i8, page: i32) -> Result<Vec<R
         r#"
             SELECT id, name, email, login, role, status, COUNT(*) OVER() as "total_items!"
             FROM users
-            WHERE status != $3
+            WHERE is_active
             LIMIT $1 OFFSET $2
         "#,
         page_size as i64,
         page as i64 * page_size as i64,
-        UserStatus::Inactive as i16
     )
     .fetch_all(pool)
     .await

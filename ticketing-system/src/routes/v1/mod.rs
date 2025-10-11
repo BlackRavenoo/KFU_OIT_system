@@ -1,6 +1,6 @@
 use actix_web::web;
 
-use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{change_password, login, me, refresh_token, register, validate_register_token}, images::get_image, tickets::{assign_ticket, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket, update_ticket}, user::{change_user_role, change_user_status, get_users, invite_user, update_user_profile}}};
+use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{change_password, login, me, refresh_token, register, validate_register_token}, images::get_image, tickets::{assign_ticket, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket, update_ticket}, user::{activate_account, change_user_role, change_user_status, deactivate_account, get_users, invite_user, update_user_profile}}};
 
 pub mod auth;
 pub mod tickets;
@@ -49,12 +49,23 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             )
             .service(
                 web::scope("/user")
-                    .wrap(JwtMiddleware::default())
-                    .route("/stats", web::get().to(user::get_stats))
-                    .route("/profile", web::put().to(update_user_profile))
-                    .route("/password", web::put().to(change_password))
-                    .route("/list", web::get().to(get_users))
-                    .route("/status", web::patch().to(change_user_status))
+                    .route("/stats", web::get().to(user::get_stats)
+                        .wrap(JwtMiddleware::default()))
+                    .route("/profile", web::put().to(update_user_profile)
+                        .wrap(JwtMiddleware::default()))
+                    .route("/password", web::put().to(change_password)
+                        .wrap(JwtMiddleware::default()))
+                    .route("/list", web::get().to(get_users)
+                        .wrap(JwtMiddleware::default()))
+                    .route("/status", web::patch().to(change_user_status)
+                        .wrap(JwtMiddleware::default()))
+                    .service(
+                        web::scope("/{id}")
+                        .route("/activate", web::post().to(activate_account)
+                            .wrap(JwtMiddleware::min_role(UserRole::Admin)))
+                        .route("/deactivate", web::post().to(deactivate_account)
+                            .wrap(JwtMiddleware::min_role(UserRole::Admin)))
+                    )
             )
     );
 }

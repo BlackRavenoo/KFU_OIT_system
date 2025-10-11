@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore, types::{RefreshToken, UserRole, UserStatus}}, schema::auth::TokenResponse, utils::{error_chain_fmt, is_password_valid}};
+use crate::{auth::{jwt::JwtService, token_store::TokenStore, types::{RefreshToken, UserRole}}, schema::auth::TokenResponse, utils::{error_chain_fmt, is_password_valid}};
 
 #[derive(Deserialize)]
 pub struct LoginRequest {
@@ -17,7 +17,7 @@ struct User {
     pub id: i32,
     pub password_hash: String,
     pub role: UserRole,
-    pub status: UserStatus,
+    pub is_active: bool,
 }
 
 #[derive(thiserror::Error)]
@@ -64,7 +64,7 @@ pub async fn login(
         return Err(LoginError::PasswordNotValid);
     }
 
-    if !user.status.can_auth() {
+    if !user.is_active {
         return Err(LoginError::UserCannotBeAuthorized)
     }
 
@@ -82,7 +82,7 @@ pub async fn login(
 async fn get_user(pool: &PgPool, login: &str) -> Result<Option<User>, sqlx::Error> {
     let row = sqlx::query_as!(
         User,
-        r#"SELECT id, password_hash, role, status FROM users WHERE email = $1 OR login = $1"#,
+        r#"SELECT id, password_hash, role, is_active FROM users WHERE email = $1 OR login = $1"#,
         login
     )
     .fetch_optional(pool)
@@ -94,7 +94,7 @@ async fn get_user(pool: &PgPool, login: &str) -> Result<Option<User>, sqlx::Erro
 #[tracing::instrument(
     name = "Get token response",
     skip_all,
-    fields(id = %user.id, role = %user.role, status = %user.status)
+    fields(id = %user.id, role = %user.role)
 )]
 async fn get_token_response(jwt_service: &JwtService, token_store: &TokenStore, user: User, fingerprint: String) -> Result<TokenResponse, anyhow::Error> {
     let access_token = jwt_service.create_access_token(user.id, user.role)

@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use bb8_redis::redis::{from_redis_value, ErrorKind, FromRedisValue};
 use serde::{Deserialize, Serialize};
 use sqlx::Type;
+use strum::EnumString;
 
 #[derive(Debug, Clone, Copy, Type, Serialize, Deserialize, PartialEq, PartialOrd)]
 #[serde(rename_all = "lowercase")]
@@ -48,50 +49,28 @@ impl UserRole {
     }
 }
 
-#[derive(Debug, Type, Serialize, Deserialize, Clone)]
+#[derive(Debug, Type, Serialize, Deserialize, Clone, EnumString)]
 #[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 pub enum UserStatus {
-    Active = 0,
+    Available = 0,
     Sick = 1,
     Vacation = 2,
-    Inactive = 3,
+    Busy = 3,
 }
 
 impl From<i16> for UserStatus {
     fn from(value: i16) -> Self {
         match value {
-            0 => UserStatus::Active,
+            0 => UserStatus::Available,
             1 => UserStatus::Sick,
             2 => UserStatus::Vacation,
-            3 => UserStatus::Inactive,
+            3 => UserStatus::Busy,
             _ => {
                 tracing::error!("Invalid UserStatus value: {}", value);
-                UserStatus::Inactive
+                UserStatus::Available
             }
         }
-    }
-}
-
-impl std::fmt::Display for UserStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            UserStatus::Active => "active",
-            UserStatus::Sick => "sick",
-            UserStatus::Vacation => "vacation",
-            UserStatus::Inactive => "inactive",
-        };
-
-        write!(
-            f,
-            "{}",
-            s
-        )
-    }
-}
-
-impl UserStatus {
-    pub fn can_auth(&self) -> bool {
-        !matches!(self, Self::Inactive)
     }
 }
 
