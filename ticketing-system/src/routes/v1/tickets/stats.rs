@@ -34,8 +34,12 @@ pub async fn get_stats(
     let stats = if let Some(stats) = cache.get(&()).await {
         stats
     } else {
-        fetch_stats(&pool).await
-            .context("Failed to fetch ticket stats")?
+        let stats = fetch_stats(&pool).await
+            .context("Failed to fetch ticket stats")?;
+
+        cache.insert((), stats.clone()).await;
+
+        stats
     };
 
     Ok(HttpResponse::Ok().json(stats))
