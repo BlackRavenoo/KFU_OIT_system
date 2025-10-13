@@ -6,9 +6,13 @@ import { UserStatus } from '$lib/utils/auth/types';
 
 import type { IUserData } from '$lib/utils/auth/types';
 
+let marked_id: number = 999999999;
+
 const USER_LIST_ENDPOINT = '/api/v1/user/list';
 const USER_INVITE_ENDPOINT = '/api/v1/user/admin/invite';
-const USER_DELETE_ENDPOINT = '/api/v1/user/status';
+const USER_ACTIVATE_ENDPOINT = `/api/v1/user/${marked_id}/activate`;
+const USER_DEACTIVATE_ENDPOINT = `/api/v1/user/${marked_id}/deactivate`;
+const USER_CHANGE_STATUS_ENDPOINT = '/api/v1/user/status';
 const USER_CHANGE_ROLE_ENDPOINT = '/api/v1/user/admin/role';
 
 export interface UsersState {
@@ -95,7 +99,7 @@ export async function changeRole(userId: string, newRole: string): Promise<boole
  */
 export async function setUserStatus(id: number, status: UserStatus): Promise<boolean> {
     try {
-        const response = await api.patch(USER_DELETE_ENDPOINT, { 
+        const response = await api.patch(USER_CHANGE_STATUS_ENDPOINT, {
             id,
             status
         });
@@ -108,6 +112,56 @@ export async function setUserStatus(id: number, status: UserStatus): Promise<boo
         }
     } catch (error) {
         notification('Ошибка при смене статуса', NotificationType.Error);
+        return false;
+    }
+}
+
+/**
+ * Функция удаления пользователя
+ * @param id - идентификатор удаляемого пользователя
+ */
+export async function deleteUser(id: number): Promise<boolean> {
+    try {
+        marked_id = id;
+        const response = await api.post(USER_DEACTIVATE_ENDPOINT);
+
+        if (response.success) {
+            notification('Пользователь успешно удалён', NotificationType.Success);
+            marked_id = 999999999;
+            return true;
+        } else {
+            notification('Ошибка при удалении пользователя', NotificationType.Error);
+            marked_id = 999999999;
+            return false;
+        }
+    } catch (error) {
+        notification('Ошибка при удалении пользователя', NotificationType.Error);
+        marked_id = 999999999;
+        return false;
+    }
+}
+
+/**
+ * Функция восстановления помеченного на удаление пользователя
+ * @param id  - идентификатор пользователя, которого необходимо восстановить
+ */
+export async function restoreUser(id: number): Promise<boolean> {
+    try {
+        marked_id = id;
+        const response = await api.post(USER_ACTIVATE_ENDPOINT);
+
+        if (response.success) {
+            notification('Пользователь успешно восстановлен', NotificationType.Success);
+            marked_id = 999999999;
+            return true;
+        } else {
+            notification('Ошибка при восстановлении пользователя', NotificationType.Error);
+            marked_id = 999999999;
+            return false;
+        }
+    } catch (error) {
+        notification('Ошибка при восстановлении пользователя', NotificationType.Error);
+        marked_id = 999999999;
         return false;
     }
 }

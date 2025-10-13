@@ -693,6 +693,7 @@
                                             <option value={ UserStatus.Active }>Активен</option>
                                             <option value={ UserStatus.Sick }>Больничный</option>
                                             <option value={ UserStatus.Vacation }>Отпуск</option>
+                                            <option value={ UserStatus.Busy }>Занят</option>
                                         </select>
                                     </div>
                                 </div>

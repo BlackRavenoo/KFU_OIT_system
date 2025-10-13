@@ -10,7 +10,7 @@
     import { validateEmail } from '$lib/utils/validation/validate';
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { UserRole } from '$lib/utils/auth/types';
-    import { changeRole } from '$lib/utils/admin/users';
+    import { changeRole, deleteUser } from '$lib/utils/admin/users';
     import { UserStatus, type IUserData } from '$lib/utils/auth/types';
     import {
       loadUsersData,
@@ -53,22 +53,6 @@
                 return 'Отпуск';
             default:
                 return 'Неизвестно';
-        }
-    }
-
-    /**
-     * Получить CSS класс для статуса
-     */
-    function getStatusClass(status: UserStatus): string {
-        switch (status) {
-            case UserStatus.Active:
-                return 'status-active';
-            case UserStatus.Sick:
-                return 'status-sick';
-            case UserStatus.Vacation:
-                return 'status-vacation';
-            default:
-                return 'status-unknown';
         }
     }
 
@@ -189,10 +173,10 @@
     /**
      * Удаление пользователя
      */
-    async function deleteUser() {
+    async function handleDeleteUser() {
         if (!deletingUser) return;
 
-        const success = await setUserStatus(parseInt(deletingUser.id), UserStatus.Inactive);
+        const success = await deleteUser(parseInt(deletingUser.id));
         
         if (success) {
             users = users.filter(user => user.id !== deletingUser?.id);
@@ -312,13 +296,14 @@
                                 {#if canManageStatus}
                                     <td class="status-cell">
                                         <select 
-                                            class="role-badge status-badge-select { getStatusClass(user.status || UserStatus.Active) }"
+                                            class="role-badge status-badge-select { 'status-' + (user.status || UserStatus.Active) }"
                                             value={ user.status || UserStatus.Active }
                                             on:change={(e: Event) => handleStatusChange(user.id, (e.target as HTMLSelectElement).value as unknown as UserStatus)}
                                         >
                                             <option value={ UserStatus.Active }>Активен</option>
                                             <option value={ UserStatus.Sick }>Больничный</option>
                                             <option value={ UserStatus.Vacation }>Отпуск</option>
+                                            <option value={ UserStatus.Busy }>Занят</option>
                                         </select>
                                     </td>
                                 {/if}
@@ -390,7 +375,7 @@
             message={`Вы уверены, что хотите удалить пользователя ${ deletingUser.name || deletingUser.email }?`}
             confirmText="Удалить"
             cancelText="Отмена"
-            onConfirm={ deleteUser }
+            onConfirm={ handleDeleteUser }
             onCancel={ closeModals }
         />
     {/if}

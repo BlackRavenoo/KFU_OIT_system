@@ -271,4 +271,118 @@ describe('Administration users', () => {
         expect(apiModule.api.patch).toHaveBeenCalledTimes(3);
         expect(notificationMock.notification).not.toHaveBeenCalled();
     });
+
+    it('Delete user successfully', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+
+        const apiModule = await import('$lib/utils/api');
+        apiModule.api.post = vi.fn().mockResolvedValue({ success: true });
+
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const { deleteUser } = await import('$lib/utils/admin/users');
+        const result = await deleteUser(42);
+
+        expect(apiModule.api.post).toHaveBeenCalled();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Пользователь успешно удалён', notificationMock.NotificationType.Success);
+        expect(result).toBe(true);
+    });
+
+    it('Handle error during user deletion', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+
+        const apiModule = await import('$lib/utils/api');
+        apiModule.api.post = vi.fn().mockResolvedValue({ success: false });
+
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const { deleteUser } = await import('$lib/utils/admin/users');
+        const result = await deleteUser(43);
+
+        expect(apiModule.api.post).toHaveBeenCalled();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка при удалении пользователя', notificationMock.NotificationType.Error);
+        expect(result).toBe(false);
+    });
+
+    it('Handle exception during user deletion', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+
+        const apiModule = await import('$lib/utils/api');
+        apiModule.api.post = vi.fn().mockRejectedValue(new Error('fail'));
+
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const { deleteUser } = await import('$lib/utils/admin/users');
+        const result = await deleteUser(44);
+
+        expect(apiModule.api.post).toHaveBeenCalled();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка при удалении пользователя', notificationMock.NotificationType.Error);
+        expect(result).toBe(false);
+    });
+
+    it('Handle error during user restoration', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+
+        const apiModule = await import('$lib/utils/api');
+        apiModule.api.post = vi.fn().mockResolvedValue({ success: true });
+
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const { restoreUser } = await import('$lib/utils/admin/users');
+        const result = await restoreUser(55);
+
+        expect(apiModule.api.post).toHaveBeenCalled();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Пользователь успешно восстановлен', notificationMock.NotificationType.Success);
+        expect(result).toBe(true);
+    });
+
+    it('Handle error during user restoration', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+
+        const apiModule = await import('$lib/utils/api');
+        apiModule.api.post = vi.fn().mockResolvedValue({ success: false });
+
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const { restoreUser } = await import('$lib/utils/admin/users');
+        const result = await restoreUser(56);
+
+        expect(apiModule.api.post).toHaveBeenCalled();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка при восстановлении пользователя', notificationMock.NotificationType.Error);
+        expect(result).toBe(false);
+    });
+
+    it('Handle exception during user restoration', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+
+        const apiModule = await import('$lib/utils/api');
+        apiModule.api.post = vi.fn().mockRejectedValue(new Error('fail'));
+
+        const notificationMock = { notification: vi.fn(), NotificationType: { Success: 'success', Error: 'error' } };
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock);
+
+        const { restoreUser } = await import('$lib/utils/admin/users');
+        const result = await restoreUser(57);
+
+        expect(apiModule.api.post).toHaveBeenCalled();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка при восстановлении пользователя', notificationMock.NotificationType.Error);
+        expect(result).toBe(false);
+    });
 });

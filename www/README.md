@@ -1,8 +1,8 @@
 # Frontend часть системы управления заявками ЕИ КФУ
-Актуально для v0.0.48
+Актуально для v0.0.49
 
 [![Test frontend](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml/badge.svg)](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml)
-![Code Coverage](https://img.shields.io/badge/Coverage-99.01%25-brightgreen)
+![Code Coverage](https://img.shields.io/badge/Coverage-99.03%25-brightgreen)
 
 ## Технологический стек
 

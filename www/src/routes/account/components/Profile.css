@@ -642,8 +642,8 @@ input:checked + .slider:before {
     box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1), 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-.status-badge-select.status-active {
-    background-color: var(--low);
+.status-badge-select.status-available {
+    background-color: var(--blue);
 }
 
 .status-badge-select.status-sick {
@@ -651,6 +651,10 @@ input:checked + .slider:before {
 }
 
 .status-badge-select.status-vacation {
+    background-color: var(--low);
+}
+
+.status-badge-select.status-busy {
     background-color: var(--yellow);
 }
 

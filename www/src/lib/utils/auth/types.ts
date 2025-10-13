@@ -50,8 +50,8 @@ export enum UserRole {
 }
 
 export enum UserStatus {
-    Active = 'active',
+    Active = 'available',
     Sick = 'sick',
     Vacation = 'vacation',
-    Inactive = 'inactive'
+    Busy = 'busy'
 };
