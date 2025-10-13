@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, password_hash, role, status FROM users WHERE email = $1 OR login = $1",
+  "query": "SELECT id, password_hash, role, is_active FROM users WHERE email = $1 OR login = $1",
   "describe": {
     "columns": [
       {
@@ -20,8 +20,8 @@
       },
       {
         "ordinal": 3,
-        "name": "status",
-        "type_info": "Int2"
+        "name": "is_active",
+        "type_info": "Bool"
       }
     ],
     "parameters": {
@@ -36,5 +36,5 @@
       false
     ]
   },
-  "hash": "ef084f3ace846bc1b85d2e556174cc80f26ed85c7dd143c06c3bff095dbdb618"
+  "hash": "8bdd385f2609d44eea09db0278b83e8f64364682dfc2dfee929eabf5d56d4e17"
 }

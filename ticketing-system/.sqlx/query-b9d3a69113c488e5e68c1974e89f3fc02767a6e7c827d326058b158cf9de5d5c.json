@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT role, status FROM users\n        WHERE id = $1",
+  "query": "SELECT role, is_active FROM users\n        WHERE id = $1",
   "describe": {
     "columns": [
       {
@@ -10,8 +10,8 @@
       },
       {
         "ordinal": 1,
-        "name": "status",
-        "type_info": "Int2"
+        "name": "is_active",
+        "type_info": "Bool"
       }
     ],
     "parameters": {
@@ -24,5 +24,5 @@
       false
     ]
   },
-  "hash": "886a3bbb741ba5bad066fa99a486d0d2baf0edc7eef8ee9fadb891f3b3e127d9"
+  "hash": "b9d3a69113c488e5e68c1974e89f3fc02767a6e7c827d326058b158cf9de5d5c"
 }
