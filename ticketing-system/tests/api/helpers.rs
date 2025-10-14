@@ -44,9 +44,9 @@ impl TestApp {
     }
 
     // Returns access, refresh tokens
-    pub async fn get_jwt_tokens(&self, email: &str, password: &str) -> (String, String) {
+    pub async fn get_jwt_tokens(&self, login: &str, password: &str) -> (String, String) {
         let json = serde_json::json!({
-            "login": email,
+            "login": login,
             "password": password,
             "fingerprint": "something",
         });
@@ -79,6 +79,8 @@ impl TestApp {
     // Returns email
     pub async fn create_user(&self, role: UserRole) -> String {
         let email = SafeEmail().fake::<String>();
+
+        let login = email.split('@').next().unwrap();
         
         // Password: admin
         sqlx::query!("
@@ -86,11 +88,12 @@ impl TestApp {
             VALUES (
                 'user',
                 $1,
-                'some_login',
+                $2,
                 '$argon2id$v=19$m=19456,t=2,p=1$842ILagOz0rdwfNELPZhPg$KobLaelwC6ZPo2X0555H1rbyPlBo/+N7G+N2NOvKS7w',
-                $2
+                $3
             )",
             email,
+            login,
             role as i16
         )
         .execute(&self.db_pool)

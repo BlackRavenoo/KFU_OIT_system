@@ -46,9 +46,9 @@ impl<T> PaginationResult<T> {
             total_items.div_ceil(page_size)
         };
 
-        Self {
-            meta: PaginationMeta { max_page, total_items },
-            items,
-        }
+        Self::new(
+            PaginationMeta { max_page, total_items },
+            items
+        )
     }
 }

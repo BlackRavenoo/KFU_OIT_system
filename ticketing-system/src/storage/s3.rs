@@ -143,6 +143,7 @@ impl FileStorage for S3Storage {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use aws_sdk_s3::{operation::{get_object::GetObjectOutput, head_object::HeadObjectOutput, put_object::PutObjectOutput}, Client};
     use aws_smithy_mocks::{mock, Rule, RuleMode};
