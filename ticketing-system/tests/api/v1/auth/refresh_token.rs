@@ -167,3 +167,24 @@ async fn refresh_token_for_deactivated_user_returns_403() {
 
     assert_eq!(resp.status(), 403);
 }
+
+#[tokio::test]
+async fn refresh_token_with_mismatched_fingerprint_returns_403() {
+    let app = spawn_app().await;
+
+    let email = app.create_user(ticketing_system::auth::types::UserRole::Employee).await;
+
+    let (_, refresh) = app.get_jwt_tokens(&email, "admin").await;
+
+    let resp = reqwest::Client::new()
+        .post(format!("{}/v1/auth/token", app.address))
+        .json(&serde_json::json!({
+            "refresh_token": refresh,
+            "fingerprint": "another"
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 403);
+}
