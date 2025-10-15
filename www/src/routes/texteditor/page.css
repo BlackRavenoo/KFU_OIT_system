@@ -24,7 +24,6 @@ main {
 }
 
 .back-btn {
-    transform: translate(0, -.5rem);
     background: none;
     box-shadow: none;
     border: none;
@@ -52,6 +51,7 @@ main {
     background: none;
     border: none;
     outline: none;
+    box-shadow: none;
     padding: 2px 8px;
     border-radius: 4px;
     cursor: pointer;
@@ -118,7 +118,15 @@ main {
     transform: none;
 }
 
+.toolbar button.active {
+    background: var(--blue);
+    color: var(--white);
+    border-color: var(--blue);
+}
+
 .toolbar input[type="color"] {
+    position: relative;
+    top: .5rem;
     width: 34px;
     height: 34px;
     border: none;
@@ -145,12 +153,6 @@ main {
     width: 90%;
     box-shadow: 0 2px 24px 0 rgba(7,92,239,0.06);
     display: block;
-}
-
-.doc-area:focus,
-#content.content-editable.doc-area:focus {
-    border-color: var(--yellow);
-    box-shadow: 0 0 0 2px var(--yellow);
 }
 
 @media (max-width: 1200px) {
