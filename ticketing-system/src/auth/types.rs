@@ -7,6 +7,7 @@ use strum::EnumString;
 
 #[derive(Debug, Clone, Copy, Type, Serialize, Deserialize, PartialEq, PartialOrd)]
 #[serde(rename_all = "lowercase")]
+#[repr(i16)]
 pub enum UserRole {
     Employee = 0,
     Moderator = 1,
@@ -50,6 +51,7 @@ impl UserRole {
 }
 
 #[derive(Debug, Type, Serialize, Deserialize, Clone, EnumString)]
+#[repr(i16)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 pub enum UserStatus {

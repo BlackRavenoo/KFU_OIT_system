@@ -10,6 +10,7 @@ use crate::{auth::types::{UserRole, UserStatus}, schema::common::{PaginationResu
 pub struct GetUsersSchema {
     pub page: Option<UserId>,
     pub page_size: Option<i8>,
+    pub q: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -22,6 +23,7 @@ pub struct UserSchema {
     pub status: UserStatus,
 }
 
+#[derive(sqlx::FromRow)]
 struct Row {
     pub id: UserId,
     pub name: String,
@@ -71,7 +73,7 @@ pub async fn get_users(
         return Err(GetUsersError::InvalidPage)
     }
 
-    let rows = get_users_page(&pool, page_size, page)
+    let rows = get_users_page(&pool, page_size, page, schema.q)
         .await
         .context("Failed to get users from the database")?;
 
@@ -100,18 +102,25 @@ pub async fn get_users(
     name = "Get page of users from the database",
     skip(pool)
 )]
-async fn get_users_page(pool: &PgPool, page_size: i8, page: i32) -> Result<Vec<Row>, sqlx::Error> {
-    sqlx::query_as!(
-        Row,
-        r#"
-            SELECT id, name, email, login, role, status, COUNT(*) OVER() as "total_items!"
+async fn get_users_page(pool: &PgPool, page_size: i8, page: i32, q: Option<String>) -> Result<Vec<Row>, sqlx::Error> {
+    let mut builder = sqlx::QueryBuilder::new("
+            SELECT id, name, email, login, role, status, COUNT(*) OVER() as total_items
             FROM users
             WHERE is_active
-            LIMIT $1 OFFSET $2
-        "#,
-        page_size as i64,
-        page as i64 * page_size as i64,
-    )
-    .fetch_all(pool)
-    .await
+        ");
+
+    if let Some(q) = &q {
+        let q = format!("%{}%", q);
+
+        builder.push(" AND (name ILIKE ").push_bind(q.clone())
+            .push(" OR login ILIKE ").push_bind(q)
+            .push(")");
+    }
+
+    builder.push(" LIMIT ").push_bind(page_size as i64)
+        .push(" OFFSET ").push_bind(page as i64 * page_size as i64);
+
+    let query = builder.build_query_as::<Row>();
+
+    query.fetch_all(pool).await
 }
