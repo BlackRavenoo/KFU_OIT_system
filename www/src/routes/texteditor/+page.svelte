@@ -3,6 +3,23 @@
     import { pageTitle } from '$lib/utils/setup/stores';
     import { goto } from '$app/navigation';
 
+    import {
+        execCommand,
+        applyColor,
+        applyBgColor,
+        insertList,
+        insertBlock,
+        setAlign
+    } from '$lib/utils/texteditor/text';
+    import { insertTable } from '$lib/utils/texteditor/table';
+    import {
+        createHistory,
+        handleEditorInput as handleEditorInputHistory,
+        undo as undoHistory,
+        redo as redoHistory,
+        clearHistoryTimeout
+    } from '$lib/utils/texteditor/history';
+
     let title: string = "Безымянный документ";
     let editingTitle = false;
     let content: string = "";
@@ -16,75 +33,33 @@
     let isQuote = false;
     let align: 'left' | 'center' | 'right' | 'justify' = 'left';
 
-    function execCommand(command: string, value?: string) {
-        if (!editorDiv) return;
-        editorDiv.focus();
-        document.execCommand(command, false, value);
-        updateActiveStates();
+    let showTableMenu = false;
+    let tableRows = 2;
+    let tableCols = 2;
+
+    const historyState = createHistory("");
+
+    function setContent(newContent: string) {
+        content = newContent;
+        if (editorDiv) editorDiv.innerHTML = newContent;
     }
 
-    function applyColor() {
-        if (!editorDiv) return;
-        editorDiv.focus();
-        document.execCommand('styleWithCSS', false, 'true');
-        document.execCommand('foreColor', false, colorPickerValue);
-        updateActiveStates();
+    function setShowTableMenu(show: boolean) {
+        showTableMenu = show;
     }
 
-    function applyBgColor() {
-        if (!editorDiv) return;
-        editorDiv.focus();
-        document.execCommand('styleWithCSS', false, 'true');
-        document.execCommand('backColor', false, colorPickerValue);
+    function handleEditorInput() {
         updateActiveStates();
+        content = editorDiv?.innerHTML ?? "";
+        handleEditorInputHistory(historyState, content);
     }
 
-    function wrapSelection(tag: string, style?: string) {
-        if (!editorDiv) return;
-        editorDiv.focus();
-        const selection = window.getSelection();
-        if (!selection || selection.rangeCount === 0) return;
-        const range = selection.getRangeAt(0);
-        const el = document.createElement(tag);
-        if (style) el.setAttribute('style', style);
-        range.surroundContents(el);
-        updateActiveStates();
+    function undo() {
+        undoHistory(historyState, setContent, updateActiveStates);
     }
 
-    function insertList(type: 'ol' | 'ul') {
-        if (!editorDiv) return;
-        editorDiv.focus();
-        document.execCommand(type === 'ol' ? 'insertOrderedList' : 'insertUnorderedList');
-        updateActiveStates();
-    }
-
-    function insertQuote() {
-        wrapSelection('blockquote');
-    }
-
-    function insertCodeBlock() {
-        if (!editorDiv) return;
-        editorDiv.focus();
-        const selection = window.getSelection();
-        if (!selection || selection.rangeCount === 0) return;
-        const range = selection.getRangeAt(0);
-        const el = document.createElement('code');
-        range.surroundContents(el);
-        updateActiveStates();
-    }
-
-    function setAlign(type: 'left' | 'center' | 'right' | 'justify') {
-        if (!editorDiv) return;
-        editorDiv.focus();
-        let cmd = '';
-        switch (type) {
-            case 'left': cmd = 'justifyLeft'; break;
-            case 'center': cmd = 'justifyCenter'; break;
-            case 'right': cmd = 'justifyRight'; break;
-            case 'justify': cmd = 'justifyFull'; break;
-        }
-        document.execCommand(cmd, false, undefined);
-        updateActiveStates();
+    function redo() {
+        redoHistory(historyState, setContent, updateActiveStates);
     }
 
     function handleTitleBlur() {
@@ -104,6 +79,7 @@
         if (e.key === "Tab") {
             e.preventDefault();
             if (!editorDiv) return;
+            if (selectionInsideCodeOrQuote()) return;
             const selection = window.getSelection();
             if (!selection || selection.rangeCount === 0) return;
             const range = selection.getRangeAt(0);
@@ -125,51 +101,25 @@
 
     function handleKeyDown(e: KeyboardEvent) {
         if (!editorDiv) return;
+        e.stopPropagation();
         if (e.key === "Tab") {
             handleTab(e);
             return;
         }
+    }
 
-        if (e.key === "Enter") {
-            const selection = window.getSelection();
-            if (selection && selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                let node: Node | null = range.startContainer;
-                let heading: HTMLElement | null = null;
-                while (node && node !== editorDiv) {
-                    if (
-                        node.nodeType === Node.ELEMENT_NODE &&
-                        /^(H1|H2|H3)$/i.test((node as HTMLElement).tagName)
-                    ) {
-                        heading = node as HTMLElement;
-                        break;
-                    }
-                    node = node.parentNode as Node | null;
-                }
-                if (heading) {
-                    e.preventDefault();
-                    const p = document.createElement('p');
-                    p.innerHTML = '<br>';
-                    heading.nextSibling ?
-                        heading.parentNode?.insertBefore(p, heading.nextSibling) :
-                        heading.parentNode?.appendChild(p);
-
-                    const sel = window.getSelection();
-                    if (sel) {
-                        sel.removeAllRanges();
-                        const newRange = document.createRange();
-                        newRange.setStart(p, 0);
-                        newRange.collapse(true);
-                        sel.addRange(newRange);
-                    }
-                    content = editorDiv.innerHTML;
-                    updateActiveStates();
-                    return;
-                }
-            }
-            e.preventDefault();
-            document.execCommand('insertHTML', false, '<br><br>');
+    function selectionInsideCodeOrQuote(): boolean {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) return false;
+        let node: Node | null = selection.anchorNode;
+        while (node && node !== editorDiv) {
+            if (
+                node.nodeName === 'CODE' ||
+                node.nodeName === 'BLOCKQUOTE'
+            ) return true;
+            node = node.parentNode;
         }
+        return false;
     }
 
     function updateActiveStates() {
@@ -228,6 +178,7 @@
     onDestroy(() => {
         pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
         document.removeEventListener('selectionchange', handleSelectionChange);
+        clearHistoryTimeout(historyState);
     });
 </script>
 
@@ -258,17 +209,33 @@
         </div>
         <div class="toolbar">
             <div class="toolbar-group">
-                <button type="button" title="Жирный" aria-label="Жирный" class:active={ isBold } on:click={ () => execCommand('bold') }>
+                {#if historyState.historyIndex > 0}
+                    <button type="button" title="Назад по истории" aria-label="Назад по истории" on:click={ undo }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M7 10L13 4V8H17V12H13V16L7 10Z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                {/if}
+                {#if historyState.historyIndex < historyState.history.length - 1}
+                    <button type="button" title="Вперёд по истории" aria-label="Вперёд по истории" on:click={ redo }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M13 10L7 16V12H3V8H7V4L13 10Z" fill="currentColor"/>
+                        </svg>
+                    </button>
+                {/if}
+            </div>
+            <div class="toolbar-group">
+                <button type="button" title="Жирный" aria-label="Жирный" class:active={ isBold } on:click={ () => execCommand(editorDiv, 'bold', undefined, selectionInsideCodeOrQuote, updateActiveStates) }>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <text x="3" y="16" font-size="16" font-weight="bold" fill="currentColor">B</text>
                     </svg>
                 </button>
-                <button type="button" title="Курсив" aria-label="Курсив" class:active={ isItalic } on:click={ () => execCommand('italic') }>
+                <button type="button" title="Курсив" aria-label="Курсив" class:active={ isItalic } on:click={ () => execCommand(editorDiv, 'italic', undefined, selectionInsideCodeOrQuote, updateActiveStates) }>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <text x="4" y="16" font-size="16" font-style="italic" fill="currentColor">I</text>
                     </svg>
                 </button>
-                <button type="button" title="Подчеркнутый" aria-label="Подчеркнутый" class:active={ isUnderline } on:click={ () => execCommand('underline') }>
+                <button type="button" title="Подчеркнутый" aria-label="Подчеркнутый" class:active={ isUnderline } on:click={ () => execCommand(editorDiv, 'underline', undefined, selectionInsideCodeOrQuote, updateActiveStates) }>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <text x="4" y="16" font-size="16" fill="currentColor">U</text>
                         <rect x="3" y="18" width="12" height="2" rx="1" fill="currentColor"/>
@@ -276,36 +243,36 @@
                 </button>
             </div>
             <div class="toolbar-group">
-                <button type="button" title="Заголовок 1" aria-label="Заголовок 1" on:click={() => execCommand('formatBlock', '<H1>')}>
+                <button type="button" title="Заголовок 1" aria-label="Заголовок 1" on:click={() => execCommand(editorDiv, 'formatBlock', '<H1>', selectionInsideCodeOrQuote, updateActiveStates)}>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <text x="2" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">H1</text>
                     </svg>
                 </button>
-                <button type="button" title="Заголовок 2" aria-label="Заголовок 2" on:click={() => execCommand('formatBlock', '<H2>')}>
+                <button type="button" title="Заголовок 2" aria-label="Заголовок 2" on:click={() => execCommand(editorDiv, 'formatBlock', '<H2>', selectionInsideCodeOrQuote, updateActiveStates)}>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <text x="2" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">H2</text>
                     </svg>
                 </button>
-                <button type="button" title="Заголовок 3" aria-label="Заголовок 3" on:click={() => execCommand('formatBlock', '<H3>')}>
+                <button type="button" title="Заголовок 3" aria-label="Заголовок 3" on:click={() => execCommand(editorDiv, 'formatBlock', '<H3>', selectionInsideCodeOrQuote, updateActiveStates)}>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <text x="2" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">H3</text>
                     </svg>
                 </button>
             </div>
             <div class="toolbar-group">
-                <button type="button" title="Цитата" aria-label="Цитата" class:active={ isQuote } on:click={ insertQuote }>
+                <button type="button" title="Цитата" aria-label="Цитата" class:active={ isQuote } on:click={ () => insertBlock(editorDiv, 'blockquote', selectionInsideCodeOrQuote, updateActiveStates, setContent) }>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <text x="3" y="16" font-size="16" fill="currentColor">&ldquo;</text>
                     </svg>
                 </button>
-                <button type="button" title="Код" aria-label="Код" class:active={ isCode } on:click={ insertCodeBlock }>
+                <button type="button" title="Код" aria-label="Код" class:active={ isCode } on:click={ () => insertBlock(editorDiv, 'code', selectionInsideCodeOrQuote, updateActiveStates, setContent) }>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <text x="3" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">/&gt;</text>
                     </svg>
                 </button>
             </div>
             <div class="toolbar-group">
-                <button type="button" title="Маркированный список" aria-label="Маркированный список" on:click={ () => insertList('ul') }>
+                <button type="button" title="Маркированный список" aria-label="Маркированный список" on:click={ () => insertList(editorDiv, 'ul', selectionInsideCodeOrQuote, updateActiveStates) }>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <circle cx="6" cy="7" r="1.5" fill="currentColor"/>
                         <circle cx="6" cy="12" r="1.5" fill="currentColor"/>
@@ -315,7 +282,7 @@
                         <rect x="10" y="16" width="7" height="2" rx="1" fill="currentColor"/>
                     </svg>
                 </button>
-                <button type="button" title="Нумерованный список" aria-label="Нумерованный список" on:click={ () => insertList('ol') }>
+                <button type="button" title="Нумерованный список" aria-label="Нумерованный список" on:click={ () => insertList(editorDiv, 'ol', selectionInsideCodeOrQuote, updateActiveStates) }>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <text x="4" y="8" font-size="8" fill="currentColor">1.</text>
                         <text x="4" y="13" font-size="8" fill="currentColor">2.</text>
@@ -327,28 +294,52 @@
                 </button>
             </div>
             <div class="toolbar-group">
-                <button type="button" title="Выровнять по левому краю" aria-label="Выровнять по левому краю" class:active={ align === 'left' } on:click={ () => setAlign('left') }>
+                <div class="table-menu-wrapper" style="position: relative;">
+                    <button type="button" title="Вставить таблицу" aria-label="Вставить таблицу" on:click={ () => setShowTableMenu(!showTableMenu) }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <rect x="3" y="8" width="14" height="2" fill="currentColor"/>
+                            <rect x="8" y="3" width="2" height="14" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    {#if showTableMenu}
+                        <div class="table-dropdown" style="position:absolute;z-index:10;top:110%;left:0;background:#fff;border:1px solid #ccc;padding:10px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
+                            <label>
+                                Строк:
+                                <input type="number" min="1" max="10" bind:value={ tableRows } style="width:3em;">
+                            </label>
+                            <label style="margin-left:10px;">
+                                Столбцов:
+                                <input type="number" min="1" max="10" bind:value={ tableCols } style="width:3em;">
+                            </label>
+                            <button type="button" style="margin-left:10px;" on:click={ () => insertTable(editorDiv, tableRows, tableCols, selectionInsideCodeOrQuote, updateActiveStates, setContent, setShowTableMenu) }>Вставить</button>
+                        </div>
+                    {/if}
+                </div>
+            </div>
+            <div class="toolbar-group">
+                <button type="button" title="Выровнять по левому краю" aria-label="Выровнять по левому краю" class:active={ align === 'left' } on:click={ () => setAlign(editorDiv, 'left', selectionInsideCodeOrQuote, updateActiveStates) }>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <rect x="3" y="5" width="14" height="2" rx="1" fill="currentColor"/>
                         <rect x="3" y="9" width="10" height="2" rx="1" fill="currentColor"/>
                         <rect x="3" y="13" width="14" height="2" rx="1" fill="currentColor"/>
                     </svg>
                 </button>
-                <button type="button" title="Выровнять по центру" aria-label="Выровнять по центру" class:active={ align === 'center' } on:click={ () => setAlign('center') }>
+                <button type="button" title="Выровнять по центру" aria-label="Выровнять по центру" class:active={ align === 'center' } on:click={ () => setAlign(editorDiv, 'center', selectionInsideCodeOrQuote, updateActiveStates) }>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <rect x="5" y="5" width="10" height="2" rx="1" fill="currentColor"/>
                         <rect x="3" y="9" width="14" height="2" rx="1" fill="currentColor"/>
                         <rect x="5" y="13" width="10" height="2" rx="1" fill="currentColor"/>
                     </svg>
                 </button>
-                <button type="button" title="Выровнять по правому краю" aria-label="Выровнять по правому краю" class:active={ align === 'right' } on:click={ () => setAlign('right') }>
+                <button type="button" title="Выровнять по правому краю" aria-label="Выровнять по правому краю" class:active={ align === 'right' } on:click={ () => setAlign(editorDiv, 'right', selectionInsideCodeOrQuote, updateActiveStates) }>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <rect x="3" y="5" width="14" height="2" rx="1" fill="currentColor"/>
                         <rect x="7" y="9" width="10" height="2" rx="1" fill="currentColor"/>
                         <rect x="3" y="13" width="14" height="2" rx="1" fill="currentColor"/>
                     </svg>
                 </button>
-                <button type="button" title="Выровнять по ширине" aria-label="Выровнять по ширине" class:active={ align === 'justify' } on:click={ () => setAlign('justify') }>
+                <button type="button" title="Выровнять по ширине" aria-label="Выровнять по ширине" class:active={ align === 'justify' } on:click={ () => setAlign(editorDiv, 'justify', selectionInsideCodeOrQuote, updateActiveStates) }>
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                         <rect x="3" y="5" width="14" height="2" rx="1" fill="currentColor"/>
                         <rect x="3" y="9" width="14" height="2" rx="1" fill="currentColor"/>
@@ -358,13 +349,13 @@
             </div>
             <div class="toolbar-group">
                 <input type="color" bind:value={ colorPickerValue } title="Выбрать цвет" aria-label="Выбрать цвет">
-                <button type="button" title="Цвет текста" aria-label="Цвет текста" on:click={ applyColor } style="padding: 0 6px;">
+                <button type="button" title="Цвет текста" aria-label="Цвет текста" on:click={ () => applyColor(editorDiv, colorPickerValue, selectionInsideCodeOrQuote, updateActiveStates) } style="padding: 0 6px;">
                     <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                         <text x="8" y="20" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">A</text>
                         <rect x="7" y="22" width="12" height="2" rx="1" fill={ colorPickerValue }/>
                     </svg>
                 </button>
-                <button type="button" title="Цвет фона" aria-label="Цвет фона" on:click={ applyBgColor } style="padding: 0 6px;">
+                <button type="button" title="Цвет фона" aria-label="Цвет фона" on:click={ () => applyBgColor(editorDiv, colorPickerValue, selectionInsideCodeOrQuote, updateActiveStates, setContent) } style="padding: 0 6px;">
                     <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                         <g transform="rotate(-30 14 14)">
                             <ellipse cx="14" cy="10" rx="6" ry="2" stroke="currentColor" stroke-width="2" fill="none"/>
@@ -388,17 +379,19 @@
             aria-multiline="true"
             tabindex="0"
             bind:this={ editorDiv }
-            on:input={() => {
-                updateActiveStates();
-                content = editorDiv?.innerHTML ?? "";
-            }}
+            on:input={ handleEditorInput }
             on:keydown={ handleKeyDown }
             spellcheck="true"
             aria-label={ title }
         >{ @html content }</div>
     </main>
+    <div style="display:none">
+        <blockquote>quote</blockquote>
+        <code>code</code>
+        <table></table>
+    </div>
 </div>
 
-<style>
+<style scoped>
     @import './page.css';
 </style>
