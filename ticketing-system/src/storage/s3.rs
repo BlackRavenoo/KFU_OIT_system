@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use async_trait::async_trait;
-use aws_config::{meta::credentials::CredentialsProviderChain, BehaviorVersion, Region};
+use aws_config::{BehaviorVersion, Region};
 use aws_sdk_s3::{error::SdkError, operation::{get_object::GetObjectError, head_object::HeadObjectError}, presigning::PresigningConfig, primitives::ByteStream, Client, Config};
 use futures_util::TryStreamExt;
 use secrecy::ExposeSecret;
@@ -18,15 +18,13 @@ pub struct S3Storage {
 
 impl S3Storage {
     pub async fn new(config: &S3Settings) -> Self {
-        let creds = CredentialsProviderChain::default_provider()
-            .await
-            .or_else("custom", aws_sdk_s3::config::Credentials::new(
-                &config.access_key,
-                config.secret_key.expose_secret(),
-                None,
-                None,
-                "custom"
-            ));
+        let creds = aws_sdk_s3::config::Credentials::new(
+            &config.access_key,
+            config.secret_key.expose_secret(),
+            None,
+            None,
+            "custom"
+        );
 
         let s3_config = Config::builder()
             .behavior_version(BehaviorVersion::latest())
