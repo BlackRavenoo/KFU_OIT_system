@@ -224,6 +224,30 @@ impl TestApp {
             .await
             .unwrap()
     }
+
+    pub async fn update_avatar(&self, access: Option<&str>, avatar: Vec<u8>) -> reqwest::Response {
+        let form = reqwest::multipart::Form::new()
+            .part(
+                "avatar",
+                reqwest::multipart::Part::bytes(avatar)
+                    .file_name("avatar.png")
+                    .mime_str("image/png")
+                    .unwrap(),
+            );
+
+        let mut builder = reqwest::Client::new()
+            .put(format!("{}/v1/user/avatar", self.address))
+            .multipart(form);
+        
+        if let Some(access) = access {
+            builder = builder.bearer_auth(access);
+        }
+        
+        builder
+            .send()
+            .await
+            .unwrap()
+    }
 }
 
 pub async fn spawn_app() -> TestApp {

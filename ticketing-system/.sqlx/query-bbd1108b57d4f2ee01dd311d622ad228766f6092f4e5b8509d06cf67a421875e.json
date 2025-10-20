@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT id, name, login, email, role, status\n        FROM users\n        WHERE id = $1\n        ",
+  "query": "\n        SELECT id, name, login, email, role, status, avatar_key\n        FROM users\n        WHERE id = $1\n        ",
   "describe": {
     "columns": [
       {
@@ -32,6 +32,11 @@
         "ordinal": 5,
         "name": "status",
         "type_info": "Int2"
+      },
+      {
+        "ordinal": 6,
+        "name": "avatar_key",
+        "type_info": "Varchar"
       }
     ],
     "parameters": {
@@ -45,8 +50,9 @@
       false,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "28990459d7d009d0b5b522fddb366186c13be4913c4917acf337b6d8f702c0f8"
+  "hash": "bbd1108b57d4f2ee01dd311d622ad228766f6092f4e5b8509d06cf67a421875e"
 }

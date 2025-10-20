@@ -21,6 +21,8 @@ pub struct UserSchema {
     pub login: String,
     pub role: UserRole,
     pub status: UserStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_key: Option<String>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -31,6 +33,7 @@ struct Row {
     pub login: String,
     pub role: UserRole,
     pub status: UserStatus,
+    pub avatar_key: Option<String>,
     pub total_items: i64,
 }
 
@@ -89,6 +92,7 @@ pub async fn get_users(
         login: r.login,
         role: r.role,
         status: r.status,
+        avatar_key: r.avatar_key,
     }).collect();
 
     Ok(HttpResponse::Ok().json(PaginationResult::new_with_pagination(
@@ -104,7 +108,7 @@ pub async fn get_users(
 )]
 async fn get_users_page(pool: &PgPool, page_size: i8, page: i32, q: Option<String>) -> Result<Vec<Row>, sqlx::Error> {
     let mut builder = sqlx::QueryBuilder::new("
-            SELECT id, name, email, login, role, status, COUNT(*) OVER() as total_items
+            SELECT id, name, email, login, role, status, avatar_key, COUNT(*) OVER() as total_items
             FROM users
             WHERE is_active
         ");

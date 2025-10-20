@@ -3,6 +3,7 @@ use image::ImageError;
 use thiserror::Error;
 
 pub mod webp;
+pub mod thumbnail;
 
 #[derive(Error, Debug)]
 pub enum ProcessingError {

@@ -6,7 +6,7 @@ use bytes::Bytes;
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::{image::{webp::WebpProcessor, ImageProcessor, ProcessingError}, storage::{FileAccess, FileStorage, StorageError}};
+use crate::{image::{thumbnail::AvatarProcessor, webp::WebpProcessor, ImageProcessor, ProcessingError}, storage::{FileAccess, FileStorage, StorageError}};
 
 pub struct Service<P: ImageProcessor> {
     storage: Box<dyn FileStorage>,
@@ -84,12 +84,20 @@ impl<P: ImageProcessor> Service<P> {
         }
     }
 
-    pub async fn upload_image(&self, image_type: ImageType, data: Bytes) -> Result<String, ImageServiceError> {
-        let (image, ext) = actix_web::web::block(move ||  P::process(&data)).await
-            .context("Failed to process image")??;
+    pub async fn upload_image(&self, image_type: ImageType, data: Bytes, key: Option<String>) -> Result<String, ImageServiceError> {
+        let (image, ext) = match image_type {
+            ImageType::Attachments => actix_web::web::block(move ||  P::process(&data)).await
+                .context("Failed to process attachment")??,
+            ImageType::Avatars => actix_web::web::block(move ||  AvatarProcessor::process(&data)).await
+                .context("Failed to process avatar")??,
+        };
 
-        let mut key = format!("{}/{}", image_type.prefix(), Uuid::new_v4());
-        key.push_str(ext);
+        let key = format!(
+            "{}/{}{}",
+            image_type.prefix(),
+            key.unwrap_or(Uuid::new_v4().to_string()),
+            ext
+        );
 
         self.storage.store(&self.bucket, &key, image).await?;
 

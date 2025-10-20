@@ -36,6 +36,8 @@ pub struct User {
     pub login: String,
     pub role: UserRole,
     pub status: UserStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar_key: Option<String>,
 }
 
 pub async fn me(
@@ -57,7 +59,7 @@ async fn get_user_info(pool: &PgPool, user_id: UserId) -> Result<Option<User>, s
     sqlx::query_as!(
         User,
         r#"
-        SELECT id, name, login, email, role, status
+        SELECT id, name, login, email, role, status, avatar_key
         FROM users
         WHERE id = $1
         "#,

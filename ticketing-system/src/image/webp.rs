@@ -7,7 +7,7 @@ use crate::image::{ImageProcessor, ProcessingError};
 pub struct WebpProcessor;
 
 impl WebpProcessor {
-    fn encode_webp(img: &DynamicImage) -> Result<Vec<u8>, ProcessingError> {
+    pub fn encode_webp(img: &DynamicImage) -> Result<Vec<u8>, ProcessingError> {
         let encoder = match webp::Encoder::from_image(img) {
             Ok(encoder) => encoder,
             Err(_) => return Err(ProcessingError::Unimplemented),

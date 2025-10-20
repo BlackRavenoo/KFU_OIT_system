@@ -136,7 +136,7 @@ async fn upload_attachments(
     let attachments_len = attachments.len();
 
     let results = stream::iter(attachments)
-        .map(|attachment| image_service.upload_image(ImageType::Attachments, attachment.data))
+        .map(|attachment| image_service.upload_image(ImageType::Attachments, attachment.data, None))
         .buffer_unordered(attachments_len)
         .collect::<Vec<_>>()
         .await;

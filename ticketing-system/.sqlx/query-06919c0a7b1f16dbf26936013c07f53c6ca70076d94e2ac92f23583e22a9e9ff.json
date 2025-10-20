@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE users\n            SET avatar_key = COALESCE(avatar_key, $1)\n            WHERE id = $2\n            RETURNING avatar_key\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "avatar_key",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "06919c0a7b1f16dbf26936013c07f53c6ca70076d94e2ac92f23583e22a9e9ff"
+}
