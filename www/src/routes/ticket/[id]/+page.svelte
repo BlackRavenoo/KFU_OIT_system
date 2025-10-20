@@ -12,10 +12,10 @@
     import { unassign, assign } from '$lib/utils/tickets/api/assign';
     import { updateTicket, deleteTicket } from '$lib/utils/tickets/api/set';
     import { UserRole } from '$lib/utils/auth/types';
+    import { getAvatar } from '$lib/utils/account/avatar';
 
     import type { Ticket, Building, UiStatus, PriorityStatus } from '$lib/utils/tickets/types';
 
-    import Avatar from '$lib/components/Avatar/Avatar.svelte';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
 
     let ticketId: string | undefined = undefined;
@@ -43,6 +43,11 @@
     $: buildings.subscribe(val => buildingsList = val);
 
     let isWideScreen = window.innerWidth > 1280;
+
+    let authorAvatarContainer: HTMLDivElement | null = null;
+    let authorAvatarLoaded = false;
+    let executorAvatarContainers: Map<string, HTMLDivElement> = new Map();
+    let loadedExecutorAvatars: Set<string> = new Set();
 
     function updateScreenWidth() {
         isWideScreen = window.innerWidth > 1280;
@@ -91,6 +96,8 @@
                         ],
                         status: 'inprogress'
                     } as Ticket;
+                    loadedExecutorAvatars.clear();
+                    setTimeout(() => loadExecutorAvatars(), 100);
                 }
             })
             .catch(() => {
@@ -103,12 +110,17 @@
             .then(() => {
                 notification('Заявка снята с выполнения', NotificationType.Success);
                 if (ticketData) {
+                    const removedId = $currentUser?.id;
                     ticketData = {
                         ...ticketData,
                         assigned_to: ticketData.assigned_to.filter(
-                            (executor) => executor.id !== $currentUser?.id
+                            (executor) => executor.id !== removedId
                         )
                     } as Ticket;
+                    if (removedId) {
+                        loadedExecutorAvatars.delete(removedId);
+                    }
+                    setTimeout(() => loadExecutorAvatars(), 100);
                 }
             })
             .catch(() => {
@@ -231,10 +243,88 @@
 
                 notification('Заявка обновлена', NotificationType.Success);
                 isEditing = false;
+                authorAvatarLoaded = false;
+                loadAuthorAvatar();
             })
             .catch(() => {
                 notification('Ошибка при обновлении заявки', NotificationType.Error);
             });
+    }
+
+    async function loadAuthorAvatar() {
+        if (ticketData && authorAvatarContainer && !authorAvatarLoaded) {
+            authorAvatarContainer.innerHTML = '';
+            await getAvatar(
+                { name: isEditing ? author : ticketData.author },
+                authorAvatarContainer,
+                64,
+                true
+            );
+            authorAvatarLoaded = true;
+        }
+    }
+
+    async function loadExecutorAvatars() {
+        if (ticketData && ticketData.assigned_to) {
+            for (const executor of ticketData.assigned_to) {
+                if (loadedExecutorAvatars.has(executor.id)) continue;
+                
+                const container = executorAvatarContainers.get(executor.id);
+                if (container) {
+                    container.innerHTML = '';
+                    await getAvatar(executor, container, isWideScreen ? 48 : 64, true);
+                    loadedExecutorAvatars.add(executor.id);
+                }
+            }
+        }
+    }
+
+    function setExecutorAvatarContainer(node: HTMLDivElement, executorId?: string) {
+        let currentId = executorId;
+        if (currentId && node) {
+            executorAvatarContainers.set(currentId, node);
+            const executor = ticketData?.assigned_to?.find(e => e.id === currentId);
+            if (executor && !loadedExecutorAvatars.has(currentId)) {
+                node.innerHTML = '';
+                getAvatar(executor, node, isWideScreen ? 48 : 64, true).then(() => {
+                    if (currentId) loadedExecutorAvatars.add(currentId);
+                });
+            }
+        }
+        return {
+            update(newId?: string) {
+                if (newId === currentId) return;
+                if (currentId) {
+                    executorAvatarContainers.delete(currentId);
+                    loadedExecutorAvatars.delete(currentId);
+                }
+                currentId = newId;
+                if (currentId && node) {
+                    executorAvatarContainers.set(currentId, node);
+                    const executor = ticketData?.assigned_to?.find(e => e.id === currentId);
+                    if (executor && !loadedExecutorAvatars.has(currentId)) {
+                        node.innerHTML = '';
+                        getAvatar(executor, node, isWideScreen ? 48 : 64, true).then(() => {
+                            if (currentId) loadedExecutorAvatars.add(currentId);
+                        });
+                    }
+                }
+            },
+            destroy() {
+                if (currentId) {
+                    executorAvatarContainers.delete(currentId);
+                    loadedExecutorAvatars.delete(currentId);
+                }
+            }
+        };
+    }
+
+    $: if (ticketData && authorAvatarContainer && !authorAvatarLoaded) {
+        loadAuthorAvatar();
+    }
+
+    $: if (ticketData && ticketData.assigned_to && ticketData.assigned_to.length > 0) {
+        setTimeout(() => loadExecutorAvatars(), 100);
     }
 
     onMount(async () => {
@@ -260,7 +350,9 @@
         document.body.style.overflow = '';
         window.removeEventListener('keydown', handleEsc);
         window.removeEventListener('resize', updateScreenWidth);
-
+        
+        executorAvatarContainers.clear();
+        loadedExecutorAvatars.clear();
     });
 </script>
 
@@ -334,9 +426,12 @@
                 <div class="ticket-meta" style="margin-top: 2rem;">
                     <div style="font-weight: bold; margin-bottom: 0.5rem;">Исполнители:</div>
                     <div class="executors-list">
-                        {#each ticketData.assigned_to as executor}
+                        {#each ticketData.assigned_to as executor (executor.id)}
                             <div class="executor">
-                                <Avatar width={48} round={true} userFullName={ executor.name } />
+                                <div 
+                                    class="avatar-container"
+                                    use:setExecutorAvatarContainer={ executor.id }
+                                ></div>
                                 <div class="executor-text">
                                     <span class="executor-name">{ executor.name }</span>
                                     <span class="executor-status">{ executor.id === $currentUser?.id ? "Вы" : "Программист" }</span>
@@ -419,7 +514,10 @@
             {/if}
             <div class="author-contacts">
                 {#if ticketData}
-                    <Avatar width={64} round={true} userFullName={ isEditing ? author : ticketData.author } />	
+                    <div 
+                        class="avatar-container"
+                        bind:this={authorAvatarContainer}
+                    ></div>
                     <div class="author-data">
                         {#if isEditing}
                             <input
@@ -635,7 +733,10 @@
             {/if}
             <div class="author-contacts">
                 {#if ticketData}
-                    <Avatar width={64} round={true} userFullName={ isEditing ? author : ticketData.author } />	
+                    <div 
+                        class="avatar-container"
+                        bind:this={authorAvatarContainer}
+                    ></div>
                     <div class="author-data">
                         {#if isEditing}
                             <input
@@ -674,9 +775,12 @@
                     <div class="ticket-meta executors-meta">
                         <div style="font-weight: bold; margin: 2rem 0 1rem 0;">Исполнители:</div>
                         <div class="executors-list">
-                            {#each ticketData.assigned_to as executor}
+                            {#each ticketData.assigned_to as executor (executor.id)}
                                 <div class="executor">
-                                    <Avatar width={64} round={true} userFullName={ executor.name } />
+                                    <div 
+                                        class="avatar-container"
+                                        use:setExecutorAvatarContainer={executor.id}
+                                    ></div>
                                     <div class="executor-text executor-text-mobile">
                                         <span class="executor-name">{ executor.name }</span>
                                         <span class="executor-status">{ executor.id === $currentUser?.id ? "Вы" : "Программист" }</span>
@@ -709,7 +813,7 @@
                     {#if ticketData && ticketData.status !== 'cancelled'}
                         <button class="btn btn-secondary" on:click={ handleCancel }>Отменить</button>
                     {/if}
-                    {#if $currentUser && $currentUser.role === "Admin"}
+                    {#if $currentUser && $currentUser.role === UserRole.Administrator }
                         <button class="btn btn-danger" on:click={ handleDelete }>Удалить</button>
                     {/if}
                 {:else}

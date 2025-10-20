@@ -2,7 +2,6 @@
     import { onMount, onDestroy } from 'svelte';
     import { browser } from '$app/environment';
     
-    import Avatar from '$lib/components/Avatar/Avatar.svelte';
     import SearchBar from '$lib/components/Search/Searchfield.svelte';
     import Pagination from '$lib/components/Search/Pagination.svelte';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
@@ -18,6 +17,7 @@
       setUserStatus,
       type UsersState
     } from '$lib/utils/admin/users';
+    import { getAvatar } from '$lib/utils/account/avatar';
     
     let users: IUserData[] = [];
     let loading: boolean = true;
@@ -38,23 +38,10 @@
 
     let emailError: string = '';
 
+    let avatarContainers: Map<string, HTMLDivElement> = new Map();
+    let loadedAvatars: Set<string> = new Set();
+
     $: canManageStatus = $currentUser?.role === UserRole.Administrator || $currentUser?.role === UserRole.Moderator;
-    
-    /**
-     * Получить текст статуса пользователя
-     */
-    function getStatusText(status: UserStatus): string {
-        switch (status) {
-            case UserStatus.Active:
-                return 'Активен';
-            case UserStatus.Sick:
-                return 'Больничный';
-            case UserStatus.Vacation:
-                return 'Отпуск';
-            default:
-                return 'Неизвестно';
-        }
-    }
 
     /**
      * Обработчик изменения статуса пользователя
@@ -101,6 +88,71 @@
         totalPages = state.totalPages;
         error = state.error;
         loading = false;
+
+        loadedAvatars.clear();
+        
+        setTimeout(() => {
+            loadAvatars();
+        }, 100);
+    }
+
+    /**
+     * Загрузка аватаров для всех пользователей
+     */
+    async function loadAvatars() {
+        for (const user of users) {
+            if (loadedAvatars.has(user.id)) continue;
+            
+            const container = avatarContainers.get(user.id);
+            if (container) {
+                container.innerHTML = '';
+                await getAvatar(user, container, 36, true);
+                loadedAvatars.add(user.id);
+            }
+        }
+    }
+
+    /**
+     * Сохранение ссылки на контейнер аватара
+     */
+    function setAvatarContainer(node: HTMLDivElement, userId?: string) {
+        let currentId = userId;
+        if (currentId) {
+            avatarContainers.set(currentId, node);
+            const user = users.find(u => u.id === currentId);
+            if (user && !loadedAvatars.has(currentId)) {
+                node.innerHTML = '';
+                getAvatar(user, node, 36, true).then(() => {
+                    loadedAvatars.add(currentId!);
+                });
+            }
+        }
+        return {
+            update(newUserId?: string) {
+                if (newUserId === currentId) return;
+                if (currentId) {
+                    avatarContainers.delete(currentId);
+                    loadedAvatars.delete(currentId);
+                }
+                currentId = newUserId;
+                if (currentId) {
+                    avatarContainers.set(currentId, node);
+                    const user = users.find(u => u.id === currentId);
+                    if (user && !loadedAvatars.has(currentId)) {
+                        node.innerHTML = '';
+                        getAvatar(user, node, 36, true).then(() => {
+                            loadedAvatars.add(currentId!);
+                        });
+                    }
+                }
+            },
+            destroy() {
+                if (currentId) {
+                    avatarContainers.delete(currentId);
+                    loadedAvatars.delete(currentId);
+                }
+            }
+        };
     }
     
     /**
@@ -137,7 +189,7 @@
     }
 
     /**
-     * Обработчик пзменения роли пользователя
+     * Обработчик изменения роли пользователя
      * @param id - ID пользователя
      * @param promote - true для повышения, false для понижения
     */
@@ -180,6 +232,7 @@
         
         if (success) {
             users = users.filter(user => user.id !== deletingUser?.id);
+            loadedAvatars.delete(deletingUser.id);
             closeModals();
         }
     }
@@ -215,6 +268,8 @@
      */
     onDestroy(() => {
         browser && window.removeEventListener('resize', handleResize);
+        avatarContainers.clear();
+        loadedAvatars.clear();
     });
 </script>
 
@@ -271,19 +326,18 @@
                 <p>Произошла ошибка при загрузке пользователей</p>
                 <button class="btn btn-primary" on:click={ loadUsers }>Попробовать снова</button>
             </div>
-        {:else if users.length === 0}
-            <div class="empty-state">
-                <p>Пользователи не найдены</p>
-            </div>
         {:else}
             <div class="users-table-container">
                 <table class="users-table">
                     <tbody>
-                        {#each users as user}
+                        {#each users as user (user.id)}
                             <tr>
                                 <td class="user-info-cell">
                                     <div class="user-info">
-                                        <Avatar width={ 36 } round={ true } userFullName={ user.name || 'Пользователь' } />
+                                        <div 
+                                            class="avatar-container"
+                                            use:setAvatarContainer={ user.id }
+                                        ></div>
                                         <span class="user-name">{ user.name || 'Без имени' }</span>
                                     </div>
                                 </td>

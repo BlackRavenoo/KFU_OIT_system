@@ -1,12 +1,11 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { formatDate } from '$lib/utils/validation/validate';
-    import Avatar from '$lib/components/Avatar/Avatar.svelte';
 
     import { 
         initAvatarState, centerImage, constrainCrop, updateImagePosition, updateCropFrame,
         zoomImage, moveImage, addKeyboardHandlers, removeKeyboardHandlers,
-        cropAvatarImage, uploadAvatar, updateAvatarImage
+        cropAvatarImage, uploadAvatar, updateAvatarImage, getAvatar
     } from '$lib/utils/account/avatar';
     
     import { saveUserProfile } from '$lib/utils/account/profile';
@@ -45,8 +44,9 @@
     let localAvatarUrl: string | null = null;
     let fileInput: HTMLInputElement;
     let avatarCanvas: HTMLCanvasElement;
-    let avatarComponent: HTMLElement;
     let avatarUpdateKey = Date.now();
+    let displayAvatarContainer: HTMLDivElement | null = null;
+    let avatarLoaded = false;
     
     let imageContainer: HTMLDivElement;
     let cropFrame: HTMLDivElement;
@@ -125,6 +125,17 @@
         }
     }
 
+    /**
+     * Загрузка аватара в контейнер
+     */
+    async function loadDisplayAvatar() {
+        if (displayAvatarContainer && userData) {
+            displayAvatarContainer.innerHTML = '';
+            await getAvatar(userData, displayAvatarContainer, 100, true);
+            avatarLoaded = true;
+        }
+    }
+
     $: nameValid = validateName(editedName);
     $: emailValid = validateEmail(editedEmail);
     $: loginValid = validateLogin(editedLogin);
@@ -137,6 +148,10 @@
     $: passwordError = getPasswordError(newPassword);
     $: confirmPasswordError = getConfirmPasswordError(newPassword, confirmPassword);
 
+    $: if (userData && displayAvatarContainer && !avatarLoaded) {
+        loadDisplayAvatar();
+    }
+
     /**
      * Начать редактирование профиля
      */
@@ -145,6 +160,13 @@
         editedEmail = userData.email || '';
         editedLogin = userData.login || '';
         isEditing = true;
+        avatarLoaded = false;
+        
+        setTimeout(() => {
+            if (displayAvatarContainer) {
+                loadDisplayAvatar();
+            }
+        }, 0);
     }
     
     /**
@@ -160,6 +182,14 @@
         avatarFile = null;
         changePassword = false;
         isEditing = false;
+        avatarLoaded = false;
+        
+        if (localAvatarUrl) {
+            URL.revokeObjectURL(localAvatarUrl);
+            localAvatarUrl = null;
+        }
+        
+        loadDisplayAvatar();
     }
     
     /**
@@ -427,7 +457,18 @@
             localAvatarUrl && URL.revokeObjectURL(localAvatarUrl);
             localAvatarUrl = URL.createObjectURL(file);
             
-            await updateAvatarImage(avatarComponent, localAvatarUrl);
+            if (displayAvatarContainer) {
+                displayAvatarContainer.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = localAvatarUrl;
+                img.alt = editedName || userData.name;
+                img.style.width = '100px';
+                img.style.height = '100px';
+                img.style.borderRadius = '50%';
+                img.style.objectFit = 'cover';
+                displayAvatarContainer.appendChild(img);
+            }
+            
             avatarUpdateKey = Date.now();
             
             closeAvatarModal();
@@ -437,7 +478,9 @@
             isLoading = false;
             
             if (serverUrl) {
-                await updateAvatarImage(avatarComponent, serverUrl);
+                userData = { ...userData };
+                avatarLoaded = false;
+                await loadDisplayAvatar();
                 avatarUpdateKey = Date.now();
                 
                 if (localAvatarUrl) {
@@ -491,6 +534,10 @@
             removeKeyboardHandlers(handleKeyboardNavigation);
         };
     });
+
+    onDestroy(() => {
+        localAvatarUrl && URL.revokeObjectURL(localAvatarUrl);
+    });
 </script>
 
 <div class="content-section">
@@ -518,16 +565,11 @@
                             aria-label="Редактировать аватар"
                             type="button"
                         >
-                            <div class="avatar-wrapper" bind:this={ avatarComponent }>
-                                <div id="custom-avatar" style={ localAvatarUrl ? `background-image: url(${localAvatarUrl}); background-size: cover; width: 100%; height: 100%; border-radius: 50%;` : '' }>
-                                    {#if !localAvatarUrl}
-                                        <Avatar 
-                                            width={ 100 } 
-                                            round={ true } 
-                                            userFullName={ userData?.name || 'Пользователь' }
-                                        />
-                                    {/if}
-                                </div>
+                            <div class="avatar-wrapper">
+                                <div 
+                                    class="display-avatar-container"
+                                    bind:this={ displayAvatarContainer }
+                                ></div>
                             </div>
                             <div class="avatar-edit-overlay">
                                 <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>

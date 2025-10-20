@@ -21,7 +21,8 @@ export interface IUserData {
     email: string;
     login: string;
     role: UserRole;
-    status: UserStatus
+    status: UserStatus;
+    avatar_key?: string;
 }
 
 export interface ITokenStorage {

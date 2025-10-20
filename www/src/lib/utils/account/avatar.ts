@@ -3,6 +3,7 @@ import { api } from '$lib/utils/api';
 import { currentUser } from '$lib/utils/auth/storage/initial';
 import { tick } from 'svelte';
 import { browser } from '$app/environment';
+import { type IUserData } from '$lib/utils/auth/types';
 
 export interface AvatarState {
     isDragging: boolean;
@@ -269,27 +270,20 @@ export async function uploadAvatar(file: File): Promise<string | null> {
         const formData = new FormData();
         formData.append('avatar', file);
         
-        const response = await api.post('/api/v1/user/change_avatar', {
-            body: formData,
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        });
+        const response = await api.put<{ avatar_url: string }>('/api/v1/user/avatar', formData);
         
         if (response.success) {
             notification('Аватар успешно обновлен', NotificationType.Success);
             
-            const responseData = response.data as { avatar_url: string };
-            currentUser.update(user => ({
-                ...user,
-                avatar: responseData.avatar_url,
-                id: user?.id || '',
-                name: user?.name || '',
-                email: user?.email || '',
-                role: user?.role || ''
-            }));
+            currentUser.update(user => {
+                if (!user) return null;
+                return {
+                    ...user,
+                    avatar_key: response.data!.avatar_url
+                };
+            });
             
-            return responseData.avatar_url;
+            return response.data?.avatar_url || '';
         } else {
             notification('Ошибка при обновлении аватара', NotificationType.Warning);
             return null;
@@ -321,4 +315,111 @@ export async function updateAvatarImage(avatarComponent: HTMLElement | null, url
             (el as HTMLElement).style.backgroundImage = `url(${url})`;
         });
     }
+}
+
+/**
+ * Генерирует аватар с инициалами на основе имени пользователя
+ * @param name Имя пользователя
+ * @param size Размер аватара
+ * @returns Data URI изображения
+ */
+function generateLetterAvatar(name: string, size: number): string {
+    const avatarColors = [
+        "#1abc9c", "#2ecc71", "#3498db", "#9b59b6", "#34495e",
+        "#16a085", "#27ae60", "#2980b9", "#8e44ad", "#2c3e50",
+        "#f1c40f", "#e67e22", "#e74c3c", "#ecf0f1", "#95a5a6",
+        "#f39c12", "#d35400", "#c0392b", "#bdc3c7", "#7f8c8d"
+    ];
+
+    name = name || "";
+    size = size || 60;
+
+    const nameSplit = String(name).toUpperCase().split(" ");
+    let initials: string;
+
+    initials = nameSplit.length == 1 ?
+        nameSplit[0] ? nameSplit[0].charAt(0) : "?" :
+        nameSplit[0].charAt(0) + nameSplit[1].charAt(0);
+
+    if (window.devicePixelRatio)
+        size = size * window.devicePixelRatio;
+
+    const charIndex = (initials == "?" ? 72 : initials.charCodeAt(0)) - 64;
+    const colourIndex = charIndex % 20;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext("2d");
+
+    if (!context) return "";
+
+    context.fillStyle = avatarColors[colourIndex - 1];
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.font = Math.round(canvas.width / 2) + "px Arial";
+    context.textAlign = "center";
+    context.fillStyle = "#FFF";
+    context.fillText(initials, size / 2, size / 1.5);
+
+    const dataURI = canvas.toDataURL();
+    return dataURI;
+}
+
+/**
+ * Функция для получения и отображения аватара пользователя
+ * @param user Объект пользователя
+ * @param container HTML элемент, в который нужно вставить аватар
+ * @param width Ширина аватара (по умолчанию 48)
+ * @param round Круглый ли аватар (по умолчанию true)
+ */
+export async function getAvatar(
+    user: IUserData | { name: string; avatar_key?: string },
+    container: HTMLElement | null,
+    width: number = 48,
+    round: boolean = true
+): Promise<void> {
+    if (!container) return;
+
+    if (container.children.length > 0)
+        container.innerHTML = '';
+
+    const img = document.createElement('img');
+    img.alt = user.name;
+    img.style.width = `${width}px`;
+    img.style.height = `${width}px`;
+    img.style.objectFit = 'cover';
+    
+    if (round)
+        img.style.borderRadius = '50%';
+
+    if (user.avatar_key) {
+        try {
+            const response = await api.get<Blob>(
+                `/api/v1/images/avatars/${user.avatar_key}.webp`,
+                undefined,
+                'blob'
+            );
+            
+            if (response.success && response.data) {
+                const imageUrl = URL.createObjectURL(response.data);
+                img.src = imageUrl;
+                
+                img.onerror = () => {
+                    URL.revokeObjectURL(imageUrl);
+                    img.src = generateLetterAvatar(user.name, width);
+                };
+                
+                img.addEventListener('load', () => {
+                    setTimeout(() => URL.revokeObjectURL(imageUrl), 100);
+                });
+            } else {
+                img.src = generateLetterAvatar(user.name, width);
+            }
+        } catch (error) {
+            img.src = generateLetterAvatar(user.name, width);
+        }
+    } else {
+        img.src = generateLetterAvatar(user.name, width);
+    }
+
+    container.appendChild(img);
 }

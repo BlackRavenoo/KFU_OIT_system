@@ -405,6 +405,13 @@ input.edit-mode::placeholder, textarea.edit-mode::placeholder {
     color: rgba(0, 0, 0, 0.5);
 }
 
+.avatar-container {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
 @media (max-width: 900px) {
     .ticket-container {
         flex-direction: column;

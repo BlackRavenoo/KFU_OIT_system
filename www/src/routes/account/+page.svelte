@@ -12,8 +12,8 @@
     import { authCheckComplete } from '$lib/utils/auth/api/api';
     import { Tab, type TabType, updateUrlParam, isValidTab } from '$lib/utils/account/tab-manager';
     import { UserRole } from '$lib/utils/auth/types';
+    import { getAvatar } from '$lib/utils/account/avatar';
     
-    import Avatar from '$lib/components/Avatar/Avatar.svelte';
     import Profile from './components/Profile.svelte';
     import Tickets from './components/Tickets.svelte';
     import Statistics from './components/Statistic.svelte';
@@ -25,6 +25,7 @@
     let userRole: string = '';
     let isMenuOpen: boolean = false;
     let isMobileView: boolean = false;
+    let avatarContainer: HTMLDivElement | null = null;
     
     let userData = {
         id: '',
@@ -66,6 +67,8 @@
         userRole = $currentUser.role === UserRole.Administrator ? 'Администратор' :
             $currentUser.role === UserRole.Moderator ? 'Модератор' :
             'Программист';
+        
+        avatarContainer && getAvatar($currentUser, avatarContainer, 80, true);
     }
 
     /**
@@ -161,7 +164,7 @@
     
     <aside class="sidebar { isMobileView ? 'mobile' : '' } { isMenuOpen ? 'open' : '' }">
         <div class="user-profile">
-            <Avatar width={ 80 } round={ true } userFullName={ $currentUser?.name || 'Пользователь' } />
+            <div bind:this={ avatarContainer } class="avatar-container"></div>
             <h2>{ $currentUser?.name || 'Пользователь' }</h2>
             <span class="role-badge">{ userRole }</span>
         </div>
