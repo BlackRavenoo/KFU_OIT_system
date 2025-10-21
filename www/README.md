@@ -1,8 +1,8 @@
 # Frontend часть системы управления заявками ЕИ КФУ
-Актуально для v0.0.49
+Актуально для v0.0.51
 
 [![Test frontend](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml/badge.svg)](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml)
-![Code Coverage](https://img.shields.io/badge/Coverage-99.03%25-brightgreen)
+![Code Coverage](https://img.shields.io/badge/Coverage-99.17%25-brightgreen)
 
 ## Технологический стек
 
@@ -27,7 +27,6 @@ www/
 │   ├── assets/       # Статические ресурсы
 │   ├── lib/          # Библиотеки и компоненты многократного использования
 │   │   ├── components/    # Переиспользуемые компоненты
-│   │   │   ├── Avatar/    # Компоненты аватара пользователя
 │   │   │   ├── Captcha/   # Компоненты для работы с капчей
 │   │   │   ├── Footer/    # Компонент футера
 │   │   │   ├── Modal/     # Модальные окна
@@ -45,6 +44,7 @@ www/
 │   │       ├── files/     # Работа с файлами
 │   │       ├── notifications/ # Система уведомлений
 │   │       ├── setup/     # Базовые функции первичной настройки приложения
+│   │       ├── texteditor/ # Редактор документов для базы знаний
 │   │       ├── tickets/   # Функции для работы с заявками
 │   │       │   └──  api/        # API для работы с заявками
 │   │       └── validation/   # Функции для валидации значений
@@ -57,6 +57,7 @@ www/
 │       ├── faq/                 # Страница FAQ
 │       ├── privacy/             # Политика конфиденциальности
 │       ├── reset/               # Страница сброса пароля
+│       ├── texteditor/          # Редактор документов для базы знаний
 │       ├── ticket/              # Страница отдельной заявки
 │       │   └── [id]/            # Динамический маршрут по ID заявки
 │       ├── tickets/             # Страница списка заявок

@@ -270,17 +270,18 @@ export async function uploadAvatar(file: File): Promise<string | null> {
         const formData = new FormData();
         formData.append('avatar', file);
         
-        const response = await api.put<{ avatar_url: string }>('/api/v1/user/avatar', formData);
+        const response = await api.put<{ avatar_url: string }>('/api/v1/user/avatar', formData, 'json', false);
         
         if (response.success) {
             notification('Аватар успешно обновлен', NotificationType.Success);
             
             currentUser.update(user => {
                 if (!user) return null;
-                return {
-                    ...user,
-                    avatar_key: response.data!.avatar_url
-                };
+                else 
+                    return {
+                        ...user,
+                        avatar_key: response.data!.avatar_url
+                    };
             });
             
             return response.data?.avatar_url || '';
@@ -341,8 +342,7 @@ function generateLetterAvatar(name: string, size: number): string {
         nameSplit[0] ? nameSplit[0].charAt(0) : "?" :
         nameSplit[0].charAt(0) + nameSplit[1].charAt(0);
 
-    if (window.devicePixelRatio)
-        size = size * window.devicePixelRatio;
+    size = window.devicePixelRatio ? size * window.devicePixelRatio : size;
 
     const charIndex = (initials == "?" ? 72 : initials.charCodeAt(0)) - 64;
     const colourIndex = charIndex % 20;
@@ -352,16 +352,17 @@ function generateLetterAvatar(name: string, size: number): string {
     const context = canvas.getContext("2d");
 
     if (!context) return "";
+    else {
+        context.fillStyle = avatarColors[colourIndex - 1];
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.font = Math.round(canvas.width / 2) + "px Arial";
+        context.textAlign = "center";
+        context.fillStyle = "#FFF";
+        context.fillText(initials, size / 2, size / 1.5);
 
-    context.fillStyle = avatarColors[colourIndex - 1];
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.font = Math.round(canvas.width / 2) + "px Arial";
-    context.textAlign = "center";
-    context.fillStyle = "#FFF";
-    context.fillText(initials, size / 2, size / 1.5);
-
-    const dataURI = canvas.toDataURL();
-    return dataURI;
+        const dataURI = canvas.toDataURL();
+        return dataURI;
+    }
 }
 
 /**
@@ -396,7 +397,8 @@ export async function getAvatar(
             const response = await api.get<Blob>(
                 `/api/v1/images/avatars/${user.avatar_key}.webp`,
                 undefined,
-                'blob'
+                'blob',
+                false
             );
             
             if (response.success && response.data) {

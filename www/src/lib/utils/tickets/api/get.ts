@@ -155,7 +155,8 @@ export async function fetchImages(attachments: string[]): Promise<string[]> {
             const response = await api.get<Blob>(
                 `${TICKETS_API_ENDPOINTS.attachments}/${key.split('/').pop()}`,
                 undefined,
-                'blob'
+                'blob',
+                false
             );
 
             if (!response.success) continue;

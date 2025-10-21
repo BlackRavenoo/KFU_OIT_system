@@ -46,8 +46,11 @@
 
     let authorAvatarContainer: HTMLDivElement | null = null;
     let authorAvatarLoaded = false;
+    let authorAvatarLoading = false;
+    
     let executorAvatarContainers: Map<string, HTMLDivElement> = new Map();
     let loadedExecutorAvatars: Set<string> = new Set();
+    let loadingExecutorAvatars: Set<string> = new Set();
 
     function updateScreenWidth() {
         isWideScreen = window.innerWidth > 1280;
@@ -97,6 +100,7 @@
                         status: 'inprogress'
                     } as Ticket;
                     loadedExecutorAvatars.clear();
+                    loadingExecutorAvatars.clear();
                     setTimeout(() => loadExecutorAvatars(), 100);
                 }
             })
@@ -119,6 +123,8 @@
                     } as Ticket;
                     if (removedId) {
                         loadedExecutorAvatars.delete(removedId);
+                        loadingExecutorAvatars.delete(removedId);
+                        executorAvatarContainers.delete(removedId);
                     }
                     setTimeout(() => loadExecutorAvatars(), 100);
                 }
@@ -244,6 +250,7 @@
                 notification('Заявка обновлена', NotificationType.Success);
                 isEditing = false;
                 authorAvatarLoaded = false;
+                authorAvatarLoading = false;
                 loadAuthorAvatar();
             })
             .catch(() => {
@@ -252,8 +259,11 @@
     }
 
     async function loadAuthorAvatar() {
-        if (ticketData && authorAvatarContainer && !authorAvatarLoaded) {
-            authorAvatarContainer.innerHTML = '';
+        if (!ticketData || !authorAvatarContainer || authorAvatarLoaded || authorAvatarLoading) return;
+        
+        authorAvatarLoading = true;
+        authorAvatarContainer.innerHTML = '';
+        try {
             await getAvatar(
                 { name: isEditing ? author : ticketData.author },
                 authorAvatarContainer,
@@ -261,65 +271,71 @@
                 true
             );
             authorAvatarLoaded = true;
+        } finally {
+            authorAvatarLoading = false;
+        }
+    }
+
+    async function loadExecutorAvatar(executorId: string, container: HTMLDivElement) {
+        if (loadedExecutorAvatars.has(executorId) || loadingExecutorAvatars.has(executorId)) return;
+        
+        const executor = ticketData?.assigned_to?.find(e => e.id === executorId);
+        if (!executor) return;
+        
+        loadingExecutorAvatars.add(executorId);
+        container.innerHTML = '';
+        try {
+            await getAvatar(executor, container, isWideScreen ? 48 : 64, true);
+            loadedExecutorAvatars.add(executorId);
+        } finally {
+            loadingExecutorAvatars.delete(executorId);
         }
     }
 
     async function loadExecutorAvatars() {
-        if (ticketData && ticketData.assigned_to) {
-            for (const executor of ticketData.assigned_to) {
-                if (loadedExecutorAvatars.has(executor.id)) continue;
-                
-                const container = executorAvatarContainers.get(executor.id);
-                if (container) {
-                    container.innerHTML = '';
-                    await getAvatar(executor, container, isWideScreen ? 48 : 64, true);
-                    loadedExecutorAvatars.add(executor.id);
-                }
-            }
+        if (!ticketData || !ticketData.assigned_to) return;
+        
+        for (const executor of ticketData.assigned_to) {
+            if (loadedExecutorAvatars.has(executor.id) || loadingExecutorAvatars.has(executor.id)) continue;
+            
+            const container = executorAvatarContainers.get(executor.id);
+            container && await loadExecutorAvatar(executor.id, container);
         }
     }
 
     function setExecutorAvatarContainer(node: HTMLDivElement, executorId?: string) {
         let currentId = executorId;
+        
         if (currentId && node) {
             executorAvatarContainers.set(currentId, node);
-            const executor = ticketData?.assigned_to?.find(e => e.id === currentId);
-            if (executor && !loadedExecutorAvatars.has(currentId)) {
-                node.innerHTML = '';
-                getAvatar(executor, node, isWideScreen ? 48 : 64, true).then(() => {
-                    if (currentId) loadedExecutorAvatars.add(currentId);
-                });
-            }
+            loadExecutorAvatar(currentId, node);
         }
+        
         return {
             update(newId?: string) {
                 if (newId === currentId) return;
                 if (currentId) {
                     executorAvatarContainers.delete(currentId);
                     loadedExecutorAvatars.delete(currentId);
+                    loadingExecutorAvatars.delete(currentId);
                 }
                 currentId = newId;
                 if (currentId && node) {
                     executorAvatarContainers.set(currentId, node);
-                    const executor = ticketData?.assigned_to?.find(e => e.id === currentId);
-                    if (executor && !loadedExecutorAvatars.has(currentId)) {
-                        node.innerHTML = '';
-                        getAvatar(executor, node, isWideScreen ? 48 : 64, true).then(() => {
-                            if (currentId) loadedExecutorAvatars.add(currentId);
-                        });
-                    }
+                    loadExecutorAvatar(currentId, node);
                 }
             },
             destroy() {
                 if (currentId) {
                     executorAvatarContainers.delete(currentId);
                     loadedExecutorAvatars.delete(currentId);
+                    loadingExecutorAvatars.delete(currentId);
                 }
             }
         };
     }
 
-    $: if (ticketData && authorAvatarContainer && !authorAvatarLoaded) {
+    $: if (ticketData && authorAvatarContainer && !authorAvatarLoaded && !authorAvatarLoading) {
         loadAuthorAvatar();
     }
 
@@ -353,6 +369,10 @@
         
         executorAvatarContainers.clear();
         loadedExecutorAvatars.clear();
+        loadingExecutorAvatars.clear();
+        
+        authorAvatarLoaded = false;
+        authorAvatarLoading = false;
     });
 </script>
 

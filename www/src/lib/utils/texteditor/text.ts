@@ -68,7 +68,9 @@ export function applyBgColor(
                 r.intersectsNode(cell)
             ) {
                 cells.push(cell);
-            }
+            } else { 
+                // Do nothing 
+            };
         });
     }
 

@@ -40,6 +40,7 @@
 
     let avatarContainers: Map<string, HTMLDivElement> = new Map();
     let loadedAvatars: Set<string> = new Set();
+    let loadingAvatars: Set<string> = new Set();
 
     $: canManageStatus = $currentUser?.role === UserRole.Administrator || $currentUser?.role === UserRole.Moderator;
 
@@ -90,6 +91,7 @@
         loading = false;
 
         loadedAvatars.clear();
+        loadingAvatars.clear();
         
         setTimeout(() => {
             loadAvatars();
@@ -101,14 +103,31 @@
      */
     async function loadAvatars() {
         for (const user of users) {
-            if (loadedAvatars.has(user.id)) continue;
+            if (loadedAvatars.has(user.id) || loadingAvatars.has(user.id)) continue;
             
             const container = avatarContainers.get(user.id);
             if (container) {
-                container.innerHTML = '';
-                await getAvatar(user, container, 36, true);
-                loadedAvatars.add(user.id);
+                await loadAvatarForUser(user.id, container);
             }
+        }
+    }
+
+    /**
+     * Загрузка аватара для конкретного пользователя
+     */
+    async function loadAvatarForUser(id: string, container: HTMLDivElement) {
+        if (loadedAvatars.has(id) || loadingAvatars.has(id)) return;
+        
+        const user = users.find(u => u.id === id);
+        if (!user) return;
+        
+        loadingAvatars.add(id);
+        container.innerHTML = '';
+        try {
+            await getAvatar(user, container, 36, true);
+            loadedAvatars.add(id);
+        } finally {
+            loadingAvatars.delete(id);
         }
     }
 
@@ -117,39 +136,31 @@
      */
     function setAvatarContainer(node: HTMLDivElement, userId?: string) {
         let currentId = userId;
+        
         if (currentId) {
             avatarContainers.set(currentId, node);
-            const user = users.find(u => u.id === currentId);
-            if (user && !loadedAvatars.has(currentId)) {
-                node.innerHTML = '';
-                getAvatar(user, node, 36, true).then(() => {
-                    loadedAvatars.add(currentId!);
-                });
-            }
+            loadAvatarForUser(currentId, node);
         }
+        
         return {
             update(newUserId?: string) {
                 if (newUserId === currentId) return;
                 if (currentId) {
                     avatarContainers.delete(currentId);
                     loadedAvatars.delete(currentId);
+                    loadingAvatars.delete(currentId);
                 }
                 currentId = newUserId;
                 if (currentId) {
                     avatarContainers.set(currentId, node);
-                    const user = users.find(u => u.id === currentId);
-                    if (user && !loadedAvatars.has(currentId)) {
-                        node.innerHTML = '';
-                        getAvatar(user, node, 36, true).then(() => {
-                            loadedAvatars.add(currentId!);
-                        });
-                    }
+                    loadAvatarForUser(currentId, node);
                 }
             },
             destroy() {
                 if (currentId) {
                     avatarContainers.delete(currentId);
                     loadedAvatars.delete(currentId);
+                    loadingAvatars.delete(currentId);
                 }
             }
         };
@@ -202,8 +213,16 @@
             : user.role === UserRole.Administrator ? UserRole.Moderator : UserRole.Programmer;
 
         const success = await changeRole(id, newRole);
-        if (success)
+        if (success) {
             users = users.map(u => u.id === id ? { ...u, role: newRole } : u);
+            
+            const container = avatarContainers.get(id);
+            if (container) {
+                loadedAvatars.delete(id);
+                loadingAvatars.delete(id);
+                await loadAvatarForUser(id, container);
+            }
+        }
     }
     
     /**
@@ -232,7 +251,9 @@
         
         if (success) {
             users = users.filter(user => user.id !== deletingUser?.id);
+            avatarContainers.delete(deletingUser.id);
             loadedAvatars.delete(deletingUser.id);
+            loadingAvatars.delete(deletingUser.id);
             closeModals();
         }
     }
@@ -270,6 +291,7 @@
         browser && window.removeEventListener('resize', handleResize);
         avatarContainers.clear();
         loadedAvatars.clear();
+        loadingAvatars.clear();
     });
 </script>
 

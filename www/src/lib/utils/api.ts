@@ -113,6 +113,10 @@ apiClient.interceptors.response.use(
     }
 );
 
+/**
+ * Форматирует успешный ответ от API
+ * @param response AxiosResponse
+ */
 function formatResponse<T>(response: AxiosResponse): ApiResponse<T> {
     return {
         success: true,
@@ -146,11 +150,17 @@ function formatError(error: AxiosError): ApiResponse {
 }
 
 export const api = {
-    get: async <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json'): Promise<ApiResponse<T>> => {
+    get: async <T>(
+        route: string, 
+        data?: Record<string, any>, 
+        responseType: 'json' | 'blob' = 'json',
+        withCredentials?: boolean
+    ): Promise<ApiResponse<T>> => {
         try {
             const config: AxiosRequestConfig = {
                 params: data,
-                responseType: responseType
+                responseType: responseType,
+                withCredentials: withCredentials ?? true
             };
             
             const response = await apiClient.get<T>(route, config);
@@ -160,10 +170,16 @@ export const api = {
         }
     },
     
-    post: async <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json'): Promise<ApiResponse<T>> => {
+    post: async <T>(
+        route: string, 
+        data?: Record<string, any>, 
+        responseType: 'json' | 'blob' = 'json',
+        withCredentials?: boolean
+    ): Promise<ApiResponse<T>> => {
         try {
             const config: AxiosRequestConfig = {
-                responseType: responseType
+                responseType: responseType,
+                withCredentials: withCredentials ?? true
             };
             
             const response = await apiClient.post<T>(route, data, config);
@@ -173,10 +189,16 @@ export const api = {
         }
     },
     
-    put: async <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json'): Promise<ApiResponse<T>> => {
+    put: async <T>(
+        route: string, 
+        data?: Record<string, any>, 
+        responseType: 'json' | 'blob' = 'json',
+        withCredentials?: boolean
+    ): Promise<ApiResponse<T>> => {
         try {
             const config: AxiosRequestConfig = {
-                responseType: responseType
+                responseType: responseType,
+                withCredentials: withCredentials ?? true
             };
             
             const response = await apiClient.put<T>(route, data, config);
@@ -186,10 +208,16 @@ export const api = {
         }
     },
     
-    patch: async <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json'): Promise<ApiResponse<T>> => {
+    patch: async <T>(
+        route: string, 
+        data?: Record<string, any>, 
+        responseType: 'json' | 'blob' = 'json',
+        withCredentials?: boolean
+    ): Promise<ApiResponse<T>> => {
         try {
             const config: AxiosRequestConfig = {
-                responseType: responseType
+                responseType: responseType,
+                withCredentials: withCredentials ?? true
             };
             
             const response = await apiClient.patch<T>(route, data, config);
@@ -199,11 +227,17 @@ export const api = {
         }
     },
     
-    delete: async <T>(route: string, data?: Record<string, any>, responseType: 'json' | 'blob' = 'json'): Promise<ApiResponse<T>> => {
+    delete: async <T>(
+        route: string, 
+        data?: Record<string, any>, 
+        responseType: 'json' | 'blob' = 'json',
+        withCredentials?: boolean
+    ): Promise<ApiResponse<T>> => {
         try {
             const config: AxiosRequestConfig = {
                 data,
-                responseType: responseType
+                responseType: responseType,
+                withCredentials: withCredentials ?? true
             };
             
             const response = await apiClient.delete<T>(route, config);
