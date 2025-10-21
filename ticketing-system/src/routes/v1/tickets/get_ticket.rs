@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
 
-use crate::{schema::tickets::{create_assigned_users, Building, TicketId, TicketPriority, TicketStatus, User}, utils::error_chain_fmt};
+use crate::{schema::{common::UserId, tickets::{Building, TicketId, TicketPriority, TicketStatus}}, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum GetTicketError {
@@ -41,6 +41,7 @@ pub struct TicketQueryResult {
     pub planned_at: Option<DateTime<Utc>>,
     pub assigned_to_id: Option<Vec<i32>>,
     pub assigned_to_name: Option<Vec<String>>,
+    pub assigned_to_avatar: Option<Vec<String>>,
     pub created_at: DateTime<Utc>,
     pub attachments: Option<Vec<String>>,
     pub building_id: i16,
@@ -68,9 +69,30 @@ pub struct TicketSchemaWithAttachments {
     pub cabinet: Option<String>,
 }
 
+#[derive(Serialize)]
+pub struct User {
+    pub id: UserId,
+    pub name: String,
+    pub avatar_key: String,
+}
+
 impl From<TicketQueryResult> for TicketSchemaWithAttachments {
     fn from(ticket: TicketQueryResult) -> Self {
-        let assigned_to = create_assigned_users(ticket.assigned_to_name, ticket.assigned_to_id);
+        let assigned_to = if let (Some(names), Some(ids), Some(avatar_keys)) = (ticket.assigned_to_name, ticket.assigned_to_id, ticket.assigned_to_avatar) {
+            Some(
+                names.into_iter()
+                    .zip(ids)
+                    .zip(avatar_keys)
+                    .map(|((name, id), avatar_key)| User {
+                        id,
+                        name,
+                        avatar_key
+                    })
+                    .collect()
+            )
+        } else {
+            None
+        };
 
         let building = Building {
             id: ticket.building_id,
@@ -132,6 +154,7 @@ async fn select_ticket(
             planned_at,
             ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL) as assigned_to_id,
             ARRAY_AGG(DISTINCT u.name) FILTER (WHERE u.name IS NOT NULL) as assigned_to_name,
+            ARRAY_AGG(DISTINCT u.avatar_key) FILTER (WHERE u.avatar_key IS NOT NULL) as assigned_to_avatar,
             t.created_at,
             ARRAY_AGG(DISTINCT ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments,
             b.id as "building_id",

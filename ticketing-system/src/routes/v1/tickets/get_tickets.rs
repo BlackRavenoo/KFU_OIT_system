@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_qs::actix::QsQuery;
 use sqlx::{FromRow, PgPool, QueryBuilder, Row};
 
-use crate::{build_where_condition, schema::{common::{PaginationResult, SortOrder, UserId}, tickets::{create_assigned_users, Building, OrderBy, TicketId, TicketPriority, TicketStatus, User}}, utils::error_chain_fmt};
+use crate::{build_where_condition, schema::{common::{PaginationResult, SortOrder, UserId}, tickets::{Building, OrderBy, TicketId, TicketPriority, TicketStatus}}, utils::error_chain_fmt};
 
 #[derive(Deserialize)]
 pub struct GetTicketsSchema {
@@ -31,7 +31,6 @@ pub struct TicketWithMeta {
     pub status: TicketStatus,
     pub priority: TicketPriority,
     pub planned_at: Option<DateTime<Utc>>,
-    pub assigned_to: Option<Vec<User>>,
     pub created_at: DateTime<Utc>,
     pub total_items: i64,
     pub building: Building,
@@ -40,11 +39,6 @@ pub struct TicketWithMeta {
 
 impl FromRow<'_, sqlx::postgres::PgRow> for TicketWithMeta {
     fn from_row(row: &sqlx::postgres::PgRow) -> Result<Self, sqlx::Error> {
-        let assigned_to = create_assigned_users(
-            row.try_get("assigned_to_name")?,
-            row.try_get("assigned_to_id")?
-        );
-
         Ok(Self {
             id: row.try_get("id")?,
             title: row.try_get("title")?,
@@ -54,7 +48,6 @@ impl FromRow<'_, sqlx::postgres::PgRow> for TicketWithMeta {
             status: row.try_get("status")?,
             priority: row.try_get("priority")?,
             planned_at: row.try_get("planned_at")?,
-            assigned_to,
             created_at: row.try_get("created_at")?,
             total_items: row.try_get("total_items")?,
             building: Building {
@@ -77,7 +70,6 @@ pub struct TicketSchema {
     pub status: TicketStatus,
     pub priority: TicketPriority,
     pub planned_at: Option<DateTime<Utc>>,
-    pub assigned_to: Option<Vec<User>>,
     pub created_at: DateTime<Utc>,
     pub building: Building,
     pub cabinet: Option<String>,
@@ -143,7 +135,6 @@ pub async fn get_tickets(
         status: ticket.status,
         priority: ticket.priority,
         planned_at: ticket.planned_at,
-        assigned_to: ticket.assigned_to,
         created_at: ticket.created_at,
         building: ticket.building,
         cabinet: ticket.cabinet
@@ -171,8 +162,6 @@ fn get_builder<'a>(schema: &'a GetTicketsSchema, page: TicketId, page_size: i8) 
             priority,
             planned_at,
             t.created_at,
-            ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL) as assigned_to_id,
-            ARRAY_AGG(DISTINCT u.name) FILTER (WHERE u.name IS NOT NULL) as assigned_to_name,
             b.id as "building_id",
             b.code as "building_code",
             b.name as "building_name",
