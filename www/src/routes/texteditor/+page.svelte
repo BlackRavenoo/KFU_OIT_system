@@ -9,8 +9,12 @@
         applyBgColor,
         insertList,
         insertBlock,
-        setAlign
+        setAlign,
     } from '$lib/utils/texteditor/text';
+    import {
+        serialize,
+        deserialize
+    } from '$lib/utils/texteditor/serialize';
     import { insertTable } from '$lib/utils/texteditor/table';
     import {
         createHistory,
@@ -19,6 +23,7 @@
         redo as redoHistory,
         clearHistoryTimeout
     } from '$lib/utils/texteditor/history';
+    import { notification, NotificationType } from '$lib/utils/notifications/notification';
 
     let title: string = "Безымянный документ";
     let editingTitle = false;
@@ -36,6 +41,8 @@
     let showTableMenu = false;
     let tableRows = 2;
     let tableCols = 2;
+
+    let fileInput: HTMLInputElement;
 
     const historyState = createHistory("");
 
@@ -165,11 +172,108 @@
         updateActiveStates();
     }
 
+    /**
+     * Скачивает содержимое редактора в JSON файл
+     */
+    function downloadJSON() {
+        if (!editorDiv) {
+            notification('Редактор не инициализирован', NotificationType.Error);
+            return;
+        }
+
+        try {
+            const serializedData = serialize(editorDiv.innerHTML);
+            const jsonData = {
+                title: title,
+                content: serializedData,
+                created: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${title.replace(/[^a-zа-яё0-9]/gi, '_')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            notification('Файл успешно скачан', NotificationType.Success);
+        } catch (error) {
+            console.error('Ошибка при скачивании:', error);
+            notification('Ошибка при скачивании файла', NotificationType.Error);
+        }
+    }
+
+    /**
+     * Открывает диалог выбора файла
+     */
+    function openFileDialog() {
+        fileInput?.click();
+    }
+
+    /**
+     * Обрабатывает загрузку JSON файла
+     */
+    function handleFileUpload(event: Event) {
+        const input = event.target as HTMLInputElement;
+        const file = input.files?.[0];
+
+        if (!file) return;
+
+        if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
+            notification('Пожалуйста, выберите JSON файл', NotificationType.Warning);
+            input.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            try {
+                const jsonText = e.target?.result as string;
+                const data = JSON.parse(jsonText);
+
+                if (!data.content || !Array.isArray(data.content)) {
+                    notification('Неверный формат файла', NotificationType.Error);
+                    return;
+                }
+
+                // Устанавливаем заголовок, если есть
+                if (data.title && typeof data.title === 'string') {
+                    title = data.title;
+                }
+
+                // Десериализуем содержимое
+                const html = deserialize(data.content);
+                setContent(html);
+
+                // Добавляем в историю
+                handleEditorInputHistory(historyState, html);
+
+                notification('Файл успешно загружен', NotificationType.Success);
+            } catch (error) {
+                console.error('Ошибка при загрузке файла:', error);
+                notification('Ошибка при чтении файла', NotificationType.Error);
+            } finally {
+                input.value = '';
+            }
+        };
+
+        reader.onerror = () => {
+            notification('Ошибка при чтении файла', NotificationType.Error);
+            input.value = '';
+        };
+
+        reader.readAsText(file);
+    }
+
     onMount(() => {
         pageTitle.set(title + ' | Система управления заявками ЕИ КФУ');
-        if (editorDiv) {
+        if (editorDiv) 
             editorDiv.innerHTML = content;
-        }
+
         document.addEventListener('selectionchange', handleSelectionChange);
     });
 
@@ -223,6 +327,20 @@
                         </svg>
                     </button>
                 {/if}
+            </div>
+            <div class="toolbar-group">
+                <button type="button" title="Скачать JSON" aria-label="Скачать JSON" on:click={ downloadJSON }>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M10 3V13M10 13L6 9M10 13L14 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 17H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <button type="button" title="Загрузить JSON" aria-label="Загрузить JSON" on:click={ openFileDialog }>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M10 13V3M10 3L6 7M10 3L14 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M4 17H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
             </div>
             <div class="toolbar-group">
                 <button type="button" title="Жирный" aria-label="Жирный" class:active={ isBold } on:click={ () => execCommand(editorDiv, 'bold', undefined, selectionInsideCodeOrQuote, updateActiveStates) }>
@@ -391,6 +509,16 @@
         <table></table>
     </div>
 </div>
+
+<!-- Скрытый input для загрузки файлов -->
+<input
+    type="file"
+    accept="application/json,.json"
+    bind:this={ fileInput }
+    on:change={ handleFileUpload }
+    style="display: none;"
+    aria-hidden="true"
+/>
 
 <style scoped>
     @import './page.css';

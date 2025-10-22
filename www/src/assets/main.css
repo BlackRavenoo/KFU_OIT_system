@@ -666,3 +666,8 @@ select.selected ~ label {
     font-size: 0.95em;
     margin-top: 2px;
 }
+
+#content-panel .content-editable * {
+    margin: 0 !important;
+    padding: 0.25rem 0 !important;
+}
