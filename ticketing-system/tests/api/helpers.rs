@@ -4,7 +4,7 @@ use wiremock::{matchers::{method, path}, Mock, MockServer, ResponseTemplate};
 use std::{borrow::Cow, path::Path, sync::LazyLock};
 use uuid::Uuid;
 use ticketing_system::{
-    auth::types::UserRole, config::{get_config, DatabaseSettings, S3Settings}, schema::{common::UserId, tickets::TicketId}, startup::Application, telemetry::{get_subscriber, init_subscriber}
+    auth::types::UserRole, config::{get_config, DatabaseSettings}, schema::{common::UserId, tickets::TicketId}, startup::Application, telemetry::{get_subscriber, init_subscriber}
 };
 
 static TRACING: LazyLock<()> = LazyLock::new(|| {
@@ -265,15 +265,16 @@ pub async fn spawn_app() -> TestApp {
 
         c.email_client.base_url = email_server.uri();
 
-        c.storage = ticketing_system::config::StorageSettings::S3(S3Settings {
+        c.storage = ticketing_system::config::StorageSettings {
             access_key: "access_key".into(),
             secret_key: "secret_key".into(),
             region: "ru-central-1".into(),
             bucket: "test-bucket".into(),
+            private_bucket: "private-bucket".into(),
             endpoint: s3_server.uri(),
             always_proxy: true,
             path_style: true,
-        });
+        };
         
         c
     };

@@ -4,8 +4,3 @@ application:
 
 database:
   require_ssl: false
-
-storage:
-  type: filesystem
-  base_path: ./storage
-  base_url: /storage

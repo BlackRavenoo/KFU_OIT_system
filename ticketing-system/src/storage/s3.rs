@@ -8,8 +8,9 @@ use futures_util::TryStreamExt;
 use secrecy::ExposeSecret;
 use tokio_util::io::ReaderStream;
 
-use crate::{config::S3Settings, storage::{FileAccess, FileStorage, StorageError}};
+use crate::{config::StorageSettings, storage::{FileAccess, FileStorage, StorageError}};
 
+#[derive(Clone)]
 pub struct S3Storage {
     client: Client,
     base_url: String,
@@ -17,7 +18,7 @@ pub struct S3Storage {
 }
 
 impl S3Storage {
-    pub async fn new(config: &S3Settings) -> Self {
+    pub async fn new(config: &StorageSettings) -> Self {
         let creds = aws_sdk_s3::config::Credentials::new(
             &config.access_key,
             config.secret_key.expose_secret(),

@@ -6,10 +6,10 @@ use bytes::Bytes;
 use thiserror::Error;
 use uuid::Uuid;
 
-use crate::{image::{thumbnail::AvatarProcessor, webp::WebpProcessor, ImageProcessor, ProcessingError}, storage::{FileAccess, FileStorage, StorageError}};
+use crate::{image::{thumbnail::AvatarProcessor, webp::WebpProcessor, ImageProcessor, ProcessingError}, storage::{FileAccess, FileStorage, Storage, StorageError}};
 
 pub struct Service<P: ImageProcessor> {
-    storage: Box<dyn FileStorage>,
+    storage: Storage,
     bucket: String,
     _phantom: std::marker::PhantomData<P>
 }
@@ -76,7 +76,7 @@ impl TryFrom<&str> for ImageType {
 pub type ImageService = Service<WebpProcessor>;
 
 impl<P: ImageProcessor> Service<P> {
-    pub fn new(storage: Box<dyn FileStorage>, bucket: String) -> Self {
+    pub fn new(storage: Storage, bucket: String) -> Self {
         Self {
             storage,
             bucket,

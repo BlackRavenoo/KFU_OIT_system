@@ -18,9 +18,6 @@ pub async fn get_image(
 
     match image_service.get_image(image_type, &key).await {
         Ok(file_access) => match file_access {
-            FileAccess::InternalUrl(url) => HttpResponse::Ok()
-                .append_header(("X-Accel-Redirect", url))
-                .finish(),
             FileAccess::ExternalUrl(url) => HttpResponse::MovedPermanently()
                 .append_header((header::LOCATION, url))
                 .finish(),

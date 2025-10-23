@@ -1,5 +1,4 @@
 pub mod s3;
-pub mod filesystem;
 
 use std::pin::Pin;
 
@@ -7,6 +6,8 @@ use actix_web::{http::StatusCode, ResponseError};
 use async_trait::async_trait;
 use bytes::Bytes;
 use futures_util::Stream;
+
+use crate::storage::s3::S3Storage;
 
 // TODO: Add errors
 #[derive(thiserror::Error, Debug)]
@@ -29,14 +30,15 @@ impl ResponseError for StorageError {
 type ResponseStream = Pin<Box<dyn Stream<Item = Result<Bytes, anyhow::Error>> + Send>>;
 
 pub enum FileAccess {
-    InternalUrl(String),
     ExternalUrl(String),
     Stream(ResponseStream),
 }
 
 #[async_trait]
-pub trait FileStorage: Sync + Send + 'static {
+pub trait FileStorage: Sync + Send + Clone + 'static {
     async fn store(&self, bucket: &str, key: &str, data: Vec<u8>) -> Result<(), StorageError>;
     async fn delete(&self, bucket: &str, key: &str) -> Result<(), StorageError>;
     async fn get_file_access(&self, bucket: &str, key: &str, is_public: bool) -> Result<FileAccess, StorageError>;
 }
+
+pub type Storage = S3Storage;

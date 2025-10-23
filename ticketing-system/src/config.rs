@@ -5,7 +5,7 @@ use serde::{Deserialize, Deserializer};
 use serde_aux::field_attributes::{deserialize_number_from_string, deserialize_bool_from_anything};
 use sqlx::{postgres::{PgConnectOptions, PgSslMode}, ConnectOptions};
 
-use crate::{domain::email::Email, storage::{filesystem::FilesystemStorage, s3::S3Storage, FileStorage}};
+use crate::{domain::email::Email, storage::Storage};
 
 #[derive(Deserialize, Debug)]
 pub struct Settings {
@@ -53,29 +53,17 @@ pub struct RedisSettings {
 }
 
 #[derive(Deserialize, Debug)]
-#[serde(tag = "type", rename_all = "lowercase")]
-pub enum StorageSettings {
-    S3(S3Settings),
-    Filesystem(FilesystemSettings),
-}
-
-#[derive(Deserialize, Debug)]
-pub struct S3Settings {
+pub struct StorageSettings {
     pub access_key: String,
     pub secret_key: SecretString,
     pub region: String,
     pub bucket: String,
+    pub private_bucket: String,
     pub endpoint: String,
     #[serde(default = "default_always_proxy", deserialize_with = "deserialize_bool_from_anything")]
     pub always_proxy: bool,
     #[serde(default = "default_path_style", deserialize_with = "deserialize_bool_from_anything")]
     pub path_style: bool,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct FilesystemSettings {
-    pub base_path: String,
-    pub base_url: String,
 }
 
 fn default_path_style() -> bool {
@@ -87,18 +75,16 @@ fn default_always_proxy() -> bool {
 }
 
 impl StorageSettings {
-    pub async fn into_storage(&self) -> Box<dyn FileStorage> {
-        match self {
-            StorageSettings::S3(s3_settings) => Box::new(S3Storage::new(s3_settings).await),
-            StorageSettings::Filesystem(settings) => Box::new(FilesystemStorage::new(settings)),
-        }
+    pub async fn into_storage(&self) -> Storage {
+        Storage::new(self).await
     }
 
     pub fn bucket(&self) -> String {
-        match self {
-            StorageSettings::S3(cfg) => cfg.bucket.clone(),
-            StorageSettings::Filesystem(cfg) => cfg.base_path.clone(),
-        }
+        self.bucket.clone()
+    }
+
+    pub fn private_bucket(&self) -> String {
+        self.private_bucket.clone()
     }
 }
 

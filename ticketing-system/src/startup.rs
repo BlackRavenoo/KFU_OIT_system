@@ -50,7 +50,7 @@ impl Application {
         );
 
         let jwt_service = JwtService::new(&config.auth).unwrap();
-        let image_service = ImageService::new(storage, config.storage.bucket());
+        let image_service = ImageService::new(storage.clone(), config.storage.bucket());
 
         let port = listener.local_addr().unwrap().port();
 
