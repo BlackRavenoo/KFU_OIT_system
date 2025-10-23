@@ -667,6 +667,15 @@ select.selected ~ label {
     margin-top: 2px;
 }
 
+.col-resizer {
+    background: transparent;
+}
+
+table, tr, td {
+    position: relative;
+    border: 1px solid rgb(204, 204, 204);
+}
+
 #content-panel .content-editable * {
     margin: 0 !important;
     padding: 0.25rem 0 !important;

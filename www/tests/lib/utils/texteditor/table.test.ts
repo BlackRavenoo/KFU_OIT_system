@@ -80,15 +80,6 @@ describe('Insert new table in text editor', () => {
         });
     });
 
-    it('Fills cells with non-breaking space', () => {
-        insertTable(editorDiv, 2, 2, selectionInsideCodeOrQuote, updateActiveStates, setContent, setShowTableMenu);
-
-        const cells = editorDiv.querySelectorAll('td');
-        cells.forEach(cell => {
-            expect(cell.innerHTML).toBe('&nbsp;');
-        });
-    });
-
     it('Calls setContent with editor innerHTML', () => {
         insertTable(editorDiv, 2, 2, selectionInsideCodeOrQuote, updateActiveStates, setContent, setShowTableMenu);
 

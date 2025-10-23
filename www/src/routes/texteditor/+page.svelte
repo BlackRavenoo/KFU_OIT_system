@@ -3,26 +3,10 @@
     import { pageTitle } from '$lib/utils/setup/stores';
     import { goto } from '$app/navigation';
 
-    import {
-        execCommand,
-        applyColor,
-        applyBgColor,
-        insertList,
-        insertBlock,
-        setAlign,
-    } from '$lib/utils/texteditor/text';
-    import {
-        serialize,
-        deserialize
-    } from '$lib/utils/texteditor/serialize';
+    import { execCommand, applyColor, applyBgColor, insertList, insertBlock, setAlign } from '$lib/utils/texteditor/text';
+    import { serialize, deserialize } from '$lib/utils/texteditor/serialize';
     import { insertTable } from '$lib/utils/texteditor/table';
-    import {
-        createHistory,
-        handleEditorInput as handleEditorInputHistory,
-        undo as undoHistory,
-        redo as redoHistory,
-        clearHistoryTimeout
-    } from '$lib/utils/texteditor/history';
+    import { createHistory, handleEditorInput as handleEditorInputHistory, undo as undoHistory, redo as redoHistory, clearHistoryTimeout } from '$lib/utils/texteditor/history';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
 
     let title: string = "Безымянный документ";
@@ -46,42 +30,74 @@
 
     const historyState = createHistory("");
 
+    /**
+     * Устанавливает содержимое редактора
+     * @param newContent - Новое содержимое редактора
+     */
     function setContent(newContent: string) {
         content = newContent;
         if (editorDiv) editorDiv.innerHTML = newContent;
     }
 
+    /**
+     * Устанавливает видимость меню вставки таблицы
+     * @param show - Показать или скрыть меню
+     */
     function setShowTableMenu(show: boolean) {
         showTableMenu = show;
     }
 
+    /**
+     * Обрабатывает ввод в редакторе
+     */
     function handleEditorInput() {
         updateActiveStates();
         content = editorDiv?.innerHTML ?? "";
         handleEditorInputHistory(historyState, content);
     }
 
+    /**
+     * Переходит назад по истории
+     */
     function undo() {
         undoHistory(historyState, setContent, updateActiveStates);
     }
 
+    /**
+     * Переходит вперёд по истории
+     */
     function redo() {
         redoHistory(historyState, setContent, updateActiveStates);
     }
 
+    /**
+     * Обрабатывает потерю фокуса полем заголовка документа
+     */
     function handleTitleBlur() {
         editingTitle = false;
         if (!title.trim()) title = "Безымянный документ";
     }
 
+    /**
+     * Обрабатывает нажатие клавиш в поле заголовка документа
+     * @param e - Событие клавиатуры
+     */
     function handleTitleKeydown(e: KeyboardEvent) {
         (e.key === "Enter" || e.key === "Escape") && (e.target as HTMLInputElement).blur();
     }
 
+    /**
+     * Переходит назад по истории
+     */
     function goBack() {
+        // !!! TDD !!!
         goto('/');
     }
 
+    /**
+     * Обрабатывает нажатие клавиши Tab в редакторе
+     * @param e - Событие клавиатуры
+     */
     function handleTab(e: KeyboardEvent) {
         if (e.key === "Tab") {
             e.preventDefault();
@@ -106,6 +122,11 @@
         }
     }
 
+    /**
+     * Обрабатывает нажатие клавиш в редакторе
+     * для обработки специальных дейтьсвий по комбинациям
+     * @param e - Событие клавиатуры
+     */
     function handleKeyDown(e: KeyboardEvent) {
         if (!editorDiv) return;
         e.stopPropagation();
@@ -115,6 +136,9 @@
         }
     }
 
+    /**
+     * Проверяет, находится ли текущее выделение внутри блока <code> или <blockquote>
+     */
     function selectionInsideCodeOrQuote(): boolean {
         const selection = window.getSelection();
         if (!selection || selection.rangeCount === 0) return false;
@@ -129,6 +153,9 @@
         return false;
     }
 
+    /**
+     * Обновляет состояния активных кнопок форматирования в зависимости от текущего выделения
+     */
     function updateActiveStates() {
         if (!editorDiv) return;
         const selection = window.getSelection();
@@ -168,10 +195,6 @@
         }
     }
 
-    function handleSelectionChange() {
-        updateActiveStates();
-    }
-
     /**
      * Скачивает содержимое редактора в JSON файл
      */
@@ -183,15 +206,10 @@
 
         try {
             const serializedData = serialize(editorDiv.innerHTML);
-            const jsonData = {
-                title: title,
-                content: serializedData,
-                created: new Date().toISOString()
-            };
-
-            const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+            const blob = new Blob([JSON.stringify({ serializedData }, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
+
             a.href = url;
             a.download = `${title.replace(/[^a-zа-яё0-9]/gi, '_')}.json`;
             document.body.appendChild(a);
@@ -240,16 +258,12 @@
                     return;
                 }
 
-                // Устанавливаем заголовок, если есть
-                if (data.title && typeof data.title === 'string') {
+                if (data.title && typeof data.title === 'string')
                     title = data.title;
-                }
 
-                // Десериализуем содержимое
                 const html = deserialize(data.content);
                 setContent(html);
 
-                // Добавляем в историю
                 handleEditorInputHistory(historyState, html);
 
                 notification('Файл успешно загружен', NotificationType.Success);
@@ -269,19 +283,49 @@
         reader.readAsText(file);
     }
 
+    /**
+     * Отправляет содержимое редактора на сервер POST-запросом
+     */
+    async function sendToServer() {
+        if (!editorDiv) {
+            notification('Редактор не инициализирован', NotificationType.Error);
+            return;
+        }
+        try {
+            const serializedData = serialize(editorDiv.innerHTML);
+            const jsonData = {
+                data: serializedData,
+                title: title,
+                tags: [],
+                related: [],
+                is_public: true
+            };
+            const response = await fetch('/api/v1/pages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(jsonData)
+            });
+            response.ok
+                ? notification('Документ успешно отправлен', NotificationType.Success)
+                : notification('Ошибка при отправке документа', NotificationType.Error);
+        } catch (error) {
+            notification('Ошибка при отправке документа', NotificationType.Error);
+        }
+    };
+
     onMount(() => {
         pageTitle.set(title + ' | Система управления заявками ЕИ КФУ');
         if (editorDiv) 
             editorDiv.innerHTML = content;
 
-        document.addEventListener('selectionchange', handleSelectionChange);
+        document.addEventListener('selectionchange', updateActiveStates);
     });
 
     $: pageTitle.set(title + ' | Система управления заявками ЕИ КФУ');
 
     onDestroy(() => {
         pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
-        document.removeEventListener('selectionchange', handleSelectionChange);
+        document.removeEventListener('selectionchange', updateActiveStates);
         clearHistoryTimeout(historyState);
     });
 </script>
@@ -327,20 +371,6 @@
                         </svg>
                     </button>
                 {/if}
-            </div>
-            <div class="toolbar-group">
-                <button type="button" title="Скачать JSON" aria-label="Скачать JSON" on:click={ downloadJSON }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M10 3V13M10 13L6 9M10 13L14 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M4 17H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                </button>
-                <button type="button" title="Загрузить JSON" aria-label="Загрузить JSON" on:click={ openFileDialog }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <path d="M10 13V3M10 3L6 7M10 3L14 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M4 17H16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                </button>
             </div>
             <div class="toolbar-group">
                 <button type="button" title="Жирный" aria-label="Жирный" class:active={ isBold } on:click={ () => execCommand(editorDiv, 'bold', undefined, selectionInsideCodeOrQuote, updateActiveStates) }>
@@ -499,7 +529,7 @@
             bind:this={ editorDiv }
             on:input={ handleEditorInput }
             on:keydown={ handleKeyDown }
-            spellcheck="true"
+            spellcheck="false"
             aria-label={ title }
         >{ @html content }</div>
     </main>
@@ -507,6 +537,17 @@
         <blockquote>quote</blockquote>
         <code>code</code>
         <table></table>
+    </div>
+    <div class="json-actions" style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+        <button type="button" title="Скачать JSON" aria-label="Скачать JSON" on:click={ downloadJSON }>
+            Скачать JSON
+        </button>
+        <button type="button" title="Загрузить JSON" aria-label="Загрузить JSON" on:click={ openFileDialog }>
+            Загрузить JSON
+        </button>
+        <button type="button" title="Отправить на сервер" aria-label="Отправить на сервер" on:click={ sendToServer }>
+            Отправить на сервер
+        </button>
     </div>
 </div>
 
