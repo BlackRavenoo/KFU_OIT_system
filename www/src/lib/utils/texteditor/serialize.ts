@@ -10,34 +10,32 @@ type SerializedNode = {
 /**
  * Получает стили элемента (выравнивание, цвет текста, цвет фона)
  */
-function getNodeStyles(node: HTMLElement): { align?: 'left' | 'center' | 'right' | 'justify'; color?: string; bgColor?: string } {
-    const styles: { align?: 'left' | 'center' | 'right' | 'justify'; color?: string; bgColor?: string } = {};
+function getNodeStyles(node: HTMLElement): { align: 'left' | 'center' | 'right' | 'justify'; color: string; bgColor: string } {
     const inlineStyle = node.style;
-    
-    if (inlineStyle.textAlign && ['left', 'center', 'right', 'justify'].includes(inlineStyle.textAlign))
-        styles.align = inlineStyle.textAlign as 'left' | 'center' | 'right' | 'justify';
-    if (inlineStyle.color) styles.color = inlineStyle.color;
-    if (inlineStyle.backgroundColor) styles.bgColor = inlineStyle.backgroundColor;
-    
     const computedStyle = window.getComputedStyle(node);
-    
-    if (!styles.align) {
-        const textAlign = computedStyle.textAlign;
-        if (['left', 'center', 'right', 'justify'].includes(textAlign))
-            styles.align = textAlign as 'left' | 'center' | 'right' | 'justify';
-    }
-    if (!styles.color) {
-        const color = computedStyle.color;
-        if (color && color !== 'rgb(0, 0, 0)' && color !== 'rgba(0, 0, 0, 1)')
-            styles.color = color;
-    }
-    if (!styles.bgColor) {
-        const bgColor = computedStyle.backgroundColor;
-        if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent')
-            styles.bgColor = bgColor;
-    }
 
-    return styles;
+    let align: 'left' | 'center' | 'right' | 'justify';
+    if (inlineStyle.textAlign && ['left', 'center', 'right', 'justify'].includes(inlineStyle.textAlign))
+        align = inlineStyle.textAlign as 'left' | 'center' | 'right' | 'justify';
+    else if (['left', 'center', 'right', 'justify'].includes(computedStyle.textAlign))
+        align = computedStyle.textAlign as 'left' | 'center' | 'right' | 'justify';
+    else align = 'left';
+
+    let color: string;
+    if (inlineStyle.color)
+        color = inlineStyle.color;
+    else if (computedStyle.color && computedStyle.color !== 'rgb(0, 0, 0)' && computedStyle.color !== 'rgba(0, 0, 0, 1)')
+        color = computedStyle.color;
+    else color = 'rgb(0, 0, 0)';
+
+    let bgColor: string;
+    if (inlineStyle.backgroundColor)
+        bgColor = inlineStyle.backgroundColor;
+    else if (computedStyle.backgroundColor && computedStyle.backgroundColor !== 'rgba(0, 0, 0, 0)' && computedStyle.backgroundColor !== 'transparent')
+        bgColor = computedStyle.backgroundColor;
+    else bgColor = 'transparent';
+
+    return { align, color, bgColor };
 }
 
 /**
@@ -47,11 +45,11 @@ function normalizeLineBreaks(html: string): string {
     return html
         .replace(/<div>(.*?)<\/div>/gis, (m, content) => {
             if (/<(div|p|ul|ol|table|h[1-6]|blockquote|pre)[\s>]/i.test(content)) return m;
-            return content + '<br>';
+            else return content + '<br>';
         })
         .replace(/<p>(.*?)<\/p>/gis, (m, content) => {
             if (/<(div|p|ul|ol|table|h[1-6]|blockquote|pre)[\s>]/i.test(content)) return m;
-            return content + '<br>';
+            else return content + '<br>';
         });
 }
 
@@ -61,10 +59,11 @@ function normalizeLineBreaks(html: string): string {
  */
 function serializeChildren(node: Node): SerializedNode[] | string {
     const result: (string | SerializedNode)[] = [];
-    node.childNodes.forEach(child => {
+    for (const child of node.childNodes) {
         if (child.nodeType === Node.TEXT_NODE) {
             const text = child.textContent || '';
             if (text) result.push(text);
+            else continue;
         } else if (child.nodeType === Node.ELEMENT_NODE) {
             const element = child as HTMLElement;
             if (element.nodeName.toLowerCase() === 'br') {
@@ -72,9 +71,10 @@ function serializeChildren(node: Node): SerializedNode[] | string {
             } else {
                 const serialized = serializeNode(element);
                 if (serialized) result.push(serialized);
+                else continue;
             }
-        }
-    });
+        } else continue;
+    }
 
     if (result.length === 1 && typeof result[0] === 'string') return result[0];
     if (result.length === 0) return '';
