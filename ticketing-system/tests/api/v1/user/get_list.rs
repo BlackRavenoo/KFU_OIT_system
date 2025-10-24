@@ -118,3 +118,24 @@ async fn get_users_with_search_by_name_returns_only_1_user() {
 
     assert_eq!(json["items"].as_array().unwrap().len(), 1);
 }
+
+#[tokio::test]
+async fn get_users_without_users_returns_200() {
+    let app = spawn_app().await;
+
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
+    sqlx::query!("DELETE FROM users WHERE id = 1")
+        .execute(&app.db_pool)
+        .await
+        .unwrap();
+
+    let resp = reqwest::Client::new()
+        .get(format!("{}/v1/user/list", app.address))
+        .bearer_auth(access)
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+}
