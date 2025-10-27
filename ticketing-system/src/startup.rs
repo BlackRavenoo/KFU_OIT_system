@@ -7,7 +7,7 @@ use moka::future::CacheBuilder;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::mailersend::MailerSendClient, routes::v1::{config, tickets::stats::TicketsStats}, services::{image::ImageService, registration_token::RegistrationTokenStore}};
+use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::mailersend::MailerSendClient, routes::v1::{config, tickets::stats::TicketsStats}, services::{image::ImageService, pages::PageService, registration_token::RegistrationTokenStore}};
 
 pub struct Application {
     server: Server,
@@ -51,6 +51,11 @@ impl Application {
 
         let jwt_service = JwtService::new(&config.auth).unwrap();
         let image_service = ImageService::new(storage.clone(), config.storage.bucket());
+        let page_service = PageService::new(
+            storage,
+            config.storage.bucket(),
+            config.storage.private_bucket()
+        );
 
         let port = listener.local_addr().unwrap().port();
 
@@ -60,6 +65,7 @@ impl Application {
             jwt_service,
             connection_pool,
             image_service,
+            page_service,
             email_client,
             config.application.base_url
         )?;
@@ -87,6 +93,7 @@ pub fn run(
     jwt_service: JwtService,
     pool: PgPool,
     image_service: ImageService,
+    page_service: PageService,
     email_client: MailerSendClient,
     base_url: String,
 ) -> Result<Server, std::io::Error> {
@@ -94,6 +101,7 @@ pub fn run(
     let reg_store = Data::new(RegistrationTokenStore::new(redis_pool));
     let jwt_service = Data::new(jwt_service);
     let image_service = Data::new(image_service);
+    let page_service = Data::new(page_service);
     let pool = Data::new(pool);
     let email_client = Data::new(email_client);
     let base_url = Data::new(ApplicationBaseUrl(base_url));
@@ -111,6 +119,7 @@ pub fn run(
             .app_data(reg_store.clone())
             .app_data(jwt_service.clone())
             .app_data(image_service.clone())
+            .app_data(page_service.clone())
             .app_data(pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())
