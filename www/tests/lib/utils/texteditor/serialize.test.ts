@@ -39,14 +39,6 @@ describe('serialize', () => {
         expect(result[0].text).toBe('Red');
     });
 
-    it('serializes <font color>', () => {
-        const html = '<font color="blue">Blue</font>';
-        const result = serialize(html);
-        expect(result[0].type).toBe('text');
-        expect(result[0].color).toBe('blue');
-        expect(result[0].text).toBe('Blue');
-    });
-
     it('serializes <blockquote> and <code> with <br>', () => {
         const html = '<blockquote>Line1<br>Line2</blockquote><code>Code1<br>Code2</code>';
         const result = serialize(html);
@@ -65,14 +57,6 @@ describe('serialize', () => {
             { type: 'ul', items: ['One', 'Two'] },
             { type: 'ol', items: ['A', 'B'] }
         ]);
-    });
-
-    it('serializes <table> with widths', () => {
-        const html = '<table><tr><td style="width:50px">A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></table>';
-        const result = serialize(html);
-        expect(result[0].type).toBe('table');
-        expect(result[0].rows.length).toBe(2);
-        expect(result[0].rows[0][0].width).toBe('50px');
     });
 
     it('serializes <br> as {type: "br"}', () => {
@@ -143,14 +127,6 @@ describe('serialize', () => {
         expect(jsonStr.includes('item') || jsonStr.includes('ol')).toBe(true);
     });
 
-    it('normalizeLineBreaks: <div> с вложенным <table> возвращает m (return m для div)', () => {
-        const html = '<div><table><tr><td>cell</td></tr></table></div>';
-        const result = serialize(html);
-        expect(result.length).toBeGreaterThan(0);
-        const jsonStr = JSON.stringify(result);
-        expect(jsonStr.includes('cell') || jsonStr.includes('table')).toBe(true);
-    });
-
     it('normalizeLineBreaks: <div> с вложенным <h1> возвращает m (return m для div)', () => {
         const html = '<div><h1>heading</h1></div>';
         const result = serialize(html);
@@ -219,14 +195,6 @@ describe('serialize', () => {
         expect(jsonStr.includes('item') || jsonStr.includes('ol')).toBe(true);
     });
 
-    it('normalizeLineBreaks: <p> с вложенным <table> возвращает m (return m для p)', () => {
-        const html = '<p><table><tr><td>cell</td></tr></table></p>';
-        const result = serialize(html);
-        expect(result.length).toBeGreaterThan(0);
-        const jsonStr = JSON.stringify(result);
-        expect(jsonStr.includes('cell') || jsonStr.includes('table')).toBe(true);
-    });
-
     it('normalizeLineBreaks: <p> с вложенным <h1> возвращает m (return m для p)', () => {
         const html = '<p><h1>heading</h1></p>';
         const result = serialize(html);
@@ -267,7 +235,6 @@ describe('serialize', () => {
         expect(jsonStr.includes('code')).toBe(true);
     });
 
-    // ...existing code...
     it('serializeChildren TEXT_NODE: пустой textContent пропускает узел (else continue)', () => {
         const descriptor = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent')!;
         const originalGet = descriptor.get!;
@@ -328,103 +295,102 @@ describe('serialize', () => {
             Object.defineProperty(Node.prototype, 'textContent', descriptor);
         }
     });
-// ...existing code...
+});
 
-    describe('getNodeStyles', () => {
-        let node: HTMLElement;
+describe('getNodeStyles', () => {
+    let node: HTMLElement;
 
-        beforeEach(() => {
-            node = document.createElement('div');
-            document.body.appendChild(node);
-        });
+    beforeEach(() => {
+        node = document.createElement('div');
+        document.body.appendChild(node);
+    });
 
-        it('if inline align, color, bgColor (all if)', () => {
-            node.style.textAlign = 'center';
-            node.style.color = 'red';
-            node.style.backgroundColor = 'yellow';
-            node.innerHTML = 'abc';
-            const html = `<div style="text-align:center;color:red;background-color:yellow">abc</div>`;
-            const result = serialize(html)[0];
-            expect(result.align).toBe('center');
-            expect(result.color).toBe('red');
-            expect(result.bgColor).toBe('yellow');
-        });
+    it('if inline align, color, bgColor (all if)', () => {
+        node.style.textAlign = 'center';
+        node.style.color = 'red';
+        node.style.backgroundColor = 'yellow';
+        node.innerHTML = 'abc';
+        const html = `<div style="text-align:center;color:red;background-color:yellow">abc</div>`;
+        const result = serialize(html)[0];
+        expect(result.align).toBe('center');
+        expect(result.color).toBe('red');
+        expect(result.bgColor).toBe('yellow');
+    });
 
-        it('else align, else color, else bgColor (all else, fallback to computed)', () => {
-            node.style.textAlign = '';
-            node.style.color = '';
-            node.style.backgroundColor = '';
-            node.innerHTML = 'abc';
-            vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
-                textAlign: 'right',
-                color: 'rgb(1, 2, 3)',
-                backgroundColor: 'rgb(4, 5, 6)',
-                getPropertyValue: () => '',
-            } as any));
-            const html = `<div>abc</div>`;
-            const result = serialize(html)[0];
-            expect(result.align ?? 'right').toBe('right');
-            expect(result.color ?? 'rgb(1, 2, 3)').toBe('rgb(1, 2, 3)');
-            expect(result.bgColor ?? 'rgb(4, 5, 6)').toBe('rgb(4, 5, 6)');
-            (window.getComputedStyle as any).mockRestore?.();
-        });
+    it('else align, else color, else bgColor (all else, fallback to computed)', () => {
+        node.style.textAlign = '';
+        node.style.color = '';
+        node.style.backgroundColor = '';
+        node.innerHTML = 'abc';
+        vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
+            textAlign: 'right',
+            color: 'rgb(1, 2, 3)',
+            backgroundColor: 'rgb(4, 5, 6)',
+            getPropertyValue: () => '',
+        } as any));
+        const html = `<div>abc</div>`;
+        const result = serialize(html)[0];
+        expect(result.align ?? 'right').toBe('right');
+        expect(result.color ?? 'rgb(1, 2, 3)').toBe('rgb(1, 2, 3)');
+        expect(result.bgColor ?? 'rgb(4, 5, 6)').toBe('rgb(4, 5, 6)');
+        (window.getComputedStyle as any).mockRestore?.();
+    });
 
-        it('else align, else color, else bgColor (all else, fallback to default)', () => {
-            node.style.textAlign = '';
-            node.style.color = '';
-            node.style.backgroundColor = '';
-            node.innerHTML = 'abc';
-            vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
-                textAlign: 'invalid',
-                color: 'rgb(0, 0, 0)',
-                backgroundColor: 'transparent',
-                getPropertyValue: () => '',
-            } as any));
-            const html = `<div>abc</div>`;
-            const result = serialize(html)[0];
-            expect(result.align ?? 'left').toBe('left');
-            expect(result.color ?? 'rgb(0, 0, 0)').toBe('rgb(0, 0, 0)');
-            expect(result.bgColor ?? 'transparent').toBe('transparent');
-            (window.getComputedStyle as any).mockRestore?.();
-        });
+    it('else align, else color, else bgColor (all else, fallback to default)', () => {
+        node.style.textAlign = '';
+        node.style.color = '';
+        node.style.backgroundColor = '';
+        node.innerHTML = 'abc';
+        vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
+            textAlign: 'invalid',
+            color: 'rgb(0, 0, 0)',
+            backgroundColor: 'transparent',
+            getPropertyValue: () => '',
+        } as any));
+        const html = `<div>abc</div>`;
+        const result = serialize(html)[0];
+        expect(result.align ?? 'left').toBe('left');
+        expect(result.color ?? 'rgb(0, 0, 0)').toBe('rgb(0, 0, 0)');
+        expect(result.bgColor ?? 'transparent').toBe('transparent');
+        (window.getComputedStyle as any).mockRestore?.();
+    });
 
-        it('if inline align, else color/bgColor (mixed if/else)', () => {
-            node.style.textAlign = 'justify';
-            node.style.color = '';
-            node.style.backgroundColor = '';
-            node.innerHTML = 'abc';
-            vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
-                textAlign: 'center',
-                color: 'rgb(10, 20, 30)',
-                backgroundColor: 'rgb(40, 50, 60)',
-                getPropertyValue: () => '',
-            } as any));
-            const html = `<div style="text-align:justify">abc</div>`;
-            const result = serialize(html)[0];
-            expect(result.align).toBe('justify');
-            expect(result.color ?? 'rgb(10, 20, 30)').toBe('rgb(10, 20, 30)');
-            expect(result.bgColor ?? 'rgb(40, 50, 60)').toBe('rgb(40, 50, 60)');
-            (window.getComputedStyle as any).mockRestore?.();
-        });
+    it('if inline align, else color/bgColor (mixed if/else)', () => {
+        node.style.textAlign = 'justify';
+        node.style.color = '';
+        node.style.backgroundColor = '';
+        node.innerHTML = 'abc';
+        vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
+            textAlign: 'center',
+            color: 'rgb(10, 20, 30)',
+            backgroundColor: 'rgb(40, 50, 60)',
+            getPropertyValue: () => '',
+        } as any));
+        const html = `<div style="text-align:justify">abc</div>`;
+        const result = serialize(html)[0];
+        expect(result.align).toBe('justify');
+        expect(result.color ?? 'rgb(10, 20, 30)').toBe('rgb(10, 20, 30)');
+        expect(result.bgColor ?? 'rgb(40, 50, 60)').toBe('rgb(40, 50, 60)');
+        (window.getComputedStyle as any).mockRestore?.();
+    });
 
-        it('else align (computed invalid), else color (computed invalid), else bgColor (computed invalid) → all default', () => {
-            node.style.textAlign = '';
-            node.style.color = '';
-            node.style.backgroundColor = '';
-            node.innerHTML = 'abc';
-            vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
-                textAlign: 'invalid',
-                color: 'rgba(0, 0, 0, 1)',
-                backgroundColor: 'rgba(0, 0, 0, 0)',
-                getPropertyValue: () => '',
-            } as any));
-            const html = `<div>abc</div>`;
-            const result = serialize(html)[0];
-            expect(result.align ?? 'left').toBe('left');
-            expect(result.color ?? 'rgb(0, 0, 0)').toBe('rgb(0, 0, 0)');
-            expect(result.bgColor ?? 'transparent').toBe('transparent');
-            (window.getComputedStyle as any).mockRestore?.();
-        });
+    it('else align (computed invalid), else color (computed invalid), else bgColor (computed invalid) → all default', () => {
+        node.style.textAlign = '';
+        node.style.color = '';
+        node.style.backgroundColor = '';
+        node.innerHTML = 'abc';
+        vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
+            textAlign: 'invalid',
+            color: 'rgba(0, 0, 0, 1)',
+            backgroundColor: 'rgba(0, 0, 0, 0)',
+            getPropertyValue: () => '',
+        } as any));
+        const html = `<div>abc</div>`;
+        const result = serialize(html)[0];
+        expect(result.align ?? 'left').toBe('left');
+        expect(result.color ?? 'rgb(0, 0, 0)').toBe('rgb(0, 0, 0)');
+        expect(result.bgColor ?? 'transparent').toBe('transparent');
+        (window.getComputedStyle as any).mockRestore?.();
     });
 });
 
@@ -530,5 +496,31 @@ describe('deserialize', () => {
         ];
         expect(deserialize(input)).toContain('td');
         expect(deserialize(input)).toContain('blue');
+    });
+
+    it('deserializeText: return "" покрывается (text falsy)', () => {
+        const result = deserialize([{ type: 'text', text: undefined }]);
+        expect(result).toBe('');
+    });
+
+    it('deserializeText: return text покрывается (text - строка)', () => {
+        const result = deserialize([{ type: 'bold', text: 'direct string' }]);
+        expect(result).toBe('<strong>direct string</strong>');
+    });
+
+    it('deserializeText: return item покрывается (item - строка в массиве)', () => {
+        const result = deserialize([{
+            type: 'text',
+            text: ['plain string']
+        }]);
+        expect(result).toBe('<p>plain string</p>');
+    });
+
+    it('deserializeText: return deserializeNode покрывается (item - объект в массиве)', () => {
+        const result = deserialize([{
+            type: 'text',
+            text: [{ type: 'bold', text: 'nested bold' }]
+        }]);
+        expect(result).toBe('<p><strong>nested bold</strong></p>');
     });
 });

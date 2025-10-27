@@ -59,11 +59,12 @@ function normalizeLineBreaks(html: string): string {
  */
 function serializeChildren(node: Node): SerializedNode[] | string {
     const result: (string | SerializedNode)[] = [];
+    
     for (const child of node.childNodes) {
         if (child.nodeType === Node.TEXT_NODE) {
             const text = child.textContent || '';
             if (text) result.push(text);
-            else continue;
+            else void 0;
         } else if (child.nodeType === Node.ELEMENT_NODE) {
             const element = child as HTMLElement;
             if (element.nodeName.toLowerCase() === 'br') {
@@ -71,9 +72,9 @@ function serializeChildren(node: Node): SerializedNode[] | string {
             } else {
                 const serialized = serializeNode(element);
                 if (serialized) result.push(serialized);
-                else continue;
+                else (void 0);
             }
-        } else continue;
+        } else (void 0);
     }
 
     if (result.length === 1 && typeof result[0] === 'string') return result[0];
@@ -96,9 +97,9 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
         case 'h3':
             return {
                 type: `title_${nodeName[1]}`,
-                ...(styles.align ? { align: styles.align } : {}),
-                ...(styles.color ? { color: styles.color } : {}),
-                ...(styles.bgColor ? { bgColor: styles.bgColor } : {}),
+                align: styles.align,
+                color: styles.color,
+                bgColor: styles.bgColor,
                 text: serializeChildren(node)
             };
         case 'p':
@@ -114,81 +115,79 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
             const children = serializeChildren(node);
             return {
                 type: 'text',
-                ...(styles.align ? { align: styles.align } : {}),
-                ...(styles.color ? { color: styles.color } : {}),
-                ...(styles.bgColor ? { bgColor: styles.bgColor } : {}),
+                align: styles.align,
+                color: styles.color,
+                bgColor: styles.bgColor,
                 text: children || ''
             };
         case 'b':
         case 'strong':
             return {
                 type: 'bold',
-                ...(styles.align ? { align: styles.align } : {}),
-                ...(styles.color ? { color: styles.color } : {}),
-                ...(styles.bgColor ? { bgColor: styles.bgColor } : {}),
+                align: styles.align,
+                color: styles.color,
+                bgColor: styles.bgColor,
                 text: serializeChildren(node)
             };
         case 'i':
         case 'em':
             return {
                 type: 'italic',
-                ...(styles.align ? { align: styles.align } : {}),
-                ...(styles.color ? { color: styles.color } : {}),
-                ...(styles.bgColor ? { bgColor: styles.bgColor } : {}),
+                align: styles.align,
+                color: styles.color,
+                bgColor: styles.bgColor,
                 text: serializeChildren(node)
             };
         case 'u':
             return {
                 type: 'underline',
-                ...(styles.align ? { align: styles.align } : {}),
-                ...(styles.color ? { color: styles.color } : {}),
-                ...(styles.bgColor ? { bgColor: styles.bgColor } : {}),
+                align: styles.align,
+                color: styles.color,
+                bgColor: styles.bgColor,
                 text: serializeChildren(node)
             };
         case 'span':
             const spanChildren = serializeChildren(node);
-            if (styles.align || styles.color || styles.bgColor) {
+            if (styles.align || styles.color !== 'rgb(0, 0, 0)' || styles.bgColor !== 'transparent') {
                 return {
                     type: 'text',
-                    ...(styles.align ? { align: styles.align } : {}),
-                    ...(styles.color ? { color: styles.color } : {}),
-                    ...(styles.bgColor ? { bgColor: styles.bgColor } : {}),
+                    align: styles.align,
+                    color: styles.color,
+                    bgColor: styles.bgColor,
                     text: spanChildren
                 };
-            }
-            if (spanChildren) {
+            } else if (spanChildren) {
                 if (typeof spanChildren === 'string') return null;
-                return {
+                else return {
                     type: 'text',
                     text: spanChildren
                 };
-            }
-            return null;
+            } else return null;
         case 'font':
             const fontChildren = serializeChildren(node);
             const fontStyles: any = { ...styles };
             if (node.hasAttribute('color')) fontStyles.color = node.getAttribute('color');
-            return {
+            else return {
                 type: 'text',
-                ...(fontStyles.align ? { align: fontStyles.align } : {}),
-                ...(fontStyles.color ? { color: fontStyles.color } : {}),
-                ...(fontStyles.bgColor ? { bgColor: fontStyles.bgColor } : {}),
+                align: fontStyles.align,
+                color: fontStyles.color,
+                bgColor: fontStyles.bgColor,
                 text: fontChildren
             };
         case 'blockquote':
             return {
                 type: 'blockquote',
-                ...(styles.align ? { align: styles.align } : {}),
-                ...(styles.color ? { color: styles.color } : {}),
-                ...(styles.bgColor ? { bgColor: styles.bgColor } : {}),
+                align: styles.align,
+                color: styles.color,
+                bgColor: styles.bgColor,
                 text: serializeChildren(node)
             };
         case 'code':
             return {
                 type: 'code',
-                ...(styles.align ? { align: styles.align } : {}),
-                ...(styles.color ? { color: styles.color } : {}),
-                ...(styles.bgColor ? { bgColor: styles.bgColor } : {}),
+                align: styles.align,
+                color: styles.color,
+                bgColor: styles.bgColor,
                 text: serializeChildren(node)
             };
         case 'ul':
@@ -199,9 +198,9 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
             });
             return {
                 type: nodeName,
-                ...(styles.align ? { align: styles.align } : {}),
-                ...(styles.color ? { color: styles.color } : {}),
-                ...(styles.bgColor ? { bgColor: styles.bgColor } : {}),
+                align: styles.align,
+                color: styles.color,
+                bgColor: styles.bgColor,
                 items: items
             };
         case 'table':
@@ -213,9 +212,9 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                     const cellStyles = getNodeStyles(cellElement);
                     cells.push({
                         type: 'cell',
-                        ...(cellStyles.align ? { align: cellStyles.align } : {}),
-                        ...(cellStyles.color ? { color: cellStyles.color } : {}),
-                        ...(cellStyles.bgColor ? { bgColor: cellStyles.bgColor } : {}),
+                        align: cellStyles.align,
+                        color: cellStyles.color,
+                        bgColor: cellStyles.bgColor,
                         width: cellElement.style.width || undefined,
                         text: cellElement.innerHTML
                     });
@@ -228,12 +227,11 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                 firstRow.querySelectorAll('td, th').forEach(cell => {
                     colWidths.push((cell as HTMLElement).style.width || undefined);
                 });
-            }
-            return {
+            } else return {
                 type: 'table',
-                ...(styles.align ? { align: styles.align } : {}),
-                ...(styles.color ? { color: styles.color } : {}),
-                ...(styles.bgColor ? { bgColor: styles.bgColor } : {}),
+                align: styles.align,
+                color: styles.color,
+                bgColor: styles.bgColor,
                 rows: rows,
                 colWidths: colWidths
             };
@@ -244,13 +242,12 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
             if (defaultChildren || styles.align || styles.color || styles.bgColor) {
                 return {
                     type: 'text',
-                    ...(styles.align ? { align: styles.align } : {}),
-                    ...(styles.color ? { color: styles.color } : {}),
-                    ...(styles.bgColor ? { bgColor: styles.bgColor } : {}),
+                    align: styles.align,
+                    color: styles.color,
+                    bgColor: styles.bgColor,
                     text: defaultChildren
                 };
-            }
-            return null;
+            } else return null;
     }
 }
 
@@ -375,10 +372,10 @@ function deserializeText(
     isRoot: boolean
 ): string {
     if (!text) return '';
-    if (typeof text === 'string') return text;
-    return text.map(item => {
+    else if (typeof text === 'string') return text;
+    else return text.map(item => {
         if (typeof item === 'string') return item;
-        return deserializeNode(item, insideParagraph, parentStyles, false);
+        else return deserializeNode(item, insideParagraph, parentStyles, false);
     }).join('');
 }
 
