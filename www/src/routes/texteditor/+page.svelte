@@ -253,7 +253,7 @@
                 const jsonText = e.target?.result as string;
                 const data = JSON.parse(jsonText);
 
-                if (!data.content || !Array.isArray(data.content)) {
+                if (!data.serializedData || !Array.isArray(data.serializedData)) {
                     notification('Неверный формат файла', NotificationType.Error);
                     return;
                 }
@@ -261,7 +261,7 @@
                 if (data.title && typeof data.title === 'string')
                     title = data.title;
 
-                const html = deserialize(data.content);
+                const html = deserialize(data.serializedData);
                 setContent(html);
 
                 handleEditorInputHistory(historyState, html);
@@ -275,7 +275,7 @@
             }
         };
 
-        reader.onerror = () => {
+        reader.onerror = (e) => {
             notification('Ошибка при чтении файла', NotificationType.Error);
             input.value = '';
         };

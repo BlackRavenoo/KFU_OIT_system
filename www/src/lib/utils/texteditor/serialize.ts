@@ -9,6 +9,7 @@ type SerializedNode = {
 
 /**
  * Получает стили элемента (выравнивание, цвет текста, цвет фона)
+ * @param node - DOM элемент
  */
 function getNodeStyles(node: HTMLElement): { align: 'left' | 'center' | 'right' | 'justify'; color: string; bgColor: string } {
     const inlineStyle = node.style;
@@ -40,6 +41,7 @@ function getNodeStyles(node: HTMLElement): { align: 'left' | 'center' | 'right' 
 
 /**
  * Преобразует блочные переносы (div, p) в <br> для корректной сериализации переносов строк
+ * @param html - Входящий HTML
  */
 function normalizeLineBreaks(html: string): string {
     return html
@@ -56,6 +58,7 @@ function normalizeLineBreaks(html: string): string {
 /**
  * Обрабатывает дочерние узлы и возвращает массив сериализованных элементов
  * Сохраняет переносы строк как отдельные объекты { type: 'br' }
+ * @param node - Родительский узел
  */
 function serializeChildren(node: Node): SerializedNode[] | string {
     const result: (string | SerializedNode)[] = [];
@@ -72,7 +75,7 @@ function serializeChildren(node: Node): SerializedNode[] | string {
             } else {
                 const serialized = serializeNode(element);
                 if (serialized) result.push(serialized);
-                else (void 0);
+                else console.warn('serializeChildren: Unable to serialize child element', element);
             }
         } else (void 0);
     }
@@ -86,6 +89,7 @@ function serializeChildren(node: Node): SerializedNode[] | string {
 
 /**
  * Сериализует один узел DOM в объект
+ * @param node - DOM элемент для сериализации
  */
 function serializeNode(node: HTMLElement): SerializedNode | null {
     const nodeName = node.nodeName.toLowerCase();
@@ -148,31 +152,12 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
             };
         case 'span':
             const spanChildren = serializeChildren(node);
-            if (styles.align || styles.color !== 'rgb(0, 0, 0)' || styles.bgColor !== 'transparent') {
-                return {
-                    type: 'text',
-                    align: styles.align,
-                    color: styles.color,
-                    bgColor: styles.bgColor,
-                    text: spanChildren
-                };
-            } else if (spanChildren) {
-                if (typeof spanChildren === 'string') return null;
-                else return {
-                    type: 'text',
-                    text: spanChildren
-                };
-            } else return null;
-        case 'font':
-            const fontChildren = serializeChildren(node);
-            const fontStyles: any = { ...styles };
-            if (node.hasAttribute('color')) fontStyles.color = node.getAttribute('color');
-            else return {
+            return {
                 type: 'text',
-                align: fontStyles.align,
-                color: fontStyles.color,
-                bgColor: fontStyles.bgColor,
-                text: fontChildren
+                align: styles.align,
+                color: styles.color,
+                bgColor: styles.bgColor,
+                text: spanChildren
             };
         case 'blockquote':
             return {
@@ -203,31 +188,36 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                 bgColor: styles.bgColor,
                 items: items
             };
-        case 'table':
+        case 'table': {
             const rows: any[] = [];
             node.querySelectorAll('tr').forEach(tr => {
                 const cells: SerializedNode[] = [];
                 tr.querySelectorAll('td, th').forEach(cell => {
                     const cellElement = cell as HTMLElement;
                     const cellStyles = getNodeStyles(cellElement);
-                    cells.push({
+                    const cellObj: any = {
                         type: 'cell',
                         align: cellStyles.align,
                         color: cellStyles.color,
                         bgColor: cellStyles.bgColor,
-                        width: cellElement.style.width || undefined,
                         text: cellElement.innerHTML
-                    });
+                    };
+                    if (cellElement.style.width) cellObj.width = cellElement.style.width;
+                    cells.push(cellObj);
                 });
                 rows.push(cells);
             });
-            const colWidths: (string | undefined)[] = [];
+
+            const colWidths: (string | null)[] = [];
             const firstRow = node.querySelector('tr');
             if (firstRow) {
                 firstRow.querySelectorAll('td, th').forEach(cell => {
-                    colWidths.push((cell as HTMLElement).style.width || undefined);
+                    const w = (cell as HTMLElement).style.width;
+                    colWidths.push(w ? w : null);
                 });
-            } else return {
+            }
+
+            return {
                 type: 'table',
                 align: styles.align,
                 color: styles.color,
@@ -235,11 +225,12 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                 rows: rows,
                 colWidths: colWidths
             };
+        }
         case 'br':
             return { type: 'br' };
         default:
             const defaultChildren = serializeChildren(node);
-            if (defaultChildren || styles.align || styles.color || styles.bgColor) {
+            if (defaultChildren)
                 return {
                     type: 'text',
                     align: styles.align,
@@ -247,7 +238,7 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                     bgColor: styles.bgColor,
                     text: defaultChildren
                 };
-            } else return null;
+            else return null;
     }
 }
 
@@ -267,7 +258,7 @@ export function serialize(html: string): SerializedNode[] {
         if (node.nodeType === Node.ELEMENT_NODE) {
             const serialized = serializeNode(node as HTMLElement);
             if (serialized) result.push(serialized);
-        } else if (node.nodeType === Node.TEXT_NODE) {
+        } else {
             const text = node.textContent?.trim();
             if (text) result.push({ type: 'text', text });
         }
@@ -284,11 +275,19 @@ function mergeStyles(parent: SerializedNode, child: SerializedNode): SerializedN
     };
 }
 
+/**
+ * Десериализует узел в HTML
+ * @param node - Сериализованный узел
+ * @param insideParagraph - Находится ли текущий узел внутри параграфа
+ * @param parentStyles - Стили родительского узла
+ * @param isRoot - Является ли текущий узел корневым
+ * @returns HTML строка
+ */
 function deserializeNode(
     node: SerializedNode,
-    insideParagraph: boolean = false,
-    parentStyles: Partial<SerializedNode> = {},
-    isRoot = true
+    insideParagraph: boolean,
+    parentStyles: Partial<SerializedNode>,
+    isRoot: boolean
 ): string {
     const { type, text, align, color, bgColor, ...rest } = node;
     const styles: string[] = [];
@@ -313,14 +312,12 @@ function deserializeNode(
             } else if (Array.isArray(text)) {
                 inner = text.map(child => {
                     if (typeof child === 'string') return child;
-                    if (child.type === 'text') {
-                        return deserializeNode(mergeStyles(node, child), true, node, false);
-                    }
-                    if (child.type === 'br') return '<br>';
-                    return deserializeNode(child, true, node, false);
+                    else if (child.type === 'text') return deserializeNode(mergeStyles(node, child), true, node, false);
+                    else if (child.type === 'br') return '<br>';
+                    else return deserializeNode(child, true, node, false);
                 }).join('');
-            }
-            
+            } else return deserializeText(text, false, node, false);
+
             return isRoot ? `<p${styleAttr}>${inner}</p>` : styleAttr ? `<span${styleAttr}>${inner}</span>` : inner;
         }
         case 'bold':
@@ -351,7 +348,7 @@ function deserializeNode(
                         if (rowIdx === 0)
                             resizerHtml = `<div class="col-resizer" style="position:absolute;right:0;top:0;width:6px;height:100%;cursor:col-resize;user-select:none;z-index:2;transform:translateX(50%);"></div>`;
                         cellHtml = `<td style="${widthStyle}${cell.color ? `color:${cell.color};` : ''}${cell.bgColor ? `background-color:${cell.bgColor};` : ''}position:relative;">${cell.text || ''}${resizerHtml}</td>`;
-                    }
+                    } else cellHtml = deserializeNode(cell, true, node, false);
                     return cellHtml;
                 }).join('');
                 return `<tr>${cells}</tr>`;
@@ -365,17 +362,26 @@ function deserializeNode(
     }
 }
 
-function deserializeText(
-    text: string | SerializedNode[] | undefined,
+/**
+ * Десериализует текст в HTML
+ * @param text - Текст или сериализованный узел/массив узлов
+ * @param insideParagraph - Находится ли текущий узел внутри параграфа
+ * @param parentStyles - Стили родительского узла
+ * @param isRoot - Является ли текущий узел корневым
+ * @returns 
+ */
+export function deserializeText(
+    text: string | SerializedNode | SerializedNode[] | undefined,
     insideParagraph: boolean,
     parentStyles: Partial<SerializedNode>,
     isRoot: boolean
 ): string {
     if (!text) return '';
     else if (typeof text === 'string') return text;
+    else if (!Array.isArray(text)) return deserializeNode(text, insideParagraph, parentStyles, false);
     else return text.map(item => {
         if (typeof item === 'string') return item;
-        else return deserializeNode(item, insideParagraph, parentStyles, false);
+        return deserializeNode(item, insideParagraph, parentStyles, false);
     }).join('');
 }
 
