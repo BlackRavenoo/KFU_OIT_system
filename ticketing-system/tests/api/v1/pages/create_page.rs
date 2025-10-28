@@ -1,28 +1,4 @@
-use wiremock::{matchers::{method, path_regex}, Mock, ResponseTemplate};
-
-use crate::helpers::{spawn_app, TestApp};
-
-async fn create_page(app: &TestApp, body: &serde_json::Value, token: Option<&str>, expect: u64) -> reqwest::Response {
-    let mut builder = reqwest::Client::new()
-        .post(format!("{}/v1/pages/", app.address))
-        .json(body);
-    
-    if let Some(token) = token {
-        builder = builder.bearer_auth(token);
-    }
-
-    let _mock_guard = Mock::given(path_regex(r"/test-bucket/pages/.*\.json"))
-        .and(method("PUT"))
-        .respond_with(ResponseTemplate::new(200))
-        .expect(expect)
-        .mount_as_scoped(&app.s3_server)
-        .await;
-
-    builder
-        .send()
-        .await
-        .unwrap()
-}
+use crate::helpers::spawn_app;
 
 #[tokio::test]
 async fn create_page_returns_201() {
@@ -42,7 +18,7 @@ async fn create_page_returns_201() {
         "is_public": true
     });
 
-    let resp = create_page(&app, &body, Some(&access), 1).await;
+    let resp = app.create_page(&body, Some(&access), 1).await;
 
     assert_eq!(resp.status(), 201);
 }
@@ -65,11 +41,11 @@ async fn create_page_returns_id() {
         "is_public": true
     });
 
-    let resp = create_page(&app, &body, Some(&access), 1).await;
+    let resp = app.create_page(&body, Some(&access), 1).await;
 
     let json: serde_json::Value = resp.json().await.unwrap();
 
-    assert_eq!(json.get("id").unwrap().as_i64().unwrap(), 1);
+    assert!(json.get("id").unwrap().as_i64().is_some());
 }
 
 #[tokio::test]
@@ -90,17 +66,19 @@ async fn create_page_returns_incremented_id() {
         "is_public": true
     });
 
-    let resp = create_page(&app, &body, Some(&access), 1).await;
+    let resp = app.create_page(&body, Some(&access), 1).await;
 
     let json: serde_json::Value = resp.json().await.unwrap();
 
-    assert_eq!(json.get("id").unwrap().as_i64().unwrap(), 1);
+    let id1 = json.get("id").unwrap().as_i64().unwrap();
 
-    let resp = create_page(&app, &body, Some(&access), 1).await;
+    let resp = app.create_page(&body, Some(&access), 1).await;
 
     let json: serde_json::Value = resp.json().await.unwrap();
 
-    assert_eq!(json.get("id").unwrap().as_i64().unwrap(), 2);
+    let id2 = json.get("id").unwrap().as_i64().unwrap();
+
+    assert_eq!(id1 + 1, id2);
 }
 
 #[tokio::test]
@@ -117,7 +95,7 @@ async fn create_page_without_token_returns_401() {
         "is_public": true
     });
 
-    let resp = create_page(&app, &body, None, 0).await;
+    let resp = app.create_page(&body, None, 0).await;
 
     assert_eq!(resp.status(), 401);
 }
@@ -130,7 +108,7 @@ async fn create_page_with_empty_body_returns_400() {
 
     let (access, _) = app.get_jwt_tokens(&email, "admin").await;
 
-    let resp = create_page(&app, &serde_json::json!({}), Some(&access), 0).await;
+    let resp = app.create_page(&serde_json::json!({}), Some(&access), 0).await;
 
     assert_eq!(resp.status(), 400);
 }

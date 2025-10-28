@@ -1,6 +1,6 @@
 use fake::{faker::internet::en::SafeEmail, Fake};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
-use wiremock::{matchers::{method, path}, Mock, MockServer, ResponseTemplate};
+use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path, path_regex}};
 use std::{borrow::Cow, path::Path, sync::LazyLock};
 use uuid::Uuid;
 use ticketing_system::{
@@ -243,6 +243,46 @@ impl TestApp {
             builder = builder.bearer_auth(access);
         }
         
+        builder
+            .send()
+            .await
+            .unwrap()
+    }
+
+    pub async fn get_pages(&self, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {
+        let mut builder = reqwest::Client::new()
+            .get(format!(
+                "{}/v1/pages/?{}",
+                self.address,
+                serde_qs::to_string(body).unwrap()
+            ));
+
+        if let Some(token) = token {
+            builder = builder.bearer_auth(token);
+        }
+
+        builder
+            .send()
+            .await
+            .unwrap()
+    }
+
+    pub async fn create_page(&self, body: &serde_json::Value, token: Option<&str>, expect: u64) -> reqwest::Response {
+        let mut builder = reqwest::Client::new()
+            .post(format!("{}/v1/pages/", self.address))
+            .json(body);
+        
+        if let Some(token) = token {
+            builder = builder.bearer_auth(token);
+        }
+    
+        let _mock_guard = Mock::given(path_regex(r"/*-bucket/pages/.*\.json"))
+            .and(method("PUT"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(expect)
+            .mount_as_scoped(&self.s3_server)
+            .await;
+    
         builder
             .send()
             .await

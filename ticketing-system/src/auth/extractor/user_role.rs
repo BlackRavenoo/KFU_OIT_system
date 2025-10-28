@@ -14,10 +14,28 @@ impl FromRequest for UserRoleExtractor {
         let result = req
             .extensions()
             .get::<Claims>()
-            .ok_or(JwtExtractorError::MissingClaims)
+            .ok_or(Self::Error::MissingClaims)
             .and_then(|claims| {
-                Ok(UserRoleExtractor(claims.role))
+                Ok(Self(claims.role))
             });
+
+        ready(result)
+    }
+}
+
+pub struct OptionalUserRoleExtractor(pub Option<UserRole>);
+
+impl FromRequest for OptionalUserRoleExtractor {
+    type Error = JwtExtractorError;
+    type Future = Ready<Result<Self, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _: &mut actix_web::dev::Payload) -> Self::Future {
+        let result = match req
+            .extensions()
+            .get::<Claims>() {
+                Some(claims) => Ok(Self(Some(claims.role))),
+                None => Ok(Self(None)),
+            };
 
         ready(result)
     }
