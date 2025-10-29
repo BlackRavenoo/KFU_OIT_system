@@ -653,6 +653,31 @@ describe("Auth API", () => {
         setTimeoutSpy.mockRestore();
     });
 
+    it("Login logs warning when localStorage.removeItem throws", async () => {
+        const fpGet = vi.fn().mockResolvedValue({ visitorId: "fp-warn" });
+        const fpLoad = (FingerprintJS as any).load || (FingerprintJS as any).default.load;
+        fpLoad.mockResolvedValue({ get: fpGet });
+
+        (apiModule as any).api.post.mockResolvedValueOnce({
+            success: true,
+            data: { access_token: "acc_warn", refresh_token: "ref_warn" }
+        } as any);
+
+        const setTokenSpy = vi.spyOn(storageModule as any, "setTokenStore").mockImplementation(() => undefined as any);
+        localStorageMock.removeItem.mockImplementation(() => { throw new Error("localStorage error"); });
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        try {
+            await (authApi as any).login("e", "p", true);
+
+            expect(setTokenSpy).toHaveBeenCalledWith({ accessToken: "acc_warn", refreshToken: "ref_warn" });
+            expect(warnSpy).toHaveBeenCalledTimes(1);
+            expect(warnSpy).toHaveBeenCalledWith('Не удалось очистить кеш пользователя');
+        } finally {
+            warnSpy.mockRestore();
+        }
+    });
+
     it("Exit from authentication check when no tokenData in localStorage", async () => {
         localStorageMock.getItem.mockReturnValue(null);
 

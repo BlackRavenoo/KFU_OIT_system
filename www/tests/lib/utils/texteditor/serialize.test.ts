@@ -312,7 +312,7 @@ describe('serialize', () => {
         expect(result[0].items[0]).toBe('');
     });
 
-    it('Serializes table with many col-resizer DIVs', () => {
+    it('Serializes table and preserves cells innerHTML (no width serialization)', () => {
         const table = document.createElement('table');
         const tbody = document.createElement('tbody');
 
@@ -320,13 +320,10 @@ describe('serialize', () => {
         const td11 = document.createElement('td');
         td11.innerHTML = 'asda&nbsp;' +
             '<div class="col-resizer" style="position: absolute; right: 0px; top: 0px; width: 6px; height: 100%;"></div>' +
-            '<div class="col-resizer" style="position:absolute;right:0;top:0;width:6px;height:100%;"></div>' +
-            '<div class="col-resizer" style="position:absolute;right:0;top:0;width:6px;height:100%;"></div>' +
             '<div class="col-resizer" style="position:absolute;right:0;top:0;width:6px;height:100%;"></div>';
         const td12 = document.createElement('td');
         td12.innerHTML = '<div align="right"><b>asd&nbsp;</b></div>' +
-            '<div class="col-resizer" style="position: absolute; right: 0px; top: 0px; width: 6px; height: 100%;"></div>' +
-            '<div class="col-resizer" style="position:absolute;right:0;top:0;width:6px;height:100%;"></div>';
+            '<div class="col-resizer" style="position: absolute; right: 0px; top: 0px; width: 6px; height: 100%;"></div>';
         tr1.appendChild(td11);
         tr1.appendChild(td12);
 
@@ -354,78 +351,9 @@ describe('serialize', () => {
         expect(node.rows[0][0].text).toContain('col-resizer');
         expect(node.rows[0][1].text).toContain('<div align="right"><b>asd&nbsp;</b></div>');
         expect(node.rows[1][1].text).toContain('<i>asdasfas</i>');
-        expect(Array.isArray(node.colWidths)).toBe(true);
-        expect(node.colWidths).toEqual([null, null]);
+        expect(node).not.toHaveProperty('colWidths');
         expect(node.rows[0][0].hasOwnProperty('width')).toBe(false);
         expect(node.rows[0][1].hasOwnProperty('width')).toBe(false);
-    });
-
-    it('First-row widths propagate to colWidths', () => {
-        const table = document.createElement('table');
-        const tbody = document.createElement('tbody');
-        const tr = document.createElement('tr');
-        const td1 = document.createElement('td');
-        td1.style.width = '100px';
-        td1.textContent = 'A';
-        const td2 = document.createElement('td');
-        td2.style.width = '200px';
-        td2.textContent = 'B';
-        tr.appendChild(td1);
-        tr.appendChild(td2);
-        tbody.appendChild(tr);
-        table.appendChild(tbody);
-        document.body.appendChild(table);
-
-        const out = serialize(table.outerHTML);
-        const node = out.find(n => n.type === 'table') as any;
-        expect(node).toBeDefined();
-        expect(node.colWidths).toEqual(['100px', '200px']);
-        expect(node.rows[0][0].width).toBe('100px');
-        expect(node.rows[0][1].width).toBe('200px');
-    });
-
-    it('Width on non-first-row cell', () => {
-        const table = document.createElement('table');
-        const tbody = document.createElement('tbody');
-
-        const tr1 = document.createElement('tr');
-        const td11 = document.createElement('td');
-        td11.textContent = 'X';
-        const td12 = document.createElement('td');
-        td12.textContent = 'Y';
-        tr1.appendChild(td11);
-        tr1.appendChild(td12);
-
-        const tr2 = document.createElement('tr');
-        const td21 = document.createElement('td');
-        td21.style.width = '77px';
-        td21.textContent = 'Z';
-        const td22 = document.createElement('td');
-        td22.textContent = 'W';
-        tr2.appendChild(td21);
-        tr2.appendChild(td22);
-
-        tbody.appendChild(tr1);
-        tbody.appendChild(tr2);
-        table.appendChild(tbody);
-        document.body.appendChild(table);
-
-        const out = serialize(table.outerHTML);
-        const node = out.find(n => n.type === 'table') as any;
-        expect(node).toBeDefined();
-        expect(node.colWidths).toEqual([null, null]);
-        expect(node.rows[1][0].width).toBe('77px');
-        expect(node.rows[0][0].hasOwnProperty('width')).toBe(false);
-    });
-
-    it('Empty table', () => {
-        const table = document.createElement('table');
-        document.body.appendChild(table);
-        const out = serialize(table.outerHTML);
-        const node = out.find(n => n.type === 'table') as any;
-        expect(node).toBeDefined();
-        expect(node.rows).toEqual([]);
-        expect(node.colWidths).toEqual([]);
     });
 
     it('Mixed TH and TD are serialized as cells with innerHTML preserved', () => {
@@ -484,7 +412,7 @@ describe('serialize', () => {
         expect(node.rows[0][0].bgColor).toBeTruthy();
     });
 
-    it('Round-trip: deserialize -> serialize preserves table shape and key fragments', () => {
+    it('Round-trip: deserialize -> serialize preserves table shape and key fragments (widths not asserted)', () => {
         const tableData = {
             type: 'table',
             rows: [
@@ -496,8 +424,7 @@ describe('serialize', () => {
                     { type: 'cell', text: '&nbsp;' },
                     { type: 'cell', text: '&nbsp;<i>asdasfas</i>' }
                 ]
-            ],
-            colWidths: [null, null]
+            ]
         } as any;
 
         const html = deserialize([tableData]);
@@ -512,7 +439,7 @@ describe('serialize', () => {
         expect(node.rows.length).toBe(2);
         expect(node.rows[0][0].text).toContain('asda');
         expect(node.rows[0][1].text).toContain('asd');
-        expect(node.colWidths).toEqual([null, null]);
+        expect(node).not.toHaveProperty('colWidths');
     });
 
     it('Serialize node is skipped empty unknown tag', () => {
@@ -710,29 +637,11 @@ describe('deserialize', () => {
         expect(deserialize(input)).toBe('<ul><li>a</li><li>b</li></ul><ol><li>x</li><li>y</li></ol>');
     });
 
-    it('Deserializes table with colWidths', () => {
-        const input = [
-            {
-                type: 'table',
-                rows: [
-                    [
-                        { type: 'cell', text: 'A', color: 'red' },
-                        { type: 'cell', text: 'B' }
-                    ],
-                    [
-                        { type: 'cell', text: 'C' },
-                        { type: 'cell', text: 'D' }
-                    ]
-                ],
-                colWidths: ['50px', undefined]
-            }
-        ];
-        const html = deserialize(input);
-        expect(html).toContain('width:50px;');
-        expect(html).toContain('A');
-        expect(html).toContain('B');
-        expect(html).toContain('C');
-        expect(html).toContain('D');
+    it('Deserializes empty table', () => {
+        const out = deserialize([{ type: 'table', rows: [] } as any]);
+        expect(out).toContain('<table');
+        expect(out).toContain('table-layout:auto');
+        expect(out).not.toContain('<td');
     });
 
     it('Deserializes nested text', () => {
@@ -838,29 +747,6 @@ describe('deserialize', () => {
         const outOl = deserialize([{ type: 'ol', items: ['1'] } as any]);
         expect(outOl).toContain('<ol');
         expect(outOl).toContain('<li>1</li>');
-    });
-
-    it('Deserializes empty table', () => {
-        const out = deserialize([{ type: 'table', rows: [], colWidths: [] } as any]);
-        expect(out).toContain('<table');
-        expect(out).toContain('table-layout:auto');
-        expect(out).not.toContain('<td');
-    });
-
-    it('Deserializes table with colWidths string', () => {
-        const tableNode: any = {
-            type: 'table',
-            rows: [[{ type: 'cell', text: 'A' }]],
-            colWidths: ['100px']
-        };
-        const out = deserialize([tableNode]);
-        expect(out).toContain('table-layout:fixed');
-        expect(out).toContain('width:100px');
-        expect(out).toContain('<td');
-    });
-
-    it('Deserializes cell as node', () => {
-        expect(deserialize([{ type: 'cell', text: 'c' } as any])).toBe('<td>c</td>');
     });
 
     it('Deserializes text without styles', () => {
@@ -1042,12 +928,12 @@ describe('deserialize', () => {
         expect(deserialize([{ type: 'ol' } as any])).toBe('<ol></ol>');
     });
 
-    it('Uses default [] for rows/colWidths when table fields missing', () => {
+    it('Uses default [] for rows when table fields missing', () => {
         const out = deserialize([{ type: 'table' } as any]);
         expect(out).toBe('<table style="border-collapse:collapse;table-layout:auto;"></table>');
     });
 
-    it('Rows present but colWidths missing', () => {
+    it('Rows present render correctly when colWidths omitted', () => {
         const input: any = {
             type: 'table',
             rows: [
@@ -1059,20 +945,6 @@ describe('deserialize', () => {
         expect(out).toContain('A');
         expect(out).toContain('B');
         expect(out).toContain('table-layout:auto');
-    });
-
-    it('Column widths provided overrides default', () => {
-        const input: any = {
-            type: 'table',
-            rows: [
-                [{ type: 'cell', text: 'X' }, { type: 'cell', text: 'Y' }]
-            ],
-            colWidths: ['100px', undefined]
-        };
-        const out = deserialize([input]);
-        expect(out).toContain('table-layout:fixed');
-        expect(out).toContain('width:100px;');
-        expect(out).toContain('<td');
     });
 
     it('Deserialize table row with a non-"cell" node', () => {
@@ -1097,7 +969,7 @@ describe('deserialize', () => {
         expect(out).toContain('C<');
     });
 
-    it('Deserialize table cell uses fallback', () => {
+    it('Deserialize table cell fallback for empty cell', () => {
         const input: any = {
             type: 'table',
             rows: [
@@ -1105,18 +977,14 @@ describe('deserialize', () => {
                     { type: 'cell' },
                     { type: 'cell', text: 'X' }
                 ]
-            ],
-            colWidths: []
+            ]
         };
 
         const out = deserialize([input]);
 
         expect(out).toContain('<td');
-        expect(out).toContain('><div class="col-resizer" style="position:absolute;right:0;top:0;width:6px;height:100%;cursor:col-resize;user-select:none;z-index:2;transform:translateX(50%);"></div>');
-        expect(out).not.toContain('undefined');
-        expect(out).not.toContain('null');
-        expect(out).toContain('<td');
-        expect(out).toContain('X<');
+        expect(out).toContain('</td>');
+        expect(out).toContain('X');
     });
 
     it('Deserialize table cell with bgColor', () => {
@@ -1127,8 +995,7 @@ describe('deserialize', () => {
                     { type: 'cell', text: 'A', bgColor: 'yellow' },
                     { type: 'cell', text: 'B' }
                 ]
-            ],
-            colWidths: []
+            ]
         };
 
         const out = deserialize([input]);

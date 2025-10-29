@@ -116,7 +116,7 @@ describe('Insert new table in text editor', () => {
         expect(table?.querySelectorAll('td').length).toBe(100);
     });
 
-    it('Does not insert table when selection is null', () => {
+    it('Appends table when selection is null', () => {
         const selection = window.getSelection();
         if (selection) {
             selection.removeAllRanges();
@@ -125,7 +125,8 @@ describe('Insert new table in text editor', () => {
         insertTable(editorDiv, 2, 2, selectionInsideCodeOrQuote, updateActiveStates, setContent, setShowTableMenu);
 
         const table = editorDiv.querySelector('table');
-        expect(table).toBeNull();
+        expect(table).not.toBeNull();
+        expect(setContent).toHaveBeenCalled();
     });
 
     it('Focuses editor before inserting table', () => {

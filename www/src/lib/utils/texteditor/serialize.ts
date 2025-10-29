@@ -202,28 +202,17 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                         bgColor: cellStyles.bgColor,
                         text: cellElement.innerHTML
                     };
-                    if (cellElement.style.width) cellObj.width = cellElement.style.width;
                     cells.push(cellObj);
                 });
                 rows.push(cells);
             });
-
-            const colWidths: (string | null)[] = [];
-            const firstRow = node.querySelector('tr');
-            if (firstRow) {
-                firstRow.querySelectorAll('td, th').forEach(cell => {
-                    const w = (cell as HTMLElement).style.width;
-                    colWidths.push(w ? w : null);
-                });
-            }
 
             return {
                 type: 'table',
                 align: styles.align,
                 color: styles.color,
                 bgColor: styles.bgColor,
-                rows: rows,
-                colWidths: colWidths
+                rows: rows
             };
         }
         case 'br':
@@ -266,6 +255,12 @@ export function serialize(html: string): SerializedNode[] {
     return result;
 }
 
+/**
+ * Объединяет стили родительского и дочернего узлов
+ * @param parent - Родительский узел
+ * @param child - Дочерний узел
+ * @returns - Новый узел с объединенными стилями
+ */
 function mergeStyles(parent: SerializedNode, child: SerializedNode): SerializedNode {
     return {
         ...child,
@@ -337,23 +332,17 @@ function deserializeNode(
             return `<${type}${styleAttr}>${listItems}</${type}>`;
         case 'table':
             const rows = (rest as any).rows || [];
-            const colWidths = (rest as any).colWidths || [];
             const tableRows = rows.map((row: SerializedNode[], rowIdx: number) => {
                 const cells = row.map((cell, colIdx) => {
                     let cellHtml = '';
-                    if (cell.type === 'cell') {
-                        let widthStyle = '';
-                        if (colWidths[colIdx] && typeof colWidths[colIdx] === 'string') widthStyle = `width:${colWidths[colIdx]};`;
-                        let resizerHtml = '';
-                        if (rowIdx === 0)
-                            resizerHtml = `<div class="col-resizer" style="position:absolute;right:0;top:0;width:6px;height:100%;cursor:col-resize;user-select:none;z-index:2;transform:translateX(50%);"></div>`;
-                        cellHtml = `<td style="${widthStyle}${cell.color ? `color:${cell.color};` : ''}${cell.bgColor ? `background-color:${cell.bgColor};` : ''}position:relative;">${cell.text || ''}${resizerHtml}</td>`;
-                    } else cellHtml = deserializeNode(cell, true, node, false);
+                    if (cell.type === 'cell')
+                        cellHtml = `<td style="${cell.color ? `color:${cell.color};` : ''}${cell.bgColor ? `background-color:${cell.bgColor};` : ''}position:relative;">${cell.text || ''}</td>`;
+                    else cellHtml = deserializeNode(cell, true, node, false);
                     return cellHtml;
                 }).join('');
                 return `<tr>${cells}</tr>`;
             }).join('');
-            return `<table style="border-collapse:collapse;table-layout:${colWidths.some((w: any) => typeof w === 'string' && w) ? 'fixed' : 'auto'};">${tableRows}</table>`;
+            return `<table style="border-collapse:collapse;table-layout:auto;">${tableRows}</table>`;
         case 'cell':
             return `<td${styleAttr}>${typeof text === 'string' ? text : deserializeText(text, true, node, false)}</td>`;
         default:
