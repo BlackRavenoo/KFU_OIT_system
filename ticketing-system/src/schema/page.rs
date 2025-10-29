@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-pub type TagId = i16;
+pub type TagId = i32;
 pub type PageId = i32;
 
 #[derive(sqlx::Type, Serialize, Deserialize)]

@@ -1,0 +1,33 @@
+use crate::helpers::spawn_app;
+
+#[tokio::test]
+async fn create_tag_returns_201() {
+    let app = spawn_app().await;
+
+    let email = app.create_user(ticketing_system::auth::types::UserRole::Moderator).await;
+
+    let (access, _) = app.get_jwt_tokens(&email, "admin").await;
+
+    let json = serde_json::json!({
+        "name": "Test tag",
+        "synonyms": []
+    });
+
+    let resp = app.create_tag(&json, Some(&access)).await;
+
+    assert_eq!(resp.status(), 201);
+}
+
+#[tokio::test]
+async fn create_tag_without_token_returns_401() {
+    let app = spawn_app().await;
+
+    let json = serde_json::json!({
+        "name": "Test tag",
+        "synonyms": []
+    });
+
+    let resp = app.create_tag(&json, None).await;
+
+    assert_eq!(resp.status(), 401);
+}

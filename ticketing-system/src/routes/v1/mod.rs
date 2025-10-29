@@ -1,12 +1,13 @@
 use actix_web::web;
 
-use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{change_password, login, me, refresh_token, register, validate_register_token}, images::get_image, pages::{create_page::create_page, get_pages::get_pages}, tickets::{assign_ticket, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket, update_ticket}, user::{activate_account, change_user_role, change_user_status, deactivate_account, get_users, invite_user, update_avatar, update_user_profile}}};
+use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{change_password, login, me, refresh_token, register, validate_register_token}, images::get_image, pages::{create_page::create_page, get_pages::get_pages}, tags::create_tag, tickets::{assign_ticket, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket, update_ticket}, user::{activate_account, change_user_role, change_user_status, deactivate_account, get_users, invite_user, update_avatar, update_user_profile}}};
 
 pub mod auth;
 pub mod tickets;
 pub mod images;
 pub mod user;
 pub mod pages;
+pub mod tags;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -75,6 +76,11 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .route("/", web::post().to(create_page)
                         .wrap(JwtMiddleware::min_role(UserRole::Employee)))
                     .route("/", web::get().to(get_pages))
+            )
+            .service(
+                web::scope("/tags")
+                .route("/", web::post().to(create_tag)
+                    .wrap(JwtMiddleware::min_role(UserRole::Moderator)))
             )
     );
 }
