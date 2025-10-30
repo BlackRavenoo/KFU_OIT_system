@@ -30,6 +30,64 @@
 
     const historyState = createHistory("");
 
+    let tagsAvailable: string[] = ['meeting', 'spec', 'urgent', 'ui', 'backend'];
+    let relatedAvailable: { id: string; title: string }[] = [
+        { id: 'p1', title: 'Как настроить интеграцию' },
+        { id: 'p2', title: 'Руководство по UI' },
+        { id: 'p3', title: 'Частые вопросы' }
+    ];
+
+    let selectedTags: string[] = [];
+    let selectedRelated: { id: string; title: string }[] = [];
+
+    let showTagInput = false;
+    let tagQuery = '';
+
+    let showRelatedInput = false;
+    let relatedQuery = '';
+
+    function filteredTags() {
+        const q = tagQuery.trim().toLowerCase();
+        return tagsAvailable.filter(t => !selectedTags.includes(t) && (!q || t.toLowerCase().includes(q)));
+    }
+
+    function filteredRelated() {
+        const q = relatedQuery.trim().toLowerCase();
+        return relatedAvailable.filter(r => !selectedRelated.find(s => s.id === r.id) && (!q || r.title.toLowerCase().includes(q)));
+    }
+
+    function addTag(tag?: string) {
+        const t = (tag ?? tagQuery ?? '').trim();
+        if (!t) return;
+        if (!selectedTags.includes(t)) selectedTags = [...selectedTags, t];
+        if (!tagsAvailable.includes(t)) tagsAvailable = [t, ...tagsAvailable];
+        tagQuery = '';
+        showTagInput = false;
+    }
+
+    function removeTag(tag: string) {
+        selectedTags = selectedTags.filter(t => t !== tag);
+    }
+
+    function addRelated(item?: { id: string; title: string }) {
+        if (!item) {
+            const newId = `p${Date.now()}`;
+            const newItem = { id: newId, title: relatedQuery.trim() || 'Новая статья' };
+            relatedAvailable = [newItem, ...relatedAvailable];
+            selectedRelated = [...selectedRelated, newItem];
+            relatedQuery = '';
+            showRelatedInput = false;
+            return;
+        }
+        if (!selectedRelated.find(s => s.id === item.id)) selectedRelated = [...selectedRelated, item];
+        relatedQuery = '';
+        showRelatedInput = false;
+    }
+
+    function removeRelated(id: string) {
+        selectedRelated = selectedRelated.filter(r => r.id !== id);
+    }
+
     /**
      * Устанавливает содержимое редактора
      * @param newContent - Новое содержимое редактора
@@ -90,7 +148,6 @@
      * Переходит назад по истории
      */
     function goBack() {
-        // !!! TDD !!!
         goto('/');
     }
 
@@ -296,8 +353,8 @@
             const jsonData = {
                 data: serializedData,
                 title: title,
-                tags: [],
-                related: [],
+                tags: selectedTags,
+                related: selectedRelated.map(r => r.id),
                 is_public: true
             };
             const response = await fetch('/api/v1/pages', {
@@ -533,6 +590,107 @@
             aria-label={ title }
         >{ @html content }</div>
     </main>
+
+    <section class="metadata-section">
+        <div style="flex:1; min-width:220px;">
+            <h3>Тэги</h3>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                {#each selectedTags as tag (tag)}
+                    <button class="tag-btn" on:click={ () => removeTag(tag) }>
+                        { tag }
+                    </button>
+                {/each}
+                <button title="Добавить тэг" aria-label="Добавить тэг" class="meta-add-btn" 
+                    on:click={ () => { showTagInput = !showTagInput; tagQuery = ''; } }>
+                    + Добавить
+                </button>
+            </div>
+
+            {#if showTagInput}
+                <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+                    <!-- svelte-ignore a11y_autofocus -->
+                    <input
+                        type="text"
+                        placeholder="Поиск или создать тэг..."
+                        bind:value={ tagQuery }
+                        on:keydown={(e) => { if (e.key === 'Enter') addTag(); }}
+                        style="padding:8px 10px; border-radius:6px; border:1px solid rgba(0,0,0,0.08); width:100%;"
+                        aria-label="Поиск тэгов"
+                        autofocus
+                    />
+                    <button on:click={ () => addTag() } class="meta-add-btn">Добавить</button>
+                </div>
+
+                {#if filteredTags().length > 0}
+                    <ul class="tag-suggestions">
+                        {#each filteredTags() as ft}
+                            <li><button class="meta-add-btn meta-suggest-btn" on:click={ () => addTag(ft) }>{ ft }</button></li>
+                        {/each}
+                    </ul>
+                {/if}
+            {/if}
+        </div>
+
+        <div style="flex:1; min-width:220px;">
+            <h3>Связанные статьи</h3>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                {#if selectedRelated.length === 0}
+                    <div style="padding:10px;border-radius:6px;border:1px dashed rgba(0,0,0,0.04);color:var(--muted)">Нет связанных статей</div>
+                {/if}
+                {#each selectedRelated as r (r.id)}
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-radius:6px; background:#fff; border:1px solid rgba(0,0,0,0.04);">
+                        <div>{ r.title }</div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button aria-label="Открыть" title="Открыть" class="meta-related-btn"
+                                on:click={ () => window.open(`/articles/${ r.id }`, '_blank') }>
+                                <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 22 22" width="22">
+                                    <path d="M0 0h24v24H0z" fill="none"/>
+                                    <path fill="var(--blue)" d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+                                </svg>
+                            </button>
+                            <button aria-label="Удалить" title="Удалить" 
+                                on:click={ () => removeRelated(r.id) } class="meta-related-btn">×</button>
+                        </div>
+                    </div>
+                {/each}
+
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button title="Добавить связанную статью" aria-label="Добавить связанную статью" class="meta-add-btn"
+                        on:click={ () => { showRelatedInput = !showRelatedInput; relatedQuery = ''; } }>
+                        + Добавить
+                    </button>
+                </div>
+
+                {#if showRelatedInput}
+                    <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+                        <!-- svelte-ignore a11y_autofocus -->
+                        <input
+                            type="text"
+                            placeholder="Поиск статьи..."
+                            bind:value={ relatedQuery }
+                            on:keydown={(e) => { if (e.key === 'Enter') { if (filteredRelated()[0]) addRelated(filteredRelated()[0]); else addRelated(); } }}
+                            style="padding:8px 10px; border-radius:6px; border:1px solid rgba(0,0,0,0.08); width:100%;"
+                            aria-label="Поиск связанных статей"
+                            autofocus
+                        />
+                        <button on:click={() => { if (filteredRelated()[0]) addRelated(filteredRelated()[0]); else addRelated(); }} style="padding:8px 10px;border-radius:6px;border:1px solid var(--blue);background:#f1f6ff;color:var(--blue);cursor:pointer;">Добавить</button>
+                    </div>
+
+                    {#if filteredRelated().length > 0}
+                        <ul style="margin-top:8px; padding:6px; border:1px solid rgba(0,0,0,0.04); border-radius:6px; list-style:none; max-height:160px; overflow:auto;">
+                            {#each filteredRelated() as fr}
+                                <li style="padding:6px 8px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
+                                    <span>{ fr.title }</span>
+                                    <button on:click={ () => addRelated(fr) } class="meta-related-btn">+</button>
+                                </li>
+                            {/each}
+                        </ul>
+                    {/if}
+                {/if}
+            </div>
+        </div>
+    </section>
+
     <div style="display:none">
         <blockquote>quote</blockquote>
         <code>code</code>
