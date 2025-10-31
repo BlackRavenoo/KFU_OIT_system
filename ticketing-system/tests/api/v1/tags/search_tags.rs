@@ -12,17 +12,6 @@ async fn search_tags(app: &TestApp, body: &serde_json::Value) -> reqwest::Respon
         .unwrap()
 }
 
-async fn create_test_tag(app: &TestApp) {
-    let (access, _) = app.get_admin_jwt_tokens().await;
-
-    let json = serde_json::json!({
-        "name": "Test tag",
-        "synonyms": []
-    });
-
-    app.create_tag(&json, Some(&access)).await;
-}
-
 #[tokio::test]
 async fn search_tags_returns_200() {
     let app = spawn_app().await;
@@ -40,7 +29,7 @@ async fn search_tags_returns_200() {
 async fn search_tags_returns_tags() {
     let app = spawn_app().await;
 
-    create_test_tag(&app).await;
+    app.create_test_tag().await;
 
     let body = serde_json::json!({
         "q": "Test"

@@ -303,6 +303,17 @@ impl TestApp {
             .await
             .unwrap()
     }
+
+    pub async fn create_test_tag(&self) {
+        let (access, _) = self.get_admin_jwt_tokens().await;
+    
+        let json = serde_json::json!({
+            "name": "Test tag",
+            "synonyms": []
+        });
+    
+        self.create_tag(&json, Some(&access)).await;
+    }
 }
 
 pub async fn spawn_app() -> TestApp {
