@@ -17,6 +17,7 @@ env:
   TEST_LOG: enabled
   AWS_ACCESS_KEY_ID: access_key
   AWS_SECRET_ACCESS_KEY: secret_key
+  POSTGRES_INITDB_ARGS: "-c max_connections=500"
 
 jobs:
   test:
