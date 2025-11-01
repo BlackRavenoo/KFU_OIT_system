@@ -45,7 +45,8 @@ pub async fn create_tag(
 }
 
 #[tracing::instrument(
-    name = "Insert tag into the database"
+    name = "Insert tag into the database",
+    skip(transaction),
 )]
 async fn insert_tag(
     transaction: &mut Transaction<'_, Postgres>,
@@ -65,9 +66,10 @@ async fn insert_tag(
 }
 
 #[tracing::instrument(
-    name = "Insert tag synonyms"
+    name = "Insert tag synonyms",
+    skip(transaction),
 )]
-async fn insert_tag_synonyms(
+pub async fn insert_tag_synonyms(
     transaction: &mut Transaction<'_, Postgres>,
     tag_id: TagId,
     name_synonyms: &[TagName],
