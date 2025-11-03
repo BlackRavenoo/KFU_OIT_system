@@ -1,6 +1,5 @@
 use actix_web::{http::StatusCode, ResponseError};
 use bytes::Bytes;
-use uuid::Uuid;
 
 use crate::{storage::{FileAccess, FileStorage, Storage, StorageError}, utils::error_chain_fmt};
 
@@ -50,18 +49,16 @@ impl PageService {
         }
     }
 
-    fn get_key(&self, key: &str) -> String {
+    pub fn get_key(&self, key: &str) -> String {
         format!("pages/{}.json", key)
     }
 
-    pub async fn upload_page(&self, data: Bytes, is_public: bool) -> Result<String, PageServiceError> {
-        let key = self.get_key(&Uuid::new_v4().to_string());
-
+    pub async fn upload_page(&self, key: &str, data: Bytes, is_public: bool) -> Result<(), PageServiceError> {
         let bucket = self.get_bucket(is_public);
 
-        self.storage.store(&bucket, &key, data.to_vec()).await?;
+        self.storage.store(&bucket, key, data.to_vec()).await?;
 
-        Ok(key)
+        Ok(())
     }
 
     pub async fn get_page(&self, key: &str, is_public: bool) -> Result<FileAccess, PageServiceError> {

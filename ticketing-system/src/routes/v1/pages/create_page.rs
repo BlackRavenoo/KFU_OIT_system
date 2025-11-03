@@ -2,6 +2,7 @@ use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use anyhow::Context;
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};
+use uuid::Uuid;
 
 use crate::{auth::extractor::UserIdExtractor, domain::title::Title, schema::{common::UserId, page::{PageId, TagId}}, services::pages::{PageService, PageServiceError}, utils::error_chain_fmt};
 
@@ -43,8 +44,7 @@ pub async fn create_page(
     let mut transaction = pool.begin().await
         .context("Failed to begin transaction")?;
 
-    let key = upload_page(&page_service, &schema.data, schema.is_public).await
-        .context("Failed to upload page to storage")?;
+    let key = page_service.get_key(&Uuid::new_v4().to_string());
 
     let page_id = insert_page(&mut transaction, &schema, user_id.0, &key).await
         .context("Failed to insert page into database")?;
@@ -54,6 +54,9 @@ pub async fn create_page(
 
     insert_tags(&mut transaction, page_id, &schema.tags).await
         .context("Failed to insert tags")?;
+
+    upload_page(&page_service, &key, &schema.data, schema.is_public).await
+        .context("Failed to upload page to storage")?;
 
     transaction.commit().await
         .context("Failed to commit transaction")?;
@@ -67,12 +70,12 @@ pub async fn create_page(
     name = "Upload page data",
     skip(page_service)
 )]
-async fn upload_page(page_service: &PageService, data: &serde_json::Value, is_public: bool) -> Result<String, PageServiceError> {
+async fn upload_page(page_service: &PageService, key: &str, data: &serde_json::Value, is_public: bool) -> Result<(), PageServiceError> {
     let bytes = serde_json::to_vec(data)
         .context("Failed to serialize data to vec")?
         .into();
 
-    page_service.upload_page(bytes, is_public).await
+    page_service.upload_page(key, bytes, is_public).await
 }
 
 #[tracing::instrument(

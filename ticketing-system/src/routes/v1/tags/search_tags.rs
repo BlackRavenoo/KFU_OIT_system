@@ -35,7 +35,10 @@ pub async fn search_tags(
     Ok(HttpResponse::Ok().json(tags))
 }
 
-#[tracing::instrument]
+#[tracing::instrument(
+    name = "Fetch tags from database",
+    skip(pool)
+)]
 async fn fetch_tags(
     pool: &PgPool,
     schema: SearchTagsSchema,

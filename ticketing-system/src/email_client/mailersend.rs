@@ -116,7 +116,8 @@ mod tests {
     }
 
     struct SendEmailBodyMatcher;
-
+    
+    #[cfg_attr(coverage_nightly, coverage(off))]
     impl Match for SendEmailBodyMatcher {
         fn matches(&self, request: &Request) -> bool {
             let res: Result<serde_json::Value, _> = serde_json::from_slice(&request.body);
