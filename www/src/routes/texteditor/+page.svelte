@@ -88,73 +88,42 @@
         selectedRelated = selectedRelated.filter(r => r.id !== id);
     }
 
-    /**
-     * Устанавливает содержимое редактора
-     * @param newContent - Новое содержимое редактора
-     */
     function setContent(newContent: string) {
         content = newContent;
         if (editorDiv) editorDiv.innerHTML = newContent;
     }
 
-    /**
-     * Устанавливает видимость меню вставки таблицы
-     * @param show - Показать или скрыть меню
-     */
     function setShowTableMenu(show: boolean) {
         showTableMenu = show;
     }
 
-    /**
-     * Обрабатывает ввод в редакторе
-     */
     function handleEditorInput() {
         updateActiveStates();
         content = editorDiv?.innerHTML ?? "";
         handleEditorInputHistory(historyState, content);
     }
 
-    /**
-     * Переходит назад по истории
-     */
     function undo() {
         undoHistory(historyState, setContent, updateActiveStates);
     }
 
-    /**
-     * Переходит вперёд по истории
-     */
     function redo() {
         redoHistory(historyState, setContent, updateActiveStates);
     }
 
-    /**
-     * Обрабатывает потерю фокуса полем заголовка документа
-     */
     function handleTitleBlur() {
         editingTitle = false;
         if (!title.trim()) title = "Безымянный документ";
     }
 
-    /**
-     * Обрабатывает нажатие клавиш в поле заголовка документа
-     * @param e - Событие клавиатуры
-     */
     function handleTitleKeydown(e: KeyboardEvent) {
         (e.key === "Enter" || e.key === "Escape") && (e.target as HTMLInputElement).blur();
     }
 
-    /**
-     * Переходит назад по истории
-     */
     function goBack() {
         goto('/');
     }
 
-    /**
-     * Обрабатывает нажатие клавиши Tab в редакторе
-     * @param e - Событие клавиатуры
-     */
     function handleTab(e: KeyboardEvent) {
         if (e.key === "Tab") {
             e.preventDefault();
@@ -179,11 +148,6 @@
         }
     }
 
-    /**
-     * Обрабатывает нажатие клавиш в редакторе
-     * для обработки специальных дейтьсвий по комбинациям
-     * @param e - Событие клавиатуры
-     */
     function handleKeyDown(e: KeyboardEvent) {
         if (!editorDiv) return;
         e.stopPropagation();
@@ -193,9 +157,6 @@
         }
     }
 
-    /**
-     * Проверяет, находится ли текущее выделение внутри блока <code> или <blockquote>
-     */
     function selectionInsideCodeOrQuote(): boolean {
         const selection = window.getSelection();
         if (!selection || selection.rangeCount === 0) return false;
@@ -210,9 +171,6 @@
         return false;
     }
 
-    /**
-     * Обновляет состояния активных кнопок форматирования в зависимости от текущего выделения
-     */
     function updateActiveStates() {
         if (!editorDiv) return;
         const selection = window.getSelection();
@@ -252,9 +210,6 @@
         }
     }
 
-    /**
-     * Скачивает содержимое редактора в JSON файл
-     */
     function downloadJSON() {
         if (!editorDiv) {
             notification('Редактор не инициализирован', NotificationType.Error);
@@ -281,16 +236,10 @@
         }
     }
 
-    /**
-     * Открывает диалог выбора файла
-     */
     function openFileDialog() {
         fileInput?.click();
     }
 
-    /**
-     * Обрабатывает загрузку JSON файла
-     */
     function handleFileUpload(event: Event) {
         const input = event.target as HTMLInputElement;
         const file = input.files?.[0];
@@ -340,9 +289,6 @@
         reader.readAsText(file);
     }
 
-    /**
-     * Отправляет содержимое редактора на сервер POST-запросом
-     */
     async function sendToServer() {
         if (!editorDiv) {
             notification('Редактор не инициализирован', NotificationType.Error);
@@ -394,6 +340,7 @@
                 <path d="M18 22L10 14L18 6" stroke="var(--blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         </button>
+
         <div class="doc-title-block">
             {#if editingTitle}
                 <!-- svelte-ignore a11y_autofocus -->
@@ -412,304 +359,303 @@
                 >{ title }</button>
             {/if}
         </div>
-        <div class="toolbar">
-            <div class="toolbar-group">
-                {#if historyState.historyIndex > 0}
-                    <button type="button" title="Назад по истории" aria-label="Назад по истории" on:click={ undo }>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <path d="M7 10L13 4V8H17V12H13V16L7 10Z" fill="currentColor"/>
-                        </svg>
-                    </button>
-                {/if}
-                {#if historyState.historyIndex < historyState.history.length - 1}
-                    <button type="button" title="Вперёд по истории" aria-label="Вперёд по истории" on:click={ redo }>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <path d="M13 10L7 16V12H3V8H7V4L13 10Z" fill="currentColor"/>
-                        </svg>
-                    </button>
-                {/if}
-            </div>
-            <div class="toolbar-group">
-                <button type="button" title="Жирный" aria-label="Жирный" class:active={ isBold } on:click={ () => execCommand(editorDiv, 'bold', undefined, selectionInsideCodeOrQuote, updateActiveStates) }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <text x="3" y="16" font-size="16" font-weight="bold" fill="currentColor">B</text>
-                    </svg>
-                </button>
-                <button type="button" title="Курсив" aria-label="Курсив" class:active={ isItalic } on:click={ () => execCommand(editorDiv, 'italic', undefined, selectionInsideCodeOrQuote, updateActiveStates) }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <text x="4" y="16" font-size="16" font-style="italic" fill="currentColor">I</text>
-                    </svg>
-                </button>
-                <button type="button" title="Подчеркнутый" aria-label="Подчеркнутый" class:active={ isUnderline } on:click={ () => execCommand(editorDiv, 'underline', undefined, selectionInsideCodeOrQuote, updateActiveStates) }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <text x="4" y="16" font-size="16" fill="currentColor">U</text>
-                        <rect x="3" y="18" width="12" height="2" rx="1" fill="currentColor"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="toolbar-group">
-                <button type="button" title="Заголовок 1" aria-label="Заголовок 1" on:click={() => execCommand(editorDiv, 'formatBlock', '<H1>', selectionInsideCodeOrQuote, updateActiveStates)}>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <text x="2" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">H1</text>
-                    </svg>
-                </button>
-                <button type="button" title="Заголовок 2" aria-label="Заголовок 2" on:click={() => execCommand(editorDiv, 'formatBlock', '<H2>', selectionInsideCodeOrQuote, updateActiveStates)}>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <text x="2" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">H2</text>
-                    </svg>
-                </button>
-                <button type="button" title="Заголовок 3" aria-label="Заголовок 3" on:click={() => execCommand(editorDiv, 'formatBlock', '<H3>', selectionInsideCodeOrQuote, updateActiveStates)}>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <text x="2" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">H3</text>
-                    </svg>
-                </button>
-            </div>
-            <div class="toolbar-group">
-                <button type="button" title="Цитата" aria-label="Цитата" class:active={ isQuote } on:click={ () => insertBlock(editorDiv, 'blockquote', selectionInsideCodeOrQuote, updateActiveStates, setContent) }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <text x="3" y="16" font-size="16" fill="currentColor">&ldquo;</text>
-                    </svg>
-                </button>
-                <button type="button" title="Код" aria-label="Код" class:active={ isCode } on:click={ () => insertBlock(editorDiv, 'code', selectionInsideCodeOrQuote, updateActiveStates, setContent) }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <text x="3" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">/&gt;</text>
-                    </svg>
-                </button>
-            </div>
-            <div class="toolbar-group">
-                <button type="button" title="Маркированный список" aria-label="Маркированный список" on:click={ () => insertList(editorDiv, 'ul', selectionInsideCodeOrQuote, updateActiveStates) }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <circle cx="6" cy="7" r="1.5" fill="currentColor"/>
-                        <circle cx="6" cy="12" r="1.5" fill="currentColor"/>
-                        <circle cx="6" cy="17" r="1.5" fill="currentColor"/>
-                        <rect x="10" y="6" width="7" height="2" rx="1" fill="currentColor"/>
-                        <rect x="10" y="11" width="7" height="2" rx="1" fill="currentColor"/>
-                        <rect x="10" y="16" width="7" height="2" rx="1" fill="currentColor"/>
-                    </svg>
-                </button>
-                <button type="button" title="Нумерованный список" aria-label="Нумерованный список" on:click={ () => insertList(editorDiv, 'ol', selectionInsideCodeOrQuote, updateActiveStates) }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <text x="4" y="8" font-size="8" fill="currentColor">1.</text>
-                        <text x="4" y="13" font-size="8" fill="currentColor">2.</text>
-                        <text x="4" y="18" font-size="8" fill="currentColor">3.</text>
-                        <rect x="10" y="6" width="7" height="2" rx="1" fill="currentColor"/>
-                        <rect x="10" y="11" width="7" height="2" rx="1" fill="currentColor"/>
-                        <rect x="10" y="16" width="7" height="2" rx="1" fill="currentColor"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="toolbar-group">
-                <div class="table-menu-wrapper" style="position: relative;">
-                    <button type="button" title="Вставить таблицу" aria-label="Вставить таблицу" on:click={ () => setShowTableMenu(!showTableMenu) }>
-                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                            <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                            <rect x="3" y="8" width="14" height="2" fill="currentColor"/>
-                            <rect x="8" y="3" width="2" height="14" fill="currentColor"/>
-                        </svg>
-                    </button>
-                    {#if showTableMenu}
-                        <div class="table-dropdown" style="position:absolute;z-index:10;top:110%;left:0;background:#fff;border:1px solid #ccc;padding:10px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.07);">
-                            <label>
-                                Строк:
-                                <input type="number" min="1" max="10" bind:value={ tableRows } style="width:3em;">
-                            </label>
-                            <label style="margin-left:10px;">
-                                Столбцов:
-                                <input type="number" min="1" max="10" bind:value={ tableCols } style="width:3em;">
-                            </label>
-                            <button type="button" style="margin-left:10px;" on:click={ () => insertTable(editorDiv, tableRows, tableCols, selectionInsideCodeOrQuote, updateActiveStates, setContent, setShowTableMenu) }>Вставить</button>
-                        </div>
-                    {/if}
-                </div>
-            </div>
-            <div class="toolbar-group">
-                <button type="button" title="Выровнять по левому краю" aria-label="Выровнять по левому краю" class:active={ align === 'left' } on:click={ () => setAlign(editorDiv, 'left', selectionInsideCodeOrQuote, updateActiveStates) }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <rect x="3" y="5" width="14" height="2" rx="1" fill="currentColor"/>
-                        <rect x="3" y="9" width="10" height="2" rx="1" fill="currentColor"/>
-                        <rect x="3" y="13" width="14" height="2" rx="1" fill="currentColor"/>
-                    </svg>
-                </button>
-                <button type="button" title="Выровнять по центру" aria-label="Выровнять по центру" class:active={ align === 'center' } on:click={ () => setAlign(editorDiv, 'center', selectionInsideCodeOrQuote, updateActiveStates) }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <rect x="5" y="5" width="10" height="2" rx="1" fill="currentColor"/>
-                        <rect x="3" y="9" width="14" height="2" rx="1" fill="currentColor"/>
-                        <rect x="5" y="13" width="10" height="2" rx="1" fill="currentColor"/>
-                    </svg>
-                </button>
-                <button type="button" title="Выровнять по правому краю" aria-label="Выровнять по правому краю" class:active={ align === 'right' } on:click={ () => setAlign(editorDiv, 'right', selectionInsideCodeOrQuote, updateActiveStates) }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <rect x="3" y="5" width="14" height="2" rx="1" fill="currentColor"/>
-                        <rect x="7" y="9" width="10" height="2" rx="1" fill="currentColor"/>
-                        <rect x="3" y="13" width="14" height="2" rx="1" fill="currentColor"/>
-                    </svg>
-                </button>
-                <button type="button" title="Выровнять по ширине" aria-label="Выровнять по ширине" class:active={ align === 'justify' } on:click={ () => setAlign(editorDiv, 'justify', selectionInsideCodeOrQuote, updateActiveStates) }>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                        <rect x="3" y="5" width="14" height="2" rx="1" fill="currentColor"/>
-                        <rect x="3" y="9" width="14" height="2" rx="1" fill="currentColor"/>
-                        <rect x="3" y="13" width="14" height="2" rx="1" fill="currentColor"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="toolbar-group">
-                <input type="color" bind:value={ colorPickerValue } title="Выбрать цвет" aria-label="Выбрать цвет">
-                <button type="button" title="Цвет текста" aria-label="Цвет текста" on:click={ () => applyColor(editorDiv, colorPickerValue, selectionInsideCodeOrQuote, updateActiveStates) } style="padding: 0 6px;">
-                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                        <text x="8" y="20" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">A</text>
-                        <rect x="7" y="22" width="12" height="2" rx="1" fill={ colorPickerValue }/>
-                    </svg>
-                </button>
-                <button type="button" title="Цвет фона" aria-label="Цвет фона" on:click={ () => applyBgColor(editorDiv, colorPickerValue, selectionInsideCodeOrQuote, updateActiveStates, setContent) } style="padding: 0 6px;">
-                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                        <g transform="rotate(-30 14 14)">
-                            <ellipse cx="14" cy="10" rx="6" ry="2" stroke="currentColor" stroke-width="2" fill="none"/>
-                            <ellipse cx="14" cy="15.5" rx="5.2" ry="4.2" fill={ colorPickerValue } opacity="0.7"/>
-                            <line x1="8" y1="10" x2="10" y2="20" stroke="currentColor" stroke-width="2"/>
-                            <line x1="20" y1="10" x2="18" y2="20" stroke="currentColor" stroke-width="2"/>
-                            <path d="M10 20 Q14 23 18 20" stroke="currentColor" stroke-width="2" fill="none"/>
-                            <ellipse cx="14" cy="21" rx="2.5" ry="1" fill={ colorPickerValue }/>
-                        </g>
-                    </svg>
-                </button>
-            </div>
+
+        <div class="header-actions">
+            <button title="Скачать" aria-label="Скачать" on:click={ downloadJSON }>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12l7 7 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button title="Отправить" aria-label="Отправить" on:click={ sendToServer }>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2l-7 20  -3-9-9-1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button title="Загрузить" aria-label="Загрузить" on:click={ openFileDialog }>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
         </div>
     </header>
+
     <main>
-        <div
-            id="content"
-            class="content-editable doc-area"
-            contenteditable="true"
-            role="textbox"
-            aria-multiline="true"
-            tabindex="0"
-            bind:this={ editorDiv }
-            on:input={ handleEditorInput }
-            on:keydown={ handleKeyDown }
-            spellcheck="false"
-            aria-label={ title }
-        >{ @html content }</div>
-    </main>
-
-    <section class="metadata-section">
-        <div style="flex:1; min-width:220px;">
-            <h3>Тэги</h3>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                {#each selectedTags as tag (tag)}
-                    <button class="tag-btn" on:click={ () => removeTag(tag) }>
-                        { tag }
-                    </button>
-                {/each}
-                <button title="Добавить тэг" aria-label="Добавить тэг" class="meta-add-btn" 
-                    on:click={ () => { showTagInput = !showTagInput; tagQuery = ''; } }>
-                    + Добавить
-                </button>
-            </div>
-
-            {#if showTagInput}
-                <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-                    <!-- svelte-ignore a11y_autofocus -->
-                    <input
-                        type="text"
-                        placeholder="Поиск или создать тэг..."
-                        bind:value={ tagQuery }
-                        on:keydown={(e) => { if (e.key === 'Enter') addTag(); }}
-                        style="padding:8px 10px; border-radius:6px; border:1px solid rgba(0,0,0,0.08); width:100%;"
-                        aria-label="Поиск тэгов"
-                        autofocus
-                    />
-                    <button on:click={ () => addTag() } class="meta-add-btn">Добавить</button>
+        <aside class="editor-side">
+            <div class="toolbar">
+                <div class="toolbar-group">
+                    {#if historyState.historyIndex > 0}
+                        <button type="button" title="Назад по истории" aria-label="Назад по истории" on:click={ undo }>
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M7 10L13 4V8H17V12H13V16L7 10Z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                    {/if}
+                    {#if historyState.historyIndex < historyState.history.length - 1}
+                        <button type="button" title="Вперёд по истории" aria-label="Вперёд по истории" on:click={ redo }>
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M13 10L7 16V12H3V8H7V4L13 10Z" fill="currentColor"/>
+                            </svg>
+                        </button>
+                    {/if}
                 </div>
 
-                {#if filteredTags().length > 0}
-                    <ul class="tag-suggestions">
-                        {#each filteredTags() as ft}
-                            <li><button class="meta-add-btn meta-suggest-btn" on:click={ () => addTag(ft) }>{ ft }</button></li>
-                        {/each}
-                    </ul>
-                {/if}
-            {/if}
-        </div>
+                <div class="toolbar-group">
+                    <button type="button" title="Выровнять по левому краю" aria-label="Выровнять по левому краю" class:active={ align === 'left' } on:click={ () => setAlign(editorDiv, 'left', selectionInsideCodeOrQuote, updateActiveStates) }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <rect x="3" y="5" width="14" height="2" rx="1" fill="currentColor"/>
+                            <rect x="3" y="9" width="10" height="2" rx="1" fill="currentColor"/>
+                            <rect x="3" y="13" width="14" height="2" rx="1" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <button type="button" title="Выровнять по центру" aria-label="Выровнять по центру" class:active={ align === 'center' } on:click={ () => setAlign(editorDiv, 'center', selectionInsideCodeOrQuote, updateActiveStates) }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <rect x="5" y="5" width="10" height="2" rx="1" fill="currentColor"/>
+                            <rect x="3" y="9" width="14" height="2" rx="1" fill="currentColor"/>
+                            <rect x="5" y="13" width="10" height="2" rx="1" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <button type="button" title="Выровнять по правому краю" aria-label="Выровнять по правому краю" class:active={ align === 'right' } on:click={ () => setAlign(editorDiv, 'right', selectionInsideCodeOrQuote, updateActiveStates) }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <rect x="3" y="5" width="14" height="2" rx="1" fill="currentColor"/>
+                            <rect x="7" y="9" width="10" height="2" rx="1" fill="currentColor"/>
+                            <rect x="3" y="13" width="14" height="2" rx="1" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <button type="button" title="Выровнять по ширине" aria-label="Выровнять по ширине" class:active={ align === 'justify' } on:click={ () => setAlign(editorDiv, 'justify', selectionInsideCodeOrQuote, updateActiveStates) }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <rect x="3" y="5" width="14" height="2" rx="1" fill="currentColor"/>
+                            <rect x="3" y="9" width="14" height="2" rx="1" fill="currentColor"/>
+                            <rect x="3" y="13" width="14" height="2" rx="1" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="toolbar-group">
+                    <button type="button" title="Жирный" aria-label="Жирный" class:active={ isBold } on:click={ () => execCommand(editorDiv, 'bold', undefined, selectionInsideCodeOrQuote, updateActiveStates) }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <text x="3" y="16" font-size="16" font-weight="bold" fill="currentColor">B</text>
+                        </svg>
+                    </button>
+                    <button type="button" title="Курсив" aria-label="Курсив" class:active={ isItalic } on:click={ () => execCommand(editorDiv, 'italic', undefined, selectionInsideCodeOrQuote, updateActiveStates) }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <text x="4" y="16" font-size="16" font-style="italic" fill="currentColor">I</text>
+                        </svg>
+                    </button>
+                    <button type="button" title="Подчеркнутый" aria-label="Подчеркнутый" class:active={ isUnderline } on:click={ () => execCommand(editorDiv, 'underline', undefined, selectionInsideCodeOrQuote, updateActiveStates) }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <text x="4" y="16" font-size="16" fill="currentColor">U</text>
+                            <rect x="3" y="18" width="12" height="2" rx="1" fill="currentColor"/>
+                        </svg>
+                    </button>
+                </div>
 
-        <div style="flex:1; min-width:220px;">
-            <h3>Связанные статьи</h3>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-                {#if selectedRelated.length === 0}
-                    <div style="padding:10px;border-radius:6px;border:1px dashed rgba(0,0,0,0.04);color:var(--muted)">Нет связанных статей</div>
-                {/if}
-                {#each selectedRelated as r (r.id)}
-                    <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-radius:6px; background:#fff; border:1px solid rgba(0,0,0,0.04);">
-                        <div>{ r.title }</div>
-                        <div style="display:flex; gap:8px; align-items:center;">
-                            <button aria-label="Открыть" title="Открыть" class="meta-related-btn"
-                                on:click={ () => window.open(`/articles/${ r.id }`, '_blank') }>
-                                <svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 22 22" width="22">
-                                    <path d="M0 0h24v24H0z" fill="none"/>
-                                    <path fill="var(--blue)" d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
-                                </svg>
-                            </button>
-                            <button aria-label="Удалить" title="Удалить" 
-                                on:click={ () => removeRelated(r.id) } class="meta-related-btn">×</button>
+                <div class="toolbar-group">
+                    <button type="button" title="Заголовок 1" aria-label="Заголовок 1" on:click={() => execCommand(editorDiv, 'formatBlock', '<H1>', selectionInsideCodeOrQuote, updateActiveStates)}>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <text x="2" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">H1</text>
+                        </svg>
+                    </button>
+                    <button type="button" title="Заголовок 2" aria-label="Заголовок 2" on:click={() => execCommand(editorDiv, 'formatBlock', '<H2>', selectionInsideCodeOrQuote, updateActiveStates)}>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <text x="2" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">H2</text>
+                        </svg>
+                    </button>
+                    <button type="button" title="Заголовок 3" aria-label="Заголовок 3" on:click={() => execCommand(editorDiv, 'formatBlock', '<H3>', selectionInsideCodeOrQuote, updateActiveStates)}>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <text x="2" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">H3</text>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="toolbar-group">
+                    <button type="button" title="Маркированный список" aria-label="Маркированный список" on:click={ () => insertList(editorDiv, 'ul', selectionInsideCodeOrQuote, updateActiveStates) }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <circle cx="6" cy="7" r="1.5" fill="currentColor"/>
+                            <circle cx="6" cy="12" r="1.5" fill="currentColor"/>
+                            <circle cx="6" cy="17" r="1.5" fill="currentColor"/>
+                            <rect x="10" y="6" width="7" height="2" rx="1" fill="currentColor"/>
+                            <rect x="10" y="11" width="7" height="2" rx="1" fill="currentColor"/>
+                            <rect x="10" y="16" width="7" height="2" rx="1" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <button type="button" title="Нумерованный список" aria-label="Нумерованный список" on:click={ () => insertList(editorDiv, 'ol', selectionInsideCodeOrQuote, updateActiveStates) }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <text x="4" y="8" font-size="8" fill="currentColor">1</text>
+                            <text x="4" y="13" font-size="8" fill="currentColor">2</text>
+                            <text x="4" y="18" font-size="8" fill="currentColor">3</text>
+                            <rect x="10" y="4" width="7" height="2" rx="1" fill="currentColor"/>
+                            <rect x="10" y="9" width="7" height="2" rx="1" fill="currentColor"/>
+                            <rect x="10" y="14" width="7" height="2" rx="1" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <div class="table-menu-wrapper">
+                        <button type="button" title="Вставить таблицу" aria-label="Вставить таблицу" on:click={ () => setShowTableMenu(!showTableMenu) }>
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                                <rect x="3" y="8" width="14" height="2" fill="currentColor"/>
+                                <rect x="8" y="3" width="2" height="14" fill="currentColor"/>
+                            </svg>
+                        </button>
+                        {#if showTableMenu}
+                            <div class="table-dropdown">
+                                <label>
+                                    Строк:
+                                    <input type="number" min="1" max="10" bind:value={ tableRows } >
+                                </label>
+                                <label class="ml-10">
+                                    Столбцов:
+                                    <input type="number" min="1" max="10" bind:value={ tableCols } >
+                                </label>
+                                <button type="button" class="ml-10" on:click={ () => insertTable(editorDiv, tableRows, tableCols, selectionInsideCodeOrQuote, updateActiveStates, setContent, setShowTableMenu) }>Вставить</button>
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+
+                <div class="toolbar-group">
+                    <button type="button" title="Цитата" aria-label="Цитата" class:active={ isQuote } on:click={ () => insertBlock(editorDiv, 'blockquote', selectionInsideCodeOrQuote, updateActiveStates, setContent) }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <text x="3" y="16" font-size="16" fill="currentColor">&ldquo;</text>
+                        </svg>
+                    </button>
+                    <button type="button" title="Код" aria-label="Код" class:active={ isCode } on:click={ () => insertBlock(editorDiv, 'code', selectionInsideCodeOrQuote, updateActiveStates, setContent) }>
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <text x="3" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">/&gt;</text>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="toolbar-group">
+                    <input type="color" bind:value={ colorPickerValue } title="Выбрать цвет" aria-label="Выбрать цвет" />
+                    <button type="button" title="Цвет текста" aria-label="Цвет текста" class="btn-compact" on:click={ () => applyColor(editorDiv, colorPickerValue, selectionInsideCodeOrQuote, updateActiveStates) }>
+                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                            <text x="8" y="20" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">A</text>
+                            <rect x="7" y="22" width="12" height="2" rx="1" fill={ colorPickerValue }/>
+                        </svg>
+                    </button>
+                    <button type="button" title="Цвет фона" aria-label="Цвет фона" class="btn-compact" on:click={ () => applyBgColor(editorDiv, colorPickerValue, selectionInsideCodeOrQuote, updateActiveStates, setContent) }>
+                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                            <g transform="rotate(-30 14 14)">
+                                <ellipse cx="14" cy="10" rx="6" ry="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <ellipse cx="14" cy="15.5" rx="5.2" ry="4.2" fill={ colorPickerValue } opacity="0.7"/>
+                                <line x1="8" y1="10" x2="10" y2="20" stroke="currentColor" stroke-width="2"/>
+                                <line x1="20" y1="10" x2="18" y2="20" stroke="currentColor" stroke-width="2"/>
+                                <path d="M10 20 Q14 23 18 20" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <ellipse cx="14" cy="21" rx="2.5" ry="1" fill={ colorPickerValue }/>
+                            </g>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <section class="metadata-section">
+                <div>
+                    <h3>Тэги</h3>
+                    <div class="tag-container">
+                        {#each selectedTags as tag (tag)}
+                            <button class="tag-btn" on:click={ () => removeTag(tag) }>{ tag } ×</button>
+                        {/each}
+
+                        <div class="floating-wrapper">
+                            <button title="Добавить тэг" aria-label="Добавить тэг" class="meta-add-btn" on:click={ () => { showTagInput = !showTagInput; tagQuery = ''; } }>+ Добавить</button>
+
+                            {#if showTagInput}
+                                <div class="floating-menu tag-menu">
+                                    <div class="floating-form">
+                                        <!-- svelte-ignore a11y_autofocus -->
+                                        <input
+                                            type="text"
+                                            placeholder="Поиск или создать тэг..."
+                                            bind:value={ tagQuery }
+                                            on:keydown={(e) => { if (e.key === 'Enter') addTag(); }}
+                                            aria-label="Поиск тэгов"
+                                            autofocus
+                                        />
+                                        <button on:click={ () => addTag() } class="meta-add-btn" style="top: -.5rem; padding: 6px 25px;">Добавить</button>
+                                    </div>
+
+                                    {#if filteredTags().length > 0}
+                                        <ul class="tag-suggestions">
+                                            {#each filteredTags() as ft}
+                                                <li><button class="meta-add-btn meta-suggest-btn" on:click={ () => addTag(ft) }>{ ft }</button></li>
+                                            {/each}
+                                        </ul>
+                                    {/if}
+                                </div>
+                            {/if}
                         </div>
                     </div>
-                {/each}
-
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <button title="Добавить связанную статью" aria-label="Добавить связанную статью" class="meta-add-btn"
-                        on:click={ () => { showRelatedInput = !showRelatedInput; relatedQuery = ''; } }>
-                        + Добавить
-                    </button>
                 </div>
 
-                {#if showRelatedInput}
-                    <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-                        <!-- svelte-ignore a11y_autofocus -->
-                        <input
-                            type="text"
-                            placeholder="Поиск статьи..."
-                            bind:value={ relatedQuery }
-                            on:keydown={(e) => { if (e.key === 'Enter') { if (filteredRelated()[0]) addRelated(filteredRelated()[0]); else addRelated(); } }}
-                            style="padding:8px 10px; border-radius:6px; border:1px solid rgba(0,0,0,0.08); width:100%;"
-                            aria-label="Поиск связанных статей"
-                            autofocus
-                        />
-                        <button on:click={() => { if (filteredRelated()[0]) addRelated(filteredRelated()[0]); else addRelated(); }} style="padding:8px 10px;border-radius:6px;border:1px solid var(--blue);background:#f1f6ff;color:var(--blue);cursor:pointer;">Добавить</button>
-                    </div>
+                <div class="related-container">
+                    <h3>Связанные статьи</h3>
+                    <div class="related-list">
+                        {#if selectedRelated.length === 0}
+                            <div class="no-related">Нет связанных статей</div>
+                        {/if}
+                        {#each selectedRelated as r (r.id)}
+                            <div class="related-item">
+                                <div class="related-title">{ r.title }</div>
+                                <div class="related-actions">
+                                    <button aria-label="Удалить" title="Удалить" on:click={ () => removeRelated(r.id) } class="meta-related-btn">×</button>
+                                </div>
+                            </div>
+                        {/each}
 
-                    {#if filteredRelated().length > 0}
-                        <ul style="margin-top:8px; padding:6px; border:1px solid rgba(0,0,0,0.04); border-radius:6px; list-style:none; max-height:160px; overflow:auto;">
-                            {#each filteredRelated() as fr}
-                                <li style="padding:6px 8px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;">
-                                    <span>{ fr.title }</span>
-                                    <button on:click={ () => addRelated(fr) } class="meta-related-btn">+</button>
-                                </li>
-                            {/each}
-                        </ul>
-                    {/if}
-                {/if}
-            </div>
-        </div>
-    </section>
+                        <div class="floating-wrapper small">
+                            <button title="Добавить связанную статью" aria-label="Добавить связанную статью" class="meta-add-btn" on:click={ () => { showRelatedInput = !showRelatedInput; relatedQuery = ''; } }>+ Добавить</button>
+
+                            {#if showRelatedInput}
+                                <div class="floating-menu related-menu">
+                                    <div class="floating-form">
+                                        <!-- svelte-ignore a11y_autofocus -->
+                                        <input
+                                            type="text"
+                                            placeholder="Поиск статьи..."
+                                            bind:value={ relatedQuery }
+                                            on:keydown={(e) => { if (e.key === 'Enter') { if (filteredRelated()[0]) addRelated(filteredRelated()[0]); else addRelated(); } }}
+                                            aria-label="Поиск связанных статей"
+                                            autofocus
+                                        />
+                                        <button on:click={() => { if (filteredRelated()[0]) addRelated(filteredRelated()[0]); else addRelated(); }} class="meta-add-btn" style="top: -.5rem; padding: 6px 25px;">Добавить</button>
+                                    </div>
+
+                                    {#if filteredRelated().length > 0}
+                                        <ul class="related-suggestions">
+                                            {#each filteredRelated() as fr}
+                                                <li class="related-suggest">
+                                                    <span>{ fr.title }</span>
+                                                    <button on:click={ () => addRelated(fr) } class="meta-related-btn">+</button>
+                                                </li>
+                                            {/each}
+                                        </ul>
+                                    {/if}
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </aside>
+
+        <section style="flex:1 1 auto; min-width:0;">
+            <div
+                id="content"
+                class="content-editable doc-area"
+                contenteditable="true"
+                role="textbox"
+                aria-multiline="true"
+                tabindex="0"
+                bind:this={ editorDiv }
+                on:input={ handleEditorInput }
+                on:keydown={ handleKeyDown }
+                spellcheck="false"
+                aria-label={ title }
+            >{ @html content }</div>
+        </section>
+    </main>
 
     <div style="display:none">
         <blockquote>quote</blockquote>
         <code>code</code>
         <table></table>
     </div>
-    <div class="json-actions" style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
-        <button type="button" title="Скачать JSON" aria-label="Скачать JSON" on:click={ downloadJSON }>
-            Скачать JSON
-        </button>
-        <button type="button" title="Загрузить JSON" aria-label="Загрузить JSON" on:click={ openFileDialog }>
-            Загрузить JSON
-        </button>
-        <button type="button" title="Отправить на сервер" aria-label="Отправить на сервер" on:click={ sendToServer }>
-            Отправить на сервер
-        </button>
-    </div>
 </div>
 
-<!-- Скрытый input для загрузки файлов -->
 <input
     type="file"
     accept="application/json,.json"
