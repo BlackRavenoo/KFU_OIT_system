@@ -4,10 +4,13 @@
     import { goto } from '$app/navigation';
 
     import { execCommand, applyColor, applyBgColor, insertList, insertBlock, setAlign } from '$lib/utils/texteditor/text';
-    import { serialize, deserialize } from '$lib/utils/texteditor/serialize';
+    import { serialize } from '$lib/utils/texteditor/serialize';
     import { insertTable } from '$lib/utils/texteditor/table';
-    import { createHistory, handleEditorInput as handleEditorInputHistory, undo as undoHistory, redo as redoHistory, clearHistoryTimeout } from '$lib/utils/texteditor/history';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { api } from '$lib/utils/api';
+
+    import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
+    import { getAvatar } from '$lib/utils/account/avatar';
 
     let title: string = "Безымянный документ";
     let editingTitle = false;
@@ -20,15 +23,14 @@
     let isUnderline = false;
     let isCode = false;
     let isQuote = false;
+    let isH1 = false;
+    let isH2 = false;
+    let isH3 = false;
     let align: 'left' | 'center' | 'right' | 'justify' = 'left';
 
     let showTableMenu = false;
     let tableRows = 2;
     let tableCols = 2;
-
-    let fileInput: HTMLInputElement;
-
-    const historyState = createHistory("");
 
     let tagsAvailable: string[] = ['meeting', 'spec', 'urgent', 'ui', 'backend'];
     let relatedAvailable: { id: string; title: string }[] = [
@@ -45,6 +47,10 @@
 
     let showRelatedInput = false;
     let relatedQuery = '';
+
+    let userAvatarContainer: HTMLDivElement | null = null;
+    let userAvatarLoaded = false;
+    let userAvatarLoading = false;
 
     function filteredTags() {
         const q = tagQuery.trim().toLowerCase();
@@ -100,15 +106,6 @@
     function handleEditorInput() {
         updateActiveStates();
         content = editorDiv?.innerHTML ?? "";
-        handleEditorInputHistory(historyState, content);
-    }
-
-    function undo() {
-        undoHistory(historyState, setContent, updateActiveStates);
-    }
-
-    function redo() {
-        redoHistory(historyState, setContent, updateActiveStates);
     }
 
     function handleTitleBlur() {
@@ -121,7 +118,7 @@
     }
 
     function goBack() {
-        goto('/');
+        history.back();
     }
 
     function handleTab(e: KeyboardEvent) {
@@ -182,22 +179,25 @@
         isUnderline = false;
         isCode = false;
         isQuote = false;
+        isH1 = false;
+        isH2 = false;
+        isH3 = false;
         align = 'left';
 
-        let alignNode = node;
+        let alignNode = node as Node | null;
         while (alignNode && alignNode !== editorDiv) {
             if (
                 alignNode instanceof HTMLElement &&
                 /^(P|DIV|LI|BLOCKQUOTE|H1|H2|H3|H4|H5|H6|TD|TH)$/i.test(alignNode.nodeName)
             ) {
-                const style = window.getComputedStyle(alignNode);
-                if (style.textAlign === 'center') align = 'center';
-                else if (style.textAlign === 'right') align = 'right';
-                else if (style.textAlign === 'justify') align = 'justify';
-                else align = 'left';
+                const ta = (window.getComputedStyle(alignNode).textAlign || '').toLowerCase();
+                if (ta === 'center') align = 'center';
+                else if (ta === 'right' || ta === 'end') align = 'right';
+                else if (ta === 'justify') align = 'justify';
+                else if (ta === 'left' || ta === 'start') align = 'left';
                 break;
             }
-            alignNode = alignNode.parentNode as Node | null;
+            alignNode = (alignNode as HTMLElement).parentNode as Node | null;
         }
 
         while (node && node !== editorDiv) {
@@ -206,90 +206,14 @@
             if (node.nodeName === 'U') isUnderline = true;
             if (node.nodeName === 'CODE') isCode = true;
             if (node.nodeName === 'BLOCKQUOTE') isQuote = true;
+            if (node.nodeName === 'H1') isH1 = true;
+            if (node.nodeName === 'H2') isH2 = true;
+            if (node.nodeName === 'H3') isH3 = true;
             node = node.parentNode as Node | null;
         }
     }
 
-    function downloadJSON() {
-        if (!editorDiv) {
-            notification('Редактор не инициализирован', NotificationType.Error);
-            return;
-        }
-
-        try {
-            const serializedData = serialize(editorDiv.innerHTML);
-            const blob = new Blob([JSON.stringify({ serializedData }, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-
-            a.href = url;
-            a.download = `${title.replace(/[^a-zа-яё0-9]/gi, '_')}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            notification('Файл успешно скачан', NotificationType.Success);
-        } catch (error) {
-            console.error('Ошибка при скачивании:', error);
-            notification('Ошибка при скачивании файла', NotificationType.Error);
-        }
-    }
-
-    function openFileDialog() {
-        fileInput?.click();
-    }
-
-    function handleFileUpload(event: Event) {
-        const input = event.target as HTMLInputElement;
-        const file = input.files?.[0];
-
-        if (!file) return;
-
-        if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
-            notification('Пожалуйста, выберите JSON файл', NotificationType.Warning);
-            input.value = '';
-            return;
-        }
-
-        const reader = new FileReader();
-
-        reader.onload = (e) => {
-            try {
-                const jsonText = e.target?.result as string;
-                const data = JSON.parse(jsonText);
-
-                if (!data.serializedData || !Array.isArray(data.serializedData)) {
-                    notification('Неверный формат файла', NotificationType.Error);
-                    return;
-                }
-
-                if (data.title && typeof data.title === 'string')
-                    title = data.title;
-
-                const html = deserialize(data.serializedData);
-                setContent(html);
-
-                handleEditorInputHistory(historyState, html);
-
-                notification('Файл успешно загружен', NotificationType.Success);
-            } catch (error) {
-                console.error('Ошибка при загрузке файла:', error);
-                notification('Ошибка при чтении файла', NotificationType.Error);
-            } finally {
-                input.value = '';
-            }
-        };
-
-        reader.onerror = (e) => {
-            notification('Ошибка при чтении файла', NotificationType.Error);
-            input.value = '';
-        };
-
-        reader.readAsText(file);
-    }
-
-    async function sendToServer() {
+    async function saveDocument() {
         if (!editorDiv) {
             notification('Редактор не инициализирован', NotificationType.Error);
             return;
@@ -303,33 +227,63 @@
                 related: selectedRelated.map(r => r.id),
                 is_public: true
             };
-            const response = await fetch('/api/v1/pages', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(jsonData)
-            });
-            response.ok
-                ? notification('Документ успешно отправлен', NotificationType.Success)
-                : notification('Ошибка при отправке документа', NotificationType.Error);
+            
+            const response = await api.post('/api/v1/pages/', jsonData);
+
+            response.status === 200 || response.status === 201
+                ? goto(`/pages/${ (response.data as { id: string }).id }`)
+                : notification('Ошибка при сохранении документа', NotificationType.Error);
         } catch (error) {
-            notification('Ошибка при отправке документа', NotificationType.Error);
+            notification('Ошибка при сохранении документа', NotificationType.Error);
         }
     };
 
+    async function loadUserAvatar() {
+        if (!$isAuthenticated || !userAvatarContainer || userAvatarLoading) return;
+        const u = $currentUser as any;
+        if (!u) return;
+
+        userAvatarLoading = true;
+        userAvatarContainer.innerHTML = '';
+        try {
+            await getAvatar(
+                {
+                    ...u,
+                    avatar: u?.avatar_key ?? null,
+                    name: u?.name ?? ''
+                } as any,
+                userAvatarContainer,
+                48,
+                true
+            );
+            userAvatarLoaded = true;
+        } finally {
+            userAvatarLoading = false;
+        }
+    }
+
     onMount(() => {
+        if (!$isAuthenticated) {
+            window.location.replace('/error?status=401');
+            return;
+        }
+
         pageTitle.set(title + ' | Система управления заявками ЕИ КФУ');
-        if (editorDiv) 
-            editorDiv.innerHTML = content;
+        if (editorDiv) editorDiv.innerHTML = content;
+
+        setTimeout(() => loadUserAvatar(), 0);
 
         document.addEventListener('selectionchange', updateActiveStates);
     });
 
     $: pageTitle.set(title + ' | Система управления заявками ЕИ КФУ');
+    $: if ($isAuthenticated && userAvatarContainer && !userAvatarLoaded && !userAvatarLoading) {
+        loadUserAvatar();
+    }
 
     onDestroy(() => {
         pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
         document.removeEventListener('selectionchange', updateActiveStates);
-        clearHistoryTimeout(historyState);
     });
 </script>
 
@@ -361,14 +315,14 @@
         </div>
 
         <div class="header-actions">
-            <button title="Скачать" aria-label="Скачать" on:click={ downloadJSON }>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12l7 7 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <button title="Отправить" aria-label="Отправить" on:click={ sendToServer }>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2l-7 20  -3-9-9-1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <button title="Загрузить" aria-label="Загрузить" on:click={ openFileDialog }>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <button class="save-data" title="Сохранить" aria-label="Сохранить" on:click={ saveDocument }>
+                <span style="margin-right: 8px">Сохранить</span>
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true" style="position: relative; top: .1rem;">
+                    <path d="M4 4h12l4 4v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="var(--blue)" stroke-width="2" fill="none"/>
+                    <path d="M8 4h8v6H8z" stroke="var(--blue)" stroke-width="2" fill="none"/>
+                    <path d="M7 18h10" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"/>
+                    <rect x="7" y="12" width="4" height="4" stroke="var(--blue)" stroke-width="2" fill="none"/>
+                </svg>
             </button>
         </div>
     </header>
@@ -376,23 +330,6 @@
     <main>
         <aside class="editor-side">
             <div class="toolbar">
-                <div class="toolbar-group">
-                    {#if historyState.historyIndex > 0}
-                        <button type="button" title="Назад по истории" aria-label="Назад по истории" on:click={ undo }>
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                <path d="M7 10L13 4V8H17V12H13V16L7 10Z" fill="currentColor"/>
-                            </svg>
-                        </button>
-                    {/if}
-                    {#if historyState.historyIndex < historyState.history.length - 1}
-                        <button type="button" title="Вперёд по истории" aria-label="Вперёд по истории" on:click={ redo }>
-                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                <path d="M13 10L7 16V12H3V8H7V4L13 10Z" fill="currentColor"/>
-                            </svg>
-                        </button>
-                    {/if}
-                </div>
-
                 <div class="toolbar-group">
                     <button type="button" title="Выровнять по левому краю" aria-label="Выровнять по левому краю" class:active={ align === 'left' } on:click={ () => setAlign(editorDiv, 'left', selectionInsideCodeOrQuote, updateActiveStates) }>
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -444,17 +381,17 @@
                 </div>
 
                 <div class="toolbar-group">
-                    <button type="button" title="Заголовок 1" aria-label="Заголовок 1" on:click={() => execCommand(editorDiv, 'formatBlock', '<H1>', selectionInsideCodeOrQuote, updateActiveStates)}>
+                    <button type="button" title="Заголовок 1" aria-label="Заголовок 1" class:active={ isH1 } on:click={() => execCommand(editorDiv, 'formatBlock', '<H1>', selectionInsideCodeOrQuote, updateActiveStates)}>
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                             <text x="2" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">H1</text>
                         </svg>
                     </button>
-                    <button type="button" title="Заголовок 2" aria-label="Заголовок 2" on:click={() => execCommand(editorDiv, 'formatBlock', '<H2>', selectionInsideCodeOrQuote, updateActiveStates)}>
+                    <button type="button" title="Заголовок 2" aria-label="Заголовок 2" class:active={ isH2 } on:click={() => execCommand(editorDiv, 'formatBlock', '<H2>', selectionInsideCodeOrQuote, updateActiveStates)}>
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                             <text x="2" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">H2</text>
                         </svg>
                     </button>
-                    <button type="button" title="Заголовок 3" aria-label="Заголовок 3" on:click={() => execCommand(editorDiv, 'formatBlock', '<H3>', selectionInsideCodeOrQuote, updateActiveStates)}>
+                    <button type="button" title="Заголовок 3" aria-label="Заголовок 3" class:active={ isH3 } on:click={() => execCommand(editorDiv, 'formatBlock', '<H3>', selectionInsideCodeOrQuote, updateActiveStates)}>
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                             <text x="2" y="16" font-size="16" font-family="Arial" font-weight="bold" fill="currentColor">H3</text>
                         </svg>
@@ -565,7 +502,7 @@
                                             aria-label="Поиск тэгов"
                                             autofocus
                                         />
-                                        <button on:click={ () => addTag() } class="meta-add-btn" style="top: -.5rem; padding: 6px 25px;">Добавить</button>
+                                        <button on:click={ () => addTag() } class="meta-add-btn floating-submit">Добавить</button>
                                     </div>
 
                                     {#if filteredTags().length > 0}
@@ -581,58 +518,22 @@
                     </div>
                 </div>
 
-                <div class="related-container">
-                    <h3>Связанные статьи</h3>
-                    <div class="related-list">
-                        {#if selectedRelated.length === 0}
-                            <div class="no-related">Нет связанных статей</div>
-                        {/if}
-                        {#each selectedRelated as r (r.id)}
-                            <div class="related-item">
-                                <div class="related-title">{ r.title }</div>
-                                <div class="related-actions">
-                                    <button aria-label="Удалить" title="Удалить" on:click={ () => removeRelated(r.id) } class="meta-related-btn">×</button>
-                                </div>
+                {#if $isAuthenticated && $currentUser}
+                    <div class="user-section">
+                        <h3>Авторы</h3>
+                        <div class="user-item">
+                            <div class="avatar-container" bind:this={ userAvatarContainer }></div>
+                            <div class="user-text">
+                                <span class="user-name">{ $currentUser.name }</span>
+                                <span class="user-status">Вы</span>
                             </div>
-                        {/each}
-
-                        <div class="floating-wrapper small">
-                            <button title="Добавить связанную статью" aria-label="Добавить связанную статью" class="meta-add-btn" on:click={ () => { showRelatedInput = !showRelatedInput; relatedQuery = ''; } }>+ Добавить</button>
-
-                            {#if showRelatedInput}
-                                <div class="floating-menu related-menu">
-                                    <div class="floating-form">
-                                        <!-- svelte-ignore a11y_autofocus -->
-                                        <input
-                                            type="text"
-                                            placeholder="Поиск статьи..."
-                                            bind:value={ relatedQuery }
-                                            on:keydown={(e) => { if (e.key === 'Enter') { if (filteredRelated()[0]) addRelated(filteredRelated()[0]); else addRelated(); } }}
-                                            aria-label="Поиск связанных статей"
-                                            autofocus
-                                        />
-                                        <button on:click={() => { if (filteredRelated()[0]) addRelated(filteredRelated()[0]); else addRelated(); }} class="meta-add-btn" style="top: -.5rem; padding: 6px 25px;">Добавить</button>
-                                    </div>
-
-                                    {#if filteredRelated().length > 0}
-                                        <ul class="related-suggestions">
-                                            {#each filteredRelated() as fr}
-                                                <li class="related-suggest">
-                                                    <span>{ fr.title }</span>
-                                                    <button on:click={ () => addRelated(fr) } class="meta-related-btn">+</button>
-                                                </li>
-                                            {/each}
-                                        </ul>
-                                    {/if}
-                                </div>
-                            {/if}
                         </div>
                     </div>
-                </div>
+                {/if}
             </section>
         </aside>
 
-        <section style="flex:1 1 auto; min-width:0;">
+        <section class="editor-column">
             <div
                 id="content"
                 class="content-editable doc-area"
@@ -646,6 +547,62 @@
                 spellcheck="false"
                 aria-label={ title }
             >{ @html content }</div>
+
+            <section class="related-under-editor">
+                <h3>Связанные статьи</h3>
+                <div class="related-list">
+                    {#if selectedRelated.length === 0}
+                        <div class="no-related">Нет связанных статей</div>
+                    {/if}
+                    {#each selectedRelated as r (r.id)}
+                        <div class="related-item">
+                            <div class="related-title">{ r.title }</div>
+                            <div class="related-actions">
+                                <button aria-label="Открыть" title="Открыть" class="meta-related-btn" on:click={ () => window.open(`/articles/${ r.id }`, '_blank') }>
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                        <path d="M14 3h7v7" stroke="var(--blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M21 3L10 14" stroke="var(--blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <rect x="3.5" y="10.5" width="9.5" height="9" rx="2" stroke="var(--blue)" stroke-width="1.6" fill="none"/>
+                                    </svg>
+                                </button>
+                                <button aria-label="Удалить" title="Удалить" on:click={ () => removeRelated(r.id) } class="meta-related-btn">×</button>
+                            </div>
+                        </div>
+                    {/each}
+
+                    <div class="floating-wrapper small">
+                        <button title="Добавить связанную статью" aria-label="Добавить связанную статью" class="meta-add-btn" on:click={ () => { showRelatedInput = !showRelatedInput; relatedQuery = ''; } }>+ Добавить</button>
+
+                        {#if showRelatedInput}
+                            <div class="floating-menu related-menu">
+                                <div class="floating-form">
+                                    <!-- svelte-ignore a11y_autofocus -->
+                                    <input
+                                        type="text"
+                                        placeholder="Поиск статьи..."
+                                        bind:value={ relatedQuery }
+                                        on:keydown={(e) => { if (e.key === 'Enter') { if (filteredRelated()[0]) addRelated(filteredRelated()[0]); else addRelated(); } }}
+                                        aria-label="Поиск связанных статей"
+                                        autofocus
+                                    />
+                                    <button on:click={() => { if (filteredRelated()[0]) addRelated(filteredRelated()[0]); else addRelated(); }} class="meta-add-btn floating-submit">Добавить</button>
+                                </div>
+
+                                {#if filteredRelated().length > 0}
+                                    <ul class="related-suggestions">
+                                        {#each filteredRelated() as fr}
+                                            <li class="related-suggest">
+                                                <span>{ fr.title }</span>
+                                                <button on:click={ () => addRelated(fr) } class="meta-related-btn">+</button>
+                                            </li>
+                                        {/each}
+                                    </ul>
+                                {/if}
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+            </section>
         </section>
     </main>
 
@@ -655,15 +612,6 @@
         <table></table>
     </div>
 </div>
-
-<input
-    type="file"
-    accept="application/json,.json"
-    bind:this={ fileInput }
-    on:change={ handleFileUpload }
-    style="display: none;"
-    aria-hidden="true"
-/>
 
 <style scoped>
     @import './page.css';
