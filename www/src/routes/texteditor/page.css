@@ -119,6 +119,7 @@ main {
     border: 1.5px solid var(--blue);
     background: var(--white);
     color: var(--blue);
+    box-shadow: none;
     border-radius: 4px;
     cursor: pointer;
     font-size: 1.1em;
@@ -264,7 +265,8 @@ table {
     gap: 8px;
     padding: 6px 10px;
     background: var(--light-blue);
-    color: var(--blue);
+    color: var(--dark);
+    box-shadow: none;
     border: none;
     border-radius: 8px;
     cursor: pointer;
@@ -339,10 +341,19 @@ table {
     align-items: center;
 }
 
+.related-suggest span {
+    color: var(--dark);
+    transition: color 0.15s ease-in-out;
+}
+
+.related-suggest:hover span {
+    color: var(--blue);
+}
+
 .meta-related-btn {
     background: var(--gray);
     cursor: pointer;
-    color: var(--blue);
+    color: var(--dark);
     height: 35px;
     width: fit-content;
     padding: 2px 20px;
@@ -489,6 +500,10 @@ table {
     opacity: .8;
 }
 
+.tags-mobile {
+    display: none;
+}
+
 @media (max-width: 1200px) {
     .doc-area,
     #content.content-editable.doc-area {
@@ -498,12 +513,8 @@ table {
 }
 
 @media (max-width: 900px) {
-    .editor-header { 
-        padding: 0.7rem 1rem 0.7rem 0.7rem; 
-    }
-
     main { 
-        padding: 1.2rem 0.5rem; 
+        padding: 1.2rem 0.5rem 1.2rem 0rem; 
         width: calc(100vw - 1rem); 
     }
 
@@ -512,22 +523,64 @@ table {
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 720px) {
+    main {
+        flex-direction: column;
+        padding: 1rem 0.5rem 1rem 0.5rem;
+        width: calc(100vw - 1rem);
+    }
+
+    .editor-side {
+        width: 100vw;
+        left: -.5rem;
+        margin-bottom: -.5rem;
+    }
+
+    .editor-header {
+        border-bottom: none;
+    }
+
+    .tags-mobile-hide {
+        display: none;
+    }
+
+    .tags-mobile {
+        display: initial;
+        color: var(--blue);
+    }
+
     .toolbar { 
-        flex-wrap: wrap; 
-        gap: 4px; 
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 16px;
+        justify-content: right;
     }
 
-    .doc-title { 
-        font-size: 1rem; 
-    }
-
-    .doc-title-input { 
-        font-size: 1rem; 
+    .doc-title-input {
+        position: relative;
+        top: .5rem;
     }
 
     .doc-area, #content.content-editable.doc-area { 
-        padding: 8px 1vw; 
-        font-size: 0.98rem; 
+        padding: 16px 1vw;
+        font-size: 0.98rem;
+        margin: 0 2vw;
+        width: 91vw; 
+    }
+
+    .save-data {
+        padding: 14px 0;
+    }
+
+    .user-section {
+        padding: 10px 32px 32px 32px;
+    }
+
+    .user-list {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 16px;
+        overflow-x: hidden;
     }
 }

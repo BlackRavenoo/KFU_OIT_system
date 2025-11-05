@@ -263,10 +263,10 @@
     }
 
     onMount(() => {
-        if (!$isAuthenticated) {
-            window.location.replace('/error?status=401');
-            return;
-        }
+        // if (!$isAuthenticated) {
+        //     window.location.replace('/error?status=401');
+        //     return;
+        // }
 
         pageTitle.set(title + ' | Система управления заявками ЕИ КФУ');
         if (editorDiv) editorDiv.innerHTML = content;
@@ -479,7 +479,7 @@
                 </div>
             </div>
 
-            <section class="metadata-section">
+            <section class="metadata-section tags-mobile-hide">
                 <div>
                     <h3>Тэги</h3>
                     <div class="tag-container">
@@ -548,6 +548,46 @@
                 aria-label={ title }
             >{ @html content }</div>
 
+            <section class="metadata-section tags-mobile">
+                <div>
+                    <h3>Тэги</h3>
+                    <div class="tag-container">
+                        {#each selectedTags as tag (tag)}
+                            <button class="tag-btn" on:click={ () => removeTag(tag) }>{ tag } ×</button>
+                        {/each}
+
+                        <div class="floating-wrapper">
+                            <button title="Добавить тэг" aria-label="Добавить тэг" class="meta-add-btn" style="top: 0" on:click={ () => { showTagInput = !showTagInput; tagQuery = ''; } }>+ Добавить</button>
+
+                            {#if showTagInput}
+                                <div class="floating-menu tag-menu">
+                                    <div class="floating-form">
+                                        <!-- svelte-ignore a11y_autofocus -->
+                                        <input
+                                            type="text"
+                                            placeholder="Поиск или создать тэг..."
+                                            bind:value={ tagQuery }
+                                            on:keydown={(e) => { if (e.key === 'Enter') addTag(); }}
+                                            aria-label="Поиск тэгов"
+                                            autofocus
+                                        />
+                                        <button on:click={ () => addTag() } class="meta-add-btn floating-submit">Добавить</button>
+                                    </div>
+
+                                    {#if filteredTags().length > 0}
+                                        <ul class="tag-suggestions">
+                                            {#each filteredTags() as ft}
+                                                <li><button class="meta-add-btn meta-suggest-btn" on:click={ () => addTag(ft) }>{ ft }</button></li>
+                                            {/each}
+                                        </ul>
+                                    {/if}
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="related-under-editor">
                 <h3>Связанные статьи</h3>
                 <div class="related-list">
@@ -560,9 +600,9 @@
                             <div class="related-actions">
                                 <button aria-label="Открыть" title="Открыть" class="meta-related-btn" on:click={ () => window.open(`/articles/${ r.id }`, '_blank') }>
                                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                        <path d="M14 3h7v7" stroke="var(--blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        <path d="M21 3L10 14" stroke="var(--blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        <rect x="3.5" y="10.5" width="9.5" height="9" rx="2" stroke="var(--blue)" stroke-width="1.6" fill="none"/>
+                                        <path d="M14 3h7v7" stroke="var(--dark)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M21 3L10 14" stroke="var(--dark)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <rect x="3.5" y="10.5" width="9.5" height="9" rx="2" stroke="var(--dark)" stroke-width="1.6" fill="none"/>
                                     </svg>
                                 </button>
                                 <button aria-label="Удалить" title="Удалить" on:click={ () => removeRelated(r.id) } class="meta-related-btn">×</button>
@@ -603,6 +643,21 @@
                     </div>
                 </div>
             </section>
+
+            {#if $isAuthenticated && $currentUser}
+                <div class="user-section tags-mobile">
+                    <h3>Авторы</h3>
+                    <div class="user-list">
+                        <div class="user-item">
+                            <div class="avatar-container" bind:this={ userAvatarContainer }></div>
+                            <div class="user-text">
+                                <span class="user-name">{ $currentUser.name }</span>
+                                <span class="user-status">Вы</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {/if}
         </section>
     </main>
 
