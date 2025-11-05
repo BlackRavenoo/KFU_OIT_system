@@ -1,36 +1,4 @@
-use crate::helpers::{TestApp, spawn_app};
-
-async fn create_test_page(app: &TestApp) {
-    let (access, _) = app.get_admin_jwt_tokens().await;
-
-    let body = serde_json::json!({
-        "data": {
-            "text": "Some text"
-        },
-        "title": "Test title",
-        "tags": [],
-        "related": [],
-        "is_public": true
-    });
-
-    app.create_page(&body, Some(&access), 1).await;
-}
-
-async fn create_private_page(app: &TestApp) {
-    let (access, _) = app.get_admin_jwt_tokens().await;
-
-    let body = serde_json::json!({
-        "data": {
-            "text": "Some text"
-        },
-        "title": "Test title",
-        "tags": [],
-        "related": [],
-        "is_public": false
-    });
-
-    app.create_page(&body, Some(&access), 1).await;
-}
+use crate::helpers::spawn_app;
 
 #[tokio::test]
 async fn get_pages_returns_200() {
@@ -57,7 +25,7 @@ async fn get_pages_returns_correct_items_count() {
     let app = spawn_app().await;
 
     for _ in 0..10 {
-        create_test_page(&app).await;
+        app.create_test_page().await;
     }
 
     let resp = app.get_pages(&serde_json::json!({}), None).await;
@@ -102,11 +70,11 @@ async fn get_pages_returns_only_public_pages_for_user_without_token() {
     let app = spawn_app().await;
 
     for _ in 0..5 {
-        create_test_page(&app).await;
+        app.create_test_page().await;
     }
 
     for _ in 0..5 {
-        create_private_page(&app).await;
+        app.create_private_page().await;
     }
 
     let resp = app.get_pages(&serde_json::json!({}), None).await;

@@ -314,6 +314,38 @@ impl TestApp {
     
         self.create_tag(&json, Some(&access)).await;
     }
+
+    pub async fn create_test_page(&self) {
+        let (access, _) = self.get_admin_jwt_tokens().await;
+    
+        let body = serde_json::json!({
+            "data": {
+                "text": "Some text"
+            },
+            "title": "Test title",
+            "tags": [],
+            "related": [],
+            "is_public": true
+        });
+    
+        self.create_page(&body, Some(&access), 1).await;
+    }
+    
+    pub async fn create_private_page(&self) {
+        let (access, _) = self.get_admin_jwt_tokens().await;
+    
+        let body = serde_json::json!({
+            "data": {
+                "text": "Some text"
+            },
+            "title": "Test title",
+            "tags": [],
+            "related": [],
+            "is_public": false
+        });
+    
+        self.create_page(&body, Some(&access), 1).await;
+    }
 }
 
 pub async fn spawn_app() -> TestApp {
