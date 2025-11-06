@@ -2,21 +2,22 @@
     import { onMount, onDestroy } from 'svelte';
     import { pageTitle } from '$lib/utils/setup/stores';
     import { goto } from '$app/navigation';
-
     import { execCommand, applyColor, applyBgColor, insertList, insertBlock, setAlign } from '$lib/utils/texteditor/text';
-    import { serialize } from '$lib/utils/texteditor/serialize';
     import { insertTable } from '$lib/utils/texteditor/table';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
-    import { api } from '$lib/utils/api';
-
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { getAvatar } from '$lib/utils/account/avatar';
+    import { savePageAndGetId } from '$lib/utils/pages/document';
+    import { fetchRelated as fetchRelatedApi, addRelated as addRelatedUtil, removeRelated as removeRelatedUtil } from '$lib/utils/pages/related';
+    import type { ServerTagDto } from '$lib/utils/pages/tags';
+    import { fetchTags as fetchTagsApi, createTagIfAllowed, addTagFromSuggestion as addTagFromSuggestionUtil, removeTag as removeTagUtil } from '$lib/utils/pages/tags';
+    import Tags from './tags.svelte';
 
-    let title: string = "Безымянный документ";
+    let title: string = 'Безымянный документ';
     let editingTitle = false;
-    let content: string = "";
+    let content: string = '';
     let editorDiv: HTMLDivElement | null = null;
-    let colorPickerValue: string = "#000000";
+    let colorPickerValue: string = '#000000';
 
     let isBold = false;
     let isItalic = false;
@@ -32,66 +33,91 @@
     let tableRows = 2;
     let tableCols = 2;
 
-    let tagsAvailable: string[] = ['meeting', 'spec', 'urgent', 'ui', 'backend'];
-    let relatedAvailable: { id: string; title: string }[] = [
-        { id: 'p1', title: 'Как настроить интеграцию' },
-        { id: 'p2', title: 'Руководство по UI' },
-        { id: 'p3', title: 'Частые вопросы' }
-    ];
-
-    let selectedTags: string[] = [];
-    let selectedRelated: { id: string; title: string }[] = [];
-
+    let selectedTags: ServerTagDto[] = [];
     let showTagInput = false;
     let tagQuery = '';
+    let tagSuggestions: ServerTagDto[] = [];
+    let tagLoading = false;
 
+    let selectedRelated: { id: string; title: string }[] = [];
     let showRelatedInput = false;
     let relatedQuery = '';
+    let relatedSuggestions: { id: string; title: string }[] = [];
+    let relatedLoading = false;
 
-    let userAvatarContainer: HTMLDivElement | null = null;
-    let userAvatarLoaded = false;
-    let userAvatarLoading = false;
+    let tagSearchTimer: ReturnType<typeof setTimeout> | null = null;
+    let relatedSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
-    function filteredTags() {
-        const q = tagQuery.trim().toLowerCase();
-        return tagsAvailable.filter(t => !selectedTags.includes(t) && (!q || t.toLowerCase().includes(q)));
+    function debouncedTagSearch(_q: string) {
+        if (tagSearchTimer) clearTimeout(tagSearchTimer);
+        tagSearchTimer = setTimeout(() => { void handleTagSearch(); }, 250);
     }
 
-    function filteredRelated() {
-        const q = relatedQuery.trim().toLowerCase();
-        return relatedAvailable.filter(r => !selectedRelated.find(s => s.id === r.id) && (!q || r.title.toLowerCase().includes(q)));
+    function debouncedRelatedSearch(_q: string) {
+        if (relatedSearchTimer) clearTimeout(relatedSearchTimer);
+        relatedSearchTimer = setTimeout(() => { void handleRelatedSearch(); }, 250);
     }
 
-    function addTag(tag?: string) {
-        const t = (tag ?? tagQuery ?? '').trim();
-        if (!t) return;
-        if (!selectedTags.includes(t)) selectedTags = [...selectedTags, t];
-        if (!tagsAvailable.includes(t)) tagsAvailable = [t, ...tagsAvailable];
+    async function handleTagSearch() {
+        const q = tagQuery.trim();
+        if (!q || q.length < 2) { tagSuggestions = []; return; }
+        tagLoading = true;
+        try {
+            tagSuggestions = await fetchTagsApi(q);
+        } catch {
+            tagSuggestions = [];
+        } finally {
+            tagLoading = false;
+        }
+    }
+
+    async function createTag(name: string) {
+        const trimmed = (name ?? '').trim();
+        if (!trimmed) return;
+        try {
+            const created = await createTagIfAllowed(trimmed);
+            if (!selectedTags.some(t => t.id === created.id)) selectedTags = [...selectedTags, created];
+            tagQuery = '';
+            tagSuggestions = [];
+            showTagInput = false;
+        } catch {
+            notification('Не удалось создать тэг', NotificationType.Error);
+        }
+    }
+
+    function addTagFromSuggestion(tag: ServerTagDto) {
+        selectedTags = addTagFromSuggestionUtil(selectedTags, tag, tagSuggestions);
         tagQuery = '';
+        tagSuggestions = [];
         showTagInput = false;
     }
 
-    function removeTag(tag: string) {
-        selectedTags = selectedTags.filter(t => t !== tag);
+    function removeTag(id: number) {
+        selectedTags = removeTagUtil(selectedTags, id);
+    }
+
+    async function handleRelatedSearch() {
+        const q = relatedQuery.trim();
+        if (!q) { relatedSuggestions = []; return; }
+        relatedLoading = true;
+        try {
+            relatedSuggestions = await fetchRelatedApi(q);
+        } catch {
+            relatedSuggestions = [];
+        } finally {
+            relatedLoading = false;
+        }
     }
 
     function addRelated(item?: { id: string; title: string }) {
-        if (!item) {
-            const newId = `p${Date.now()}`;
-            const newItem = { id: newId, title: relatedQuery.trim() || 'Новая статья' };
-            relatedAvailable = [newItem, ...relatedAvailable];
-            selectedRelated = [...selectedRelated, newItem];
-            relatedQuery = '';
-            showRelatedInput = false;
-            return;
-        }
-        if (!selectedRelated.find(s => s.id === item.id)) selectedRelated = [...selectedRelated, item];
+        selectedRelated = addRelatedUtil(selectedRelated, item as any);
         relatedQuery = '';
+        relatedSuggestions = [];
         showRelatedInput = false;
     }
 
     function removeRelated(id: string) {
-        selectedRelated = selectedRelated.filter(r => r.id !== id);
+        selectedRelated = removeRelatedUtil(selectedRelated, id);
     }
 
     function setContent(newContent: string) {
@@ -99,56 +125,46 @@
         if (editorDiv) editorDiv.innerHTML = newContent;
     }
 
-    function setShowTableMenu(show: boolean) {
-        showTableMenu = show;
-    }
+    function setShowTableMenu(show: boolean) { showTableMenu = show; }
 
     function handleEditorInput() {
         updateActiveStates();
-        content = editorDiv?.innerHTML ?? "";
+        content = editorDiv?.innerHTML ?? '';
     }
 
     function handleTitleBlur() {
         editingTitle = false;
-        if (!title.trim()) title = "Безымянный документ";
+        if (!title.trim()) title = 'Безымянный документ';
     }
 
     function handleTitleKeydown(e: KeyboardEvent) {
-        (e.key === "Enter" || e.key === "Escape") && (e.target as HTMLInputElement).blur();
+        (e.key === 'Enter' || e.key === 'Escape') && (e.target as HTMLInputElement).blur();
     }
 
-    function goBack() {
-        history.back();
-    }
+    function goBack() { history.back(); }
 
     function handleTab(e: KeyboardEvent) {
-        if (e.key === "Tab") {
-            e.preventDefault();
-            if (!editorDiv) return;
-            if (selectionInsideCodeOrQuote()) return;
-            const selection = window.getSelection();
-            if (!selection || selection.rangeCount === 0) return;
-            const range = selection.getRangeAt(0);
-
-            const tabNode = document.createTextNode("    ");
-            range.deleteContents();
-            range.insertNode(tabNode);
-
-            range.setStartAfter(tabNode);
-            range.setEndAfter(tabNode);
-
-            selection.removeAllRanges();
-            selection.addRange(range);
-
-            content = editorDiv.innerHTML;
-            updateActiveStates();
-        }
+        if (e.key !== 'Tab') return;
+        e.preventDefault();
+        if (!editorDiv || selectionInsideCodeOrQuote()) return;
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+        const range = selection.getRangeAt(0);
+        const tabNode = document.createTextNode('    ');
+        range.deleteContents();
+        range.insertNode(tabNode);
+        range.setStartAfter(tabNode);
+        range.setEndAfter(tabNode);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        content = editorDiv.innerHTML;
+        updateActiveStates();
     }
 
     function handleKeyDown(e: KeyboardEvent) {
         if (!editorDiv) return;
         e.stopPropagation();
-        if (e.key === "Tab") {
+        if (e.key === 'Tab') {
             handleTab(e);
             return;
         }
@@ -159,10 +175,7 @@
         if (!selection || selection.rangeCount === 0) return false;
         let node: Node | null = selection.anchorNode;
         while (node && node !== editorDiv) {
-            if (
-                node.nodeName === 'CODE' ||
-                node.nodeName === 'BLOCKQUOTE'
-            ) return true;
+            if (node.nodeName === 'CODE' || node.nodeName === 'BLOCKQUOTE') return true;
             node = node.parentNode;
         }
         return false;
@@ -173,7 +186,6 @@
         const selection = window.getSelection();
         let node: Node | null = selection && selection.anchorNode;
         if (node && node.nodeType === Node.TEXT_NODE) node = node.parentNode as Node | null;
-
         isBold = false;
         isItalic = false;
         isUnderline = false;
@@ -183,13 +195,9 @@
         isH2 = false;
         isH3 = false;
         align = 'left';
-
         let alignNode = node as Node | null;
         while (alignNode && alignNode !== editorDiv) {
-            if (
-                alignNode instanceof HTMLElement &&
-                /^(P|DIV|LI|BLOCKQUOTE|H1|H2|H3|H4|H5|H6|TD|TH)$/i.test(alignNode.nodeName)
-            ) {
+            if (alignNode instanceof HTMLElement && /^(P|DIV|LI|BLOCKQUOTE|H1|H2|H3|H4|H5|H6|TD|TH)$/i.test(alignNode.nodeName)) {
                 const ta = (window.getComputedStyle(alignNode).textAlign || '').toLowerCase();
                 if (ta === 'center') align = 'center';
                 else if (ta === 'right' || ta === 'end') align = 'right';
@@ -199,7 +207,6 @@
             }
             alignNode = (alignNode as HTMLElement).parentNode as Node | null;
         }
-
         while (node && node !== editorDiv) {
             if (node.nodeName === 'B' || node.nodeName === 'STRONG') isBold = true;
             if (node.nodeName === 'I' || node.nodeName === 'EM') isItalic = true;
@@ -218,67 +225,63 @@
             notification('Редактор не инициализирован', NotificationType.Error);
             return;
         }
+        const tagIds: number[] = Array.from(new Set(selectedTags.map(t => t.id))).filter((n): n is number => Number.isInteger(n as number));
+        const relatedIds: number[] = Array.from(new Set(selectedRelated.map(r => Number(r.id)).filter((n) => Number.isInteger(n))));
         try {
-            const serializedData = serialize(editorDiv.innerHTML);
-            const jsonData = {
-                data: serializedData,
-                title: title,
-                tags: selectedTags,
-                related: selectedRelated.map(r => r.id),
+            const id = await savePageAndGetId({
+                html: editorDiv.innerHTML,
+                title,
+                tags: tagIds,
+                related: relatedIds,
                 is_public: true
-            };
-            
-            const response = await api.post('/api/v1/pages/', jsonData);
-
-            response.status === 200 || response.status === 201
-                ? goto(`/pages/${ (response.data as { id: string }).id }`)
-                : notification('Ошибка при сохранении документа', NotificationType.Error);
-        } catch (error) {
+            });
+            await goto(`/pages/${id}`);
+        } catch {
             notification('Ошибка при сохранении документа', NotificationType.Error);
         }
-    };
+    }
+
+    let userAvatarContainerDesktop: HTMLDivElement | null = null;
+    let userAvatarContainerMobile: HTMLDivElement | null = null;
+    let userAvatarLoadedDesktop = false;
+    let userAvatarLoadedMobile = false;
+    let userAvatarLoading = false;
 
     async function loadUserAvatar() {
-        if (!$isAuthenticated || !userAvatarContainer || userAvatarLoading) return;
+        if (!$isAuthenticated || userAvatarLoading) return;
         const u = $currentUser as any;
         if (!u) return;
-
         userAvatarLoading = true;
-        userAvatarContainer.innerHTML = '';
         try {
-            await getAvatar(
-                {
-                    ...u,
-                    avatar: u?.avatar_key ?? null,
-                    name: u?.name ?? ''
-                } as any,
-                userAvatarContainer,
-                48,
-                true
-            );
-            userAvatarLoaded = true;
+            if (userAvatarContainerDesktop && !userAvatarLoadedDesktop) {
+                userAvatarContainerDesktop.innerHTML = '';
+                await getAvatar({ ...u, avatar_key: u?.avatar_key ?? null, name: u?.name ?? '' }, userAvatarContainerDesktop, 48, true);
+                userAvatarLoadedDesktop = true;
+            }
+            if (userAvatarContainerMobile && !userAvatarLoadedMobile) {
+                userAvatarContainerMobile.innerHTML = '';
+                await getAvatar({ ...u, avatar_key: u?.avatar_key ?? null, name: u?.name ?? '' }, userAvatarContainerMobile, 48, true);
+                userAvatarLoadedMobile = true;
+            }
         } finally {
             userAvatarLoading = false;
         }
     }
 
     onMount(() => {
-        // if (!$isAuthenticated) {
-        //     window.location.replace('/error?status=401');
-        //     return;
-        // }
-
+        if (!$isAuthenticated) {
+            window.location.replace('/error?status=401');
+            return;
+        }
         pageTitle.set(title + ' | Система управления заявками ЕИ КФУ');
         if (editorDiv) editorDiv.innerHTML = content;
-
-        setTimeout(() => loadUserAvatar(), 0);
-
         document.addEventListener('selectionchange', updateActiveStates);
     });
 
     $: pageTitle.set(title + ' | Система управления заявками ЕИ КФУ');
-    $: if ($isAuthenticated && userAvatarContainer && !userAvatarLoaded && !userAvatarLoading) {
-        loadUserAvatar();
+
+    $: if ($isAuthenticated && ((userAvatarContainerDesktop && !userAvatarLoadedDesktop) || (userAvatarContainerMobile && !userAvatarLoadedMobile)) && !userAvatarLoading) {
+        void loadUserAvatar();
     }
 
     onDestroy(() => {
@@ -294,7 +297,6 @@
                 <path d="M18 22L10 14L18 6" stroke="var(--blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
         </button>
-
         <div class="doc-title-block">
             {#if editingTitle}
                 <!-- svelte-ignore a11y_autofocus -->
@@ -309,11 +311,10 @@
             {:else}
                 <button type="button" class="doc-title" title="Переименовать" aria-label="Переименовать"
                     on:click={ () => editingTitle = true }
-                    on:keydown={ (e) => (e.key === "Enter" || e.key === " ") && (editingTitle = true) }
+                    on:keydown={ (e) => (e.key === 'Enter' || e.key === ' ') && (editingTitle = true) }
                 >{ title }</button>
             {/if}
         </div>
-
         <div class="header-actions">
             <button class="save-data" title="Сохранить" aria-label="Сохранить" on:click={ saveDocument }>
                 <span style="margin-right: 8px">Сохранить</span>
@@ -481,48 +482,27 @@
 
             <section class="metadata-section tags-mobile-hide">
                 <div>
-                    <h3>Тэги</h3>
-                    <div class="tag-container">
-                        {#each selectedTags as tag (tag)}
-                            <button class="tag-btn" on:click={ () => removeTag(tag) }>{ tag } ×</button>
-                        {/each}
-
-                        <div class="floating-wrapper">
-                            <button title="Добавить тэг" aria-label="Добавить тэг" class="meta-add-btn" on:click={ () => { showTagInput = !showTagInput; tagQuery = ''; } }>+ Добавить</button>
-
-                            {#if showTagInput}
-                                <div class="floating-menu tag-menu">
-                                    <div class="floating-form">
-                                        <!-- svelte-ignore a11y_autofocus -->
-                                        <input
-                                            type="text"
-                                            placeholder="Поиск или создать тэг..."
-                                            bind:value={ tagQuery }
-                                            on:keydown={(e) => { if (e.key === 'Enter') addTag(); }}
-                                            aria-label="Поиск тэгов"
-                                            autofocus
-                                        />
-                                        <button on:click={ () => addTag() } class="meta-add-btn floating-submit">Добавить</button>
-                                    </div>
-
-                                    {#if filteredTags().length > 0}
-                                        <ul class="tag-suggestions">
-                                            {#each filteredTags() as ft}
-                                                <li><button class="meta-add-btn meta-suggest-btn" on:click={ () => addTag(ft) }>{ ft }</button></li>
-                                            {/each}
-                                        </ul>
-                                    {/if}
-                                </div>
-                            {/if}
-                        </div>
-                    </div>
+                    <Tags
+                        bind:selectedTags
+                        bind:showTagInput
+                        bind:tagQuery
+                        { tagSuggestions }
+                        { tagLoading }
+                        addButtonText="+ Добавить"
+                        onToggleMenu={ () => { showTagInput = !showTagInput; tagQuery = ''; tagSuggestions = []; } }
+                        { debouncedTagSearch }
+                        { handleTagSearch }
+                        { addTagFromSuggestion }
+                        { removeTag }
+                        createTag={ createTag }
+                    />
                 </div>
 
                 {#if $isAuthenticated && $currentUser}
                     <div class="user-section">
                         <h3>Авторы</h3>
                         <div class="user-item">
-                            <div class="avatar-container" bind:this={ userAvatarContainer }></div>
+                            <div class="avatar-container" bind:this={ userAvatarContainerDesktop }></div>
                             <div class="user-text">
                                 <span class="user-name">{ $currentUser.name }</span>
                                 <span class="user-status">Вы</span>
@@ -546,45 +526,25 @@
                 on:keydown={ handleKeyDown }
                 spellcheck="false"
                 aria-label={ title }
-            >{ @html content }</div>
+            >{@html content}</div>
 
             <section class="metadata-section tags-mobile">
                 <div>
-                    <h3>Тэги</h3>
-                    <div class="tag-container">
-                        {#each selectedTags as tag (tag)}
-                            <button class="tag-btn" on:click={ () => removeTag(tag) }>{ tag } ×</button>
-                        {/each}
-
-                        <div class="floating-wrapper">
-                            <button title="Добавить тэг" aria-label="Добавить тэг" class="meta-add-btn" style="top: 0" on:click={ () => { showTagInput = !showTagInput; tagQuery = ''; } }>+ Добавить</button>
-
-                            {#if showTagInput}
-                                <div class="floating-menu tag-menu">
-                                    <div class="floating-form">
-                                        <!-- svelte-ignore a11y_autofocus -->
-                                        <input
-                                            type="text"
-                                            placeholder="Поиск или создать тэг..."
-                                            bind:value={ tagQuery }
-                                            on:keydown={(e) => { if (e.key === 'Enter') addTag(); }}
-                                            aria-label="Поиск тэгов"
-                                            autofocus
-                                        />
-                                        <button on:click={ () => addTag() } class="meta-add-btn floating-submit">Добавить</button>
-                                    </div>
-
-                                    {#if filteredTags().length > 0}
-                                        <ul class="tag-suggestions">
-                                            {#each filteredTags() as ft}
-                                                <li><button class="meta-add-btn meta-suggest-btn" on:click={ () => addTag(ft) }>{ ft }</button></li>
-                                            {/each}
-                                        </ul>
-                                    {/if}
-                                </div>
-                            {/if}
-                        </div>
-                    </div>
+                    <Tags
+                        bind:selectedTags
+                        bind:showTagInput
+                        bind:tagQuery
+                        { tagSuggestions }
+                        { tagLoading }
+                        addButtonText="Поиск"
+                        addButtonStyle="top: 0"
+                        onToggleMenu={ () => { showTagInput = !showTagInput; tagQuery = ''; tagSuggestions = []; } }
+                        { debouncedTagSearch }
+                        { handleTagSearch }
+                        { addTagFromSuggestion }
+                        { removeTag }
+                        createTag={ createTag }
+                    />
                 </div>
             </section>
 
@@ -611,7 +571,7 @@
                     {/each}
 
                     <div class="floating-wrapper small">
-                        <button title="Добавить связанную статью" aria-label="Добавить связанную статью" class="meta-add-btn" on:click={ () => { showRelatedInput = !showRelatedInput; relatedQuery = ''; } }>+ Добавить</button>
+                        <button title="Добавить связанную статью" aria-label="Добавить связанную статью" class="meta-add-btn" on:click={ () => { showRelatedInput = !showRelatedInput; relatedQuery = ''; relatedSuggestions = []; } }>+ Добавить</button>
 
                         {#if showRelatedInput}
                             <div class="floating-menu related-menu">
@@ -621,22 +581,27 @@
                                         type="text"
                                         placeholder="Поиск статьи..."
                                         bind:value={ relatedQuery }
-                                        on:keydown={(e) => { if (e.key === 'Enter') { if (filteredRelated()[0]) addRelated(filteredRelated()[0]); else addRelated(); } }}
+                                        on:input={ () => debouncedRelatedSearch(relatedQuery) }
+                                        on:keydown={(e) => { if (e.key === 'Enter') handleRelatedSearch(); }}
                                         aria-label="Поиск связанных статей"
                                         autofocus
                                     />
-                                    <button on:click={() => { if (filteredRelated()[0]) addRelated(filteredRelated()[0]); else addRelated(); }} class="meta-add-btn floating-submit">Добавить</button>
+                                    <button on:click={ handleRelatedSearch } class="meta-add-btn floating-submit">Поиск</button>
                                 </div>
 
-                                {#if filteredRelated().length > 0}
+                                {#if relatedLoading}
+                                    <div class="no-related">Поиск...</div>
+                                {:else if relatedSuggestions.length > 0}
                                     <ul class="related-suggestions">
-                                        {#each filteredRelated() as fr}
+                                        {#each relatedSuggestions as fr (fr.id)}
                                             <li class="related-suggest">
                                                 <span>{ fr.title }</span>
                                                 <button on:click={ () => addRelated(fr) } class="meta-related-btn">+</button>
                                             </li>
                                         {/each}
                                     </ul>
+                                {:else}
+                                    <div class="no-related">Ничего не найдено</div>
                                 {/if}
                             </div>
                         {/if}
@@ -649,7 +614,7 @@
                     <h3>Авторы</h3>
                     <div class="user-list">
                         <div class="user-item">
-                            <div class="avatar-container" bind:this={ userAvatarContainer }></div>
+                            <div class="avatar-container" bind:this={ userAvatarContainerMobile }></div>
                             <div class="user-text">
                                 <span class="user-name">{ $currentUser.name }</span>
                                 <span class="user-status">Вы</span>

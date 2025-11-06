@@ -1,8 +1,8 @@
 # Frontend часть системы управления заявками ЕИ КФУ
-Актуально для v0.0.53
+Актуально для v0.0.54
 
 [![Test frontend](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml/badge.svg)](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml)
-![Code Coverage](https://img.shields.io/badge/Coverage-99.3%25-brightgreen)
+![Code Coverage](https://img.shields.io/badge/Coverage-99.33%25-brightgreen)
 
 ## Технологический стек
 
@@ -43,6 +43,7 @@ www/
 │   │       ├── captcha/   # Функции для работы с капчей
 │   │       ├── files/     # Работа с файлами
 │   │       ├── notifications/ # Система уведомлений
+│   │       ├── pages/ # Функции для взаимодействия с базой знаний
 │   │       ├── setup/     # Базовые функции первичной настройки приложения
 │   │       ├── texteditor/ # Редактор документов для базы знаний
 │   │       ├── tickets/   # Функции для работы с заявками
