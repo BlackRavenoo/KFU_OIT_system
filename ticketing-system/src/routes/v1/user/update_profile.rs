@@ -48,6 +48,7 @@ pub async fn update_user_profile(
 
 #[tracing::instrument(
     name = "Update user profile in the database",
+    skip(pool)
 )]
 async fn update_profile(
     user_id: UserId,

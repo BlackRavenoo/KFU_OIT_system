@@ -1,5 +1,5 @@
 use fake::{faker::internet::en::SafeEmail, Fake};
-use sqlx::{Connection, Executor, PgConnection, PgPool};
+use sqlx::{Connection, Executor, PgConnection, PgPool, postgres::PgPoolOptions};
 use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path, path_regex}};
 use std::{borrow::Cow, path::Path, sync::LazyLock};
 use uuid::Uuid;
@@ -408,9 +408,12 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .await
         .expect("Failed to create database");
 
-    let connection_pool = PgPool::connect_with(config.with_db())
+    let connection_pool = PgPoolOptions::new()
+        .max_connections(2)
+        .connect_with(config.with_db())
         .await
         .expect("Failed to connect to Postgres");
+
     sqlx::migrate!("./migrations")
         .run(&connection_pool)
         .await

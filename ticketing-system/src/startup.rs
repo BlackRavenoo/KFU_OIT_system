@@ -17,6 +17,7 @@ pub struct Application {
 impl Application {
     pub async fn build(config: Settings) -> Result<Self, std::io::Error> {
         let connection_pool = PgPoolOptions::new()
+            .max_connections(30)
             .connect_lazy_with(config.database.with_db());
 
         sqlx::migrate!("./migrations")
