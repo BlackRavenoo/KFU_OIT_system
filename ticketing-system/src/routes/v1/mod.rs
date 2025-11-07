@@ -16,7 +16,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/auth")
                     .route("/login", web::post().to(login))
                     .route("/me", web::get().to(me)
-                        .wrap(JwtMiddleware::default()))
+                        .wrap(JwtMiddleware::min_role(UserRole::Client)))
                     .route("/token", web::post().to(refresh_token))
                     .route("/register", web::post().to(register))
                     .route("/validate", web::post().to(validate_register_token))
