@@ -22,7 +22,8 @@
         getConfirmPasswordError 
     } from '$lib/utils/validation/error_messages';
     
-    import { UserStatus } from '$lib/utils/auth/types';
+    import { UserRole, UserStatus } from '$lib/utils/auth/types';
+    import { currentUser } from '$lib/utils/auth/storage/initial';
     
     export let userData: { id: string, name: string, email: string, login: string, role: string, status?: UserStatus };
     export let stats: { assignedToMe: number, completedTickets: number, cancelledTickets: number };
@@ -526,8 +527,10 @@
             editedEmail = userData?.email || '';
             editedLogin = userData?.login || '';
             
-            activeTickets = await getCachedTickets(userData.id);
-            stats = await getCachedStats(userData.id, stats);
+            if ($currentUser?.role !== UserRole.Client) {
+                activeTickets = await getCachedTickets(userData.id);
+                stats = await getCachedStats(userData.id, stats);
+            }
         })();
         
         return () => {
@@ -546,7 +549,7 @@
     <div class="profile-dashboard">
         <div class="profile-section">
             <h2>Информация профиля</h2>
-            {#if isEditing}
+            {#if isEditing && $currentUser?.role !== UserRole.Client}
                 <div class="edit-profile">
                     <div class="edit-avatar">
                         <input 
@@ -721,32 +724,36 @@
                                         <span class="info-value">{ userData?.login || '' }</span>
                                     </div>
                                 </div>
-                                <div class="info-item">
-                                    <div class="info-icon">
-                                        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"></path></svg>
+                                {#if $currentUser?.role !== UserRole.Client}
+                                    <div class="info-item">
+                                        <div class="info-icon">
+                                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"></path></svg>
+                                        </div>
+                                        <div class="status-info">
+                                            <span class="info-label">Статус</span>
+                                            <select 
+                                                class="role-badge status-badge-select { 'status-' + (userData.status || UserStatus.Active) }"
+                                                value={ userData.status || UserStatus.Active }
+                                                on:change={ (e: Event) => handleStatusChange((e.currentTarget as HTMLSelectElement).value as unknown as UserStatus) }
+                                            >
+                                                <option value={ UserStatus.Active }>Активен</option>
+                                                <option value={ UserStatus.Sick }>Больничный</option>
+                                                <option value={ UserStatus.Vacation }>Отпуск</option>
+                                                <option value={ UserStatus.Busy }>Занят</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div class="status-info">
-                                        <span class="info-label">Статус</span>
-                                        <select 
-                                            class="role-badge status-badge-select { 'status-' + (userData.status || UserStatus.Active) }"
-                                            value={ userData.status || UserStatus.Active }
-                                            on:change={ (e: Event) => handleStatusChange((e.currentTarget as HTMLSelectElement).value as unknown as UserStatus) }
-                                        >
-                                            <option value={ UserStatus.Active }>Активен</option>
-                                            <option value={ UserStatus.Sick }>Больничный</option>
-                                            <option value={ UserStatus.Vacation }>Отпуск</option>
-                                            <option value={ UserStatus.Busy }>Занят</option>
-                                        </select>
-                                    </div>
-                                </div>
+                                {/if}
                             </div>
                         </div>
                     </div>
 
-                    <button class="btn edit-btn" type="button" on:click={ startEditingProfile }>
-                        <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                        Редактировать профиль
-                    </button>
+                    {#if $currentUser?.role !== UserRole.Client}
+                        <button class="btn edit-btn" type="button" on:click={ startEditingProfile }>
+                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                            Редактировать профиль
+                        </button>
+                    {/if}
                 </div>
             {/if}
         </div>

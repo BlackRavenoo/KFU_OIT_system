@@ -1,5 +1,5 @@
 # Frontend часть системы управления заявками ЕИ КФУ
-Актуально для v0.0.54
+Актуально для v0.0.55
 
 [![Test frontend](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml/badge.svg)](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml)
 ![Code Coverage](https://img.shields.io/badge/Coverage-99.33%25-brightgreen)
@@ -52,6 +52,7 @@ www/
 │   └── routes/       # Маршруты/страницы приложения
 │       ├── account/             # Страница личного кабинета
 │       │   └── components/      # Вкладки личного кабинета
+│       ├── autoauth/            # Страница автоматической авторизации (для внешних переходов)
 │       ├── confirm/             # Страница подтверждения регистрации
 │       ├── contact/             # Страница контактов
 │       ├── error/               # Страница обработки специфичных ошибок

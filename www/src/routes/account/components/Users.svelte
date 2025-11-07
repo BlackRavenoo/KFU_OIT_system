@@ -366,7 +366,7 @@
                                 <td class="email-cell">{ user.email }</td>
                                 <td class="role-cell">
                                     <span class="role-badge { user.role === UserRole.Administrator ? 'admin-role' : user.role === UserRole.Moderator ? 'moderator-role' : 'user-role' }">
-                                        { user.role === UserRole.Administrator ? 'Администратор' : user.role === UserRole.Moderator ? 'Модератор' : 'Программист' }
+                                        { user.role === UserRole.Administrator ? 'Администратор' : user.role === UserRole.Moderator ? 'Модератор' : user.role === UserRole.Programmer ? 'Программист' : 'Сотрудник' }
                                     </span>
                                 </td>
                                 {#if canManageStatus}

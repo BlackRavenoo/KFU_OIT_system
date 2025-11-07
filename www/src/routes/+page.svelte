@@ -2,13 +2,13 @@
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { setupIntersectionObserver, loadStyleContent, cleanupStyleElements, type VisibleElements } from '$lib/utils/setup/page';
     import { navigateToForm } from '$lib/utils/setup/navigate';
-    import { fetchTicket } from '$lib/utils/tickets/api/set';
     import { handleFileChange, removeFile } from '$lib/utils/files/inputs';
     import { showModalWithFocus } from '$lib/components/Modal/Modal';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { buildings } from '$lib/utils/setup/stores';
-    import { validateFiles, validateName, validatePhone } from '$lib/utils/validation/validate';
     import { getPublicStats } from '$lib/utils/account/stats';
+    import { isAuthenticated } from '$lib/utils/auth/storage/initial';
+    import { goto } from '$app/navigation';
 
     import Modal from '$lib/components/Modal/Modal.svelte';
     import pageCSS from './page.css?inline';
@@ -24,12 +24,11 @@
 
     let moreOptionsVisible: boolean = false;
     let showModal: boolean = false;
+    let modalMessage: string = '';
     let isDarkTheme: boolean = false;
     
     let Title: string = '';
     let Description: string = '';
-    let Name: string = '';
-    let Contact: string = '';
     let Building: number;
     let Cabinet: string = '';
     let DateVal: string = '';
@@ -45,10 +44,6 @@
     let observer: IntersectionObserver;
     let themeObserver: MutationObserver;
 
-    /**
-     * Объект для отслеживания видимости элементов на странице.
-     * @type {VisibleElements}
-     */
     let visibleElements: VisibleElements = {
         hero: false,
         steps: false,
@@ -60,59 +55,33 @@
     let touched = {
         Title: false,
         Description: false,
-        Name: false,
-        Contact: false,
         Building: false
     };
 
     let errors = {
         Title: '',
         Description: '',
-        Name: '',
-        Contact: '',
         Building: ''
     };
 
-    let PrivacyConsent: boolean = false;
-
-    $: nameValid = validateName(Name);
-    $: phoneValid = validatePhone(Contact);
-
-    /**
-     * Обновляет состояние темы на основе класса html элемента
-     */
     function updateTheme() {
         isDarkTheme = document.querySelector("html")?.classList.contains("dark") || false;
     }
 
-    /**
-     * Проверяет все поля формы и выставляет ошибки.
-     * Возвращает true, если ошибок нет.
-     */
     function validateForm() {
         errors.Title = Title.trim() === '' ? 'Заполните заголовок' : '';
         errors.Description = Description.trim() === '' ? 'Заполните описание' : '';
-        errors.Name = Name.trim() === '' ? 'Введите ФИО' : (!nameValid ? 'Имя должно содержать минимум 3 буквы кириллицей' : '');
-        errors.Contact = Contact.trim() === '' ? 'Введите телефон' : (!phoneValid ? 'Некорректный телефон' : '');
         errors.Building = !Building ? 'Выберите здание' : '';
         return Object.values(errors).every(e => e === '');
     }
 
-    /**
-     * Функция для обновления видимости элемента по его идентификатору.
-     * @param id - Идентификатор элемента.
-     * @param value - Новое значение видимости.
-     */
     function setVisible(id: string, value: boolean) {
         visibleElements = { ...visibleElements, [id]: value };
     }
 
-    /**
-     * Обработчик изменения файла.
-     * @param event
-     */
     function onFileChange(event: Event) {
         const result = handleFileChange(event, File, fileName, () => {
+            modalMessage = 'Доступно максимум 5 изображений для загрузки.';
             showModalWithFocus(
                 (val) => showModal = val,
                 modalElement,
@@ -122,48 +91,30 @@
         fileName = result.fileNames;
     }
 
-    /**
-     * Обработчик удаления файла по индексу из списка загруженных файлов.
-     * @param {number} index - Индекс файла для удаления.
-     */
     function onRemoveFile(index: number) {
         const result = removeFile(index, File, fileName);
         File = result.files;
         fileName = result.fileNames;
     }
 
-    /**
-     * Обработчик отправки формы.
-     * Валидирует все поля, отмечает их как touched, и если ошибок нет — отправляет заявку.
-     */
     function onSubmitForm() {
-        (Object.keys(touched) as Array<keyof typeof touched>).forEach(k => touched[k] = true);
-            
-        if (!validateForm() || !validateFiles(File)) return;
-        if (!PrivacyConsent) return;
+        const params = new URLSearchParams();
+        if (Title.trim()) params.set('title', Title.trim());
+        if (Description.trim()) params.set('description', Description.trim());
+        if (Building) params.set('building', String(Building));
+        if (Cabinet.trim()) params.set('cabinet', Cabinet.trim());
+        if (DateVal.trim()) params.set('date', DateVal.trim());
 
-        fetchTicket(Title, Description, Name, Contact, Building, Cabinet, DateVal, File)
-            .then(() => {
-                Title = '';
-                Description = '';
-                Name = '';
-                Contact = '';
-                Building = 0;
-                Cabinet = '';
-                DateVal = '';
-                File = [];
-                fileName = [];
-                (Object.keys(touched) as Array<keyof typeof touched>).forEach(k => touched[k] = false);
-                notification("Заявка отправлена!", NotificationType.Success);
-            })
-            .catch((error) => {
-                notification("Ошибка при отправке заявки", NotificationType.Error);
-            });
+        if (!$isAuthenticated) {
+            modalMessage = 'Для отправки заявки необходимо авторизоваться.';
+            showModalWithFocus((v) => (showModal = v), modalElement);
+            return;
+        }
+
+        const qs = params.toString();
+        goto(`/account?tab=request${qs ? `&${qs}` : ''}`);
     }
 
-    /**
-     * Загружает статистику с сервера
-     */
     async function loadStats() {
         try {
             const stats = await getPublicStats();
@@ -175,10 +126,6 @@
         }
     }
 
-    /**
-     * Инициализирует страницу при монтировании компонента.
-     * Устанавливает стили, настраивает наблюдатель за пересечением элементов и обновляет метаданные страницы.
-    */
     onMount(() => {
         loadStyleContent(pageCSS, styleElements, 'page-styles');
         observer = setupIntersectionObserver(
@@ -212,9 +159,6 @@
         }, 100);
     });
 
-    /**
-     * Удаляет все стили и восстанавливает метаданные страницы при уничтожении компонента.
-     */
     onDestroy(() => {
         cleanupStyleElements(styleElements);
         observer?.disconnect();
@@ -225,9 +169,6 @@
     });
 </script>
 
-<!---------------->
-<!--   HEADER   -->
-<!---------------->
 <header>
     <div class="header_content" id="hero">
         {#if visibleElements.hero}
@@ -250,11 +191,7 @@
     </div>
 </header>
 
-<!-- Остальная часть HTML остается без изменений -->
 <main>
-    <!---------------->
-    <!--    STEPS   -->
-    <!---------------->
     <div class="how-it-works" id="steps">
         {#if visibleElements.steps}
             <h2 in:fly={{ y: 30, duration: 600 }}>Как это работает</h2>
@@ -272,9 +209,7 @@
             </div>
         {/if}
     </div>
-    <!---------------->
-    <!--   CARDS    -->
-    <!---------------->
+
     <div class="cards" id="cards">
         {#if visibleElements.cards}
             <h2 class="section-title" in:fly={{ y: 30, duration: 600 }}>Преимущества нашей системы</h2>
@@ -312,7 +247,7 @@
                 </div>
                 <div class="card hover-effect">
                     <span class="icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M152.1 38.2c9.9 8.9 10.7 24 1.8 33.9l-72 80c-4.4 4.9-10.6 7.8-17.2 7.9s-12.9-2.4-17.6-7L7 113C-2.3 103.6-2.3 88.4 7 79s24.6-9.4 33.9 0l22.1 22.1 55.1-61.2c8.9-9.9 24-10.7 33.9-1.8zm0 160c9.9 8.9 10.7 24 1.8 33.9l-72 80c-4.4 4.9-10.6 7.8-17.2 7.9s-12.9-2.4-17.6-7L7 273c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.4 33.9 0l22.1 22.1 55.1-61.2c8.9-9.9 24-10.7 33.9-1.8zM224 96c0-17.7 14.3-32 32-32l224 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-224 0c-17.7 0-32-14.3-32-32zm0 160c0-17.7 14.3-32 32-32l224 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-224 0c-17.7 0-32-14.3-32-32zM160 416c0-17.7 14.3-32 32-32l288 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-288 0c-17.7 0-32-14.3-32-32zM48 368a48 48 0 1 1 0 96 48 48 0 1 1 0-96z"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M152.1 38.2c9.9 8.9 10.7 24 1.8 33.9l-72 80c-4.4 4.9-10.6 7.8-17.2 7.9s-12.9-2.4-17.6-7L7 273c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.4 33.9 0l22.1 22.1 55.1-61.2c8.9-9.9 24-10.7 33.9-1.8zM224 96c0-17.7 14.3-32 32-32l224 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-224 0c-17.7 0-32-14.3-32-32zm0 160c0-17.7 14.3-32 32-32l224 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-224 0c-17.7 0-32-14.3-32-32zM160 416c0-17.7 14.3-32 32-32l288 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-288 0c-17.7 0-32-14.3-32-32zM48 368a48 48 0 1 1 0 96 48 48 0 1 1 0-96z"/></svg>
                     </span>
                     <h3 class="card_title">Многоканальность</h3>
                     <p>Оставляйте заявки через сайт, Telegram и WhatsApp</p>
@@ -327,9 +262,7 @@
             </div>
         {/if}
     </div>
-    <!---------------->
-    <!--   STATS    -->
-    <!---------------->
+
     <div class="stats" id="stats">
         {#if visibleElements.stats}
             <div class="stats-container" in:fly={{ y: 30, duration: 800 }}>
@@ -354,9 +287,7 @@
             </div>
         {/if}
     </div>
-    <!---------------->
-    <!--    FORM    -->
-    <!---------------->
+
     <div class="form" id="form">
         {#if visibleElements.form}
             <div class="form-content" in:fade={{ duration: 800 }}>
@@ -405,48 +336,6 @@
                         {#if touched.Description && errors.Description}
                             <div class="input-error">{errors.Description}</div>
                         {/if}
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-field">
-                            <input
-                                type="text"
-                                id="Name"
-                                name="Name"
-                                placeholder=" "
-                                required
-                                bind:value={ Name }
-                                class:red-border={ touched.Name && errors.Name }
-                                on:input={() => {
-                                    if (touched.Name) validateForm();
-                                }}
-                                on:blur={() => { touched.Name = true; validateForm(); }}
-                            >
-                            <label for="Name">ФИО</label>
-                            {#if touched.Name && errors.Name}
-                                <div class="input-error">{errors.Name}</div>
-                            {/if}
-                        </div>
-                        
-                        <div class="form-field">
-                            <input
-                                type="text"
-                                id="Contact"
-                                name="Contact"
-                                placeholder=" "
-                                required
-                                bind:value={ Contact }
-                                class:red-border={ touched.Contact && errors.Contact }
-                                on:input={() => {
-                                    if (touched.Contact) validateForm();
-                                }}
-                                on:blur={() => { touched.Contact = true; validateForm(); }}
-                            >
-                            <label for="Contact">Контактный телефон</label>
-                            {#if touched.Contact && errors.Contact}
-                                <div class="input-error">{errors.Contact}</div>
-                            {/if}
-                        </div>
                     </div>
 
                     <div class="form-row">
@@ -516,22 +405,8 @@
                             {/if}
                         </div>
                     </div>
-
-                    <div class="form-row checkbox-field">
-                        <label class="checkbox-label">
-                            <input 
-                                type="checkbox" 
-                                id="PrivacyConsent"
-                                name="PrivacyConsent"
-                                bind:checked={ PrivacyConsent }
-                            />
-                            <span class="checkmark"></span>
-                            Даю согласие на обработку 
-                            <a href="/privacy" target="_blank" rel="noopener noreferrer">персональных данных</a>
-                        </label>
-                    </div>
                     
-                    <button class="promo submit-btn" type="submit" disabled={ !PrivacyConsent }>
+                    <button class="promo submit-btn" type="submit">
                         Оставить заявку
                         <span class="btn-arrow">→</span>
                     </button>
@@ -544,7 +419,7 @@
 {#if showModal}
     <Modal 
         bind:this={ modalElement } 
-        modalMessage="Доступно максимум 5 изображений для загрузки." 
+        { modalMessage }
         on:close={ () => showModal = false }
     />
 {/if}

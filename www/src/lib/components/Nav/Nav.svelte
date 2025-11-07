@@ -15,8 +15,7 @@
     import { formatName } from '$lib/utils/validation/validate';
 
     import Modal from './Modal.svelte';
-
-    let isAdmin: boolean = false;
+    import { UserRole } from '$lib/utils/auth/types';
 
     let isShowModal: boolean = false;
     let modalElement: HTMLElement;
@@ -28,17 +27,6 @@
     let userPassword: string = '';
     let userEmail: string = '';
     let rememberMe: boolean = false;
-
-    /**
-     * Начальное состояние авторизации
-     * Используется для восстановления состояния при загрузке страницы
-    */
-    $: {
-        if ($currentUser) {
-            username = $currentUser.name || '';
-            isAdmin = $currentUser.role === "Admin";
-        }
-    }
 
     /**
      * Обработчик входа в систему
@@ -135,10 +123,12 @@
     </div>
     <ul>
         <li><a href="/" class="big nav-link">Главная</a></li>
-        {#if $isAuthenticated}
+        {#if $isAuthenticated && $currentUser?.role !== UserRole.Client}
             <li><a href="/tickets" class="nav-link">Заявки</a></li>
-        {:else}
+        {:else if $currentUser?.role !== UserRole.Client}
             <li><a href="/#form" class="nav-link" id="form-link" on:click={ navigateToForm }>Оставить заявку</a></li>
+        {:else}
+            <li><a href="/account?tab=request" class="nav-link">Заявка</a></li>
         {/if}
         <li><a href="/contact" class="big nav-link">Контакты</a></li>
         {#if $isAuthenticated}
@@ -147,7 +137,7 @@
                     <span class="account-avatar">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512l388.6 0c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304l-91.4 0z"/></svg>
                     </span>
-                    <span class="account-name">{ formatName(username) }</span>
+                    <span class="account-name">{ formatName($currentUser?.name || '') }</span>
                 </a>
             </li>
         {:else}

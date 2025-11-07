@@ -45,6 +45,7 @@ export interface IAuthApiEndpoints {
 }
 
 export enum UserRole {
+    Client = "client",
     Programmer = "employee",
     Moderator = "moderator",
     Administrator = "admin"
