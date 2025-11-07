@@ -1,4 +1,4 @@
-use crate::helpers::spawn_app;
+use crate::helpers::{NEXT_USER_ID, spawn_app};
 
 #[tokio::test]
 async fn login_returns_200() {
@@ -64,7 +64,7 @@ async fn login_for_deactived_user_returns_403() {
 
     let email = app.create_user(ticketing_system::auth::types::UserRole::Employee).await;
 
-    app.deactivate_user_account(2).await;
+    app.deactivate_user_account(NEXT_USER_ID).await;
 
     let body = serde_json::json!({
         "login": email,

@@ -25,7 +25,8 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/tickets")
                     .route("/consts", web::get().to(get_consts))
                     .route("/stats", web::get().to(tickets::get_stats))
-                    .route("/", web::post().to(create_ticket))
+                    .route("/", web::post().to(create_ticket)
+                        .wrap(JwtMiddleware::min_role(UserRole::Client)))
                     .route("/{id}", web::put().to(update_ticket)
                         .wrap(JwtMiddleware::default()))
                     .route("/", web::get().to(get_tickets)
@@ -37,7 +38,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .route("/{id}", web::get().to(get_ticket)
                         .wrap(JwtMiddleware::default()))
                     .route("/{id}", web::delete().to(delete_ticket)
-                        .wrap(JwtMiddleware::min_role(UserRole::Admin)))       
+                        .wrap(JwtMiddleware::min_role(UserRole::Admin)))
             )
             .service(
                 web::scope("/images")
@@ -46,8 +47,8 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             .service(
                 web::scope("/user/admin")
                 .wrap(JwtMiddleware::min_role(UserRole::Admin))
-                .route("/invite", web::post().to(invite_user))
-                .route("/role", web::patch().to(change_user_role))
+                    .route("/invite", web::post().to(invite_user))
+                    .route("/role", web::patch().to(change_user_role))
             )
             .service(
                 web::scope("/user")
@@ -81,13 +82,13 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             )
             .service(
                 web::scope("/tags")
-                .route("/", web::post().to(create_tag)
-                    .wrap(JwtMiddleware::min_role(UserRole::Moderator)))
-                .route("/", web::get().to(search_tags))
-                .route("/{id}", web::put().to(update_tag)
-                    .wrap(JwtMiddleware::min_role(UserRole::Moderator)))
-                .route("/{id}", web::delete().to(delete_tag)
-                    .wrap(JwtMiddleware::min_role(UserRole::Moderator)))
+                    .route("/", web::post().to(create_tag)
+                        .wrap(JwtMiddleware::min_role(UserRole::Moderator)))
+                    .route("/", web::get().to(search_tags))
+                    .route("/{id}", web::put().to(update_tag)
+                        .wrap(JwtMiddleware::min_role(UserRole::Moderator)))
+                    .route("/{id}", web::delete().to(delete_tag)
+                        .wrap(JwtMiddleware::min_role(UserRole::Moderator)))
             )
     );
 }

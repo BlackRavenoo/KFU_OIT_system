@@ -1,4 +1,4 @@
-use crate::helpers::{spawn_app, TestApp};
+use crate::helpers::{NEXT_USER_ID, TestApp, spawn_app};
 
 async fn update_profile(app: &TestApp, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {
     let mut builder = reqwest::Client::new()
@@ -48,11 +48,14 @@ async fn update_profile_updates_data() {
 
     update_profile(&app, &body, Some(&access)).await;
 
-    let fields = sqlx::query!("
-        SELECT email, name, login
-        FROM users
-        WHERE id = 2
-    ")
+    let fields = sqlx::query!(
+        "
+            SELECT email, name, login
+            FROM users
+            WHERE id = $1
+        ",
+        NEXT_USER_ID
+    )
     .fetch_one(&app.db_pool)
     .await
     .unwrap();

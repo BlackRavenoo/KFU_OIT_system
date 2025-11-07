@@ -1,4 +1,4 @@
-use crate::helpers::spawn_app;
+use crate::helpers::{NEXT_USER_ID, spawn_app};
 
 #[tokio::test]
 async fn me_returns_200() {
@@ -53,7 +53,8 @@ async fn me_returns_401_for_non_existent_user() {
 
     sqlx::query!(
         "DELETE FROM users
-        WHERE id = 2"
+        WHERE id = $1",
+        NEXT_USER_ID
     )
     .execute(&app.db_pool)
     .await

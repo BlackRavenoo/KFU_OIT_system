@@ -20,6 +20,8 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {
     };
 });
 
+pub const NEXT_USER_ID: UserId = 3;
+
 pub struct InvitationLinks {
     pub html: reqwest::Url,
     pub plain_text: reqwest::Url,

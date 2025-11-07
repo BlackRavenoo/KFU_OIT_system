@@ -75,10 +75,14 @@ pub async fn get_pages(
         return Err(GetPagesError::InvalidPage)
     }
 
-    let only_public = if role.0.is_none() {
-        true
+    let only_public = if let Some(role) = role.0 {
+        if role.has_access(crate::auth::types::UserRole::Employee) {
+            false
+        } else {
+            true
+        }
     } else {
-        false
+        true
     };
 
     let pages = fetch_pages(&pool, page, page_size, only_public, schema).await

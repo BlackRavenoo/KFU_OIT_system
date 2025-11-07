@@ -1,4 +1,4 @@
-use crate::helpers::{spawn_app, TestApp};
+use crate::helpers::{NEXT_USER_ID, TestApp, spawn_app};
 
 async fn change_user_role(app: &TestApp, body: &serde_json::Value, access: Option<&str>) -> reqwest::Response {
     let mut builder = reqwest::Client::new()
@@ -40,7 +40,7 @@ async fn change_user_role_for_non_existent_user_returns_400() {
     let (access, _) = app.get_admin_jwt_tokens().await;
 
     let body = serde_json::json!({
-        "id": 2,
+        "id": NEXT_USER_ID,
         "role": "moderator",
     });
 
@@ -77,7 +77,7 @@ async fn change_user_role_for_equal_role_user_returns_400() {
     let (access, _) = app.get_admin_jwt_tokens().await;
 
     let body = serde_json::json!({
-        "id": 2,
+        "id": NEXT_USER_ID,
         "role": "moderator",
     });
 

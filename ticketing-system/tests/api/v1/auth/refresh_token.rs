@@ -1,4 +1,4 @@
-use crate::helpers::spawn_app;
+use crate::helpers::{NEXT_USER_ID, spawn_app};
 
 #[tokio::test]
 async fn refresh_token_returns_200() {
@@ -153,7 +153,7 @@ async fn refresh_token_for_deactivated_user_returns_403() {
 
     let (_, refresh) = app.get_jwt_tokens(&email, "admin").await;
 
-    app.deactivate_user_account(2).await;
+    app.deactivate_user_account(NEXT_USER_ID).await;
 
     let resp = reqwest::Client::new()
         .post(format!("{}/v1/auth/token", app.address))
