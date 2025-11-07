@@ -161,7 +161,12 @@
 }
 
 .file-upload input[type="file"] { 
-    display: none; 
+    opacity: 0;
+    position: absolute;
+    width: 250px;
+    height: 50px;
+    transform: translate(0, -1.5rem);
+    cursor: pointer;
 }
 
 label {
@@ -195,9 +200,9 @@ label {
 }
 
 .file-list { 
-    display: flex; 
-    flex-direction: column; 
-    gap: 6px; 
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
 }
 
 .file-item { 
@@ -205,16 +210,27 @@ label {
 }
 
 .file-name {
-    background: var(--white);
-    border: 1px solid var(--light-gray);
-    border-radius: 8px;
+    display: inline-block;
     padding: 6px 10px;
-    font-size: 13px;
-    cursor: pointer;
-    text-align: left;
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
+    background-color: #075cef0d;
+    border-radius: 5px;
+    font-size: .9rem;
+    color: var(--text);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    position: relative;
+    margin-top: 0;
+    box-shadow: none;
+}
+
+.file-name::before {
+    content: "✓";
+    display: inline-block;
+    margin-right: 5px;
+    color: var(--blue);
+    font-weight: 600;
 }
 
 .file-name:hover { 

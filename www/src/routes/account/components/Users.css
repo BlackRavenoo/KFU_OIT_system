@@ -271,6 +271,10 @@ h3 {
     background-color: #064cd0;
 }
 
+table, tr, td {
+    border: none;
+}
+
 @media (max-width: 768px) {
     .users-table td:nth-child(2) {
         display: none;

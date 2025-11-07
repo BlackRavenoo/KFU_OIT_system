@@ -10,18 +10,20 @@ describe("UserRole enum", () => {
 
     it("Should have all expected enum keys", () => {
         const roleKeys = Object.keys(UserRole);
+        expect(roleKeys).toContain("Client");
         expect(roleKeys).toContain("Programmer");
         expect(roleKeys).toContain("Moderator");
         expect(roleKeys).toContain("Administrator");
-        expect(roleKeys).toHaveLength(3);
+        expect(roleKeys).toHaveLength(4);
     });
 
     it("Should have all expected enum values", () => {
         const roleValues = Object.values(UserRole);
+        expect(roleValues).toContain("client");
         expect(roleValues).toContain("employee");
         expect(roleValues).toContain("moderator");
         expect(roleValues).toContain("admin");
-        expect(roleValues).toHaveLength(3);
+        expect(roleValues).toHaveLength(4);
     });
 });
 
