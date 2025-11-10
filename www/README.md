@@ -1,5 +1,5 @@
 # Frontend часть системы управления заявками ЕИ КФУ
-Актуально для v0.0.55
+Актуально для v0.0.56
 
 [![Test frontend](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml/badge.svg)](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml)
 ![Code Coverage](https://img.shields.io/badge/Coverage-99.33%25-brightgreen)
@@ -57,12 +57,13 @@ www/
 │       ├── contact/             # Страница контактов
 │       ├── error/               # Страница обработки специфичных ошибок
 │       ├── faq/                 # Страница FAQ
+│       ├── page/                # Страница списка документов (страниц)
+│       │   └── [id]/            # Динамический маршрут по ID документа
 │       ├── privacy/             # Политика конфиденциальности
 │       ├── reset/               # Страница сброса пароля
 │       ├── texteditor/          # Редактор документов для базы знаний
-│       ├── ticket/              # Страница отдельной заявки
+│       ├── ticket/              # Страница списка заявок
 │       │   └── [id]/            # Динамический маршрут по ID заявки
-│       ├── tickets/             # Страница списка заявок
 │       ├── +error.svelte        # Страница ошибок
 │       ├── +layout.js           # Глобальная логика
 │       ├── +layout.svelte       # Общий шаблон страниц

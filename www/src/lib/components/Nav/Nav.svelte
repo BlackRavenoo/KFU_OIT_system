@@ -124,7 +124,7 @@
     <ul>
         <li><a href="/" class="big nav-link">Главная</a></li>
         {#if $isAuthenticated && $currentUser?.role !== UserRole.Client}
-            <li><a href="/tickets" class="nav-link">Заявки</a></li>
+            <li><a href="/ticket" class="nav-link">Заявки</a></li>
         {:else if $currentUser?.role !== UserRole.Client}
             <li><a href="/#form" class="nav-link" id="form-link" on:click={ navigateToForm }>Оставить заявку</a></li>
         {:else}
