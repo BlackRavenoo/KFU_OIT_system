@@ -163,6 +163,8 @@ impl TestApp {
     }
 
     pub async fn create_ticket(&self, body: &serde_json::Value, attachments: Option<Vec<Attachment>>) -> reqwest::Response {
+        let (access, _) = self.get_admin_jwt_tokens().await;
+        
         let json_string = serde_json::to_string(body).unwrap();
 
         let mut form = reqwest::multipart::Form::new();
@@ -188,6 +190,7 @@ impl TestApp {
         reqwest::Client::new()
             .post(format!("{}/v1/tickets/", self.address))
             .multipart(form)
+            .bearer_auth(&access)
             .send()
             .await
             .unwrap()
@@ -411,7 +414,7 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .expect("Failed to create database");
 
     let connection_pool = PgPoolOptions::new()
-        .max_connections(2)
+        .max_connections(1)
         .connect_with(config.with_db())
         .await
         .expect("Failed to connect to Postgres");
