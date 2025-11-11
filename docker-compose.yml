@@ -88,6 +88,7 @@ services:
       /bin/sh -c "
       /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
       /usr/bin/mc mb myminio/${S3_BUCKET:-ticketing-attachments} --ignore-existing;
+      /usr/bin/mc mb myminio/${S3__PRIVATE_BUCKET:-private-attachments} --ignore-existing;
       /usr/bin/mc policy set public myminio/${S3_BUCKET:-ticketing-attachments};
       /usr/bin/mc admin user svcacct add --access-key some_access_key --secret-key some_secret_key myminio ${MINIO_ROOT_USER:-minioadmin} || true;
       exit 0;
