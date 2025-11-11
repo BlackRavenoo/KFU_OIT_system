@@ -80,14 +80,10 @@ pub async fn insert_tag_synonyms(
 
     let mut builder = sqlx::QueryBuilder::new("INSERT INTO tags_synonyms(tag_id, name) VALUES ");
 
-    let mut separated = builder.separated(", ");
-
-    for synonym in name_synonyms {
-        separated.push_unseparated("(")
-            .push_bind(tag_id)
-            .push_bind(synonym.as_ref())
-            .push_unseparated(")");
-    }
+    builder.push_values(name_synonyms, |mut b, synonym| {
+        b.push_bind(tag_id)
+            .push_bind(synonym.as_ref());
+    });
 
     builder.build()
         .execute(transaction.as_mut())

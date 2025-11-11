@@ -123,14 +123,10 @@ async fn insert_related_pages(
 
     let mut builder = sqlx::QueryBuilder::new("INSERT INTO related_pages(source_page_id, related_page_id) VALUES ");
 
-    let mut separated = builder.separated(", ");
-
-    for related_id in related_pages {
-        separated.push_unseparated("(")
-            .push_bind(page_id)
-            .push_bind(related_id)
-            .push_unseparated(")");
-    }
+    builder.push_values(related_pages, |mut b, related_id| {
+        b.push_bind(page_id)
+            .push_bind(related_id);
+    });
 
     builder.build()
         .execute(transaction.as_mut())
@@ -152,16 +148,12 @@ async fn insert_tags(
         return Ok(());
     }
 
-    let mut builder = sqlx::QueryBuilder::new("INSERT INTO pages_tags(tag_id, page_id) VALUES ");
+    let mut builder = sqlx::QueryBuilder::new("INSERT INTO pages_tags(tag_id, page_id) ");
 
-    let mut separated = builder.separated(", ");
-
-    for tag_id in tags {
-        separated.push_unseparated("(")
-            .push_bind(tag_id)
-            .push_bind(page_id)
-            .push_unseparated(")");
-    }
+    builder.push_values(tags, |mut b, tag_id| {
+        b.push_bind(tag_id)
+            .push_bind(page_id);
+    });
 
     builder.build()
         .execute(transaction.as_mut())
