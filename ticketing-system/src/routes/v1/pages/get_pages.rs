@@ -21,7 +21,6 @@ pub struct PageSchema {
     pub id: i32,
     pub is_public: bool,
     pub title: String,
-    pub key: String,
     pub tags: Vec<Tag>,
 }
 
@@ -30,7 +29,6 @@ pub struct PageWithMeta {
     pub id: i32,
     pub is_public: bool,
     pub title: String,
-    pub key: String,
     pub tags: sqlx::types::Json<Vec<Tag>>,
     pub total_items: i64,
 }
@@ -96,7 +94,6 @@ pub async fn get_pages(
         id: page.id,
         is_public: page.is_public,
         title: page.title,
-        key: page.key,
         tags: page.tags.0,
     })
     .collect();
@@ -124,7 +121,6 @@ async fn fetch_pages(
             p.id,
             is_public,
             title,
-            key,
             COALESCE(
                 JSON_AGG(
                     JSON_BUILD_OBJECT(
