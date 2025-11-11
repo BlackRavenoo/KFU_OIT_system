@@ -504,6 +504,69 @@ table {
     display: none;
 }
 
+.title-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    max-width: 100%;
+    width: fit-content;
+}
+
+.visibility-control {
+    position: relative;
+    top: .5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: .4rem;
+}
+
+.visibility-control input[type="checkbox"] {
+    display: none;
+}
+
+.visibility-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--light-blue);
+    background: var(--gray);
+    color: var(--dark);
+    cursor: pointer;
+    user-select: none;
+    line-height: 1;
+    font-size: .9rem;
+}
+
+.visibility-label .vis-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--dark);
+}
+
+.visibility-label[data-state="public"] {
+    background: #e8f9f0;
+    color: #157f43;
+    border-color: #c3e9d4;
+}
+
+.visibility-label[data-state="public"] .vis-dot {
+    background: #157f43;
+}
+
+.visibility-label[data-state="private"] {
+    background: #fff3f0;
+    color: #c24020;
+    border-color: #f3c9bd;
+}
+
+.visibility-label[data-state="private"] .vis-dot {
+    background: #c24020;
+}
+
 @media (max-width: 1200px) {
     .doc-area,
     #content.content-editable.doc-area {
@@ -538,6 +601,8 @@ table {
 
     .editor-header {
         border-bottom: none;
+        align-items: baseline;
+        flex-direction: column;
     }
 
     .tags-mobile-hide {

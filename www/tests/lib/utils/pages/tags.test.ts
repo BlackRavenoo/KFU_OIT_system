@@ -4,8 +4,8 @@ vi.mock('$lib/utils/auth/types', () => ({
     UserRole: { User: 1, Moderator: 2, Administrator: 3, Programmer: 4 }
 }));
 
-vi.mock('$lib/utils/auth/storage/initial', () => {
-    const { writable } = require('svelte/store');
+vi.mock('$lib/utils/auth/storage/initial', async () => {
+    const { writable } = await import('svelte/store');
     const currentUser = writable({ role: 3 });
     return { currentUser };
 });

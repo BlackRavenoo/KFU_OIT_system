@@ -54,9 +54,7 @@
     display: flex;
     flex-direction: column;
     padding: 1.5rem 0;
-    width: calc(100% + 4rem);
-    left: -2rem;
-    position: relative;
+    width: 100%;
 
 }
 
@@ -223,5 +221,11 @@
         margin-left: 0;
         width: 100%;
         padding: 2rem 0;
+    }
+
+    .side-nav {
+        width: calc(100% + 4rem);
+        left: -2rem;
+        position: relative;
     }
 }

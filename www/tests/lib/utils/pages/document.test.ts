@@ -119,7 +119,7 @@ describe('Pages API', () => {
             title: 'Def',
             tags: [],
             related: [],
-            is_public: true
+            is_public: false
         });
     });
 

@@ -1,0 +1,130 @@
+.viewer-header { 
+    position: sticky; 
+    top: 0; 
+    z-index: 10; 
+}
+
+.viewer-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background: var(--light-gray);
+    padding: 1.5rem 2rem;
+    min-height: 100vh;
+    width: calc(100vw - 4rem);
+    overflow: hidden;
+}
+
+.doc-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--light-blue);
+    line-height: 1;
+    font-size: .9rem;
+    user-select: none;
+    white-space: nowrap;
+    margin-right: 8px;
+}
+
+.doc-status-chip .dot { 
+    width: 8px; 
+    height: 8px; 
+    border-radius: 50%; 
+    background: var(--dark); 
+}
+
+.doc-status-chip[data-state="public"] { 
+    background: #e8f9f0; 
+    color: #157f43; 
+    border-color: #c3e9d4; 
+}
+
+.doc-status-chip[data-state="public"] .dot { 
+    background: #157f43; 
+}
+
+.doc-status-chip[data-state="private"] { 
+    background: #fff3f0; 
+    color: #c24020; 
+    border-color: #f3c9bd; 
+}
+
+.doc-status-chip[data-state="private"] .dot { 
+    background: #c24020; 
+}
+
+.doc-title-block {
+    position: relative;
+    top: .5rem;
+}
+
+.doc-title:hover {
+    background: transparent;
+    transform: none;
+}
+
+.edit-link {
+    display: inline-flex;
+    align-items: center;
+    height: 34px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--blue);
+    color: var(--blue);
+    background: var(--white);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+}
+
+.edit-link:hover { 
+    background: var(--blue); 
+    color: #fff; 
+    border-color: var(--blue); 
+}
+
+.tag-btn {
+    background: var(--light-blue);
+    color: var(--dark);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 8px;
+    padding: 0px 8px;
+}
+
+.bottom-actions {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border, #e3e3e3);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.danger-btn {
+    background: var(--red, #d32f2f);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+}
+
+.danger-btn[disabled] {
+    opacity: .7;
+    cursor: default;
+}
+
+@media (max-width: 900px) {
+    .viewer-main { 
+        padding: 1.2rem 0.5rem 1.2rem 0; 
+        width: calc(100vw - 1rem); 
+    }
+
+    .edit-link { 
+        height: 32px; 
+        padding: 6px 10px; 
+        font-size: .9rem; 
+    }
+}

@@ -189,7 +189,7 @@
     }
 
     function openPage(id: number) {
-        goto(`/pages/${id}`);
+        goto(`/page/${id}`);
     }
 
     $: canManageTags = $currentUser?.role === UserRole.Administrator || $currentUser?.role === UserRole.Moderator;
@@ -245,7 +245,7 @@
         const tag_id = Number(selectedSynonymTagId);
         if (!tag_id) return;
         deletingTag = true;
-               try {
+        try {
             const resp = await api.delete(`/api/v1/tags/${tag_id}`);
             if (resp.success) {
                 removeSelectedTag(tag_id);
@@ -391,6 +391,10 @@
         {/if}
 
         <button on:click={ handleApplyFilters }>Применить</button>
+
+        {#if $currentUser && $currentUser.role !== UserRole.Client}
+            <button class="secondary-btn" on:click={ () => goto('/texteditor') } aria-label="Создать новую статью">+ Создать</button>
+        {/if}
     </aside>
 
     <main>

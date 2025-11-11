@@ -25,12 +25,20 @@ const PagesRoute = '/api/v1/pages/';
  */
 export async function savePage(req: SavePageRequest): Promise<SavePageCreated> {
     const serializedData = serialize(req.html);
+
+    const tags = Array.from(
+        new Set((req.tags ?? []).map((t) => Number(t)).filter((n) => Number.isInteger(n) && n > 0))
+    );
+    const related = Array.from(
+        new Set((req.related ?? []).map((r) => Number(r)).filter((n) => Number.isInteger(n) && n > 0))
+    );
+
     const payload = {
         data: serializedData,
         title: req.title,
-        tags: req.tags ?? [],
-        related: req.related ?? [],
-        is_public: req.is_public ?? true
+        tags,
+        related,
+        is_public: req.is_public ?? false
     };
 
     const response: any = await api.post(PagesRoute, payload);

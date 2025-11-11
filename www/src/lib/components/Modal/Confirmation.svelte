@@ -68,6 +68,7 @@
     .modal-image p {
         font-size: 1.15em; 
         margin-bottom: 1.5em;
+        color: var(--text);
     }
 
     .button-container {

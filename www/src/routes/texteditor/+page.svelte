@@ -1,5 +1,7 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
+    import { page as pageStore } from '$app/stores';
+    import { get } from 'svelte/store';
     import { pageTitle } from '$lib/utils/setup/stores';
     import { goto } from '$app/navigation';
     import { execCommand, applyColor, applyBgColor, insertList, insertBlock, setAlign } from '$lib/utils/texteditor/text';
@@ -11,7 +13,12 @@
     import { fetchRelated as fetchRelatedApi, addRelated as addRelatedUtil, removeRelated as removeRelatedUtil } from '$lib/utils/pages/related';
     import type { ServerTagDto } from '$lib/utils/pages/tags';
     import { fetchTags as fetchTagsApi, createTagIfAllowed, addTagFromSuggestion as addTagFromSuggestionUtil, removeTag as removeTagUtil } from '$lib/utils/pages/tags';
+    import { api } from '$lib/utils/api';
+    import { deserialize } from '$lib/utils/texteditor/serialize';
     import Tags from './tags.svelte';
+    import { UserRole } from '$lib/utils/auth/types';
+
+    const ATTACHMENTS_BASE = 'https://ticketing-attachments.s3.cloud.ru';
 
     let title: string = 'Безымянный документ';
     let editingTitle = false;
@@ -32,6 +39,8 @@
     let showTableMenu = false;
     let tableRows = 2;
     let tableCols = 2;
+
+    let isPublic = false;
 
     let selectedTags: ServerTagDto[] = [];
     let showTagInput = false;
@@ -220,22 +229,81 @@
         }
     }
 
+    type ViewPage = {
+        id: number;
+        title: string;
+        is_public: boolean;
+        key: string;
+        tags: { id: number; name: string }[];
+        related?: { id: number; title?: string }[];
+    };
+
+    async function loadDocumentForEdit(editId: string) {
+        try {
+            const resp = await api.get<ViewPage>(`/api/v1/pages/${editId}`);
+            const ok = resp.status === 200 || resp.status === 201 || resp.status === 304;
+            if (!ok) throw new Error(resp.error || `HTTP ${resp.status}`);
+            const data = resp.data as ViewPage;
+
+            title = data.title || title;
+            isPublic = !!data.is_public;
+            pageTitle.set(title + ' | Система управления заявками ЕИ КФУ');
+
+            selectedTags = (data.tags || []).map(t => ({ id: t.id, name: t.name })) as ServerTagDto[];
+
+            selectedRelated = Array.isArray(data.related)
+                ? data.related.map((r) => ({ id: String(r.id), title: r.title ?? String(r.id) }))
+                : [];
+
+            const key = (data.key || '').replace(/^\/+/, '');
+            if (!key) {
+                content = '';
+                if (editorDiv) editorDiv.innerHTML = '';
+                return;
+            }
+
+            const url = `${ATTACHMENTS_BASE}/${key}`;
+            const r = await fetch(url, {
+                method: 'GET',
+                mode: 'cors',
+                credentials: 'omit',
+                cache: 'no-cache'
+            });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+
+            let serialized: unknown;
+            try {
+                serialized = await r.json();
+            } catch {
+                const txt = await r.text();
+                serialized = JSON.parse(txt);
+            }
+            if (!Array.isArray(serialized)) throw new Error('Некорректный формат контента (ожидался массив)');
+
+            const html = deserialize(serialized as any);
+            content = html;
+            if (editorDiv) editorDiv.innerHTML = html;
+        } catch (e) {
+            notification('Не удалось загрузить документ для редактирования', NotificationType.Error);
+        }
+    }
+
     async function saveDocument() {
         if (!editorDiv) {
             notification('Редактор не инициализирован', NotificationType.Error);
             return;
         }
-        const tagIds: number[] = Array.from(new Set(selectedTags.map(t => t.id))).filter((n): n is number => Number.isInteger(n as number));
-        const relatedIds: number[] = Array.from(new Set(selectedRelated.map(r => Number(r.id)).filter((n) => Number.isInteger(n))));
+        const tagIds: number[] = Array.from(new Set(selectedTags.map(t => Number(t.id)).filter(n => Number.isInteger(n) && n > 0)));
+        const relatedIds: number[] = Array.from(new Set(selectedRelated.map(r => Number(r.id)).filter(n => Number.isInteger(n) && n > 0)));
         try {
             const id = await savePageAndGetId({
                 html: editorDiv.innerHTML,
                 title,
                 tags: tagIds,
                 related: relatedIds,
-                is_public: true
+                is_public: isPublic
             });
-            await goto(`/pages/${id}`);
+            await goto(`/page/${id}`);
         } catch {
             notification('Ошибка при сохранении документа', NotificationType.Error);
         }
@@ -269,12 +337,19 @@
     }
 
     onMount(() => {
-        if (!$isAuthenticated) {
+        if (!$isAuthenticated || $currentUser === null || $currentUser.role === UserRole.Client) {
             window.location.replace('/error?status=401');
             return;
         }
-        pageTitle.set(title + ' | Система управления заявками ЕИ КФУ');
-        if (editorDiv) editorDiv.innerHTML = content;
+
+        const editId = get(pageStore).url.searchParams.get('edit');
+        if (editId) {
+            void loadDocumentForEdit(editId);
+        } else {
+            pageTitle.set(title + ' | Система управления заявками ЕИ КФУ');
+            if (editorDiv) editorDiv.innerHTML = content;
+        }
+
         document.addEventListener('selectionchange', updateActiveStates);
     });
 
@@ -292,30 +367,40 @@
 
 <div id="content-panel">
     <header class="editor-header">
-        <button class="back-btn" title="Назад" on:click={ goBack } aria-label="Назад">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                <path d="M18 22L10 14L18 6" stroke="var(--blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </button>
-        <div class="doc-title-block">
-            {#if editingTitle}
-                <!-- svelte-ignore a11y_autofocus -->
-                <input
-                    class="doc-title-input"
-                    bind:value={ title }
-                    on:blur={ handleTitleBlur }
-                    on:keydown={ handleTitleKeydown }
-                    autofocus
-                    maxlength="128"
-                />
-            {:else}
-                <button type="button" class="doc-title" title="Переименовать" aria-label="Переименовать"
-                    on:click={ () => editingTitle = true }
-                    on:keydown={ (e) => (e.key === 'Enter' || e.key === ' ') && (editingTitle = true) }
-                >{ title }</button>
-            {/if}
+        <div class="title-container">
+            <button class="back-btn" title="Назад" on:click={ goBack } aria-label="Назад">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                    <path d="M18 22L10 14L18 6" stroke="var(--blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <div class="doc-title-block">
+                {#if editingTitle}
+                    <!-- svelte-ignore a11y_autofocus -->
+                    <input
+                        class="doc-title-input"
+                        bind:value={ title }
+                        on:blur={ handleTitleBlur }
+                        on:keydown={ handleTitleKeydown }
+                        autofocus
+                        maxlength="128"
+                    />
+                {:else}
+                    <button type="button" class="doc-title" title="Переименовать" aria-label="Переименовать"
+                        on:click={ () => editingTitle = true }
+                        on:keydown={ (e) => (e.key === 'Enter' || e.key === ' ') && (editingTitle = true) }
+                    >{ title }</button>
+                {/if}
+            </div>
         </div>
         <div class="header-actions">
+            <div class="visibility-control">
+                <input id="visibility-switch" type="checkbox" bind:checked={ isPublic } aria-label="Сделать статью публичной" />
+                <label for="visibility-switch" class="visibility-label" data-state={ isPublic ? 'public' : 'private' }>
+                    <span class="vis-dot" aria-hidden="true"></span>
+                    <span>{ isPublic ? 'Публичная' : 'Приватная' }</span>
+                </label>
+            </div>
+
             <button class="save-data" title="Сохранить" aria-label="Сохранить" on:click={ saveDocument }>
                 <span style="margin-right: 8px">Сохранить</span>
                 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true" style="position: relative; top: .1rem;">
