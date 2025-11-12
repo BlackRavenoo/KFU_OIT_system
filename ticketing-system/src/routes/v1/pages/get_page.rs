@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Serialize;
 use sqlx::PgPool;
 
-use crate::{auth::extractor::user_role::OptionalUserRoleExtractor, schema::page::{PageId, Tag}, utils::error_chain_fmt};
+use crate::{auth::{extractor::user_role::OptionalUserRoleExtractor, types::UserRole}, schema::page::{PageId, Tag}, utils::error_chain_fmt};
 
 #[derive(Serialize)]
 pub struct PageSchema {
@@ -46,7 +46,7 @@ pub async fn get_page(
         .ok_or(GetPageError::NotFound)?;
 
     let only_is_public = match role.0 {
-        Some(role) => role.has_access(crate::auth::types::UserRole::Employee),
+        Some(role) => !role.has_access(UserRole::Employee),
         None => true,
     };
 
