@@ -78,13 +78,11 @@ impl PageService {
     }
 
     pub fn get_key(&self, key: &str) -> String {
-        format!("pages/{}", key)
+        format!("pages/{}.json", key)
     }
 
-    pub async fn upload_page(&self, mut key: String, data: Bytes, is_public: bool) -> Result<(), PageServiceError> {
+    pub async fn upload_page(&self, key: &str, data: Bytes, is_public: bool) -> Result<(), PageServiceError> {
         let bucket = self.get_bucket(is_public);
-
-        key.push_str(".json");
 
         self.storage.store(&bucket, &key, data.to_vec()).await?;
 
@@ -92,13 +90,13 @@ impl PageService {
     }
 
     pub async fn get_page(&self, key: &str, is_public: bool) -> Result<FileAccess, PageServiceError> {
-        let key = self.get_key(key);
+        let key = format!("pages/{}", key);
         let bucket = self.get_bucket(is_public);
         Ok(self.storage.get_file_access(bucket, &key, is_public).await?)
     }
 
     pub async fn delete_page(&self, key: &str, is_public: bool) -> Result<(), PageServiceError> {
-        let key = self.get_key(key);
+        let key = format!("pages/{}", key);
         let bucket = self.get_bucket(is_public);
         Ok(self.storage.delete(bucket, &key).await?)
     }
