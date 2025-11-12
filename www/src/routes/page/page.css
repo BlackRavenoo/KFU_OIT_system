@@ -33,6 +33,10 @@
     margin-top: 8px;
 }
 
+.search-controls-wrapper {
+    margin-bottom: -2rem;
+}
+
 .tag-search-wrapper {
     position: relative;
 }

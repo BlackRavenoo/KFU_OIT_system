@@ -14,11 +14,9 @@
     import type { ServerTagDto } from '$lib/utils/pages/tags';
     import { fetchTags as fetchTagsApi, createTagIfAllowed, addTagFromSuggestion as addTagFromSuggestionUtil, removeTag as removeTagUtil } from '$lib/utils/pages/tags';
     import { api } from '$lib/utils/api';
-    import { deserialize } from '$lib/utils/texteditor/serialize';
     import Tags from './tags.svelte';
     import { UserRole } from '$lib/utils/auth/types';
-
-    const ATTACHMENTS_BASE = 'https://ticketing-attachments.s3.cloud.ru';
+    import { fetchPageContentByKey } from '$lib/utils/pages/document';
 
     let title: string = 'Безымянный документ';
     let editingTitle = false;
@@ -150,7 +148,9 @@
         (e.key === 'Enter' || e.key === 'Escape') && (e.target as HTMLInputElement).blur();
     }
 
-    function goBack() { history.back(); }
+    function goBack() { 
+        goto('/page');
+     }
 
     function handleTab(e: KeyboardEvent) {
         if (e.key !== 'Tab') return;
@@ -208,10 +208,10 @@
         while (alignNode && alignNode !== editorDiv) {
             if (alignNode instanceof HTMLElement && /^(P|DIV|LI|BLOCKQUOTE|H1|H2|H3|H4|H5|H6|TD|TH)$/i.test(alignNode.nodeName)) {
                 const ta = (window.getComputedStyle(alignNode).textAlign || '').toLowerCase();
-                if (ta === 'center') align = 'center';
-                else if (ta === 'right' || ta === 'end') align = 'right';
-                else if (ta === 'justify') align = 'justify';
-                else if (ta === 'left' || ta === 'start') align = 'left';
+                if (ta.includes('center')) align = 'center';
+                else if (ta.includes('right') || ta === 'end') align = 'right';
+                else if (ta.includes('justify')) align = 'justify';
+                else if (ta.includes('left') || ta === 'start') align = 'left';
                 break;
             }
             alignNode = (alignNode as HTMLElement).parentNode as Node | null;
@@ -255,32 +255,7 @@
                 ? data.related.map((r) => ({ id: String(r.id), title: r.title ?? String(r.id) }))
                 : [];
 
-            const key = (data.key || '').replace(/^\/+/, '');
-            if (!key) {
-                content = '';
-                if (editorDiv) editorDiv.innerHTML = '';
-                return;
-            }
-
-            const url = `${ATTACHMENTS_BASE}/${key}`;
-            const r = await fetch(url, {
-                method: 'GET',
-                mode: 'cors',
-                credentials: 'omit',
-                cache: 'no-cache'
-            });
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
-
-            let serialized: unknown;
-            try {
-                serialized = await r.json();
-            } catch {
-                const txt = await r.text();
-                serialized = JSON.parse(txt);
-            }
-            if (!Array.isArray(serialized)) throw new Error('Некорректный формат контента (ожидался массив)');
-
-            const html = deserialize(serialized as any);
+            const html = await fetchPageContentByKey(isPublic, data.key);
             content = html;
             if (editorDiv) editorDiv.innerHTML = html;
         } catch (e) {

@@ -5,17 +5,17 @@
     import { pageDescription, pageTitle } from '$lib/utils/setup/stores';
     import { api } from '$lib/utils/api';
     import { getAvatar } from '$lib/utils/account/avatar';
-    import { deserialize } from '$lib/utils/texteditor/serialize';
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { UserRole } from '$lib/utils/auth/types';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { fetchPageContentByKey } from '$lib/utils/pages/document';
 
     type Tag = { id: number; name: string };
     type Author = { id: number; name: string; avatar_key?: string | null };
 
     type PageData = {
-        id: number;
+        id?: number;
         is_public: boolean;
         title: string;
         key: string;
@@ -33,9 +33,18 @@
     let deleting = false;
     let showDeleteConfirm = false;
 
-    function goBack() { 
-        history.back(); 
+    let pageId: number | null = null;
+    function getPageIdFromUrl(): number | null {
+        try {
+            const path = get(pageStore)?.url?.pathname ?? (typeof window !== 'undefined' ? window.location.pathname : '');
+            const match = path.match(/\/page\/(\d+)(?:\/|$)/);
+            return match ? Number(match[1]) : null;
+        } catch {
+            return null;
+        }
     }
+
+    function goBack() { history.back(); }
 
     function avatarAction(node: HTMLDivElement, author: Author | undefined) {
         if (!author) return {};
@@ -52,53 +61,32 @@
         };
     }
 
-    async function loadSerializedContent(key: string) {
-        contentLoading = true;
-        contentError = null;
-        contentHtml = '';
-
-        try {
-            const url = `https://ticketing-attachments.s3.cloud.ru/${key.replace(/^\/+/, '')}`;
-
-            const r = await fetch(url, { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-cache' });
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
-
-            let data: unknown;
-            try {
-                data = await r.json();
-            } catch {
-                const txt = await r.text();
-                data = JSON.parse(txt);
-            }
-
-            if (Array.isArray(data))
-                contentHtml = deserialize(data as any);
-            else
-                throw new Error('Некорректный формат контента (ожидался массив)');
-        } catch (e: any) {
-            contentError = e?.message || 'Ошибка загрузки контента';
-            contentHtml = '<p>Контент недоступен.</p>';
-        } finally {
-            contentLoading = false;
-        }
-    }
-
     async function loadPage() {
         loading = true;
         error = null;
         doc = null;
         contentHtml = '';
         try {
-            const id = get(pageStore).params.id;
-            const resp = await api.get<PageData>(`/api/v1/pages/${id}`);
+            const id = pageId ?? getPageIdFromUrl();
+            if (!id) throw new Error('Некорректный адрес страницы');
 
+            const resp = await api.get<PageData>(`/api/v1/pages/${id}`);
             const ok = resp.status === 200 || resp.status === 201 || resp.status === 304;
             if (!ok) throw new Error(resp.error || `HTTP ${resp.status}`);
 
             doc = resp.data as PageData;
             pageTitle.set(`${doc.title} | Система управления заявками ЕИ КФУ`);
-            
-            await loadSerializedContent(doc.key);
+
+            contentLoading = true;
+            contentError = null;
+            try {
+                contentHtml = await fetchPageContentByKey(!!doc.is_public, doc.key);
+            } catch (e: any) {
+                contentError = e?.message || 'Ошибка загрузки контента';
+                contentHtml = '<p>Контент недоступен.</p>';
+            } finally {
+                contentLoading = false;
+            }
         } catch (e: any) {
             error = e?.message || 'Не удалось загрузить страницу';
         } finally {
@@ -106,18 +94,15 @@
         }
     }
 
-    function requestDelete() {
-        showDeleteConfirm = true;
-    }
-    function cancelDelete() {
-        showDeleteConfirm = false;
-    }
+    function requestDelete() { showDeleteConfirm = true; }
+    function cancelDelete() { showDeleteConfirm = false; }
 
     async function confirmDelete() {
-        if (!doc) { showDeleteConfirm = false; return; }
+        const id = pageId ?? getPageIdFromUrl();
+        if (!id) { showDeleteConfirm = false; return; }
         try {
             deleting = true;
-            const resp = await api.delete(`/api/v1/pages/${doc.id}`);
+            const resp = await api.delete(`/api/v1/pages/${id}`);
             const ok = resp.status === 200 || resp.status === 201 || resp.status === 204 || resp.status === 304;
             if (!ok) throw new Error(resp.error || `HTTP ${resp.status}`);
             showDeleteConfirm = false;
@@ -130,14 +115,15 @@
         }
     }
 
-    onMount(() => { 
+    onMount(() => {
+        pageId = getPageIdFromUrl();
         pageTitle.set('Загрузка... | Система управления заявками ЕИ КФУ');
         pageDescription.set('Просмотр страницы в системе управления заявками ЕИ КФУ.');
-        void loadPage(); 
+        void loadPage();
     });
 
-    onDestroy(() => { 
-        pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ'); 
+    onDestroy(() => {
+        pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система управления заявками ЕИ КФУ. Создание и отслеживание заявок на IT-услуги для сотрудников и студентов Казанского федерального университета.');
     });
 </script>
@@ -165,8 +151,8 @@
                     <span class="dot" aria-hidden="true"></span>
                     { doc.is_public ? 'Публичная' : 'Приватная' }
                 </span>
-                {#if $currentUser !== null && $currentUser.role !== UserRole.Client}
-                    <a class="edit-link" href={ `/texteditor?edit=${ doc.id }` } aria-label="Редактировать">
+                {#if $currentUser !== null && $currentUser.role !== UserRole.Client && pageId}
+                    <a class="edit-link" href={ `/texteditor?edit=${ pageId }` } aria-label="Редактировать">
                         Редактировать
                     </a>
                 {/if}
@@ -218,7 +204,7 @@
                     {/if}
                 </section>
 
-                {#if $currentUser !== null && ($currentUser.role === UserRole.Moderator || $currentUser.role === UserRole.Administrator)}
+                {#if $currentUser !== null && ($currentUser.role === UserRole.Moderator || $currentUser.role === UserRole.Administrator) && pageId}
                     <div class="bottom-actions">
                         <button class="danger-btn" on:click={ requestDelete } disabled={ deleting } aria-label="Удалить статью">
                             { deleting ? 'Удаление...' : 'Удалить статью' }

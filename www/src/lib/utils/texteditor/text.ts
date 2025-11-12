@@ -22,6 +22,10 @@ export function execCommand(
 
 /**
  * Применяет цвет текста к выделенному фрагменту
+ * @param {HTMLDivElement} editorDiv - DOM-элемент редактируемой области
+ * @param {string} color - Цвет в формате CSS
+ * @param {() => boolean} selectionInsideCodeOrQuote - Функция, возвращающая true, если курсор внутри code/blockquote
+ * @param {() => void} updateActiveStates - Функция для обновления состояния панели инструментов
  */
 export function applyColor(
     editorDiv: HTMLDivElement | null,
@@ -39,6 +43,11 @@ export function applyColor(
 
 /**
  * Применяет цвет фона к выделенному фрагменту или ячейкам таблицы
+ * @param {HTMLDivElement} editorDiv - DOM-элемент редактируемой области
+ * @param {string} color - Цвет в формате CSS
+ * @param {() => boolean} selectionInsideCodeOrQuote - Функция, возвращающая true, если курсор внутри code/blockquote
+ * @param {() => void} updateActiveStates - Функция для обновления состояния панели инструментов
+ * @param {(content: string) => void} setContent - Функция для обновления контента редактора
  */
 export function applyBgColor(
     editorDiv: HTMLDivElement | null,
@@ -99,6 +108,10 @@ export function applyBgColor(
 
 /**
  * Вставляет маркированный или нумерованный список
+ * @param {HTMLDivElement} editorDiv - DOM-элемент редактируемой области
+ * @param {'ol' | 'ul'} type - Тип списка
+ * @param {() => boolean} selectionInsideCodeOrQuote - Функция, возвращающая true, если курсор внутри code/blockquote
+ * @param {() => void} updateActiveStates - Функция для обновления состояния панели инструментов
  */
 export function insertList(
     editorDiv: HTMLDivElement | null,
@@ -115,6 +128,8 @@ export function insertList(
 
 /**
  * Очищает HTML от тегов и стилей
+ * @param {string} html - Входящая HTML-строка
+ * @returns {string} Очищенный текст
  */
 export function stripTagsAndStyles(html: string): string {
     const div = document.createElement('div');
@@ -124,6 +139,11 @@ export function stripTagsAndStyles(html: string): string {
 
 /**
  * Вставляет блок цитаты или кода
+ * @param {HTMLDivElement} editorDiv - DOM-элемент редактируемой области
+ * @param {'blockquote' | 'code'} type - Тип блока
+ * @param {() => boolean} selectionInsideCodeOrQuote - Функция, возвращающая true, если курсор внутри code/blockquote
+ * @param {() => void} updateActiveStates - Функция для обновления состояния панели инструментов
+ * @param {(content: string) => void} setContent - Функция для обновления контента редактора
  */
 export function insertBlock(
     editorDiv: HTMLDivElement | null,
@@ -160,6 +180,10 @@ export function insertBlock(
 
 /**
  * Устанавливает выравнивание текста
+ * @param {HTMLDivElement} editorDiv - DOM-элемент редактируемой области
+ * @param {'left' | 'center' | 'right' | 'justify'} type - Тип выравнивания
+ * @param {() => boolean} selectionInsideCodeOrQuote - Функция, возвращающая true, если курсор внутри code/blockquote
+ * @param {() => void} updateActiveStates - Функция для обновления состояния панели инструментов
  */
 export function setAlign(
     editorDiv: HTMLDivElement | null,

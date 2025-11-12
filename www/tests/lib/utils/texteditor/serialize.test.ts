@@ -908,7 +908,7 @@ describe('deserialize', () => {
         }];
 
         const out = deserialize(input);
-        expect(out).toBe('<strong>X</strong>');
+        expect(out).toBe('<p><strong>X</strong></p>');
     });
 
     it('Renders <br> when a text node contains an array with { type: "br" }', () => {
@@ -1033,5 +1033,50 @@ describe('deserialize', () => {
         } finally {
             warnSpy.mockRestore();
         }
+    });
+
+    it('Normalizes align="middle"', () => {
+        const html = '<div align="middle">Text</div>';
+        const out = serialize(html);
+        expect(out[0].type).toBe('text');
+        expect(out[0].align).toBe('center');
+    });
+
+    it('Returns right for align="start" when direction is rtl', () => {
+        const spy = vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
+            direction: 'rtl',
+            textAlign: 'left',
+            color: 'rgb(0, 0, 0)',
+            backgroundColor: 'transparent',
+            getPropertyValue: () => ''
+        } as any));
+
+        const out = serialize('<h1 align="start">T</h1>');
+        expect(out[0].type).toBe('title_1');
+        expect(out[0].align).toBe('right');
+
+        spy.mockRestore();
+    });
+
+    it('Returns left for align="start" in ltr', () => {
+        const out = serialize('<h2 align="start">T</h2>');
+        expect(out[0].type).toBe('title_2');
+        expect(out[0].align).toBe('left');
+    });
+
+    it('Returns left for align="end" when direction is rtl', () => {
+        const spy = vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
+            direction: 'rtl',
+            textAlign: 'right',
+            color: 'rgb(0, 0, 0)',
+            backgroundColor: 'transparent',
+            getPropertyValue: () => ''
+        } as any));
+
+        const out = serialize('<div align="end">T</div>');
+        expect(out[0].type).toBe('text');
+        expect(out[0].align).toBe('left');
+
+        spy.mockRestore();
     });
 });

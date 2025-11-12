@@ -14,7 +14,7 @@
             const res = await login(loginValue, passwordValue, true);
             if (res?.access_token) {
                 await checkAuthentication();
-                goto('/account');
+                goto('/account?tab=request');
             } else {
                 goto('/error?status=401');
             }
@@ -29,8 +29,11 @@
         const loginParam = sp.get('login');
         const passwordParam = sp.get('password');
 
-        if (!loginParam || !passwordParam || $currentUser) {
+        if (!loginParam || !passwordParam) {
             goto('/error?status=401');
+            return;
+        } else if ($currentUser) {
+            goto('/account');
             return;
         }
 

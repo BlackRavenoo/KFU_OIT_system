@@ -8,19 +8,40 @@ type SerializedNode = {
 };
 
 /**
- * Получает стили элемента (выравнивание, цвет текста, цвет фона)
+ * Функция для нормализации значения text-align
+ * @param {string} raw - Текущее значение text-align или атрибута align
+ * @param {string} dir - Направление текста (ltr или rtl)
+ * @returns {'left' | 'center' | 'right' | 'justify'} - Нормализованное значение text-align
+ */
+function normalizeTextAlign(raw: string, dir: string = 'ltr'): 'left' | 'center' | 'right' | 'justify' {
+    const v = (raw || '').toLowerCase().trim();
+
+    if (v === 'justify') return 'justify';
+    else if (v === 'center' || v === 'middle' || v === '-moz-center' || v === '-webkit-center') return 'center';
+    else if (v === 'right' || v === '-moz-right' || v === '-webkit-right' || v === 'end') return dir === 'rtl' ? 'left' : 'right';
+    else if (v === 'left' || v === '-moz-left' || v === '-webkit-left' || v === 'start') return dir === 'rtl' ? 'right' : 'left';
+    else return dir === 'rtl' ? 'right' : 'left';
+}
+
+/**
+ * Получает стили элемента (выравнивание, цвет текста, цвет фона).
+ * ВАЖНО: сперва учитываем HTML-атрибут align, затем inline-стили, затем computedStyle.
  * @param node - DOM элемент
  */
 function getNodeStyles(node: HTMLElement): { align: 'left' | 'center' | 'right' | 'justify'; color: string; bgColor: string } {
     const inlineStyle = node.style;
     const computedStyle = window.getComputedStyle(node);
 
-    let align: 'left' | 'center' | 'right' | 'justify';
-    if (inlineStyle.textAlign && ['left', 'center', 'right', 'justify'].includes(inlineStyle.textAlign))
-        align = inlineStyle.textAlign as 'left' | 'center' | 'right' | 'justify';
-    else if (['left', 'center', 'right', 'justify'].includes(computedStyle.textAlign))
-        align = computedStyle.textAlign as 'left' | 'center' | 'right' | 'justify';
-    else align = 'left';
+    const dir = (computedStyle.direction || (document?.documentElement?.dir as string) || 'ltr').toLowerCase();
+    const attrAlignRaw = (node.getAttribute('align') || (node as any).align || '') as string;
+    const inlineAlignRaw = inlineStyle.textAlign || '';
+    const computedAlignRaw = computedStyle.textAlign || '';
+
+    const align = attrAlignRaw
+        ? normalizeTextAlign(attrAlignRaw, dir)
+        : (inlineAlignRaw
+            ? normalizeTextAlign(inlineAlignRaw, dir)
+            : normalizeTextAlign(computedAlignRaw, dir));
 
     let color: string;
     if (inlineStyle.color)
@@ -63,11 +84,10 @@ function normalizeLineBreaks(html: string): string {
 function serializeChildren(node: Node): SerializedNode[] | string {
     const result: (string | SerializedNode)[] = [];
     
-    for (const child of node.childNodes) {
+    for (const child of Array.from(node.childNodes)) {
         if (child.nodeType === Node.TEXT_NODE) {
             const text = child.textContent || '';
             if (text) result.push(text);
-            else void 0;
         } else if (child.nodeType === Node.ELEMENT_NODE) {
             const element = child as HTMLElement;
             if (element.nodeName.toLowerCase() === 'br') {
@@ -77,7 +97,7 @@ function serializeChildren(node: Node): SerializedNode[] | string {
                 if (serialized) result.push(serialized);
                 else console.warn('serializeChildren: Unable to serialize child element', element);
             }
-        } else (void 0);
+        }
     }
 
     if (result.length === 1 && typeof result[0] === 'string') return result[0];
@@ -115,7 +135,7 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
         case 'header':
         case 'footer':
         case 'main':
-        case 'nav':
+        case 'nav': {
             const children = serializeChildren(node);
             return {
                 type: 'text',
@@ -124,6 +144,7 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                 bgColor: styles.bgColor,
                 text: children || ''
             };
+        }
         case 'b':
         case 'strong':
             return {
@@ -150,7 +171,7 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                 bgColor: styles.bgColor,
                 text: serializeChildren(node)
             };
-        case 'span':
+        case 'span': {
             const spanChildren = serializeChildren(node);
             return {
                 type: 'text',
@@ -159,6 +180,7 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                 bgColor: styles.bgColor,
                 text: spanChildren
             };
+        }
         case 'blockquote':
             return {
                 type: 'blockquote',
@@ -176,7 +198,7 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                 text: serializeChildren(node)
             };
         case 'ul':
-        case 'ol':
+        case 'ol': {
             const items: string[] = [];
             node.querySelectorAll(':scope > li').forEach(li => {
                 items.push(li.textContent || '');
@@ -188,6 +210,7 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                 bgColor: styles.bgColor,
                 items: items
             };
+        }
         case 'table': {
             const rows: any[] = [];
             node.querySelectorAll('tr').forEach(tr => {
@@ -217,7 +240,7 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
         }
         case 'br':
             return { type: 'br' };
-        default:
+        default: {
             const defaultChildren = serializeChildren(node);
             if (defaultChildren)
                 return {
@@ -228,6 +251,7 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                     text: defaultChildren
                 };
             else return null;
+        }
     }
 }
 
@@ -297,9 +321,10 @@ function deserializeNode(
     switch (type) {
         case 'title_1':
         case 'title_2':
-        case 'title_3':
+        case 'title_3': {
             const level = type.split('_')[1];
             return `<h${level}${styleAttr}>${typeof text === 'string' ? text : deserializeText(text, false, node, false)}</h${level}>`;
+        }
         case 'text': {
             let inner = '';
             if (typeof text === 'string') {
@@ -307,11 +332,11 @@ function deserializeNode(
             } else if (Array.isArray(text)) {
                 inner = text.map(child => {
                     if (typeof child === 'string') return child;
-                    else if (child.type === 'text') return deserializeNode(mergeStyles(node, child), true, node, false);
-                    else if (child.type === 'br') return '<br>';
-                    else return deserializeNode(child, true, node, false);
+                    else if ((child as SerializedNode).type === 'text') return deserializeNode(mergeStyles(node, child as SerializedNode), true, node, false);
+                    else if ((child as SerializedNode).type === 'br') return '<br>';
+                    else return deserializeNode(child as SerializedNode, true, node, false);
                 }).join('');
-            } else return deserializeText(text, false, node, false);
+            } else inner = deserializeText(text, false, node, false);
 
             return isRoot ? `<p${styleAttr}>${inner}</p>` : styleAttr ? `<span${styleAttr}>${inner}</span>` : inner;
         }
@@ -326,14 +351,15 @@ function deserializeNode(
         case 'code':
             return `<code${styleAttr}>${typeof text === 'string' ? text : deserializeText(text, false, node, false)}</code>`;
         case 'ul':
-        case 'ol':
+        case 'ol': {
             const items = (rest as any).items || [];
             const listItems = items.map((item: string) => `<li>${item}</li>`).join('');
             return `<${type}${styleAttr}>${listItems}</${type}>`;
-        case 'table':
+        }
+        case 'table': {
             const rows = (rest as any).rows || [];
-            const tableRows = rows.map((row: SerializedNode[], rowIdx: number) => {
-                const cells = row.map((cell, colIdx) => {
+            const tableRows = rows.map((row: SerializedNode[], _rowIdx: number) => {
+                const cells = row.map((cell, _colIdx) => {
                     let cellHtml = '';
                     if (cell.type === 'cell')
                         cellHtml = `<td style="${cell.color ? `color:${cell.color};` : ''}${cell.bgColor ? `background-color:${cell.bgColor};` : ''}position:relative;">${cell.text || ''}</td>`;
@@ -343,6 +369,7 @@ function deserializeNode(
                 return `<tr>${cells}</tr>`;
             }).join('');
             return `<table style="border-collapse:collapse;table-layout:auto;">${tableRows}</table>`;
+        }
         case 'cell':
             return `<td${styleAttr}>${typeof text === 'string' ? text : deserializeText(text, true, node, false)}</td>`;
         default:
@@ -357,7 +384,7 @@ function deserializeNode(
  * @param insideParagraph - Находится ли текущий узел внутри параграфа
  * @param parentStyles - Стили родительского узла
  * @param isRoot - Является ли текущий узел корневым
- * @returns 
+ * @returns HTML строка
  */
 export function deserializeText(
     text: string | SerializedNode | SerializedNode[] | undefined,

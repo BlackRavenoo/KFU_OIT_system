@@ -1,5 +1,6 @@
 import { api } from '$lib/utils/api';
 import { serialize } from '$lib/utils/texteditor/serialize';
+import { deserialize } from '$lib/utils/texteditor/serialize';
 
 export interface SavePageRequest {
     html: string;
@@ -17,11 +18,10 @@ export interface SavePageCreated {
 const PagesRoute = '/api/v1/pages/';
 
 /**
- * Функция для сохранения страницы на сервере.
- * Сериализует HTML контент, собирает полезную нагрузку и выполняет POST /api/v1/pages/.
- * @param {SavePageRequest} req - параметры сохранения страницы.
- * @returns {Promise<SavePageCreated>} Данные созданной страницы (id и пр. поля ответа).
- * @throws {Error} Если сервер вернул неуспешный статус или произошла ошибка запроса.
+ * Сохраняет страницу на сервере.
+ * @param req Объект с параметрами страницы: html, title, tags, related, is_public
+ * @returns Объект с данными созданной страницы (минимум { id })
+ * @throws Error если сервер вернул ошибку или некорректный ответ
  */
 export async function savePage(req: SavePageRequest): Promise<SavePageCreated> {
     const serializedData = serialize(req.html);
@@ -53,12 +53,42 @@ export async function savePage(req: SavePageRequest): Promise<SavePageCreated> {
 }
 
 /**
- * Упрощённая функция сохранения страницы.
- * Возвращает только идентификатор созданной страницы.
- * @param {SavePageRequest} req - параметры сохранения страницы.
- * @returns {Promise<string>} Идентификатор созданной страницы.
+ * Сохраняет страницу и возвращает её идентификатор.
+ * @param req Параметры сохраняемой страницы
+ * @returns Строковый идентификатор созданной страницы
+ * @throws Error пробрасывает ошибку из savePage
  */
 export async function savePageAndGetId(req: SavePageRequest): Promise<string> {
     const created = await savePage(req);
     return created.id;
+}
+
+/**
+ * Функция для получения контента страницы по её ключу.
+ * @param isPublic Флаг публичности страницы
+ * @param key Ключ/путь контента как от сервера
+ * @returns HTML-строка для вставки в документ
+ * @throws Error если формат ответа некорректный или сервер вернул ошибку
+ */
+export async function fetchPageContentByKey(isPublic: boolean, key: string): Promise<string> {
+    const prefix = isPublic ? 'public' : 'private';
+    const cleanedKey = (key ?? '').replace(/^\/?pages\//i, '');
+
+    const resp = await api.get<unknown>(`/api/v1/page/${prefix}/${cleanedKey}`);
+
+    const ok = resp.status === 200 || resp.status === 201 || resp.status === 204 || resp.status === 304;
+    if (!ok) throw new Error(resp.error || `HTTP ${resp.status}`);
+
+    let data: unknown = resp.data;
+
+    if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch {
+            console.warn('Response data is not valid JSON, using raw string');
+        }
+    }
+
+    if (Array.isArray(data)) return deserialize(data as any);
+    if (typeof data === 'string') return data;
+
+    throw new Error('Некорректный формат контента');
 }

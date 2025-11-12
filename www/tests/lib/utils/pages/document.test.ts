@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('$lib/utils/api', () => ({ api: { post: vi.fn() } }));
-vi.mock('$lib/utils/texteditor/serialize', () => ({ serialize: vi.fn((html: string) => [{ type: 'text', text: html }]) }));
+vi.mock('$lib/utils/api', () => ({ api: { post: vi.fn(), get: vi.fn() } }));
+vi.mock('$lib/utils/texteditor/serialize', () => ({
+    serialize: vi.fn((html: string) => [{ type: 'text', text: html }]),
+    deserialize: vi.fn(() => '<p>DESERIALIZED</p>')
+}));
 
-import { savePage, savePageAndGetId } from '$lib/utils/pages/document';
+import { savePage, savePageAndGetId, fetchPageContentByKey } from '$lib/utils/pages/document';
 import { api } from '$lib/utils/api';
-import { serialize } from '$lib/utils/texteditor/serialize';
+import { serialize, deserialize } from '$lib/utils/texteditor/serialize';
 
 describe('Pages API', () => {
     beforeEach(() => {
@@ -134,5 +137,95 @@ describe('Pages API', () => {
         });
 
         expect(id).toBe('xyz');
+    });
+});
+
+describe('fetchPageContentByKey', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (deserialize as any).mockImplementation(() => '<p>DESERIALIZED</p>');
+    });
+
+    it('Uses "public" prefix', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: [{ type: 'text', text: 'Hi' }] });
+
+        const html = await fetchPageContentByKey(true, '/pages/news/hello.json');
+
+        expect(api.get).toHaveBeenCalledTimes(1);
+        expect((api.get as any).mock.calls[0][0]).toBe('/api/v1/page/public/news/hello.json');
+        expect(deserialize).toHaveBeenCalled();
+        expect(html).toBe('<p>DESERIALIZED</p>');
+    });
+
+    it('Uses "private" prefix', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: [{ type: 'text', text: 'Hi' }] });
+
+        const html = await fetchPageContentByKey(false, 'pages/root.json');
+
+        expect(api.get).toHaveBeenCalledTimes(1);
+        expect((api.get as any).mock.calls[0][0]).toBe('/api/v1/page/private/root.json');
+        expect(html).toBe('<p>DESERIALIZED</p>');
+    });
+
+    it('Not change key if it does not start with /pages/', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: [{ type: 'text', text: 'Hi' }] });
+
+        const html = await fetchPageContentByKey(true, 'other/abc.json');
+
+        expect((api.get as any).mock.calls[0][0]).toBe('/api/v1/page/public/other/abc.json');
+        expect(html).toBe('<p>DESERIALIZED</p>');
+    });
+
+    it('Parses JSON string payload', async () => {
+        const payload = JSON.stringify([{ type: 'text', text: 'X' }]);
+        (api.get as any).mockResolvedValue({ status: 200, data: payload });
+
+        const html = await fetchPageContentByKey(true, 'pages/x.json');
+
+        expect(deserialize).toHaveBeenCalledWith([{ type: 'text', text: 'X' }]);
+        expect(html).toBe('<p>DESERIALIZED</p>');
+    });
+
+    it('Returns raw string when server returns non-JSON string', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: '<p>RAW</p>' });
+
+        const html = await fetchPageContentByKey(true, '/pages/raw.html');
+
+        expect(deserialize).not.toHaveBeenCalled();
+        expect(html).toBe('<p>RAW</p>');
+    });
+
+    it('Accepts 201/204/304 statuses', async () => {
+        (api.get as any).mockResolvedValueOnce({ status: 201, data: [{ t: 1 }] });
+        await expect(fetchPageContentByKey(true, 'pages/a.json')).resolves.toBe('<p>DESERIALIZED</p>');
+
+        (api.get as any).mockResolvedValueOnce({ status: 204, data: '[]' });
+        await expect(fetchPageContentByKey(false, 'pages/b.json')).resolves.toBe('<p>DESERIALIZED</p>');
+
+        (api.get as any).mockResolvedValueOnce({ status: 304, data: [{ t: 2 }] });
+        await expect(fetchPageContentByKey(true, 'pages/c.json')).resolves.toBe('<p>DESERIALIZED</p>');
+    });
+
+    it('Throws on non-ok status with server error message', async () => {
+        (api.get as any).mockResolvedValue({ status: 500, error: 'oops' });
+
+        await expect(fetchPageContentByKey(true, 'pages/fail.json')).rejects.toThrow('oops');
+    });
+
+    it('Throws on non-string and non-array data payload', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: { a: 1 } });
+        await expect(fetchPageContentByKey(true, 'pages/x.json')).rejects.toThrow('Некорректный формат контента');
+    });
+
+    it('Throws exactly "HTTP 418" when server returns non-ok status without error', async () => {
+        (api.get as any).mockResolvedValue({ status: 418 });
+        await expect(fetchPageContentByKey(true, 'pages/any.json')).rejects.toThrow('HTTP 418');
+    });
+
+    it('Uses empty string when key is undefined (triggers ?? "")', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: '<p>OK</p>' });
+        const html = await fetchPageContentByKey(true, undefined as any);
+        expect((api.get as any).mock.calls[0][0]).toBe('/api/v1/page/public/');
+        expect(html).toBe('<p>OK</p>');
     });
 });

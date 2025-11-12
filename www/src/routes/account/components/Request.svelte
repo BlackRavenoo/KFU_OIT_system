@@ -72,7 +72,6 @@
     function resetForm() {
         Title = '';
         Description = '';
-        Name = '';
         Contact = '';
         Building = 0;
         Cabinet = '';
