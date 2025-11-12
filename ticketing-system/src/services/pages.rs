@@ -1,4 +1,5 @@
 use actix_web::{http::StatusCode, ResponseError};
+use anyhow::anyhow;
 use bytes::Bytes;
 
 use crate::{storage::{FileAccess, FileStorage, Storage, StorageError}, utils::error_chain_fmt};
@@ -32,6 +33,33 @@ impl ResponseError for PageServiceError {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum PageType {
+    Public,
+    Private,
+}
+
+impl TryFrom<String> for PageType {
+    type Error = anyhow::Error;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
+            "public" => Ok(PageType::Public),
+            "private" => Ok(PageType::Private),
+            _ => Err(anyhow!("Unknown page type: {}", value)),
+        }
+    }
+}
+
+impl PageType {
+    pub fn is_public(&self) -> bool {
+        match self {
+            PageType::Public => true,
+            PageType::Private => false,
+        }
+    }
+}
+
 impl PageService {
     pub fn new(storage: Storage, public_bucket: String, protected_bucket: String) -> Self {
         Self {
@@ -50,13 +78,15 @@ impl PageService {
     }
 
     pub fn get_key(&self, key: &str) -> String {
-        format!("pages/{}.json", key)
+        format!("pages/{}", key)
     }
 
-    pub async fn upload_page(&self, key: &str, data: Bytes, is_public: bool) -> Result<(), PageServiceError> {
+    pub async fn upload_page(&self, mut key: String, data: Bytes, is_public: bool) -> Result<(), PageServiceError> {
         let bucket = self.get_bucket(is_public);
 
-        self.storage.store(&bucket, key, data.to_vec()).await?;
+        key.push_str(".json");
+
+        self.storage.store(&bucket, &key, data.to_vec()).await?;
 
         Ok(())
     }

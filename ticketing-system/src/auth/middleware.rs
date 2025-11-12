@@ -14,7 +14,7 @@ pub struct JwtConfig {
 impl Default for JwtConfig {
     fn default() -> Self {
         Self {
-            min_role: UserRole::Employee,
+            min_role: UserRole::Client,
             optional: false,
         }
     }

@@ -55,7 +55,7 @@ pub async fn create_page(
     insert_tags(&mut transaction, page_id, &schema.tags).await
         .context("Failed to insert tags")?;
 
-    upload_page(&page_service, &key, &schema.data, schema.is_public).await
+    upload_page(&page_service, key, &schema.data, schema.is_public).await
         .context("Failed to upload page to storage")?;
 
     transaction.commit().await
@@ -70,7 +70,7 @@ pub async fn create_page(
     name = "Upload page data",
     skip(page_service)
 )]
-async fn upload_page(page_service: &PageService, key: &str, data: &serde_json::Value, is_public: bool) -> Result<(), PageServiceError> {
+async fn upload_page(page_service: &PageService, key: String, data: &serde_json::Value, is_public: bool) -> Result<(), PageServiceError> {
     let bytes = serde_json::to_vec(data)
         .context("Failed to serialize data to vec")?
         .into();
