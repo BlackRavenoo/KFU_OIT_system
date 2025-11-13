@@ -1,0 +1,9 @@
+{
+    "request": {
+      "method": "POST",
+      "urlPattern": "/bot1/sendMessage"
+    },
+    "response": {
+      "status": 200
+    }
+  }

@@ -33,3 +33,9 @@ storage:
   secret_key: "some_secret_key"
   bucket: "ticketing-attachments"
   private_bucket: "private-attachments"
+
+event_publisher:
+  base_url: "localhost"
+  bot_token: "some_token"
+  chat_id: "some_chat_id"
+  timeout_milliseconds: 10000

@@ -19,6 +19,9 @@ services:
       - APP_STORAGE__BUCKET=${S3_BUCKET:-ticketing-attachments}
       - APP_APPLICATION__BASE_URL=${APP_BASE_URL:-127.0.0.1}
       - APP_EMAIL_CLIENT__BASE_URL=http://email-mock-server:8080
+      - APP_EVENT_PUBLISHER__BASE_URL=http://event-mock-server:8080
+      - APP_EVENT_PUBLISHER__BOT_TOKEN=1
+      - APP_EVENT_PUBLISHER__CHAT_ID=1
     depends_on:
       minio:
         condition: service_healthy
@@ -100,8 +103,24 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./infra/wiremock/mappings:/home/wiremock/mappings
-      - ./infra/wiremock/__files:/home/wiremock/__files
+      - ./infra/wiremock/email/mappings:/home/wiremock/mappings
+      - ./infra/wiremock/email/__files:/home/wiremock/__files
+    command: --global-response-templating --verbose
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  event-mock-server:
+    image: wiremock/wiremock:latest
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./infra/wiremock/event/mappings:/home/wiremock/mappings
+      - ./infra/wiremock/event/__files:/home/wiremock/__files
     command: --global-response-templating --verbose
     restart: unless-stopped
     healthcheck:

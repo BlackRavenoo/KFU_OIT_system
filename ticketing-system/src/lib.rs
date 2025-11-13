@@ -14,3 +14,4 @@ pub mod sqlx_macro;
 pub mod domain;
 pub mod email_client;
 pub mod cache_expiry;
+pub mod events;

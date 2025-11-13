@@ -8,7 +8,7 @@ use futures_util::{stream, StreamExt as _};
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};
 
-use crate::{domain::description::Description, schema::tickets::TicketId, services::image::{ImageService, ImageServiceError, ImageType}, utils::{cleanup_images, error_chain_fmt}};
+use crate::{domain::description::Description, events::{event_publisher::EventPublisher, events::Event}, schema::tickets::TicketId, services::image::{ImageService, ImageServiceError, ImageType}, startup::ApplicationBaseUrl, utils::{cleanup_images, error_chain_fmt}};
 
 #[derive(Deserialize, Debug)]
 pub struct CreateTicketSchema {
@@ -57,6 +57,8 @@ pub async fn create_ticket(
     MultipartForm(ticket): MultipartForm<CreateTicketForm>,
     pool: web::Data<PgPool>,
     image_service: web::Data<ImageService>,
+    base_url: web::Data<ApplicationBaseUrl>,
+    event_publisher: web::Data<EventPublisher>,
 ) -> Result<HttpResponse, CreateTicketError> {
     if ticket.attachments.len() > 5 {
         return Err(CreateTicketError::ALotOfAttachments)
@@ -67,7 +69,7 @@ pub async fn create_ticket(
     let mut transaction = pool.begin().await
         .context("Failed to begin transaction")?;
 
-    let ticket_id = insert_ticket(&mut transaction, fields.0).await
+    let ticket_id = insert_ticket(&mut transaction, &fields.0).await
         .context("Failed to create ticket")?;
 
     let attachments_len = ticket.attachments.len();
@@ -95,6 +97,34 @@ pub async fn create_ticket(
     transaction.commit().await
         .context("Failed to commit transaction")?;
 
+    match fetch_building_name(
+        &pool,
+        fields.building_id
+    )
+    .await {
+        Ok(building_name) => {
+            let res = event_publisher.publish_event(
+                Event::TicketCreated {
+                    id: ticket_id,
+                    title: fields.0.title,
+                    author: fields.0.author,
+                    author_contacts: fields.0.author_contacts,
+                    description: fields.0.description,
+                    planned_at: fields.0.planned_at,
+                    cabinet: fields.0.cabinet,
+                    building_name
+                },
+                &base_url
+            )
+            .await;
+
+            if let Err(e) = res {
+                tracing::error!("{:?}", e);
+            }
+        },
+        Err(e) => tracing::error!("Failed to fetch building name: {:?}", e),
+    };
+
     Ok(HttpResponse::Created().finish())
 }
 
@@ -104,7 +134,7 @@ pub async fn create_ticket(
 )]
 async fn insert_ticket(
     transaction: &mut Transaction<'_, Postgres>,
-    fields: CreateTicketSchema,
+    fields: &CreateTicketSchema,
 ) -> Result<TicketId, sqlx::Error> {
     sqlx::query!(
         r#"
@@ -180,4 +210,25 @@ async fn insert_attachments(
     .await?;
 
     Ok(())
+}
+
+#[tracing::instrument(
+    name = "Fetch building name from database",
+    skip(pool)
+)]
+async fn fetch_building_name(
+    pool: &PgPool,
+    building_id: i16,
+) -> Result<String, sqlx::Error> {
+    sqlx::query!(
+        "
+            SELECT name
+            FROM buildings
+            WHERE id = $1
+        ",
+        building_id
+    )
+    .fetch_one(pool)
+    .await
+    .map(|r| r.name)
 }

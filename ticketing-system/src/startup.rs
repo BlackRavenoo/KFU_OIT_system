@@ -7,7 +7,7 @@ use moka::future::CacheBuilder;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::mailersend::MailerSendClient, routes::v1::{config, tickets::stats::TicketsStats}, services::{image::ImageService, pages::PageService, registration_token::RegistrationTokenStore}};
+use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::mailersend::MailerSendClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::stats::TicketsStats}, services::{image::ImageService, pages::PageService, registration_token::RegistrationTokenStore}};
 
 pub struct Application {
     server: Server,
@@ -58,6 +58,15 @@ impl Application {
             config.storage.private_bucket()
         );
 
+        let timeout = config.event_publisher.timeout();
+
+        let event_publisher = EventPublisher::new(
+            config.event_publisher.base_url,
+            config.event_publisher.bot_token,
+            config.event_publisher.chat_id,
+            timeout,
+        );
+
         let port = listener.local_addr().unwrap().port();
 
         let server = run(
@@ -68,6 +77,7 @@ impl Application {
             image_service,
             page_service,
             email_client,
+            event_publisher,
             config.application.base_url
         )?;
 
@@ -96,6 +106,7 @@ pub fn run(
     image_service: ImageService,
     page_service: PageService,
     email_client: MailerSendClient,
+    event_publisher: EventPublisher,
     base_url: String,
 ) -> Result<Server, std::io::Error> {
     let token_store = Data::new(TokenStore::new(redis_pool.clone()));
@@ -105,6 +116,7 @@ pub fn run(
     let page_service = Data::new(page_service);
     let pool = Data::new(pool);
     let email_client = Data::new(email_client);
+    let event_publisher = Data::new(event_publisher);
     let base_url = Data::new(ApplicationBaseUrl(base_url));
 
     let stats_cache = Data::new(
@@ -123,6 +135,7 @@ pub fn run(
             .app_data(page_service.clone())
             .app_data(pool.clone())
             .app_data(email_client.clone())
+            .app_data(event_publisher.clone())
             .app_data(base_url.clone())
             .app_data(stats_cache.clone())
             .app_data(

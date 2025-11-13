@@ -15,6 +15,7 @@ pub struct Settings {
     pub redis: RedisSettings,
     pub storage: StorageSettings,
     pub email_client: EmailClientSettings,
+    pub event_publisher: EventPublisherSettings,
 }
 
 #[derive(Deserialize, Debug)]
@@ -144,6 +145,20 @@ impl EmailClientSettings {
         Email::parse(self.sender_email.clone())
     }
 
+    pub fn timeout(&self) -> Duration {
+        Duration::from_millis(self.timeout_milliseconds)
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct EventPublisherSettings {
+    pub base_url: String,
+    pub bot_token: SecretString,
+    pub chat_id: String,
+    timeout_milliseconds: u64,
+}
+
+impl EventPublisherSettings {
     pub fn timeout(&self) -> Duration {
         Duration::from_millis(self.timeout_milliseconds)
     }
