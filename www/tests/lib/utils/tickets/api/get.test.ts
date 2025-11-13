@@ -183,7 +183,7 @@ describe('Tickets API GET methods', () => {
         const result = await mod.fetchTickets();
 
         expect(result).toEqual({ tickets: [{ id: 'ticket-1' }, { id: 'ticket-2' }], max_page: 2 });
-        expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/?page=1&page_size=10&order_by=id&sort_order=asc');
+        expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/?page=1&page_size=10&order_by=id&sort_order=asc&statuses[]=all');
     });
 
     it('Fetch tickets with all parameters', async () => {
@@ -216,7 +216,7 @@ describe('Tickets API GET methods', () => {
         const { fetchTickets } = await import('$lib/utils/tickets/api/get');
         await expect(fetchTickets()).rejects.toThrow();
     
-        expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/?page=1&page_size=10&order_by=id&sort_order=asc');
+        expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/?page=1&page_size=10&order_by=id&sort_order=asc&statuses[]=all');
     });
 
     it('Handle API 404 error', async () => {
@@ -225,7 +225,7 @@ describe('Tickets API GET methods', () => {
         const result = await fetchTickets();
     
         expect(result).toEqual({ tickets: [], max_page: 1 });
-        expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/?page=1&page_size=10&order_by=id&sort_order=asc');
+        expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/?page=1&page_size=10&order_by=id&sort_order=asc&statuses[]=all');
     });
 
     it('Uses search_params even when only page parameter is present', async () => {
@@ -234,7 +234,7 @@ describe('Tickets API GET methods', () => {
         const result = await fetchTickets('', { page: 5 });
     
         expect(result).toEqual({ tickets: [{ id: 'page-5' }], max_page: 10 });
-        expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/?page=5&page_size=10&order_by=id&sort_order=asc');
+        expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/?page=5&page_size=10&order_by=id&sort_order=asc&statuses[]=all');
     });
 
     it('Uses search_params directly when provided', async () => {
@@ -271,6 +271,34 @@ describe('Tickets API GET methods', () => {
         const result = await fetchTickets();
 
         expect(result).toEqual({ tickets: [{ id: 'ticket-1' }], max_page: 1 });
+    });
+
+    it('Normalizes invalid array-like params to empty', async () => {
+        helpers.mockSuccess('get', { items: [], max_page: 1 });
+
+        const { fetchTickets } = await import('$lib/utils/tickets/api/get');
+        await fetchTickets('', {
+            custom_param: 'value',
+            statuses: 123 as any,
+            buildings: { bad: true } as any
+        });
+
+        const calledUrl = (apiMock.get as any).mock.calls[0][0] as string;
+        expect(calledUrl).toBe('/api/tickets/?custom_param=value');
+        expect(calledUrl).not.toContain('statuses');
+        expect(calledUrl).not.toContain('buildings');
+    });
+
+    it('Applies default statuses when selectedStatus is empty)', async () => {
+        (getTicketsFilters as any).mockReturnValueOnce({ ...filtersValue, selectedStatus: [] });
+        helpers.mockSuccess('get', { items: [], max_page: 1 });
+
+        const { fetchTickets } = await import('$lib/utils/tickets/api/get');
+        await fetchTickets();
+
+        expect(apiMock.get).toHaveBeenCalledWith(
+            '/api/tickets/?page=1&page_size=10&order_by=id&sort_order=asc&statuses[]=open&statuses[]=closed&statuses[]=inprogress&statuses[]=cancelled'
+        );
     });
 });
 

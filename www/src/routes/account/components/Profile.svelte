@@ -780,7 +780,7 @@
     <div class="active-tickets-section">
         <div class="section-header">
             <h2>Активные заявки</h2>
-            <a href="/tickets" class="view-all">Все заявки</a>
+            <a href="/ticket" class="view-all">Все заявки</a>
         </div>
         
         {#if activeTickets.length > 0}

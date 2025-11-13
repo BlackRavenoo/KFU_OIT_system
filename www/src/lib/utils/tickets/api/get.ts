@@ -22,10 +22,16 @@ export async function fetchTickets(search: string = '', search_params: Record<st
     const filters = getTicketsFilters();
     const page = search_params.page || 1; 
     const page_size = validatePageSize(filters.page_size) ? filters.page_size : 10;
+
+    const toArrayParam = (v: unknown): string[] => {
+        if (Array.isArray(v)) return (v as unknown[]).flat().map(String);
+        if (typeof v === 'string') return v.split(',').map(s => s.trim()).filter(Boolean);
+        else return [];
+    };
     
     let params: Record<string, any> = {};
     
-    if (Object.keys(search_params).length === 0 || Object.keys(search_params).length === 1 && 'page' in search_params) {
+    if (Object.keys(search_params).length === 0 || (Object.keys(search_params).length === 1 && 'page' in search_params)) {
         params = {
             page,
             page_size,
@@ -33,18 +39,26 @@ export async function fetchTickets(search: string = '', search_params: Record<st
             sort_order: filters.sortOrder,
         };
         
-        if (filters.selectedStatus !== 'all')
-            params.statuses = [filters.selectedStatus];
+        if (filters.selectedStatus.length > 0)
+            params.statuses = toArrayParam(filters.selectedStatus);
+        else
+            params.statuses = ['open', 'closed', 'inprogress', 'cancelled'];
             
         if (filters.plannedFrom) params.planned_from = toRfc3339(filters.plannedFrom);
         if (filters.plannedTo) params.planned_to = toRfc3339(filters.plannedTo, true);
             
         if (filters.selectedBuildings.length > 0)
-            params.buildings = filters.selectedBuildings;
+            params.buildings = toArrayParam(filters.selectedBuildings);
             
         if (search || filters.search) params.search = search || filters.search;
     } else {
-        params = {...search_params};
+        params = { ...search_params };
+
+        if ('statuses' in params)
+            params.statuses = toArrayParam(params.statuses);
+
+        if ('buildings' in params)
+            params.buildings = toArrayParam(params.buildings);
     }
 
     const query = buildQuery(params);

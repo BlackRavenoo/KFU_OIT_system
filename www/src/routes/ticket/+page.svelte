@@ -12,9 +12,11 @@
     import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { getTicketsFilters, setTicketsFilters, clearTicketsFilters } from '$lib/utils/tickets/stores';
+    import { updateTicket } from '$lib/utils/tickets/api/set';
 
     import SearchBar from '$lib/components/Search/Searchfield.svelte';
     import Pagination from '$lib/components/Search/Pagination.svelte';
+    import Confirmation from '$lib/components/Modal/Confirmation.svelte';
 
     let tickets: any[] = [];
     let error: string | null = null;
@@ -28,6 +30,9 @@
     let isMobile = false;
 
     let { search, viewMode, sortOrder, selectedStatus, selectedBuildings, plannedFrom, plannedTo, page_size, selectedSort } = filters;
+
+    if (!Array.isArray(selectedStatus))
+        selectedStatus = selectedStatus && selectedStatus !== 'all' ? [String(selectedStatus)] : [];
 
     $: setTicketsFilters({ search, viewMode, sortOrder, selectedStatus, selectedBuildings, plannedFrom, plannedTo, page_size, selectedSort, page });
 
@@ -103,6 +108,9 @@
             page_size,
             selectedSort
         } = getTicketsFilters());
+
+        if (!Array.isArray(selectedStatus))
+            selectedStatus = selectedStatus && selectedStatus !== 'all' ? [String(selectedStatus)] : [];
         
         page = 1;
         updatePageUrl();
@@ -111,18 +119,68 @@
         maxPage = result.max_page;
     }
 
-    /**
-     * Проверка ширины отображения для изменения макета
-    */
     function checkMobile() {
         isMobile = window.innerWidth <= 900;
     }
 
-    /**
-     * Переключение макета фильтров
-    */
     function toggleFiltersCollapsed() {
         filtersCollapsed = !filtersCollapsed;
+    }
+
+    let refreshTimer: ReturnType<typeof setInterval> | null = null;
+    const TEN_MIN = 10 * 60 * 1000;
+
+    async function refreshTickets() {
+        try {
+            const result = await fetchTickets(search, { page });
+            tickets = result.tickets;
+            maxPage = result.max_page;
+        } catch {  }
+    }
+
+    function resolveCriticalServerValue(): string {
+        const val = statusPriority.find(o => (o as any).value === 'critical')?.serverValue;
+        return String(val ?? 'critical');
+    }
+
+    function isCritical(ticket: any): boolean {
+        const v = String(ticket?.priority ?? '').toLowerCase();
+        const critical = resolveCriticalServerValue().toLowerCase();
+        return v === critical || v === 'critical';
+    }
+
+    let confirmVisible = false;
+    let ticketForCritical: any = null;
+
+    function promptCritical(ticket: any) {
+        if (isCritical(ticket)) return;
+        ticketForCritical = ticket;
+        confirmVisible = true;
+    }
+
+    async function confirmSetCritical() {
+        const id = ticketForCritical?.id != null ? String(ticketForCritical.id) : '';
+        if (!id) {
+            confirmVisible = false;
+            ticketForCritical = null;
+            return;
+        }
+
+        try {
+            const newPriority = resolveCriticalServerValue();
+            await updateTicket(id, { priority: newPriority });
+            tickets = tickets.map(t => t.id === ticketForCritical.id ? { ...t, priority: newPriority } : t);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            confirmVisible = false;
+            ticketForCritical = null;
+        }
+    }
+
+    function cancelSetCritical() {
+        confirmVisible = false;
+        ticketForCritical = null;
     }
 
     onMount(async () => {
@@ -152,13 +210,16 @@
         } catch (e) {
             error = e instanceof Error ? e.message : String(e);
         }
+
+        refreshTimer = setInterval(() => { void refreshTickets(); }, TEN_MIN);
     });
 
     onDestroy(() => {
         window.removeEventListener('resize', checkMobile);
+        if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
 
-        pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
-        pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
+        pageTitle.set('Service Desk | Система управления заявками ЕИ КФУ');
+        pageDescription.set('Система обработки заявок Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
     });
 </script>
 
@@ -179,13 +240,12 @@
             <div class="filter">
                 <span class="filter_name">Статус</span>
                 <div class="filter_case">
-                    {#each statusOptions as status, i}
+                    {#each statusOptions.filter(s => s.value !== 'all') as status}
                         <input
-                            type="radio"
+                            type="checkbox"
                             name="filter-status"
                             value={ status.value }
                             id={ status.value + '-tickets' }
-                            checked={ i === 0 }
                             bind:group={ selectedStatus }
                         />
                         <label for={ status.value + '-tickets' }>{ status.label }</label>
@@ -318,6 +378,56 @@
                                     window.location.href = `/ticket/${ ticket.id }`;
                             }}
                         >
+                            <button
+                                type="button"
+                                class="priority-flame { isCritical(ticket) ? 'critical' : 'inactive' }"
+                                aria-label={ isCritical(ticket) ? 'Критичный приоритет' : 'Сделать критичным' }
+                                title={ isCritical(ticket) ? 'Критичный приоритет' : 'Сделать критичным' }
+                                on:click|stopPropagation={() => promptCritical(ticket)}
+                                disabled={ isCritical(ticket) }
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    {#if isCritical(ticket)}
+                                        <defs>
+                                            <radialGradient id={"flame-grad-" + ticket.id} cx="50%" cy="55%" r="60%">
+                                                <stop offset="0%" stop-color="#fde047" />
+                                                <stop offset="35%" stop-color="#fbbf24" />
+                                                <stop offset="100%" stop-color="#f97316" />
+                                            </radialGradient>
+                                        </defs>
+                                        <path
+                                            d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
+                                            fill={"url(#flame-grad-" + ticket.id + ")"}
+                                        />
+                                    {:else}
+                                        <path
+                                            d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
+                                            fill="currentColor"
+                                        />
+                                    {/if}
+                                </svg>
+                            </button>
+
+                            <div
+                                class="priority-chip priority-chip-list { String(ticket?.priority ?? '').toLowerCase() }"
+                                aria-label={`Приоритет: ${
+                                    String(ticket?.priority ?? '').toLowerCase() === 'low' ? 'Низкий' :
+                                    String(ticket?.priority ?? '').toLowerCase() === 'medium' ? 'Средний' :
+                                    String(ticket?.priority ?? '').toLowerCase() === 'high' ? 'Высокий' :
+                                    String(ticket?.priority ?? '').toLowerCase() === 'critical' ? 'Критичный' : ''
+                                }`}
+                            >
+                                {#if String(ticket?.priority ?? '').toLowerCase() === 'low'}
+                                    Низкий
+                                {:else if String(ticket?.priority ?? '').toLowerCase() === 'medium'}
+                                    Средний
+                                {:else if String(ticket?.priority ?? '').toLowerCase() === 'high'}
+                                    Высокий
+                                {:else if String(ticket?.priority ?? '').toLowerCase() === 'critical'}
+                                    Критичный
+                                {/if}
+                            </div>
+
                             <div class="ticket-title">
                                 { formatTitle(ticket.title) } 
                                 <span class="{ statusPriority.find(option => option.serverValue === ticket.priority)?.value + '-status' || '' }">
@@ -343,6 +453,56 @@
                                     window.location.href = `/ticket/${ ticket.id }`;
                             }}
                         >
+                            <button
+                                type="button"
+                                class="priority-flame { isCritical(ticket) ? 'critical' : 'inactive' }"
+                                aria-label={ isCritical(ticket) ? 'Критичный приоритет' : 'Сделать критичным' }
+                                title={ isCritical(ticket) ? 'Критичный приоритет' : 'Сделать критичным' }
+                                on:click|stopPropagation={() => promptCritical(ticket)}
+                                disabled={ isCritical(ticket) }
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    {#if isCritical(ticket)}
+                                        <defs>
+                                            <radialGradient id={"flame-grad-" + ticket.id} cx="50%" cy="55%" r="60%">
+                                                <stop offset="0%" stop-color="#fde047" />
+                                                <stop offset="35%" stop-color="#fbbf24" />
+                                                <stop offset="100%" stop-color="#f97316" />
+                                            </radialGradient>
+                                        </defs>
+                                        <path
+                                            d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
+                                            fill={"url(#flame-grad-" + ticket.id + ")"}
+                                        />
+                                    {:else}
+                                        <path
+                                            d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
+                                            fill="currentColor"
+                                        />
+                                    {/if}
+                                </svg>
+                            </button>
+
+                            <div
+                                class="priority-chip { String(ticket?.priority ?? '').toLowerCase() }"
+                                aria-label={`Приоритет: ${
+                                    String(ticket?.priority ?? '').toLowerCase() === 'low' ? 'Низкий' :
+                                    String(ticket?.priority ?? '').toLowerCase() === 'medium' ? 'Средний' :
+                                    String(ticket?.priority ?? '').toLowerCase() === 'high' ? 'Высокий' :
+                                    String(ticket?.priority ?? '').toLowerCase() === 'critical' ? 'Критичный' : ''
+                                }`}
+                            >
+                                {#if String(ticket?.priority ?? '').toLowerCase() === 'low'}
+                                    Низкий
+                                {:else if String(ticket?.priority ?? '').toLowerCase() === 'medium'}
+                                    Средний
+                                {:else if String(ticket?.priority ?? '').toLowerCase() === 'high'}
+                                    Высокий
+                                {:else if String(ticket?.priority ?? '').toLowerCase() === 'critical'}
+                                    Критичный
+                                {/if}
+                            </div>
+
                             <div class="ticket-title">{ formatTitle(ticket.title) }</div>
                             <div class="ticket-meta">
                                 { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
@@ -350,7 +510,6 @@
                             <div class="ticket-desc">
                                 { formatDescription(ticket.description) }
                             </div>
-                            <div class="status { statusPriority.find(option => option.serverValue === ticket.priority)?.value + '-status' || '' }"></div>
                         </div>
                     {/if}
                 {/each}
@@ -363,6 +522,17 @@
             onPageChange={ handlePageChange }
         />
     </main>
+
+    {#if confirmVisible}
+        <Confirmation
+            title="Критичный приоритет"
+            message={`Установить критичный приоритет для заявки #${ticketForCritical?.id}?`}
+            confirmText="Сделать критичной"
+            cancelText="Отмена"
+            onConfirm={ confirmSetCritical }
+            onCancel={ cancelSetCritical }
+        />
+    {/if}
 </div>
 
 <style scoped>

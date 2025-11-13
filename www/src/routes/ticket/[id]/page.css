@@ -7,6 +7,7 @@ main {
     background: var(--light-gray);
     border-top: 1px solid var(--light-blue);
     justify-content: start;
+    overflow-y: hidden;
 }
 
 .ticket-container {

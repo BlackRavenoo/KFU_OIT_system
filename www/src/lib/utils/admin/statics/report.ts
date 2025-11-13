@@ -107,7 +107,6 @@ export async function generateStatisticsReport(
         'Дата создания',
         'Исполнители',
         'Статус',
-        'Комментарий'
     ];
 
     const rows = resultTickets.map((ticket) => [
@@ -120,7 +119,6 @@ export async function generateStatisticsReport(
             ? ticket.assigned_to.map((a: any) => a.name).join(', ')
             : ticket.assigned_to ?? ticket.assigned_to ?? '',
         statusMap[ticket.status] ?? ticket.status,
-        ticket.note ?? ''
     ]);
 
     const statBlock = [

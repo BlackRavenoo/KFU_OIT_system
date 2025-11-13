@@ -42,7 +42,7 @@ export type TicketsFilters = {
     search: string;
     viewMode: ViewMode;
     sortOrder: SortOrder;
-    selectedStatus: string;
+    selectedStatus: string[];
     selectedBuildings: string[];
     plannedFrom: string;
     plannedTo: string;

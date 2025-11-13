@@ -137,7 +137,7 @@
      */
     onDestroy(() => {
         observer?.disconnect();
-        pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
+        pageTitle.set('Service Desk | Система управления заявками ЕИ КФУ');
     });
 
 </script>

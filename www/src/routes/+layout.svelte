@@ -87,7 +87,7 @@
 </script>
 
 {#if $authCheckComplete}
-    <div class="container" on:outrostart={handleTransitionStart}>
+    <div class="container" on:outrostart={ handleTransitionStart }>
         <Nav />
         <slot></slot>
         {#if showFooter}

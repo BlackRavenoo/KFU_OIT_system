@@ -6,7 +6,7 @@ const defaultFilters: TicketsFilters = {
     search: '',
     viewMode: 'cards',
     sortOrder: 'asc',
-    selectedStatus: 'all',
+    selectedStatus: [],
     selectedBuildings: [],
     plannedFrom: '',
     plannedTo: '',

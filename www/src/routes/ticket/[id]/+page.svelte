@@ -32,6 +32,7 @@
 
     let status: UiStatus;
     let priority: PriorityStatus;
+    let title: string = '';
     let description: string = '';
     let author: string = '';
     let author_contacts: string = '';
@@ -204,6 +205,7 @@
         isEditing = true;
         status = ticketData.status;
         priority = ticketData.priority;
+        title = ticketData.title;
         description = ticketData.description;
         author = ticketData.author;
         author_contacts = ticketData.author_contacts;
@@ -216,10 +218,10 @@
         if (!ticketData) return;
 
         const updatedFields: Partial<Ticket> = {
-            id: ticketData.id,
-            title: ticketData.title
+            id: ticketData.id
         };
 
+        if (isEditing && title !== ticketData.title) updatedFields.title = title;
         if (description !== ticketData.description) updatedFields.description = description;
         if (author !== ticketData.author) updatedFields.author = author;
         if (author_contacts !== ticketData.author_contacts) updatedFields.author_contacts = author_contacts;
@@ -237,6 +239,7 @@
             .then(() => {
                 ticketData = {
                     ...ticketData,
+                    title: updatedFields.title ?? ticketData?.title,
                     description: description,
                     author: author,
                     author_contacts: author_contacts,
@@ -351,6 +354,8 @@
             pageTitle.set(`Заявка ${ticketData.building.code}-${ticketId} | Система управления заявками ЕИ КФУ`);
         if (ticketData && Array.isArray(ticketData.attachments) && ticketData.attachments.length > 0)
             images = await fetchImages(ticketData.attachments);
+
+        if (ticketData) title = ticketData.title;
         
         if (!$isAuthenticated) window.location.href = '/';
 
@@ -358,8 +363,8 @@
     });
 
     onDestroy(() => {
-        pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
-        pageDescription.set('Система обработки заявок Отдела Информационных Технологий Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
+        pageTitle.set('Service Desk | Система управления заявками ЕИ КФУ');
+        pageDescription.set('Система обработки заявок Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
         
         images.forEach(url => URL.revokeObjectURL(url));
         
@@ -384,7 +389,16 @@
             <div class="ticket-meta">
                 {#if ticketData}
                     <span class="ticket-id">Заявка { ticketData.building.code }-{ ticketId }</span>
-                    <h1 class="ticket-title">{ ticketData.title }</h1>
+                    {#if isEditing}
+                        <input
+                            type="text"
+                            class="ticket-title-input edit-mode"
+                            bind:value={ title }
+                            aria-label="Заголовок заявки"
+                        />
+                    {:else}
+                        <h1 class="ticket-title">{ ticketData.title }</h1>
+                    {/if}
                     <p class="ticket-tag">Время создания: <span>{ formatDate(ticketData.created_at) }</span></p>
                     <p class="ticket-tag">
                         Запланированное время:
@@ -410,9 +424,15 @@
                                 {#each statusPriority as option}
                                     <option value={ option.serverValue }>{ option.label }</option>
                                 {/each}
+                                {#if !statusPriority.some(p => String(p.serverValue).toLowerCase() === 'critical' || String(p.value).toLowerCase() === 'critical')}
+                                    <option value="critical">Критичный</option>
+                                {/if}
                             </select>
                         {:else}
-                            <span class="{ ticketData.priority + '-priority' }">{ statusPriority.find(option => option.serverValue === ticketData?.priority)?.label }</span>
+                            <span class="{ ticketData.priority + '-priority' }">
+                                { statusPriority.find(option => option.serverValue === ticketData?.priority)?.label
+                                    || (String(ticketData?.priority ?? '').toLowerCase() === 'critical' ? 'Критичный' : '') }
+                            </span>
                         {/if}
                     </p>
                     {#if isEditing}
@@ -638,7 +658,16 @@
         <div class="ticket-description mobile-view">
             {#if ticketData}
                 <span class="ticket-id">Заявка { ticketData.building.code }-{ ticketId }</span>
-                <h1 class="ticket-title">{ ticketData.title }</h1>
+                {#if isEditing}
+                    <input
+                        type="text"
+                        class="ticket-title-input edit-mode"
+                        bind:value={ title }
+                        aria-label="Заголовок заявки"
+                    />
+                {:else}
+                    <h1 class="ticket-title">{ ticketData.title }</h1>
+                {/if}
                 <p class="ticket-tag">Время создания: <span>{ formatDate(ticketData.created_at) }</span></p>
                 <p class="ticket-tag">
                     Запланированное время:
@@ -664,9 +693,15 @@
                             {#each statusPriority as option}
                                 <option value={ option.serverValue }>{ option.label }</option>
                             {/each}
+                            {#if !statusPriority.some(p => String(p.serverValue).toLowerCase() === 'critical' || String(p.value).toLowerCase() === 'critical')}
+                                <option value="critical">Критичный</option>
+                            {/if}
                         </select>
                     {:else}
-                        <span class="{ ticketData.priority + '-priority' }">{ statusPriority.find(option => option.serverValue === ticketData?.priority)?.label }</span>
+                        <span class="{ ticketData.priority + '-priority' }">
+                            { statusPriority.find(option => option.serverValue === ticketData?.priority)?.label
+                                || (String(ticketData?.priority ?? '').toLowerCase() === 'critical' ? 'Критичный' : '') }
+                        </span>
                     {/if}
                 </p>
             {:else}

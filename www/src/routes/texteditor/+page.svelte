@@ -19,38 +19,38 @@
     import { fetchPageContentByKey } from '$lib/utils/pages/document';
 
     let title: string = 'Безымянный документ';
-    let editingTitle = false;
+    let editingTitle: boolean = false;
     let content: string = '';
     let editorDiv: HTMLDivElement | null = null;
     let colorPickerValue: string = '#000000';
 
-    let isBold = false;
-    let isItalic = false;
-    let isUnderline = false;
-    let isCode = false;
-    let isQuote = false;
-    let isH1 = false;
-    let isH2 = false;
-    let isH3 = false;
+    let isBold: boolean = false;
+    let isItalic: boolean = false;
+    let isUnderline: boolean = false;
+    let isCode: boolean = false;
+    let isQuote: boolean = false;
+    let isH1: boolean = false;
+    let isH2: boolean = false;
+    let isH3: boolean = false;
     let align: 'left' | 'center' | 'right' | 'justify' = 'left';
 
-    let showTableMenu = false;
-    let tableRows = 2;
-    let tableCols = 2;
+    let showTableMenu: boolean = false;
+    let tableRows: number = 2;
+    let tableCols: number = 2;
 
-    let isPublic = false;
+    let isPublic: boolean = false;
 
     let selectedTags: ServerTagDto[] = [];
-    let showTagInput = false;
-    let tagQuery = '';
+    let showTagInput: boolean = false;
+    let tagQuery: string = '';
     let tagSuggestions: ServerTagDto[] = [];
-    let tagLoading = false;
+    let tagLoading: boolean = false;
 
     let selectedRelated: { id: string; title: string }[] = [];
-    let showRelatedInput = false;
-    let relatedQuery = '';
+    let showRelatedInput: boolean = false;
+    let relatedQuery: string = '';
     let relatedSuggestions: { id: string; title: string }[] = [];
-    let relatedLoading = false;
+    let relatedLoading: boolean = false;
 
     let tagSearchTimer: ReturnType<typeof setTimeout> | null = null;
     let relatedSearchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -335,7 +335,7 @@
     }
 
     onDestroy(() => {
-        pageTitle.set('ОИТ | Система управления заявками ЕИ КФУ');
+        pageTitle.set('Service Desk | Система управления заявками ЕИ КФУ');
         document.removeEventListener('selectionchange', updateActiveStates);
     });
 </script>

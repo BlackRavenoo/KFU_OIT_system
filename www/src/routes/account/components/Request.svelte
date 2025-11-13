@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { UserRole } from '$lib/utils/auth/types';
     import { fetchTicket } from '$lib/utils/tickets/api/set';
     import { handleFileChange, removeFile } from '$lib/utils/files/inputs';
     import { showModalWithFocus } from '$lib/components/Modal/Modal';
@@ -96,7 +97,8 @@
 
     onMount(() => {
         const sp = $page?.url?.searchParams;
-        if (!sp) {
+        /** !!! TDD !!! */
+        if (!sp && $currentUser && $currentUser.role !== UserRole.Client) {
             if ($currentUser?.name) Name = $currentUser.name;
             return;
         }
