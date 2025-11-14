@@ -34,8 +34,6 @@ impl EventPublisher {
     )]
     pub async fn publish_event(&self, event: Event, application_url: &ApplicationBaseUrl) -> Result<(), anyhow::Error> {
         let text = Self::format_event(event, application_url);
-
-        println!("{}", text);
         
         self.http_client
             .post(format!("{}/bot{}/sendMessage", self.base_url, self.bot_token.expose_secret()))
