@@ -121,7 +121,7 @@ async fn insert_related_pages(
         return Ok(());
     }
 
-    let mut builder = sqlx::QueryBuilder::new("INSERT INTO related_pages(source_page_id, related_page_id) VALUES ");
+    let mut builder = sqlx::QueryBuilder::new("INSERT INTO related_pages(source_page_id, related_page_id) ");
 
     builder.push_values(related_pages, |mut b, related_id| {
         b.push_bind(page_id)
