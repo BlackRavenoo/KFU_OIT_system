@@ -1,8 +1,8 @@
 use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use anyhow::Context;
 use chrono::{DateTime, Utc};
-use serde::Serialize;
-use sqlx::PgPool;
+use serde::{Deserialize, Serialize};
+use sqlx::{PgPool, types::Json};
 
 use crate::{schema::{common::UserId, tickets::{Building, TicketId, TicketPriority, TicketStatus}}, utils::error_chain_fmt};
 
@@ -39,9 +39,7 @@ pub struct TicketQueryResult {
     pub status: TicketStatus,
     pub priority: TicketPriority,
     pub planned_at: Option<DateTime<Utc>>,
-    pub assigned_to_id: Option<Vec<i32>>,
-    pub assigned_to_name: Option<Vec<String>>,
-    pub assigned_to_avatar: Option<Vec<String>>,
+    pub assigned_to: Json<Vec<User>>,
     pub created_at: DateTime<Utc>,
     pub attachments: Option<Vec<String>>,
     pub building_id: i16,
@@ -61,7 +59,7 @@ pub struct TicketSchemaWithAttachments {
     pub status: TicketStatus,
     pub priority: TicketPriority,
     pub planned_at: Option<DateTime<Utc>>,
-    pub assigned_to: Option<Vec<User>>,
+    pub assigned_to: Json<Vec<User>>,
     pub created_at: DateTime<Utc>,
     pub attachments: Option<Vec<String>>,
     pub building: Building,
@@ -69,31 +67,15 @@ pub struct TicketSchemaWithAttachments {
     pub cabinet: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct User {
     pub id: UserId,
     pub name: String,
-    pub avatar_key: String,
+    pub avatar_key: Option<String>,
 }
 
 impl From<TicketQueryResult> for TicketSchemaWithAttachments {
     fn from(ticket: TicketQueryResult) -> Self {
-        let assigned_to = if let (Some(names), Some(ids), Some(avatar_keys)) = (ticket.assigned_to_name, ticket.assigned_to_id, ticket.assigned_to_avatar) {
-            Some(
-                names.into_iter()
-                    .zip(ids)
-                    .zip(avatar_keys)
-                    .map(|((name, id), avatar_key)| User {
-                        id,
-                        name,
-                        avatar_key
-                    })
-                    .collect()
-            )
-        } else {
-            None
-        };
-
         let building = Building {
             id: ticket.building_id,
             code: ticket.building_code,
@@ -110,7 +92,7 @@ impl From<TicketQueryResult> for TicketSchemaWithAttachments {
             priority: ticket.priority,
             planned_at: ticket.planned_at,
             created_at: ticket.created_at,
-            assigned_to,
+            assigned_to: ticket.assigned_to,
             attachments: ticket.attachments,
             building,
             note: ticket.note,
@@ -133,7 +115,7 @@ pub async fn get_ticket(
 }
 
 #[tracing::instrument(
-    name = "Get tickets from database",
+    name = "Get ticket from database",
     skip(pool)
 )]
 async fn select_ticket(
@@ -152,9 +134,16 @@ async fn select_ticket(
             t.status,
             priority,
             planned_at,
-            ARRAY_AGG(DISTINCT u.id) FILTER (WHERE u.id IS NOT NULL) as assigned_to_id,
-            ARRAY_AGG(DISTINCT u.name) FILTER (WHERE u.name IS NOT NULL) as assigned_to_name,
-            ARRAY_AGG(DISTINCT u.avatar_key) FILTER (WHERE u.avatar_key IS NOT NULL) as assigned_to_avatar,
+            COALESCE(
+                JSON_AGG(
+                    JSON_BUILD_OBJECT(
+                        'id', u.id,
+                        'name', u.name,
+                        'avatar_key', u.avatar_key
+                    )
+                ) FILTER (WHERE u.id IS NOT NULL),
+                '[]'::json
+            ) as "assigned_to!: Json<Vec<User>>",
             t.created_at,
             ARRAY_AGG(DISTINCT ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments,
             b.id as "building_id",
