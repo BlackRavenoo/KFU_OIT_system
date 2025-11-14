@@ -15,7 +15,7 @@
     let Description = '';
     let Name = '';
     let Contact = '';
-    let Building: number = 0;
+    let Building: number = 1;
     let Cabinet = '';
     let DateVal = '';
     let fileName: string[] = [];
@@ -74,7 +74,6 @@
         Title = '';
         Description = '';
         Contact = '';
-        Building = 0;
         Cabinet = '';
         DateVal = '';
         File = [];
@@ -297,7 +296,7 @@
                         <div class="file-list">
                             {#each fileName as name, i}
                                 <div class="file-item">
-                                    <button type="button" class="file-name" on:click={() => onRemoveFile(i)}>{ name }</button>
+                                    <button type="button" class="file-name" on:click={ () => onRemoveFile(i) }>{ name }</button>
                                 </div>
                             {/each}
                         </div>

@@ -117,8 +117,11 @@
     }
 
     function addRelated(item?: { id: string; title: string }) {
-        selectedRelated = addRelatedUtil(selectedRelated, item as any);
-        relatedQuery = '';
+        if (!item) return;
+        if (!selectedRelated.some(r => r.id === item.id))
+            selectedRelated = [...selectedRelated, { id: item.id, title: item.title }];
+
+            relatedQuery = '';
         relatedSuggestions = [];
         showRelatedInput = false;
     }
@@ -268,8 +271,10 @@
             notification('Редактор не инициализирован', NotificationType.Error);
             return;
         }
-        const tagIds: number[] = Array.from(new Set(selectedTags.map(t => Number(t.id)).filter(n => Number.isInteger(n) && n > 0)));
-        const relatedIds: number[] = Array.from(new Set(selectedRelated.map(r => Number(r.id)).filter(n => Number.isInteger(n) && n > 0)));
+
+        const tagIds = Array.from(new Set(selectedTags.map(t => Number(t.id)).filter(n => Number.isInteger(n) && n > 0)));
+        const relatedIds = Array.from(new Set(selectedRelated.map(r => Number(r.id)).filter(n => Number.isInteger(n) && n > 0))); // только ID
+        
         try {
             const id = await savePageAndGetId({
                 html: editorDiv.innerHTML,

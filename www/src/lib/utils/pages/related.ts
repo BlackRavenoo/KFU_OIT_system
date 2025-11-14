@@ -5,27 +5,33 @@ export interface RelatedItem {
     title: string;
 }
 
-const RelatedRoute = '/api/v1/related/';
+const PagesSearchRoute = '/api/v1/pages/';
 
 /**
  * Функция для получения списка связанных материалов (страниц) по поисковому запросу.
  * @param {string} query - поисковая строка.
- * @returns {Promise<RelatedItem[]>} Массив найденных связанных материалов.
+ * @returns {Promise<RelatedItem[]>} Массив найденных связанных материалов (не более 5 штук).
  */
 export async function fetchRelated(query: string): Promise<RelatedItem[]> {
     const q = (query ?? '').trim();
     if (!q) return [];
     try {
-        const res: any = await api.get(`${RelatedRoute}?q=${encodeURIComponent(q)}`);
+        const res: any = await api.get(`${PagesSearchRoute}?search=${encodeURIComponent(q)}&limit=10`);
         const data = res?.data;
 
-        const list: any[] = Array.isArray(data)
-            ? (data as any[])
-            : (Array.isArray((data as any)?.results) ? (data as any).results : []);
+        const list: any[] = Array.isArray(data?.items)
+            ? data.items
+            : Array.isArray(data?.results)
+                ? data.results
+                : Array.isArray(data) ? data : [];
 
         return list
-            .filter((p) => p && (p.id || p.uuid) && (p.title || p.name))
-            .map((p) => ({ id: String(p.id ?? p.uuid), title: String(p.title ?? p.name) }));
+            .filter(p => p && (p.id || p.uuid))
+            .map(p => ({
+                id: String(p.id ?? p.uuid),
+                title: String(p.title ?? p.name ?? p.id)
+            }))
+            .slice(0, 5);
     } catch {
         return [];
     }

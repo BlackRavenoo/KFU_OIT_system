@@ -20,7 +20,6 @@
     import Users from './components/Users.svelte';
     import Bots from './components/Bots.svelte';
     import Request from './components/Request.svelte';
-    import Pages from './components/Pages.svelte';
     
     let activeTab: TabType = Tab.PROFILE;
     let isLoading: boolean = false;
@@ -266,8 +265,6 @@
                 <Bots />
             {:else if activeTab === Tab.REQUEST}
                 <Request />
-            {:else if activeTab === Tab.PAGES}
-                <Pages />
             {:else}
                 <div class="content-section">
                     <h1>Страница в разработке</h1>

@@ -11,14 +11,6 @@ h1 {
     margin-bottom: -4rem;
 }
 
-.search-controls {
-    display: flex;
-    gap: 0.7rem;
-    align-items: center;
-    justify-content: flex-end;
-    margin-bottom: 4rem;
-}
-
 .view-mode-btn,
 .sort-order-btn {
     background: var(--white);
@@ -121,6 +113,10 @@ h1 {
     font-weight: 600;
     color: var(--blue);
     margin-bottom: 0.1em;
+}
+
+.list-view .ticket-title span {
+    color: var(--low);
 }
 
 .ticket-title {
@@ -275,6 +271,60 @@ h1 {
 .btn-primary:hover {
     background-color: #064cd0;
 }
+
+.toolbar {
+    display: flex;
+    justify-content: right;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.controls {
+    display: flex;
+    gap: .6rem;
+    align-items: center;
+}
+
+.status-filters {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    margin: 0 0 1rem 0;
+}
+
+.status-chip {
+    border: 1px solid var(--gray, #e5e7eb);
+    background: var(--white, #fff);
+    border-radius: 999px;
+    padding: .35rem .7rem;
+    font-weight: 600;
+    font-size: .9rem;
+    color: var(--dark, #0f172a);
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+    box-shadow: 0 2px 8px rgba(7,92,239,0.07);
+}
+
+.status-chip.inprogress.active { 
+    border-color: var(--yellow); 
+    color: var(--yellow); 
+    background: #fffae880; 
+}
+
+.status-chip.closed.active { 
+    border-color: var(--low); 
+    color: var(--low); 
+    background: #e9fbeebf; 
+}
+
+.status-chip.cancelled.active { 
+    border-color: var(--red); 
+    color: var(--red); 
+    background: #fee2e2bf; 
+}
+
 
 @media (max-width: 992px) {
     .cards-view {

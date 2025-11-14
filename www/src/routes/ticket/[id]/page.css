@@ -110,7 +110,7 @@ main {
     display: flex;
     flex-direction: column;
     font-size: 1.08rem;
-    word-break: break-all;
+    word-break: break-word;
 }
 
 .ticket-description h2, .ticket-title {
@@ -118,7 +118,7 @@ main {
     font-weight: 700;
     margin-bottom: 12px;
     color: var(--blue);
-    word-break: break-all;
+    word-break: break-word;
 }
 
 .ticket-building {
@@ -419,9 +419,20 @@ input.edit-mode::placeholder, textarea.edit-mode::placeholder {
         gap: 24px;
         padding: 0 8px;
     }
+
     .ticket-meta, .ticket-description {
         max-width: 100%;
         width: 100%;
         padding: 24px 12px;
+    }
+    
+    .ticket-actions {
+        flex-direction: column;
+        width: 100%;
+        gap: 0 !important;
+    }
+
+    .executors-meta .ticket-actions .btn {
+        width: calc(100vw - 6rem);
     }
 }

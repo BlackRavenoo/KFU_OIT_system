@@ -32,7 +32,7 @@ describe('Related pages', () => {
 
             const res = await fetchRelated(' Hello World+/ ');
             expect(api.get).toHaveBeenCalledTimes(1);
-            expect(api.get).toHaveBeenCalledWith('/api/v1/related/?q=Hello%20World%2B%2F');
+            expect(api.get).toHaveBeenCalledWith('/api/v1/pages/?search=Hello%20World%2B%2F&limit=10');
 
             expect(res).toEqual([
                 { id: '1', title: 'A' },
@@ -55,7 +55,8 @@ describe('Related pages', () => {
             const res = await fetchRelated('x');
             expect(res).toEqual([
                 { id: '9', title: 'T9' },
-                { id: '777', title: 'N777' }
+                { id: '777', title: 'N777' },
+                { id: '888', title: 'undefined' }
             ]);
         });
 
@@ -84,6 +85,28 @@ describe('Related pages', () => {
             expect(r2).toEqual([]);
             expect(r3).toEqual([]);
             expect(api.get).not.toHaveBeenCalled();
+        });
+
+        it('Uses data.items when present (prefers items over results)', async () => {
+            (api.get as any).mockResolvedValue({
+                data: {
+                    items: [
+                        { id: 'i1', title: 'Item 1' },
+                        { uuid: 'i2', name: 'Item 2' },
+                        { title: 'No id' }
+                    ],
+                    results: [
+                        { id: 'r1', title: 'Result 1' }
+                    ]
+                }
+            });
+
+            const res = await fetchRelated('items');
+            expect(api.get).toHaveBeenCalledWith('/api/v1/pages/?search=items&limit=10');
+            expect(res).toEqual([
+                { id: 'i1', title: 'Item 1' },
+                { id: 'i2', title: 'Item 2' }
+            ]);
         });
     });
 

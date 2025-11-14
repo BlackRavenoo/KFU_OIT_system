@@ -74,20 +74,34 @@
         maxPage = result.max_page;
     }
 
+    function lockScroll() {
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+    }
+    function unlockScroll() {
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+    }
+
     async function handleFilterChange() {
         page = 1;
         updatePageUrl();
         const result = await fetchTickets(search, { page });
         tickets = result.tickets;
         maxPage = result.max_page;
+        if (isMobile) {
+            filtersCollapsed = true;
+            unlockScroll();
+        }
     }
 
     async function handleToggleSort() {
-        const filters = getTicketsFilters();
-        const newOrder = filters.sortOrder === 'asc' ? 'desc' : 'asc';
+        const filtersNow = getTicketsFilters();
+        const newOrder = filtersNow.sortOrder === 'asc' ? 'desc' : 'asc';
         sortOrder = newOrder;
-        setTicketsFilters({ ...filters, sortOrder: newOrder });
-        
+        setTicketsFilters({ ...filtersNow, sortOrder: newOrder });
+        // синхронизируем комбинированное значение селектора
+        combinedSort = `${selectedSort}|${sortOrder}`;
         page = 1;
         updatePageUrl();
         const result = await fetchTickets(search, { page });
@@ -111,7 +125,8 @@
 
         if (!Array.isArray(selectedStatus))
             selectedStatus = selectedStatus && selectedStatus !== 'all' ? [String(selectedStatus)] : [];
-        
+
+        combinedSort = `${selectedSort}|${sortOrder}`;
         page = 1;
         updatePageUrl();
         const result = await fetchTickets(search, { page });
@@ -121,10 +136,18 @@
 
     function checkMobile() {
         isMobile = window.innerWidth <= 900;
+        if (!isMobile) {
+            filtersCollapsed = true;
+            unlockScroll();
+        }
     }
 
     function toggleFiltersCollapsed() {
         filtersCollapsed = !filtersCollapsed;
+        if (isMobile) {
+            if (!filtersCollapsed) lockScroll();
+            else unlockScroll();
+        }
     }
 
     let refreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -135,7 +158,7 @@
             const result = await fetchTickets(search, { page });
             tickets = result.tickets;
             maxPage = result.max_page;
-        } catch {  }
+        } catch { }
     }
 
     function resolveCriticalServerValue(): string {
@@ -165,7 +188,6 @@
             ticketForCritical = null;
             return;
         }
-
         try {
             const newPriority = resolveCriticalServerValue();
             await updateTicket(id, { priority: newPriority });
@@ -183,10 +205,23 @@
         ticketForCritical = null;
     }
 
+    // комбинированное значение сортировки (поле|направление)
+    let combinedSort = `${selectedSort}|${sortOrder}`;
+
+    function handleCombinedSortChange(e: Event) {
+        const val = (e.target as HTMLSelectElement).value;
+        const [idStr, order] = val.split('|');
+        selectedSort = Number(idStr);
+        sortOrder = order === 'desc' ? 'desc' : 'asc';
+        combinedSort = `${selectedSort}|${sortOrder}`;
+        const current = getTicketsFilters();
+        setTicketsFilters({ ...current, selectedSort, sortOrder });
+    }
+
     onMount(async () => {
         pageTitle.set('Заявки | Система управления заявками ЕИ КФУ');
         pageDescription.set('Отслеживайте статус заявок, принимайте к выполнению новые. Настройте рабочее пространство под себя с множеством гибких фильтров и сортировок.');
-        
+
         if (!$isAuthenticated) window.location.href = '/';
 
         checkMobile();
@@ -196,7 +231,7 @@
             const result = await fetchTickets(search, { page });
             tickets = result.tickets;
             maxPage = result.max_page;
-            
+
             if (page > maxPage && maxPage > 0) {
                 page = 1;
                 updatePageUrl();
@@ -217,7 +252,7 @@
     onDestroy(() => {
         window.removeEventListener('resize', checkMobile);
         if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
-
+        unlockScroll();
         pageTitle.set('Service Desk | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');
     });
@@ -232,10 +267,9 @@
             </svg>
         </button>
     {/if}
-    {#if !isMobile || !filtersCollapsed}
-        <aside class:collapsed={ filtersCollapsed && isMobile }
-            in:slide={{ duration: 250 }}
-            out:fade={{ duration: 200 }}>
+
+    {#if !isMobile}
+        <aside in:slide={{ duration: 250 }} out:fade={{ duration: 200 }}>
             <button id="clear_filters" on:click={ handleClearFilters }>Сбросить</button>
             <div class="filter">
                 <span class="filter_name">Статус</span>
@@ -256,19 +290,9 @@
                 <span class="filter_name">Сроки</span>
                 <div class="filter_case filter_case-planned">
                     <label for="planned-from">От</label>
-                    <input
-                        type="date"
-                        id="planned-from"
-                        name="planned-from"
-                        bind:value={ plannedFrom }
-                    />
+                    <input type="date" id="planned-from" bind:value={ plannedFrom } />
                     <label for="planned-to">До</label>
-                    <input
-                        type="date"
-                        id="planned-to"
-                        name="planned-to"
-                        bind:value={ plannedTo }
-                    />
+                    <input type="date" id="planned-to" bind:value={ plannedTo } />
                 </div>
             </div>
             <div class="filter">
@@ -296,22 +320,98 @@
             <div class="filter">
                 <span class="filter_name">Сортировка</span>
                 <div class="filter_case">
-                    {#each sortConsts as sort}
-                        <input
-                            type="radio"
-                            name="filter-sort"
-                            id={ "sort-" + sort.id }
-                            value={ sort.id }
-                            bind:group={ selectedSort }
-                            checked={ selectedSort === sort.id }
-                        />
-                        <label for={ "sort-" + sort.id }>{ sort.name }</label>
-                    {/each}
+                    <select id="sort-select" bind:value={ combinedSort } on:change={ handleCombinedSortChange }>
+                        {#each sortConsts as sort}
+                            <option value={`${ sort.id }|asc`}>{ sort.name } ▲</option>
+                            <option value={`${ sort.id }|desc`}>{ sort.name } ▼</option>
+                        {/each}
+                    </select>
                 </div>
             </div>
             <button class="filter_access" on:click={ handleFilterChange }>Применить</button>
         </aside>
+    {:else}
+        <div class="filters-mobile-overlay {filtersCollapsed ? '' : 'open'}" transition:fade>
+            {#if !filtersCollapsed}
+                <aside class="mobile-full" in:slide={{ duration: 250 }} out:slide={{ duration: 180 }}>
+                    <button type="button" class="filters-mobile-close" on:click={ toggleFiltersCollapsed } aria-label="Свернуть фильтры">
+                        Фильтры
+                        <svg width="24" height="24" viewBox="0 0 24 24">
+                            <path d="M6 15l6-6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+
+                    <button id="clear_filters" on:click={ handleClearFilters }>Сбросить</button>
+
+                    <div class="filter">
+                        <span class="filter_name">Статус</span>
+                        <div class="filter_case">
+                            {#each statusOptions.filter(s => s.value !== 'all') as status}
+                                <input
+                                    type="checkbox"
+                                    name="filter-status-m"
+                                    value={ status.value }
+                                    id={ status.value + '-tickets-mobile' }
+                                    bind:group={ selectedStatus }
+                                />
+                                <label for={ status.value + '-tickets-mobile' }>{ status.label }</label>
+                            {/each}
+                        </div>
+                    </div>
+
+                    <div class="filter">
+                        <span class="filter_name">Сроки</span>
+                        <div class="filter_case filter_case-planned">
+                            <label for="planned-from-m">От</label>
+                            <input type="date" id="planned-from-m" bind:value={ plannedFrom } />
+                            <label for="planned-to-m">До</label>
+                            <input type="date" id="planned-to-m" bind:value={ plannedTo } />
+                        </div>
+                    </div>
+
+                    <div class="filter">
+                        <span class="filter_name">Здание</span>
+                        <div class="filter_case">
+                            {#each $buildings as building}
+                                <input
+                                    type="checkbox"
+                                    name="filter-building-m"
+                                    value={ building.id.toString() }
+                                    id={ 'm-' + building.id.toString() }
+                                    checked={ selectedBuildings.includes(building.id.toString()) }
+                                    on:change={() => {
+                                        const idStr = building.id.toString();
+                                        if (selectedBuildings.includes(idStr))
+                                            selectedBuildings = selectedBuildings.filter(b => b !== idStr);
+                                        else
+                                            selectedBuildings = [...selectedBuildings, idStr];
+                                    }}
+                                />
+                                <label for={ 'm-' + building.id.toString() }>{ building.name }</label>
+                            {/each}
+                        </div>
+                    </div>
+
+                    <div class="filter">
+                        <span class="filter_name">Сортировка</span>
+                        <div class="filter_case">
+                            <select id="sort-select-m" bind:value={ combinedSort } on:change={ handleCombinedSortChange }>
+                                {#each sortConsts as sort}
+                                    <option value={`${ sort.id }|asc`}>{ sort.name } ▲</option>
+                                    <option value={`${ sort.id }|desc`}>{ sort.name } ▼</option>
+                                {/each}
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="filters-mobile-apply" on:click={ handleFilterChange } aria-label="Применить фильтры">
+                        Применить
+                    </button>
+                </aside>
+            {/if}
+        </div>
     {/if}
+
     <main>
         <div class="search-controls-wrapper">
             <SearchBar 
@@ -360,6 +460,7 @@
                 </button>
             </div>
         </div>
+
         <div class="tickets-list { viewMode === 'list' ? 'list-view' : 'cards-view' }">
             {#if error}
                 <div>{ error }</div>
@@ -395,28 +496,16 @@
                                                 <stop offset="100%" stop-color="#f97316" />
                                             </radialGradient>
                                         </defs>
-                                        <path
-                                            d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
-                                            fill={"url(#flame-grad-" + ticket.id + ")"}
-                                        />
+                                        <path d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
+                                            fill={"url(#flame-grad-" + ticket.id + ")"} />
                                     {:else}
-                                        <path
-                                            d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
-                                            fill="currentColor"
-                                        />
+                                        <path d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
+                                            fill="currentColor" />
                                     {/if}
                                 </svg>
                             </button>
 
-                            <div
-                                class="priority-chip priority-chip-list { String(ticket?.priority ?? '').toLowerCase() }"
-                                aria-label={`Приоритет: ${
-                                    String(ticket?.priority ?? '').toLowerCase() === 'low' ? 'Низкий' :
-                                    String(ticket?.priority ?? '').toLowerCase() === 'medium' ? 'Средний' :
-                                    String(ticket?.priority ?? '').toLowerCase() === 'high' ? 'Высокий' :
-                                    String(ticket?.priority ?? '').toLowerCase() === 'critical' ? 'Критичный' : ''
-                                }`}
-                            >
+                            <div class="priority-chip priority-chip-list { String(ticket?.priority ?? '').toLowerCase() }">
                                 {#if String(ticket?.priority ?? '').toLowerCase() === 'low'}
                                     Низкий
                                 {:else if String(ticket?.priority ?? '').toLowerCase() === 'medium'}
@@ -429,21 +518,20 @@
                             </div>
 
                             <div class="ticket-title">
-                                { formatTitle(ticket.title) } 
-                                <span class="{ statusPriority.find(option => option.serverValue === ticket.priority)?.value + '-status' || '' }">
+                                { formatTitle(ticket.title) }
+                                <span class="{ statusOptions.find(option => option.serverValue === ticket.status)?.value + '-status' || '' }">
                                     { statusOptions.find(option => option.serverValue === ticket.status)?.label || '' }
                                 </span>
                             </div>
                             <div class="ticket-meta">
-                                { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
+                                { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building?.name ?? 'Не указано' }
                             </div>
                             <div class="ticket-desc">
                                 { formatDescription(ticket.description) }
                             </div>
                         </div>
                     {:else}
-                        <div class="ticket-card 
-                            { statusOptions.find(option => option.serverValue === ticket.status)?.value || '' }"
+                        <div class="ticket-card { statusOptions.find(option => option.serverValue === ticket.status)?.value || '' }"
                             role="link"
                             tabindex="0"
                             aria-label={`Открыть заявку ${ ticket.title }`}
@@ -470,28 +558,16 @@
                                                 <stop offset="100%" stop-color="#f97316" />
                                             </radialGradient>
                                         </defs>
-                                        <path
-                                            d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
-                                            fill={"url(#flame-grad-" + ticket.id + ")"}
-                                        />
+                                        <path d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
+                                            fill={"url(#flame-grad-" + ticket.id + ")"} />
                                     {:else}
-                                        <path
-                                            d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
-                                            fill="currentColor"
-                                        />
+                                        <path d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
+                                            fill="currentColor" />
                                     {/if}
                                 </svg>
                             </button>
 
-                            <div
-                                class="priority-chip { String(ticket?.priority ?? '').toLowerCase() }"
-                                aria-label={`Приоритет: ${
-                                    String(ticket?.priority ?? '').toLowerCase() === 'low' ? 'Низкий' :
-                                    String(ticket?.priority ?? '').toLowerCase() === 'medium' ? 'Средний' :
-                                    String(ticket?.priority ?? '').toLowerCase() === 'high' ? 'Высокий' :
-                                    String(ticket?.priority ?? '').toLowerCase() === 'critical' ? 'Критичный' : ''
-                                }`}
-                            >
+                            <div class="priority-chip { String(ticket?.priority ?? '').toLowerCase() }">
                                 {#if String(ticket?.priority ?? '').toLowerCase() === 'low'}
                                     Низкий
                                 {:else if String(ticket?.priority ?? '').toLowerCase() === 'medium'}
@@ -505,7 +581,7 @@
 
                             <div class="ticket-title">{ formatTitle(ticket.title) }</div>
                             <div class="ticket-meta">
-                                { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building.name ?? 'Не указано' }
+                                { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building?.name ?? 'Не указано' }
                             </div>
                             <div class="ticket-desc">
                                 { formatDescription(ticket.description) }
@@ -515,7 +591,7 @@
                 {/each}
             {/if}
         </div>
-        
+
         <Pagination 
             currentPage={ page }
             totalPages={ maxPage }
@@ -537,4 +613,59 @@
 
 <style scoped>
     @import './page.css';
+
+    /* Стили селектора сортировки */
+#sort-select,
+#sort-select-m {
+    width: 100%;
+    padding: .55rem .9rem;
+    font-size: .95rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--blue);
+    background: var(--white);
+    border: 2px solid var(--gray, #e5e7eb);
+    border-radius: 10px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color .2s, box-shadow .2s, background .2s;
+    appearance: none;
+    position: relative;
+}
+
+#sort-select:focus,
+#sort-select-m:focus {
+    border-color: var(--light-blue);
+    box-shadow: 0 6px 24px rgba(7,92,239,0.14);
+    background: var(--light-gray);
+}
+
+#sort-select:hover,
+#sort-select-m:hover {
+    border-color: var(--light-blue);
+}
+
+#sort-select option,
+#sort-select-m option {
+    font-weight: 600;
+    background: var(--white);
+    color: var(--dark);
+}
+
+/* Обёртка (если нужно выделить область) */
+.filter_case select#sort-select,
+.filter_case select#sort-select-m {
+    grid-column: 1 / -1;
+}
+
+/* Мобильный селектор */
+@media (max-width: 900px) {
+    #sort-select {
+        display: none;
+    }
+    #sort-select-m {
+        font-size: 1rem;
+        border-radius: 12px;
+    }
+}
 </style>
