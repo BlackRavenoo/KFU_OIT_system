@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { UserRole } from '$lib/utils/auth/types';
+    import { UserRole } from '$lib/utils/auth/types';
     import { fetchTicket } from '$lib/utils/tickets/api/set';
     import { handleFileChange, removeFile } from '$lib/utils/files/inputs';
     import { showModalWithFocus } from '$lib/components/Modal/Modal';
@@ -44,6 +44,8 @@
     $: nameValid = validateName(Name);
     $: phoneValid = validatePhone(Contact);
 
+   let isSubmitting = false;
+
     function validateForm() {
         errors.Title = Title.trim() === '' ? 'Заполните заголовок' : '';
         errors.Description = Description.trim() === '' ? 'Заполните описание' : '';
@@ -82,15 +84,19 @@
     }
 
     async function onSubmitForm() {
+        if (isSubmitting) return;
         Object.keys(touched).forEach(k => (touched as any)[k] = true);
         if (!validateForm() || !validateFiles(File)) return;
         try {
+            isSubmitting = true;
             await fetchTicket(Title, Description, Name, Contact, Building, Cabinet, DateVal, File);
             notification('Заявка отправлена!', NotificationType.Success);
             resetForm();
             dispatchEvent(new CustomEvent('ticket-sent'));
         } catch {
             notification('Ошибка при отправке заявки', NotificationType.Error);
+        } finally {
+            isSubmitting = false;
         }
     }
 
@@ -287,7 +293,7 @@
                 </div>
 
                 <div class="file-upload">
-                    <input type="file" id="file" multiple accept=".jpg, .jpeg, .png, .pdf" on:change={ onFileChange } />
+                    <input type="file" id="file" multiple accept=".jpg, .jpeg, .png, .webp, .pdf, .docx, .doc, .ppt, .pptx, .txt" on:change={ onFileChange } />
                     <label for="file">
                         <span class="file-icon">📎</span>
                         Прикрепить файлы ({ File.length }/5)
@@ -316,7 +322,7 @@
                 Отправляя данные, вы подтверждаете корректность введённой информации. Контактный телефон используется только для связи по вашей заявке.
             </div>
 
-            <button class="promo submit-btn" type="submit">
+            <button class="promo submit-btn" type="submit" disabled={ isSubmitting } aria-disabled={ isSubmitting }>
                 Оставить заявку
                 <span class="btn-arrow">→</span>
             </button>

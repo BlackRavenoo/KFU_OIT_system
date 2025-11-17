@@ -1,0 +1,23 @@
+@media (max-width: 640px) {
+    .input-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+    }
+    
+    .form-input, #newBuildingCode {
+        width: calc(100% - 1.5rem);
+        max-width: none !important;
+    }
+
+    tbody {
+        width: 100%;
+    }
+
+    tr {
+        justify-content: space-between;
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+    }
+}

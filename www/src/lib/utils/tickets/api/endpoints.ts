@@ -8,5 +8,5 @@ export const TICKETS_API_ENDPOINTS: TicketsApiEndpoints = {
     update: `${AUTH_BASE_PATH}/`,
     delete: `${AUTH_BASE_PATH}/`,
     consts: `${AUTH_BASE_PATH}/consts`,
-    attachments: `/api/v1/images/attachments`,
+    attachments: `/api/v1/attachments/attachments`,
 };

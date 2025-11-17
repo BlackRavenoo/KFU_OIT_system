@@ -133,44 +133,50 @@ describe('Validate phone', () => {
 });
 
 describe('Validate files', () => {
-    function makeFile(type: string): File {
-        // @ts-ignore
-        return { type };
+    function makeFile(type: string, name: string): File {
+        return { type, name } as any;
     }
 
-    it('Returns true for null or empty', () => {
-        expect(validateFiles(null)).toBe(true);
+    it('Returns true for empty array', () => {
         expect(validateFiles([])).toBe(true);
-        // @ts-ignore
-        expect(validateFiles({ length: 0 })).toBe(true);
     });
 
     it('Returns true for allowed file types', () => {
         const files = [
-            makeFile('image/jpeg'),
-            makeFile('image/png'),
-            makeFile('application/pdf'),
-            makeFile('image/gif'),
-            makeFile('image/bmp'),
-            makeFile('image/webp'),
-            makeFile('image/avif')
+            makeFile('image/jpeg', 'a.jpg'),
+            makeFile('image/png', 'b.png'),
+            makeFile('application/pdf', 'c.pdf'),
+            makeFile('image/webp', 'd.webp'),
+            makeFile('text/plain', 'e.txt'),
         ];
         expect(validateFiles(files)).toBe(true);
     });
 
-    it('Returns false for disallowed file types', () => {
+    it('Returns false for disallowed file types (exe)', () => {
         const files = [
-            makeFile('image/jpeg'),
-            makeFile('application/x-msdownload')
+            makeFile('application/x-msdownload', 'malware.exe')
         ];
         expect(validateFiles(files)).toBe(false);
     });
 
     it('Returns false if any file is not allowed', () => {
         const files = [
-            makeFile('image/png'),
-            makeFile('text/plain')
+            makeFile('image/png', 'ok.png'),
+            makeFile('application/x-msdownload', 'bad.exe')
         ];
+        expect(validateFiles(files)).toBe(false);
+    });
+
+    it('Returns false when length exceeds max', () => {
+        const files = Array.from({ length: 6 }, (_, i) =>
+            makeFile('image/jpeg', `f${i}.jpg`)
+        );
+        expect(validateFiles(files)).toBe(false);
+    });
+
+    it('Handles file name ending with dot (empty extension fallback)', () => {
+        const files = [ makeFile('application/x-unknown', 'noext.') ];
+        expect(() => validateFiles(files)).not.toThrow();
         expect(validateFiles(files)).toBe(false);
     });
 });
@@ -210,7 +216,7 @@ describe('formatName', () => {
 describe('formatTitle', () => {
     it('Returns title as-is when 25 chars or less', () => {
         expect(formatTitle('короткий заголовок')).toBe('короткий заголовок');
-        expect(formatTitle('точно двадцать пять симв')).toBe('точно двадцать пять симв'); // 25 chars
+        expect(formatTitle('точно двадцать пять симв')).toBe('точно двадцать пять симв');
         expect(formatTitle('краткий')).toBe('краткий');
     });
 
@@ -291,36 +297,14 @@ describe('formatDate', () => {
     
     beforeEach(() => {
         const DateWithFixedTimezone = class extends Date {
-            getTimezoneOffset() {
-                return testTimezoneOffset;
-            }
-            
-            getTime() {
-                return super.getTime();
-            }
-            
-            getDate() {
-                return super.getDate();
-            }
-            
-            getMonth() {
-                return super.getMonth();
-            }
-            
-            getFullYear() {
-                return super.getFullYear();
-            }
-            
-            getHours() {
-                const utcHours = super.getUTCHours();
-                return (utcHours + 3) % 24;
-            }
-            
-            getMinutes() {
-                return super.getMinutes();
-            }
+            getTimezoneOffset() { return testTimezoneOffset; }
+            getTime() { return super.getTime(); }
+            getDate() { return super.getDate(); }
+            getMonth() { return super.getMonth(); }
+            getFullYear() { return super.getFullYear(); }
+            getHours() { const utcHours = super.getUTCHours(); return (utcHours + 3) % 24; }
+            getMinutes() { return super.getMinutes(); }
         };
-        
         globalThis.Date = DateWithFixedTimezone as any;
     });
 
@@ -330,21 +314,21 @@ describe('formatDate', () => {
 
     it('Format date correctly with fixed timezone', () => {
         const date = new Date('2023-10-01T12:34:56Z').toISOString();
-        expect(formatDate(date)).toBe('01.10.2023 15:34');
+        expect(formatDate(date)).toBe('01.10.2023 12:34');
     });
 
     it('Handles midnight time with fixed timezone', () => {
         const date = new Date('2023-10-01T00:00:00Z').toISOString();
-        expect(formatDate(date)).toBe('01.10.2023 03:00');
+        expect(formatDate(date)).toBe('01.10.2023 00:00');
     });
 
     it('Return "Без даты" for null', () => {
-        //@ts-ignore
+        // @ts-ignore
         expect(formatDate(null)).toBe('Без даты');
     });
 
     it('Return "Без даты" for undefined', () => {
-        //@ts-ignore
+        // @ts-ignore
         expect(formatDate(undefined)).toBe('Без даты');
     });
 

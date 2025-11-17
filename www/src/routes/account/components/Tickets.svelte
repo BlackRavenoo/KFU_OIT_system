@@ -257,6 +257,7 @@
                                 window.location.href = `/ticket/${ticket.id}`;
                         }}
                     >
+                        <span class="ticket-id">{ ticket.building.code }-{ ticket.id }</span>
                         <button
                             type="button"
                             class="priority-flame { isCritical(ticket) ? 'critical' : 'inactive' }"
@@ -327,6 +328,7 @@
                                 window.location.href = `/ticket/${ticket.id}`;
                         }}
                     >
+                        <span class="ticket-id">{ ticket.building.code }-{ ticket.id }</span>
                         <button
                             type="button"
                             class="priority-flame { isCritical(ticket) ? 'critical' : 'inactive' }"

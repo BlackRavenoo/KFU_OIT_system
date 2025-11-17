@@ -10,7 +10,7 @@
     "dir": "auto",
     "theme_color": "#004099",
     "background_color": "#ffffff",
-    "orientation": "any",
+    "orientation": "portrait",
     "icons": [
         {
             "src": "/temp_logo(1).ico",

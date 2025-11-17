@@ -9,7 +9,8 @@ export const Tab = {
     USERS: 'users',
     BOTS: 'bots',
     REQUEST: 'request',
-    PAGES: 'pages'
+    PAGES: 'pages',
+    BUILDINGS: 'buildings'
 } as const;
 
 export type TabType = typeof Tab[keyof typeof Tab];

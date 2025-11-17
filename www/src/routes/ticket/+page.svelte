@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import { page as pageStore } from '$app/stores';
     import { get } from 'svelte/store';
     import { goto } from '$app/navigation';
@@ -479,6 +479,7 @@
                                     window.location.href = `/ticket/${ ticket.id }`;
                             }}
                         >
+                            <span class="ticket-id">{ ticket.building.code }-{ ticket.id }</span>
                             <button
                                 type="button"
                                 class="priority-flame { isCritical(ticket) ? 'critical' : 'inactive' }"
@@ -541,6 +542,7 @@
                                     window.location.href = `/ticket/${ ticket.id }`;
                             }}
                         >
+                            <span class="ticket-id">{ ticket.building.code }-{ ticket.id }</span>
                             <button
                                 type="button"
                                 class="priority-flame { isCritical(ticket) ? 'critical' : 'inactive' }"

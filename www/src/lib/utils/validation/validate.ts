@@ -30,16 +30,38 @@ export function validatePhone(phone: string): boolean {
     return phoneRegex.test(phone);
 }
 
-export function validateFiles(files: FileList | File[] | null): boolean {
+const ALLOWED_MIME = new Set<string>([
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain'
+]);
+
+const ALLOWED_EXT = new Set<string>([
+    'jpg', 'jpeg', 'png', 'webp',
+    'pdf',
+    'doc', 'docx',
+    'ppt', 'pptx',
+    'txt'
+]);
+
+export function validateFiles(files: File[], max = 5): boolean {
     if (!files || files.length === 0) return true;
+    if (files.length > max) return false;
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf', 'image/gif', 'image/bmp', 'image/webp', 'image/avif'];
+    const isAllowed = (f: File) => {
+        const byMime = f.type && ALLOWED_MIME.has(f.type);
+        const ext = (f.name.split('.').pop() || '').toLowerCase();
+        const byExt = ALLOWED_EXT.has(ext);
+        return byMime || byExt;
+    };
 
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (!allowedTypes.includes(file.type)) return false;
-    }
-    return true;
+    return files.every(isAllowed);
 }
 
 export function formatName(name: string): string {
@@ -89,5 +111,5 @@ export function formatDate(dateStr: string): string {
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return 'Без даты';
     const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    return `${pad(date.getUTCDate())}.${pad(date.getUTCMonth() + 1)}.${date.getUTCFullYear()} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 }

@@ -273,7 +273,7 @@
         }
 
         const tagIds = Array.from(new Set(selectedTags.map(t => Number(t.id)).filter(n => Number.isInteger(n) && n > 0)));
-        const relatedIds = Array.from(new Set(selectedRelated.map(r => Number(r.id)).filter(n => Number.isInteger(n) && n > 0))); // только ID
+        const relatedIds = Array.from(new Set(selectedRelated.map(r => Number(r.id)).filter(n => Number.isInteger(n) && n > 0)));
         
         try {
             const id = await savePageAndGetId({

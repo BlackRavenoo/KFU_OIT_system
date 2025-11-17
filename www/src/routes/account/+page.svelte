@@ -20,6 +20,7 @@
     import Users from './components/Users.svelte';
     import Bots from './components/Bots.svelte';
     import Request from './components/Request.svelte';
+    import Buildings from './components/Buildings.svelte';
     
     let activeTab: TabType = Tab.PROFILE;
     let isLoading: boolean = false;
@@ -45,9 +46,6 @@
     
     let activeTickets: any[] = [];
 
-    /**
-     * Подписки на сторы
-    */
     $: if (browser && $page.url.searchParams) {
         const tabParam = $page.url.searchParams.get('tab');
         if (tabParam) {
@@ -60,9 +58,6 @@
         }
     }
     
-    /**
-     * Обновляет данные пользователя и роль при изменении текущего пользователя.
-    */
     $: if ($currentUser) {
         userData = $currentUser;
         userRole = $currentUser.role === UserRole.Administrator ? 'Администратор' :
@@ -73,41 +68,25 @@
         avatarContainer && getAvatar($currentUser, avatarContainer, 80, true);
     }
 
-    /**
-     * Перенаправляет на главную страницу, если пользователь не аутентифицирован.
-    */
     $: if (browser && $authCheckComplete && !$isAuthenticated) {
         goto('/');
     }
 
-    /**
-     * Устанавливает активную вкладку и обновляет URL.
-     * @param tab
-     */
     function setTab(tab: TabType) {
         activeTab = tab;
         updateUrlParam(tab);
         isMobileView && toggleMenu();
     }
 
-    /**
-     * Переключает состояние бокового меню на мобильных устройствах.
-     */
     function toggleMenu() {
         isMenuOpen = !isMenuOpen;
         document.body.style.overflow = isMenuOpen ? 'hidden' : '';
     }
     
-    /**
-     * Проверяет ширину окна и устанавливает флаг мобильного вида.
-     */
     function checkMobileView() {
         isMobileView = window.innerWidth < 900;
     }
     
-    /**
-     * Обрабатывает выход пользователя из системы.
-     */
     async function handleLogout() {
         try {
             await logout();
@@ -117,10 +96,6 @@
         }
     }
     
-    /**
-     * Устанавливает заголовок и описание страницы при монтировании компонента,
-     * а также добавляет обработчик изменения размера окна для адаптивного дизайна.
-    */
     onMount(() => {
         pageTitle.set('Личный кабинет | Система управления заявками ЕИ КФУ');
         pageDescription.set('Управление личной учетной записью и просмотр статистики по заявкам.');
@@ -129,10 +104,6 @@
         window.addEventListener('resize', checkMobileView);
     });
 
-    /**
-     * Восстанавливает заголовок и описание страницы при размонтировании компонента,
-     * а также удаляет обработчик изменения размера окна.
-    */
     onDestroy(() => {
         window.removeEventListener('resize', checkMobileView);
     });
@@ -229,6 +200,13 @@
                 </button>
                 {#if $currentUser?.role === UserRole.Administrator}
                     <button
+                        class={ activeTab === (('buildings') as any) ? 'active' : '' }
+                        on:click={ () => { activeTab = ('buildings' as any); updateUrlParam(('buildings') as any); isMobileView && toggleMenu(); } }
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+                        Здания
+                    </button>
+                    <button
                         class={ activeTab === Tab.BOTS ? 'active' : '' } 
                         on:click={ () => setTab(Tab.BOTS) }
                     >
@@ -261,6 +239,8 @@
                 <Statistics />
             {:else if activeTab === Tab.USERS}
                 <Users />
+            {:else if activeTab === Tab.BUILDINGS}
+                <Buildings />
             {:else if activeTab === Tab.BOTS}
                 <Bots />
             {:else if activeTab === Tab.REQUEST}
