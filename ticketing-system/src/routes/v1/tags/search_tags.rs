@@ -52,8 +52,8 @@ async fn fetch_tags(
             WHERE t.name % $1
                 OR ts.name % $1
             ORDER BY LEAST(
-                similarity(t.name, 'user_input'),
-                COALESCE(similarity(ts.name, 'user_input'), 0)
+                similarity(t.name, $1),
+                COALESCE(similarity(ts.name, $1), 0)
             ) DESC
         ",
         schema.q
