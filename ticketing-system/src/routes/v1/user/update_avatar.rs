@@ -1,10 +1,10 @@
 use actix_multipart::form::{bytes::Bytes, MultipartForm};
-use actix_web::{web, HttpResponse, ResponseError};
+use actix_web::{HttpResponse, ResponseError, http::StatusCode, web};
 use anyhow::Context;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{auth::extractor::UserIdExtractor, schema::common::UserId, services::image::{ImageService, ImageType}, utils::error_chain_fmt};
+use crate::{auth::extractor::UserIdExtractor, schema::common::UserId, services::attachment::{Attachment, AttachmentService, AttachmentServiceError, AttachmentType}, utils::error_chain_fmt};
 
 #[derive(MultipartForm)]
 pub struct UpdateAvatarForm {
@@ -14,10 +14,19 @@ pub struct UpdateAvatarForm {
 #[derive(thiserror::Error)]
 pub enum UpdateAvatarError {
     #[error(transparent)]
+    AttachmentServiceError(#[from] AttachmentServiceError),
+    #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
 }
 
-impl ResponseError for UpdateAvatarError {}
+impl ResponseError for UpdateAvatarError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            UpdateAvatarError::AttachmentServiceError(e) => e.status_code(),
+            UpdateAvatarError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
 
 impl std::fmt::Debug for UpdateAvatarError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -27,7 +36,7 @@ impl std::fmt::Debug for UpdateAvatarError {
 
 pub async fn update_avatar(
     pool: web::Data<PgPool>,
-    image_service: web::Data<ImageService>,
+    service: web::Data<AttachmentService>,
     id: UserIdExtractor,
     MultipartForm(form): MultipartForm<UpdateAvatarForm>,
 ) -> Result<HttpResponse, UpdateAvatarError> {
@@ -35,9 +44,13 @@ pub async fn update_avatar(
         .context("Failed to get key from database")?
         .context("User not found")?;
 
-    image_service.upload_image(ImageType::Avatars, form.avatar.data, Some(key))
+    service.upload(
+        AttachmentType::Avatars,
+        Attachment::try_from(form.avatar)?,
+        Some(key)
+    )
         .await
-        .context("Failed to upload image")?;
+        .context("Failed to upload avatar")?;
 
     Ok(HttpResponse::Ok().finish())
     

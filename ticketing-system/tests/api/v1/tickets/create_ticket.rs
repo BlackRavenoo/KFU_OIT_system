@@ -20,7 +20,7 @@ async fn create_ticket_returns_201() {
 }
 
 #[tokio::test]
-async fn create_ticket_with_invalid_attachments_returns_400() {
+async fn create_ticket_with_pdf_returns_201() {
     let app = spawn_app().await;
 
     let json = serde_json::json!({
@@ -31,10 +31,10 @@ async fn create_ticket_with_invalid_attachments_returns_400() {
         "building_id": 1,
     });
 
-    Mock::given(path_regex(r"/test-bucket/attachments/.*\.webp"))
+    Mock::given(path_regex(r"/test-bucket/attachments/.*"))
         .and(method("PUT"))
         .respond_with(ResponseTemplate::new(200))
-        .expect(0)
+        .expect(2)
         .mount(&app.s3_server)
         .await;
 
@@ -44,13 +44,13 @@ async fn create_ticket_with_invalid_attachments_returns_400() {
     );
 
     let attachment2 = Attachment::from_filename(
-        vec![0xFF],
-        "test.jpg"
+        include_bytes!("../../../../../www/static/KFU.png").into(),
+        "KFU.png"
     );
 
     let resp = app.create_ticket(&json, Some(vec![attachment1, attachment2])).await;
 
-    assert_eq!(resp.status(), 400);
+    assert_eq!(resp.status(), 201);
 }
 
 #[tokio::test]

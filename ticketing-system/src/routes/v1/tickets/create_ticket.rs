@@ -8,7 +8,7 @@ use futures_util::{stream, StreamExt as _};
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};
 
-use crate::{domain::description::Description, events::{event_publisher::EventPublisher, events::Event}, schema::tickets::TicketId, services::image::{ImageService, ImageServiceError, ImageType}, startup::ApplicationBaseUrl, utils::{cleanup_images, error_chain_fmt}};
+use crate::{domain::description::Description, events::{event_publisher::EventPublisher, events::Event}, schema::tickets::TicketId, services::attachment::{Attachment, AttachmentService, AttachmentServiceError, AttachmentType}, startup::ApplicationBaseUrl, utils::{cleanup_images, error_chain_fmt}};
 
 #[derive(Deserialize, Debug)]
 pub struct CreateTicketSchema {
@@ -29,8 +29,8 @@ pub struct CreateTicketForm {
 
 #[derive(thiserror::Error)]
 pub enum CreateTicketError {
-    #[error("Error in image service")]
-    ImageServiceError(#[from] ImageServiceError),
+    #[error(transparent)]
+    AttachmentServiceError(#[from] AttachmentServiceError),
     #[error("A lot of attachments")]
     ALotOfAttachments,
     #[error(transparent)]
@@ -46,7 +46,7 @@ impl std::fmt::Debug for CreateTicketError {
 impl ResponseError for CreateTicketError {
     fn status_code(&self) -> StatusCode {
         match self {
-            CreateTicketError::ImageServiceError(e) => e.status_code(),
+            CreateTicketError::AttachmentServiceError(e) => e.status_code(),
             CreateTicketError::ALotOfAttachments => StatusCode::BAD_REQUEST,
             CreateTicketError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -56,7 +56,7 @@ impl ResponseError for CreateTicketError {
 pub async fn create_ticket(
     MultipartForm(ticket): MultipartForm<CreateTicketForm>,
     pool: web::Data<PgPool>,
-    image_service: web::Data<ImageService>,
+    service: web::Data<AttachmentService>,
     base_url: web::Data<ApplicationBaseUrl>,
     event_publisher: web::Data<EventPublisher>,
 ) -> Result<HttpResponse, CreateTicketError> {
@@ -75,11 +75,11 @@ pub async fn create_ticket(
     let attachments_len = ticket.attachments.len();
 
     if attachments_len != 0 {
-        let (keys, status) = upload_attachments(image_service.deref().clone(), ticket.attachments).await;
+        let (keys, status) = upload_attachments(service.deref().clone(), ticket.attachments).await;
 
         if let Err(e) = status {
             if !keys.is_empty() {
-                cleanup_images(image_service.into_inner(), keys, 30, ImageType::Attachments).await;
+                cleanup_images(service.into_inner(), keys, 30, AttachmentType::TicketAttachments).await;
             }
             return Err(e.into());
         }
@@ -87,7 +87,7 @@ pub async fn create_ticket(
         if let Err(e) = insert_attachments(&mut transaction, ticket_id, &keys).await
             .context("Failed to insert attachments into database") {
                 if !keys.is_empty() {
-                    cleanup_images(image_service.deref().clone(), keys, 30, ImageType::Attachments).await;
+                    cleanup_images(service.deref().clone(), keys, 30, AttachmentType::TicketAttachments).await;
                 }
         
                 return Err(CreateTicketError::Unexpected(e));
@@ -160,13 +160,26 @@ async fn insert_ticket(
     skip_all
 )]
 async fn upload_attachments(
-    image_service: Arc<ImageService>,
+    service: Arc<AttachmentService>,
     attachments: Vec<Bytes>,
-) -> (Vec<String>, Result<(), ImageServiceError>) {
+) -> (Vec<String>, Result<(), AttachmentServiceError>) {
     let attachments_len = attachments.len();
 
+    let attachments: Result<Vec<_>, _> = attachments.into_iter()
+        .map(|b| Attachment::try_from(b))
+        .collect();
+    
+    let attachments = match attachments {
+        Ok(att) => att,
+        Err(e) => return (vec![], Err(e.into())),
+    };
+
     let results = stream::iter(attachments)
-        .map(|attachment| image_service.upload_image(ImageType::Attachments, attachment.data, None))
+        .map(|attachment| service.upload(
+            AttachmentType::TicketAttachments,
+            attachment,
+            None
+        ))
         .buffer_unordered(attachments_len)
         .collect::<Vec<_>>()
         .await;

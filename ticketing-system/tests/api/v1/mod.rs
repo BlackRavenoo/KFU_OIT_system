@@ -4,4 +4,4 @@ mod tickets;
 mod pages;
 mod tags;
 
-mod images;
+mod attachments;

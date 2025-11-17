@@ -8,27 +8,27 @@ use argon2::{
     Argon2
 };
 
-use crate::services::image::{ImageService, ImageType};
+use crate::services::attachment::{AttachmentService, AttachmentType};
 
 #[tracing::instrument(
-    name="Cleanup images",
-    skip(image_service)
+    name="Cleanup attachments",
+    skip(service)
 )]
 pub async fn cleanup_images(
-    image_service: Arc<ImageService>,
+    service: Arc<AttachmentService>,
     keys: Vec<String>,
     timeout_secs: u64,
-    image_type: ImageType,
+    image_type: AttachmentType,
 ) {
     tokio::spawn(async move {
         let cleanup = async {
             let keys_len = keys.len();
             let _results = stream::iter(keys)
                 .map(|key| {
-                    let service = &image_service;
+                    let service = &service;
                     let image_type = image_type.clone();
                     async move {
-                        if let Err(e) = service.delete_image(image_type, &key).await {
+                        if let Err(e) = service.delete(image_type, &key).await {
                             tracing::warn!("Cleanup failed for {}: {:?}", key, e);
                         }
                     }

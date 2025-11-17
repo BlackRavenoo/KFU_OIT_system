@@ -3,7 +3,8 @@ use std::time::Duration;
 use anyhow::Context;
 use async_trait::async_trait;
 use aws_config::{BehaviorVersion, Region};
-use aws_sdk_s3::{error::SdkError, operation::{get_object::GetObjectError, head_object::HeadObjectError}, presigning::PresigningConfig, primitives::ByteStream, Client, Config};
+use aws_sdk_s3::{error::SdkError, operation::{get_object::GetObjectError, head_object::HeadObjectError}, presigning::PresigningConfig, Client, Config};
+use bytes::Bytes;
 use futures_util::TryStreamExt;
 use secrecy::ExposeSecret;
 use tokio_util::io::ReaderStream;
@@ -115,12 +116,12 @@ impl FileStorage for S3Storage {
             }
     }
 
-    async fn store(&self, bucket: &str, key: &str, data: Vec<u8>) -> Result<(), StorageError> {
+    async fn store(&self, bucket: &str, key: &str, data: Bytes) -> Result<(), StorageError> {
         self.client
             .put_object()
             .bucket(bucket)
             .key(key)
-            .body(ByteStream::from(data))
+            .body(data.into())
             .send()
             .await
             .context("Failed to put object in S3")?;
@@ -146,6 +147,7 @@ impl FileStorage for S3Storage {
 mod tests {
     use aws_sdk_s3::{operation::{get_object::GetObjectOutput, head_object::HeadObjectOutput, put_object::PutObjectOutput}, Client};
     use aws_smithy_mocks::{mock, Rule, RuleMode};
+    use bytes::Bytes;
     use claims::assert_ok;
 
     use crate::storage::{FileAccess, FileStorage};
@@ -219,7 +221,7 @@ mod tests {
 
             let storage = get_s3_storage(&[store_mock], false);
 
-            let res = storage.store("test-bucket", "test-key", data.into()).await;
+            let res = storage.store("test-bucket", "test-key", Bytes::from_static(data)).await;
 
             assert_ok!(res);
     }

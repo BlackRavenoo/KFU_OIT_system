@@ -7,7 +7,7 @@ use moka::future::CacheBuilder;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::mailersend::MailerSendClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::stats::TicketsStats}, services::{image::ImageService, pages::PageService, registration_token::RegistrationTokenStore}};
+use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::mailersend::MailerSendClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::stats::TicketsStats}, services::{attachment::AttachmentService, pages::PageService, registration_token::RegistrationTokenStore}};
 
 pub struct Application {
     server: Server,
@@ -51,7 +51,7 @@ impl Application {
         );
 
         let jwt_service = JwtService::new(&config.auth).unwrap();
-        let image_service = ImageService::new(storage.clone(), config.storage.bucket());
+        let attachment_service = AttachmentService::new(storage.clone(), config.storage.bucket());
         let page_service = PageService::new(
             storage,
             config.storage.bucket(),
@@ -74,7 +74,7 @@ impl Application {
             redis_pool,
             jwt_service,
             connection_pool,
-            image_service,
+            attachment_service,
             page_service,
             email_client,
             event_publisher,
@@ -103,7 +103,7 @@ pub fn run(
     redis_pool: Pool<RedisConnectionManager>,
     jwt_service: JwtService,
     pool: PgPool,
-    image_service: ImageService,
+    attachment_service: AttachmentService,
     page_service: PageService,
     email_client: MailerSendClient,
     event_publisher: EventPublisher,
@@ -112,7 +112,7 @@ pub fn run(
     let token_store = Data::new(TokenStore::new(redis_pool.clone()));
     let reg_store = Data::new(RegistrationTokenStore::new(redis_pool));
     let jwt_service = Data::new(jwt_service);
-    let image_service = Data::new(image_service);
+    let attachment_service = Data::new(attachment_service);
     let page_service = Data::new(page_service);
     let pool = Data::new(pool);
     let email_client = Data::new(email_client);
@@ -131,7 +131,7 @@ pub fn run(
             .app_data(token_store.clone())
             .app_data(reg_store.clone())
             .app_data(jwt_service.clone())
-            .app_data(image_service.clone())
+            .app_data(attachment_service.clone())
             .app_data(page_service.clone())
             .app_data(pool.clone())
             .app_data(email_client.clone())

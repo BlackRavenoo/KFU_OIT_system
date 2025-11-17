@@ -2,7 +2,7 @@ use actix_web::{web, HttpResponse, ResponseError};
 use anyhow::Context;
 use sqlx::PgPool;
 
-use crate::{schema::tickets::TicketId, services::image::{ImageService, ImageType}, utils::{cleanup_images, error_chain_fmt}};
+use crate::{schema::tickets::TicketId, services::attachment::{AttachmentService, AttachmentType}, utils::{cleanup_images, error_chain_fmt}};
 
 #[derive(thiserror::Error)]
 pub enum DeleteTicketError {
@@ -21,7 +21,7 @@ impl ResponseError for DeleteTicketError {}
 pub async fn delete_ticket(
     id: web::Path<TicketId>,
     pool: web::Data<PgPool>,
-    image_service: web::Data<ImageService>,
+    service: web::Data<AttachmentService>,
 ) -> Result<HttpResponse, DeleteTicketError> {
     let id = id.into_inner();
 
@@ -32,7 +32,7 @@ pub async fn delete_ticket(
         .context("Failed to delete ticket")?;
 
     if !keys.is_empty() {
-        cleanup_images(image_service.into_inner(), keys, 30, ImageType::Attachments).await;
+        cleanup_images(service.into_inner(), keys, 30, AttachmentType::TicketAttachments).await;
     }
 
     Ok(HttpResponse::Ok().finish())

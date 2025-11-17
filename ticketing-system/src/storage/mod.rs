@@ -36,7 +36,7 @@ pub enum FileAccess {
 
 #[async_trait]
 pub trait FileStorage: Sync + Send + Clone + 'static {
-    async fn store(&self, bucket: &str, key: &str, data: Vec<u8>) -> Result<(), StorageError>;
+    async fn store(&self, bucket: &str, key: &str, data: Bytes) -> Result<(), StorageError>;
     async fn delete(&self, bucket: &str, key: &str) -> Result<(), StorageError>;
     async fn get_file_access(&self, bucket: &str, key: &str, is_public: bool) -> Result<FileAccess, StorageError>;
 }
