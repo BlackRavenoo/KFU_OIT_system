@@ -13,7 +13,7 @@ pub async fn get_page_data_returns_200() {
         .mount(&app.s3_server)
         .await;
 
-    let resp = reqwest::get(format!("{}/v1/page/public/test", app.address))
+    let resp = reqwest::get(format!("{}/v1/page/public/test.json", app.address))
         .await
         .unwrap();
 
