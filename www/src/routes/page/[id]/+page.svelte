@@ -3,7 +3,7 @@
     import { page as pageStore } from '$app/stores';
     import { get } from 'svelte/store';
     import { pageDescription, pageTitle } from '$lib/utils/setup/stores';
-    import { api } from '$lib/utils/api';
+    import { api, handleAuthError } from '$lib/utils/api';
     import { getAvatar } from '$lib/utils/account/avatar';
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { UserRole } from '$lib/utils/auth/types';
@@ -119,7 +119,11 @@
         pageId = getPageIdFromUrl();
         pageTitle.set('Загрузка... | Система управления заявками ЕИ КФУ');
         pageDescription.set('Просмотр страницы в системе управления заявками ЕИ КФУ.');
-        void loadPage();
+        
+        // @ts-ignore
+        if (!globalThis.$isAuthenticated || $currentUser === null)
+            handleAuthError(get(pageStore).url.pathname);
+        else void loadPage();
     });
 
     onDestroy(() => {

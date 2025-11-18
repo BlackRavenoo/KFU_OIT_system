@@ -15,6 +15,7 @@
     import type { Ticket, Building, UiStatus, PriorityStatus } from '$lib/utils/tickets/types';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
     import FileCard from './File.svelte';
+    import { handleAuthError } from '$lib/utils/api';
 
     let ticketId: string | undefined = undefined;
     $: ticketId = $page?.params?.id;
@@ -389,36 +390,39 @@
     onMount(async () => {
         if (!ticketId) return;
 
-        ticketData = await getById(ticketId);
-        if (ticketData && ticketData.building && ticketData.building.code)
-            pageTitle.set(`Заявка ${ticketData.building.code}-${ticketId} | Система управления заявками ЕИ КФУ`);
-
-        if (ticketData && Array.isArray(ticketData.attachments) && ticketData.attachments.length > 0) {
-            const atts = ticketData.attachments || [];
-            const imageAtts = atts.filter((att: any) => {
-                const name = getAttachmentName(att);
-                const ext = getExtFromName(name);
-                return IMAGE_EXTS.has(ext);
-            });
-            const fetched = imageAtts.length ? await fetchImages(imageAtts) : [];
-            images = Array.isArray(fetched)
-                ? fetched.filter((u) => typeof u === 'string' && u.trim().length > 0)
-                : [];
-            files = atts.map((att: any) => {
-                const name = getAttachmentName(att);
-                const ext = getExtFromName(name);
-                const url = getAttachmentUrl(att);
-                return { name, ext, url, class: FILE_COLOR_CLASS(ext) };
-            }).filter(f => !IMAGE_EXTS.has(f.ext));
-        } else {
-            images = [];
-            files = [];
+        if (!$isAuthenticated || $currentUser === null || $currentUser.role === UserRole.Client)
+            handleAuthError(`/page/${ ticketId }`);
+        else {
+            ticketData = await getById(ticketId);
+            if (ticketData && ticketData.building && ticketData.building.code)
+                pageTitle.set(`Заявка ${ticketData.building.code}-${ticketId} | Система управления заявками ЕИ КФУ`);
+    
+            if (ticketData && Array.isArray(ticketData.attachments) && ticketData.attachments.length > 0) {
+                const atts = ticketData.attachments || [];
+                const imageAtts = atts.filter((att: any) => {
+                    const name = getAttachmentName(att);
+                    const ext = getExtFromName(name);
+                    return IMAGE_EXTS.has(ext);
+                });
+                const fetched = imageAtts.length ? await fetchImages(imageAtts) : [];
+                images = Array.isArray(fetched)
+                    ? fetched.filter((u) => typeof u === 'string' && u.trim().length > 0)
+                    : [];
+                files = atts.map((att: any) => {
+                    const name = getAttachmentName(att);
+                    const ext = getExtFromName(name);
+                    const url = getAttachmentUrl(att);
+                    return { name, ext, url, class: FILE_COLOR_CLASS(ext) };
+                }).filter(f => !IMAGE_EXTS.has(f.ext));
+            } else {
+                images = [];
+                files = [];
+            }
+    
+            if (ticketData) title = ticketData.title;
+    
+            window.addEventListener('resize', updateScreenWidth);
         }
-
-        if (ticketData) title = ticketData.title;
-        if (!$isAuthenticated) window.location.href = '/';
-
-        window.addEventListener('resize', updateScreenWidth);
     });
 
     onDestroy(() => {
@@ -918,6 +922,38 @@
             </div>
             <div class="ticket-actions">
                 {#if !isEditing}
+                    {#if ticketData && ticketData.assigned_to?.length > 0}
+                        <div class="executors-mobile">
+                            <h3 style="margin-top:1.5rem;">Исполнители</h3>
+                            <div class="executors-list">
+                                {#each ticketData.assigned_to as executor (executor.id)}
+                                    <div class="executor">
+                                        <div
+                                            class="avatar-container"
+                                            use:setExecutorAvatarContainer={ executor.id }
+                                        ></div>
+                                        <div class="executor-text executor-text-mobile">
+                                            <span class="executor-name">{ executor.name }</span>
+                                            <span class="executor-status">{ executor.id === $currentUser?.id ? 'Вы' : 'Программист' }</span>
+                                        </div>
+                                    </div>
+                                {/each}
+                            </div>
+                            {#if $currentUser && ticketData.assigned_to.some(e => e.id === $currentUser.id)}
+                                <div class="ticket-actions" style="margin-top: .75rem;">
+                                    {#if ticketData.status === 'inprogress'}
+                                        <button class="btn btn-primary" on:click={ finishHandler }>Завершить</button>
+                                    {/if}
+                                    <button class="btn btn-outline" style="margin-bottom: 1.5rem" on:click={ unassignHandler }>Отказаться</button>
+                                </div>
+                            {/if}
+                        </div>
+                    {:else if ticketData}
+                        <div class="executors-mobile" style="margin-top:1.5rem;">
+                            <h3>Исполнители</h3>
+                            <p>Нет исполнителей</p>
+                        </div>
+                    {/if}
                     {#if ticketData && $currentUser && (!ticketData.assigned_to || !ticketData.assigned_to.some(e => e.id === $currentUser.id))}
                         <button class="btn btn-primary" on:click={ assignHandler }>Взять в работу</button>
                     {/if}
@@ -929,7 +965,7 @@
                         <button class="btn btn-danger" on:click={ handleDelete }>Удалить</button>
                     {/if}
                 {:else}
-                    <button class="btn btn-primary" on:click={ saveEdit } disabled={isSubmitting} aria-busy={isSubmitting} aria-disabled={isSubmitting} data-disabled={isSubmitting}>Сохранить</button>
+                    <button class="btn btn-primary" on:click={ saveEdit } disabled={ isSubmitting } aria-busy={ isSubmitting } aria-disabled={ isSubmitting } data-disabled={ isSubmitting }>Сохранить</button>
                 {/if}
             </div>
         </div>

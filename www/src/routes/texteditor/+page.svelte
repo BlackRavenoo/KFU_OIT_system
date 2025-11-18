@@ -13,7 +13,7 @@
     import { fetchRelated as fetchRelatedApi, addRelated as addRelatedUtil, removeRelated as removeRelatedUtil } from '$lib/utils/pages/related';
     import type { ServerTagDto } from '$lib/utils/pages/tags';
     import { fetchTags as fetchTagsApi, createTagIfAllowed, addTagFromSuggestion as addTagFromSuggestionUtil, removeTag as removeTagUtil } from '$lib/utils/pages/tags';
-    import { api } from '$lib/utils/api';
+    import { api, handleAuthError } from '$lib/utils/api';
     import Tags from './tags.svelte';
     import { UserRole } from '$lib/utils/auth/types';
     import { fetchPageContentByKey } from '$lib/utils/pages/document';
@@ -317,10 +317,8 @@
     }
 
     onMount(() => {
-        if (!$isAuthenticated || $currentUser === null || $currentUser.role === UserRole.Client) {
-            window.location.replace('/error?status=401');
-            return;
-        }
+        if (!$isAuthenticated || $currentUser === null || $currentUser.role === UserRole.Client)
+            handleAuthError(get(pageStore).url.pathname);
 
         const editId = get(pageStore).url.searchParams.get('edit');
         if (editId) {

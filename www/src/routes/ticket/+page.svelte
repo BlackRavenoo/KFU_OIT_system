@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy, tick } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { page as pageStore } from '$app/stores';
     import { get } from 'svelte/store';
     import { goto } from '$app/navigation';
@@ -7,12 +7,14 @@
     import { fade, slide } from 'svelte/transition';
 
     import { formatDate, formatName, formatTitle, formatDescription } from '$lib/utils/validation/validate';
-    import { isAuthenticated } from '$lib/utils/auth/storage/initial';
+    import { isAuthenticated, currentUser } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription, buildings } from '$lib/utils/setup/stores';
     import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { getTicketsFilters, setTicketsFilters, clearTicketsFilters } from '$lib/utils/tickets/stores';
     import { updateTicket } from '$lib/utils/tickets/api/set';
+    import { handleAuthError } from '$lib/utils/api';
+    import { UserRole } from '$lib/utils/auth/types';
 
     import SearchBar from '$lib/components/Search/Searchfield.svelte';
     import Pagination from '$lib/components/Search/Pagination.svelte';
@@ -100,7 +102,6 @@
         const newOrder = filtersNow.sortOrder === 'asc' ? 'desc' : 'asc';
         sortOrder = newOrder;
         setTicketsFilters({ ...filtersNow, sortOrder: newOrder });
-        // синхронизируем комбинированное значение селектора
         combinedSort = `${selectedSort}|${sortOrder}`;
         page = 1;
         updatePageUrl();
@@ -205,7 +206,6 @@
         ticketForCritical = null;
     }
 
-    // комбинированное значение сортировки (поле|направление)
     let combinedSort = `${selectedSort}|${sortOrder}`;
 
     function handleCombinedSortChange(e: Event) {
@@ -221,32 +221,34 @@
     onMount(async () => {
         pageTitle.set('Заявки | Система управления заявками ЕИ КФУ');
         pageDescription.set('Отслеживайте статус заявок, принимайте к выполнению новые. Настройте рабочее пространство под себя с множеством гибких фильтров и сортировок.');
+        
+        if (!$isAuthenticated || $currentUser === null || $currentUser.role === UserRole.Client)
+            handleAuthError(get(pageStore).url.pathname);
+        else {
+            checkMobile();
+            window.addEventListener('resize', checkMobile);
+    
+            try {
+                const consts = await fetchConsts();
+                sortConsts = consts.order;
 
-        if (!$isAuthenticated) window.location.href = '/';
-
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-
-        try {
-            const result = await fetchTickets(search, { page });
-            tickets = result.tickets;
-            maxPage = result.max_page;
-
-            if (page > maxPage && maxPage > 0) {
-                page = 1;
-                updatePageUrl();
-                const updatedResult = await fetchTickets(search, { page: 1 });
-                tickets = updatedResult.tickets;
-                maxPage = updatedResult.max_page;
+                const result = await fetchTickets(search, { page });
+                tickets = result.tickets;
+                maxPage = result.max_page;
+    
+                if (page > maxPage && maxPage > 0) {
+                    page = 1;
+                    updatePageUrl();
+                    const updatedResult = await fetchTickets(search, { page: 1 });
+                    tickets = updatedResult.tickets;
+                    maxPage = updatedResult.max_page;
+                }
+            } catch (e) {
+                error = e instanceof Error ? e.message : String(e);
             }
-
-            const consts = await fetchConsts();
-            sortConsts = consts.order;
-        } catch (e) {
-            error = e instanceof Error ? e.message : String(e);
+    
+            refreshTimer = setInterval(() => { void refreshTickets(); }, TEN_MIN);
         }
-
-        refreshTimer = setInterval(() => { void refreshTickets(); }, TEN_MIN);
     });
 
     onDestroy(() => {

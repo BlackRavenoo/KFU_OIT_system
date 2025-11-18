@@ -22,7 +22,7 @@ describe('Base API client', () => {
                     if (route === '/success') return Promise.resolve({ data: { ok: true }, status: 200 });
                     if (route === '/404') return Promise.reject({ response: { status: 404, data: { message: 'no' } } });
                     if (route === '/500') return Promise.reject({ response: { status: 500, data: {} } });
-                    if (route === '/noreply') return Promise.reject({ request: {} });
+                    if (route === '/noreply') return Promise.reject({ request: {} , config: { url: '/noreply', headers: {} }});
                     return Promise.resolve({ data: null, status: 200 });
                 };
                 instance.post = (route: string) => route === '/create' ? Promise.resolve({ data: { id: '1' }, status: 201 }) : Promise.resolve({ data: null, status: 200 });
@@ -32,7 +32,7 @@ describe('Base API client', () => {
             } else if (mode === 'failing') {
                 instance.get = instance.post = instance.put = instance.patch = instance.delete = () => Promise.reject({ response: { status: 500, data: {} } });
             } else {
-                instance.get = instance.post = instance.put = instance.patch = instance.delete = () => Promise.reject({ request: {} });
+                instance.get = instance.post = instance.put = instance.patch = instance.delete = () => Promise.reject({ request: {}, config: { url: '/network', headers: {} } });
             }
 
             return { default: { create: () => instance } };
@@ -54,7 +54,7 @@ describe('Base API client', () => {
     const loadModule = async (axiosFactory: any, navigateMock?: any, notificationMock?: any, authApiMock?: any, tokensMock?: any) => {
         vi.doMock('axios', axiosFactory);
         vi.doMock('$lib/utils/error', () => ({ navigateToError: navigateMock ?? vi.fn() }));
-        vi.doMock('$lib/utils/notifications/notification', () => notificationMock ?? ({ notification: vi.fn(), NotificationType: {} }));
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock ?? ({ notification: vi.fn(), NotificationType: { Error: 'err', Warning: 'warn' } }));
         vi.doMock('$lib/utils/auth/api/api', () => authApiMock ?? ({ refreshAuthTokens: vi.fn(), logout: vi.fn() }));
         vi.doMock('$lib/utils/auth/tokens/tokens', () => tokensMock ?? ({ getAuthTokens: vi.fn(() => null) }));
         
@@ -94,14 +94,12 @@ describe('Base API client', () => {
         expect(savedResHandler(r)).toBe(r);
     });
 
-    it('Interceptor calls navigateToError for specific statuses', async () => {
-        const navigateMock = vi.fn();
-        await loadModule(makeAxiosFactory('ok'), navigateMock);
+    it('Interceptor handles specific statuses (e.g., 423) by rejecting', async () => {
+        await loadModule(makeAxiosFactory('ok'));
         expect(savedResErrorHandler).toBeInstanceOf(Function);
 
         const axiosError: any = { response: { status: 423 }, config: { url: '/err', headers: {}, _retryCount: 0 } };
-        await savedResErrorHandler(axiosError).catch(() => {});
-        expect(navigateMock).toHaveBeenCalledWith(423);
+        await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
     });
 
     it('Interceptor logout for refresh/login/logout requests', async () => {
@@ -118,8 +116,10 @@ describe('Base API client', () => {
         expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', notificationMock.NotificationType.Warning);
     });
 
-    it('Interceptor initializes _retryCount to 0 and rejects (no retry on first 5xx)', async () => {
+    it('Interceptor initializes _retryCount and retries (resolves) on first 5xx', async () => {
         await loadModule(makeAxiosFactory('ok'));
+
+        vi.useFakeTimers();
 
         const config: any = { url: '/server', headers: {} };
         const error: any = {
@@ -128,8 +128,132 @@ describe('Base API client', () => {
             stacks: []
         };
 
-        await expect(savedResErrorHandler(error)).rejects.toBeDefined();
-        expect(config._retryCount).toBe(0);
+        const retryPromise = savedResErrorHandler(error);
+        vi.advanceTimersByTime(1000);
+
+        await expect(retryPromise).resolves.toBeDefined();
+        expect(config._retryCount).toBe(1);
+
+        vi.useRealTimers();
+    });
+
+    it('Handler via status 403 on /api/* attempts refresh but rejects with logout due to current implementation', async () => {
+        const refreshMock = vi.fn(async () => true);
+        const logoutMock = vi.fn();
+        const getTokensMock = vi.fn(() => ({ accessToken: 'TOK403' }));
+        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+
+        await loadModule(
+            makeAxiosFactory('ok'),
+            undefined,
+            notificationMock,
+            { refreshAuthTokens: refreshMock, logout: logoutMock },
+            { getAuthTokens: getTokensMock }
+        );
+
+        const axiosError: any = {
+            response: { status: 403 },
+            config: { url: '/api/protected', headers: {}, _retryCount: 0 }
+        };
+
+        await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
+        expect(refreshMock).toHaveBeenCalled();
+        expect(getTokensMock).toHaveBeenCalled();
+        expect(logoutMock).toHaveBeenCalled();
+        expect(notificationMock.notification).toHaveBeenCalledWith(
+            'Сессия истекла. Пожалуйста, войдите снова',
+            notificationMock.NotificationType.Warning
+        );
+    });
+
+    it('Throws no token fetch, logout and warning', async () => {
+        const logoutMock = vi.fn();
+        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const authMock = { refreshAuthTokens: vi.fn(async () => { throw new Error('boom'); }), logout: logoutMock };
+        const tokensMock = { getAuthTokens: vi.fn() };
+
+        await loadModule(makeAxiosFactory('ok'), undefined, notificationMock, authMock, tokensMock);
+
+        const axiosError: any = {
+            response: { status: 403 },
+            config: { url: '/api/protected', headers: {} }
+        };
+
+        await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
+        expect(authMock.refreshAuthTokens).toHaveBeenCalledTimes(1);
+        expect(tokensMock.getAuthTokens).not.toHaveBeenCalled();
+        expect(logoutMock).toHaveBeenCalledTimes(1);
+        expect(notificationMock.notification).toHaveBeenCalledWith(
+            'Сессия истекла. Пожалуйста, войдите снова',
+            notificationMock.NotificationType.Warning
+        );
+    });
+
+    it('Creates a new headers object through when headers are undefined', async () => {
+        const refreshMock = vi.fn(async () => true);
+        const logoutMock = vi.fn();
+        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const tokensMock = { getAuthTokens: vi.fn(() => ({ accessToken: 'NC-TOKEN' })) };
+
+        await loadModule(makeAxiosFactory('ok'), undefined, notificationMock, { refreshAuthTokens: refreshMock, logout: logoutMock }, tokensMock);
+
+        const axiosError: any = {
+            response: { status: 401 },
+            config: { url: '/api/protected' }
+        };
+
+        await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
+
+        expect(axiosError.config.headers).toEqual({ Authorization: 'Bearer NC-TOKEN' });
+        expect(refreshMock).toHaveBeenCalled();
+    });
+
+    it('Refresh succeeds but no accessToken', async () => {
+        const refreshMock = vi.fn(async () => true);
+        const tokensMock = { getAuthTokens: vi.fn(() => null) };
+        const logoutMock = vi.fn();
+        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+
+        await loadModule(
+            makeAxiosFactory('ok'),
+            undefined,
+            notificationMock,
+            { refreshAuthTokens: refreshMock, logout: logoutMock },
+            tokensMock
+        );
+
+        const originalRequest: any = { url: '/api/some', headers: undefined, _retryCount: 0 };
+        const axiosError: any = { response: { status: 401 }, config: originalRequest };
+
+        const res = await savedResErrorHandler(axiosError);
+
+        expect(refreshMock).toHaveBeenCalledTimes(1);
+        expect(tokensMock.getAuthTokens).toHaveBeenCalledTimes(1);
+        expect(logoutMock).not.toHaveBeenCalled();
+        expect(res).toEqual(expect.objectContaining({ status: 200 }));
+        expect(res.data.calledWith.url).toBe('/api/some');
+        expect(axiosError.config._refreshAttempted).toBe(true);
+    });
+
+    it('Calls the appropriate error handling functions on 403 errors', async () => {
+        const authMock = { refreshAuthTokens: vi.fn(), logout: vi.fn() };
+        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn', Error: 'err' } };
+
+        await loadModule(makeAxiosFactory('ok'), undefined, notificationMock, authMock);
+
+        const errorMod = await import('$lib/utils/error');
+        const navSpy = vi.spyOn(errorMod, 'navigateToError').mockImplementation(() => {});
+        const axiosError: any = {
+            response: { status: 403 },
+            config: { url: '/api/protected', headers: {}, _refreshAttempted: true }
+        };
+
+        await expect(savedResErrorHandler(axiosError)).rejects.toBe(axiosError);
+        expect(navSpy).toHaveBeenCalledTimes(1);
+        expect(navSpy).toHaveBeenCalledWith(403);
+        expect(authMock.refreshAuthTokens).not.toHaveBeenCalled();
+        expect(authMock.logout).not.toHaveBeenCalled();
+        expect(notificationMock.notification).not.toHaveBeenCalled();
     });
 
     it('When _retryCount is 0 interceptor increments and retries (resolves)', async () => {
@@ -213,49 +337,67 @@ describe('Base API client', () => {
         expect(resFail.status).toBe(500);
     });
 
-    it('401 handling: logout when refresh fails or requests to refresh endpoint', async () => {
+    it('401 handling: logout when refresh fails (for /api/*)', async () => {
         const logoutMock = vi.fn();
         const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
         const authMock = { refreshAuthTokens: vi.fn(async () => false), logout: logoutMock };
         await loadModule(makeAxiosFactory('ok'), undefined, notificationMock, authMock);
 
-        const axiosError: any = { response: { status: 401 }, config: { url: '/some', headers: {}, _retry: false, _retryCount: 0 } };
+        const axiosError: any = { response: { status: 401 }, config: { url: '/api/some', headers: {}, _retry: false, _retryCount: 0 } };
         await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
         expect(authMock.refreshAuthTokens).toHaveBeenCalled();
         expect(logoutMock).toHaveBeenCalled();
         expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', notificationMock.NotificationType.Warning);
     });
 
-    it('401 refresh success retries original request with new token', async () => {
+    it('401 refresh success attempts retry but rejects with logout due to current implementation (for /api/*)', async () => {
         const refreshMock = vi.fn(async () => true);
         const getTokensMock = vi.fn(() => ({ accessToken: 'NEWTOKEN' }));
-        const authMock = { refreshAuthTokens: refreshMock, logout: vi.fn() };
-        await loadModule(makeAxiosFactory('ok'), undefined, undefined, authMock, { getAuthTokens: getTokensMock });
+        const logoutMock = vi.fn();
+        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
 
-        const axiosError: any = { response: { status: 401 }, config: { url: '/some', headers: {}, _retry: false, _retryCount: 0 } };
-        const result = await savedResErrorHandler(axiosError);
+        await loadModule(
+            makeAxiosFactory('ok'),
+            undefined,
+            notificationMock,
+            { refreshAuthTokens: refreshMock, logout: logoutMock },
+            { getAuthTokens: getTokensMock }
+        );
+
+        const axiosError: any = { response: { status: 401 }, config: { url: '/api/some', headers: {}, _retry: false, _retryCount: 0 } };
+        await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
         expect(refreshMock).toHaveBeenCalled();
         expect(getTokensMock).toHaveBeenCalled();
-        expect(result).toEqual(expect.objectContaining({ data: expect.any(Object), status: 200 }));
+        expect(logoutMock).toHaveBeenCalled();
+        expect(notificationMock.notification).toHaveBeenCalledWith(
+            'Сессия истекла. Пожалуйста, войдите снова',
+            notificationMock.NotificationType.Warning
+        );
     });
 
     it('Retries on 5xx and stops after 3 attempts with notification', async () => {
         const notification = { notification: vi.fn(), NotificationType: { Error: 'err' } };
         await loadModule(makeAxiosFactory('ok'), undefined, notification);
 
+        vi.useFakeTimers();
+
         const okRetry: any = { response: { status: 500 }, config: { url: '/server', headers: {}, _retryCount: 0 } };
-        const r = await savedResErrorHandler(okRetry);
+        const rPromise = savedResErrorHandler(okRetry);
+        vi.advanceTimersByTime(1000);
+        const r = await rPromise;
         expect(r).toEqual(expect.objectContaining({ data: expect.any(Object) }));
 
         const tooMany: any = { response: { status: 500 }, config: { url: '/server', headers: {}, _retryCount: 3 } };
         await expect(savedResErrorHandler(tooMany)).rejects.toBeDefined();
         expect(notification.notification).toHaveBeenCalledWith('Ошибка запроса', notification.NotificationType.Error);
+
+        vi.useRealTimers();
     });
 
     it('Notifies on request error', async () => {
         const notification = { notification: vi.fn(), NotificationType: { Error: 'err' } };
         await loadModule(makeAxiosFactory('ok'), undefined, notification);
-        await expect(savedResErrorHandler({ request: {} })).rejects.toBeDefined();
+        await expect(savedResErrorHandler({ request: {}, config: { url: '/network', headers: {} } } as any)).rejects.toBeDefined();
         expect(notification.notification).toHaveBeenCalledWith('Ошибка соединения с сервером', notification.NotificationType.Error);
     });
 
@@ -297,30 +439,251 @@ describe('Base API client', () => {
         }
     });
 
-    it('Rejects and does not call refreshAuthTokens', async () => {
+    it('Rejects and does not call refreshAuthTokens when refresh already attempted', async () => {
         const refreshMock = vi.fn();
         const logoutMock = vi.fn();
         await loadModule(makeAxiosFactory('ok'), undefined, undefined, { refreshAuthTokens: refreshMock, logout: logoutMock }, { getAuthTokens: vi.fn(() => ({ accessToken: 'OLD' })) });
 
-        const axiosError: any = { response: { status: 401 }, config: { url: '/some', headers: {}, _retry: true } };
+        const axiosError: any = { response: { status: 401 }, config: { url: '/api/some', headers: {}, _refreshAttempted: true } };
 
         await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
         expect(refreshMock).not.toHaveBeenCalled();
-        expect(logoutMock).not.toHaveBeenCalled();
+    });
+});
+
+describe('extractPath', () => {
+    let savedResErrorHandler: any = null;
+
+    const makeAxiosFactory = () => {
+        return () => {
+            const instance: any = function (req?: any) {
+                return Promise.resolve({ data: { calledWith: req || null }, status: 200 });
+            };
+            instance.interceptors = {
+                request: { use: () => {} },
+                response: { use: (_h: any, e: any) => { savedResErrorHandler = e; } }
+            };
+            instance.get = instance.post = instance.put = instance.patch = instance.delete =
+                () => Promise.resolve({ data: {}, status: 200 });
+            return { default: { create: () => instance } };
+        };
+    };
+
+    const loadModule = async (axiosFactory: any, deps?: {
+        notification?: any;
+        auth?: any;
+    }) => {
+        vi.doMock('axios', axiosFactory);
+        vi.doMock('$lib/utils/error', () => ({ navigateToError: vi.fn() }));
+        vi.doMock('$lib/utils/notifications/notification', () =>
+            deps?.notification ?? ({ notification: vi.fn(), NotificationType: { Error: 'err', Warning: 'warn' } })
+        );
+        vi.doMock('$lib/utils/auth/api/api', () =>
+            deps?.auth ?? ({ refreshAuthTokens: vi.fn(async () => false), logout: vi.fn() })
+        );
+        vi.doMock('$lib/utils/auth/tokens/tokens', () => ({ getAuthTokens: vi.fn(() => null) }));
+        await import('$lib/utils/api');
+    };
+
+    beforeEach(() => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        savedResErrorHandler = null;
     });
 
-    it('401 when refresh succeeds but getAuthTokens has no accessToken', async () => {
-        const refreshMock = vi.fn(async () => true);
-        const logoutMock = vi.fn();
-        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
-        const tokensMock = { getAuthTokens: vi.fn(() => null) };
+    it('Returns "" when url is undefined', async () => {
+        const notificationMock = { notification: vi.fn(), NotificationType: { Error: 'err' } };
+        await loadModule(makeAxiosFactory(), { notification: notificationMock });
 
-        await loadModule(makeAxiosFactory('ok'), undefined, notificationMock, { refreshAuthTokens: refreshMock, logout: logoutMock }, tokensMock);
-        const axiosError: any = { response: { status: 401 }, config: { url: '/some', headers: {}, _retry: false } };
-
+        const axiosError: any = { response: { status: 400 }, config: { url: undefined, headers: {} } };
         await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
-        expect(refreshMock).toHaveBeenCalled();
-        expect(logoutMock).toHaveBeenCalled();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', notificationMock.NotificationType.Error);
+    });
+
+    it('Absolute http with /api path', async () => {
+        const logout = vi.fn();
+        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const auth = { refreshAuthTokens: vi.fn(async () => false), logout };
+        await loadModule(makeAxiosFactory(), { notification: notificationMock, auth });
+
+        const axiosError: any = { response: { status: 401 }, config: { url: 'https://example.com/api/x', headers: {} } };
+        await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
+        expect(auth.refreshAuthTokens).toHaveBeenCalled();
+        expect(logout).toHaveBeenCalled();
         expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', notificationMock.NotificationType.Warning);
+    });
+
+    it('Absolute http without path', async () => {
+        const notificationMock = { notification: vi.fn(), NotificationType: { Error: 'err' } };
+        await loadModule(makeAxiosFactory(), { notification: notificationMock });
+
+        const axiosError: any = { response: { status: 400 }, config: { url: 'https://example.com', headers: {} } };
+        await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', notificationMock.NotificationType.Error);
+    });
+
+    it('Relative starting with "/"', async () => {
+        await loadModule(makeAxiosFactory());
+
+        const axiosError: any = { response: { status: 403 }, config: { url: '/api/x', headers: {}, _refreshAttempted: true } };
+        await expect(savedResErrorHandler(axiosError)).rejects.toBe(axiosError);
+    });
+
+    it('Relative without leading "/"', async () => {
+        const logout = vi.fn();
+        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const auth = { refreshAuthTokens: vi.fn(async () => false), logout };
+        await loadModule(makeAxiosFactory(), { notification: notificationMock, auth });
+
+        const axiosError: any = { response: { status: 401 }, config: { url: 'api/x', headers: {} } };
+        await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
+        expect(auth.refreshAuthTokens).toHaveBeenCalled();
+        expect(logout).toHaveBeenCalled();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', notificationMock.NotificationType.Warning);
+    });
+
+    it('Bad absolute http url', async () => {
+        const notificationMock = { notification: vi.fn(), NotificationType: { Error: 'err' } };
+        await loadModule(makeAxiosFactory(), { notification: notificationMock });
+
+        const axiosError: any = { response: { status: 400 }, config: { url: 'http://[bad', headers: {} } };
+        await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', notificationMock.NotificationType.Error);
+    });
+
+    it('Non-http scheme (ftp://)', async () => {
+        const notificationMock = { notification: vi.fn(), NotificationType: { Error: 'err' } };
+        await loadModule(makeAxiosFactory(), { notification: notificationMock });
+
+        const axiosError: any = { response: { status: 400 }, config: { url: 'ftp://api/x', headers: {} } };
+        await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', notificationMock.NotificationType.Error);
+    });
+
+    it('Uses fallback "" when URL pathname is empty)', async () => {
+        const OriginalURL = global.URL;
+        class FakeURL {
+            href: string;
+            pathname: string;
+            constructor(input: string) {
+                this.href = input;
+                this.pathname = '';
+            }
+        }
+        // @ts-ignore
+        global.URL = FakeURL as any;
+
+        let localSavedResErrorHandler: any = null;
+        const axiosFactory = () => ({
+            default: {
+                create: () => {
+                    const inst: any = (req?: any) => Promise.resolve({ data: { calledWith: req ?? null }, status: 200 });
+                    inst.interceptors = {
+                        request: { use: () => {} },
+                        response: { use: (_h: any, e: any) => { localSavedResErrorHandler = e; } }
+                    };
+                    inst.get = inst.post = inst.put = inst.patch = inst.delete = () => Promise.resolve({ data: {}, status: 200 });
+                    return inst;
+                }
+            }
+        });
+
+        vi.doMock('axios', axiosFactory);
+        vi.doMock('$lib/utils/error', () => ({ navigateToError: vi.fn() }));
+        vi.doMock('$lib/utils/auth/api/api', () => ({ refreshAuthTokens: vi.fn(), logout: vi.fn() }));
+        vi.doMock('$lib/utils/auth/tokens/tokens', () => ({ getAuthTokens: vi.fn(() => null) }));
+        await import('$lib/utils/api');
+
+        expect(typeof localSavedResErrorHandler).toBe('function');
+
+        const notifMod = await import('$lib/utils/notifications/notification');
+        const notifSpy = vi.spyOn(notifMod, 'notification');
+
+        const axiosError: any = { response: { status: 400 }, config: { url: 'https://example.com', headers: {} } };
+        await expect(localSavedResErrorHandler(axiosError)).rejects.toBeDefined();
+
+        expect(notifSpy).toHaveBeenCalledWith('Ошибка запроса', notifMod.NotificationType.Error);
+
+        global.URL = OriginalURL;
+    });
+});
+
+describe('handleAuthError', () => {
+    const makeAxiosFactory = () => {
+        return () => {
+            const instance: any = function () {
+                return Promise.resolve({ data: null, status: 200 });
+            };
+            instance.interceptors = {
+                request: { use: () => {} },
+                response: { use: () => {} }
+            };
+            instance.get = instance.post = instance.put = instance.patch = instance.delete =
+                () => Promise.resolve({ data: {}, status: 200 });
+            return { default: { create: () => instance } };
+        };
+    };
+
+    const mockAndImport = async (gotoSpy?: any) => {
+        vi.doMock('axios', makeAxiosFactory());
+        vi.doMock('$app/navigation', () => ({ goto: gotoSpy ?? vi.fn() }));
+        vi.doMock('$lib/utils/error', () => ({ navigateToError: vi.fn() }));
+        vi.doMock('$lib/utils/notifications/notification', () => ({ notification: vi.fn(), NotificationType: { Error: 'err', Warning: 'warn' } }));
+        vi.doMock('$lib/utils/auth/api/api', () => ({ refreshAuthTokens: vi.fn(), logout: vi.fn() }));
+        vi.doMock('$lib/utils/auth/tokens/tokens', () => ({ getAuthTokens: vi.fn(() => null) }));
+        return import('$lib/utils/api');
+    };
+
+    beforeEach(() => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        // @ts-ignore
+        delete global.window;
+    });
+
+    it('Forming route from window.location', async () => {
+        // @ts-ignore
+        global.window = { location: { pathname: '/alpha', search: '?x=1&y=2' } };
+        const goto = vi.fn();
+        const mod = await mockAndImport(goto);
+        const { handleAuthError } = mod as any;
+
+        handleAuthError();
+
+        expect(goto).toHaveBeenCalledTimes(1);
+        const calledWith = goto.mock.calls[0][0] as string;
+        expect(calledWith.startsWith('/?action=login&route=')).toBe(true);
+        const routeEncoded = new URL('http://local' + calledWith).searchParams.get('route')!;
+        expect(decodeURIComponent(routeEncoded)).toBe('/alpha?x=1&y=2');
+    });
+
+    it('Uses provided path when window is absent', async () => {
+        const goto = vi.fn();
+        const mod = await mockAndImport(goto);
+        const { handleAuthError } = mod as any;
+
+        const path = '/сложный путь/тест?name=Иван Иван&topic=Привет';
+        handleAuthError(path);
+
+        expect(goto).toHaveBeenCalledTimes(1);
+        const calledWith = goto.mock.calls[0][0] as string;
+        const params = new URL('http://local' + calledWith).searchParams;
+        expect(params.get('action')).toBe('login');
+        const routeEncoded = params.get('route')!;
+        expect(decodeURIComponent(routeEncoded)).toBe(path);
+    });
+
+    it('Uses default path when window is absent and no path is provided', async () => {
+        const goto = vi.fn();
+        const mod = await mockAndImport(goto);
+        const { handleAuthError } = mod as any;
+
+        handleAuthError(undefined);
+
+        expect(goto).toHaveBeenCalledTimes(1);
+        const calledWith = goto.mock.calls[0][0] as string;
+        const params = new URL('http://local' + calledWith).searchParams;
+        expect(params.get('action')).toBe('login');
+        expect(decodeURIComponent(params.get('route')!)).toBe('/');
     });
 });

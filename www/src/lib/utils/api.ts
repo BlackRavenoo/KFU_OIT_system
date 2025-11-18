@@ -1,10 +1,10 @@
-import axios from 'axios'
+import axios from 'axios';
+import { goto } from '$app/navigation';
 import type { AxiosInstance, AxiosResponse, AxiosRequestConfig, AxiosError } from 'axios';
 
-import { refreshAuthTokens } from '$lib/utils/auth/api/api';
+import { refreshAuthTokens, logout } from '$lib/utils/auth/api/api';
 import { getAuthTokens } from '$lib/utils/auth/tokens/tokens';
 import { notification, NotificationType } from '$lib/utils/notifications/notification';
-import { logout } from '$lib/utils/auth/api/api';
 import { navigateToError } from './error';
 
 export interface ApiResponse<T = any> {
@@ -27,95 +27,146 @@ const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use(
     (config) => {
         const tokens = getAuthTokens();
-        if (tokens?.accessToken)
-            config.headers['Authorization'] = `Bearer ${tokens.accessToken}`;
+        if (tokens?.accessToken) config.headers['Authorization'] = `Bearer ${tokens.accessToken}`;
         else delete config.headers['Authorization'];
+
         if (config.data instanceof FormData)
             delete config.headers['Content-Type'];
-        else config.headers['Content-Type'] = 'application/json';
+        else
+            config.headers['Content-Type'] = 'application/json';
+
         return config;
     },
-    (error) => {
-        return Promise.reject(error);
-    }
+    (error) => Promise.reject(error)
 );
 
 apiClient.interceptors.response.use(
-    (response) => {
-        return response;
-    },
+    (response) => response,
     async (error: AxiosError) => {
-        if (error.response?.status === 401) {
-            const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
-            const isRefreshRequest = originalRequest.url?.includes('token') || 
-                originalRequest.url?.includes('login') ||
-                originalRequest.url?.includes('logout');
-            
-            if (isRefreshRequest) {
+        const status = error.response?.status ?? 0;
+        const originalRequest = error.config as AxiosRequestConfig & {
+            _refreshAttempted?: boolean;
+            _retryCount?: number;
+        };
+
+        const path = extractPath(originalRequest.url);
+        const isApiRoute = path.startsWith('/api/');
+
+        if (isApiRoute && (status === 401 || status === 403)) {
+            const isAuthEndpoint =
+                path.includes('token') ||
+                path.includes('login') ||
+                path.includes('logout');
+
+            if (isAuthEndpoint) {
                 logout();
                 notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
                 return Promise.reject(error);
-            } else { 
-                if (!originalRequest._retry) {
-                    originalRequest._retry = true;
-                    
-                    const refreshed = await refreshAuthTokens();
-                    
-                    if (refreshed) {
-                        const newTokens = getAuthTokens();
-                        if (newTokens?.accessToken) {
-                            originalRequest.headers = {
-                                ...originalRequest.headers,
-                                'Authorization': `Bearer ${newTokens.accessToken}`
-                            };
-                            return apiClient(originalRequest);
-                        } else {
-                            logout();
-                            notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
-                            return Promise.reject(error);
-                        }
-                    } else {
-                        logout();
-                        notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
-                        return Promise.reject(error);
-                    }
-                }
             }
-            
-        } else if (error.response) {
-            if (error.response.status === 403 || 
-                error.response.status === 406 || 
-                error.response.status === 407 || 
-                error.response.status === 418 || 
-                error.response.status === 423 || 
-                error.response.status === 451) {
-                navigateToError(error.response.status);
-            } else if (error.response.status >= 500) {
-                const originalRequest = error.config as AxiosRequestConfig & { _retryCount?: number };
-                
-                if (originalRequest._retryCount === undefined) 
-                    originalRequest._retryCount = 0;
-                else if (originalRequest._retryCount < 3) {
-                    originalRequest._retryCount++;
 
+            if (!originalRequest._refreshAttempted) {
+                originalRequest._refreshAttempted = true;
+
+                let refreshedOk = false;
+                try {
+                    refreshedOk = await refreshAuthTokens();
+                } catch {
+                    refreshedOk = false;
+                }
+
+                if (refreshedOk) {
+                    const tokens = getAuthTokens();
+                    if (tokens?.accessToken) {
+                        const headers = (originalRequest.headers ?? {}) as Record<string, any>;
+                        headers['Authorization'] = `Bearer ${tokens.accessToken}`;
+                        originalRequest.headers = headers;
+                    } else return apiClient(originalRequest);
+                }
+
+                logout();
+                notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
+                return Promise.reject(error);
+            }
+
+            if (status === 401) {
+                logout();
+                notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
+                return Promise.reject(error);
+            } else {
+                navigateToError(403);
+                return Promise.reject(error);
+            }
+        }
+
+        if (error.response) {
+            if (
+                status === 403 ||
+                status === 406 ||
+                status === 407 ||
+                status === 418 ||
+                status === 423 ||
+                status === 451
+            ) {
+                navigateToError(status);
+            } else if (status >= 500) {
+                if (originalRequest._retryCount === undefined)
+                    originalRequest._retryCount = 0;
+
+                if (originalRequest._retryCount < 3) {
+                    originalRequest._retryCount++;
                     const retryDelay = Math.pow(3, originalRequest._retryCount - 1) * 1000;
-                    
                     return new Promise(resolve => {
-                        setTimeout(() => {
-                            resolve(apiClient(originalRequest));
-                        }, retryDelay);
+                        setTimeout(() => resolve(apiClient(originalRequest)), retryDelay);
                     });
-                } else notification('Ошибка запроса', NotificationType.Error);
-            } else notification('Ошибка запроса', NotificationType.Error);
-        } else notification('Ошибка соединения с сервером', NotificationType.Error);
-        
+                } else {
+                    notification('Ошибка запроса', NotificationType.Error);
+                }
+            } else {
+                notification('Ошибка запроса', NotificationType.Error);
+            }
+        } else {
+            notification('Ошибка соединения с сервером', NotificationType.Error);
+        }
+
         return Promise.reject(error);
     }
 );
 
 /**
+ * Извлекает путь из URL
+ * @param url URL для извлечения пути
+ * @returns Путь из URL
+ */
+function extractPath(url?: string): string {
+    if (!url) return '';
+    try {
+        if (/^https?:\/\//i.test(url)) return new URL(url).pathname || '';
+        return url.startsWith('/') ? url : `/${url}`;
+    } catch {
+        return url;
+    }
+}
+
+/**
+ * Обработчик ошибок аутентификации, перенаправляющий пользователя на страницу входа
+ * Сохраняет текущий путь для последующего перенаправления после успешного входа
+ * @param status Код статуса ошибки
+ * @param path Путь, на который нужно перенаправить пользователя
+ */
+export function handleAuthError(path?: string): void {
+    try {
+        const current =
+            (typeof window !== 'undefined'
+                ? `${window.location.pathname}${window.location.search}`
+                : path) || '/';
+        goto(`/?action=login&route=${ encodeURIComponent(current) }`);
+    } catch { }
+}
+
+/**
  * Форматирует успешный ответ от API
- * @param response AxiosResponse
+ * @param response - ответ Axios
+ * @returns ApiResponse
  */
 function formatResponse<T>(response: AxiosResponse): ApiResponse<T> {
     return {
@@ -125,23 +176,26 @@ function formatResponse<T>(response: AxiosResponse): ApiResponse<T> {
     };
 }
 
+/**
+ * Форматирует ошибку от API
+ * @param error - ошибка Axios
+ * @returns ApiResponse 
+ */
 function formatError(error: AxiosError): ApiResponse {
     if (error.response) {
         if (error.response.status === 404) {
-            return { 
-                success: false, 
-                error: 'Данные не были найдены', 
-                status: 404 
+            return {
+                success: false,
+                error: 'Данные не были найдены',
+                status: 404
             };
         }
-        
         return {
             success: false,
             error: (error.response.data as { message?: string })?.message || 'Ошибка запроса',
             status: error.response.status
         };
     }
-    
     return {
         success: false,
         error: 'Ошибка соединения',
@@ -151,95 +205,90 @@ function formatError(error: AxiosError): ApiResponse {
 
 export const api = {
     get: async <T>(
-        route: string, 
-        data?: Record<string, any>, 
+        route: string,
+        data?: Record<string, any>,
         responseType: 'json' | 'blob' = 'json',
         withCredentials?: boolean
     ): Promise<ApiResponse<T>> => {
         try {
             const config: AxiosRequestConfig = {
                 params: data,
-                responseType: responseType,
+                responseType,
                 withCredentials: withCredentials ?? true
             };
-            
             const response = await apiClient.get<T>(route, config);
             return formatResponse<T>(response);
         } catch (error) {
             return formatError(error as AxiosError);
         }
     },
-    
+
     post: async <T>(
-        route: string, 
-        data?: Record<string, any>, 
+        route: string,
+        data?: Record<string, any>,
         responseType: 'json' | 'blob' = 'json',
         withCredentials?: boolean
     ): Promise<ApiResponse<T>> => {
         try {
             const config: AxiosRequestConfig = {
-                responseType: responseType,
+                responseType,
                 withCredentials: withCredentials ?? true
             };
-            
             const response = await apiClient.post<T>(route, data, config);
             return formatResponse<T>(response);
         } catch (error) {
             return formatError(error as AxiosError);
         }
     },
-    
+
     put: async <T>(
-        route: string, 
-        data?: Record<string, any>, 
+        route: string,
+        data?: Record<string, any>,
         responseType: 'json' | 'blob' = 'json',
         withCredentials?: boolean
     ): Promise<ApiResponse<T>> => {
         try {
             const config: AxiosRequestConfig = {
-                responseType: responseType,
+                responseType,
                 withCredentials: withCredentials ?? true
             };
-            
             const response = await apiClient.put<T>(route, data, config);
             return formatResponse<T>(response);
         } catch (error) {
             return formatError(error as AxiosError);
         }
     },
-    
+
     patch: async <T>(
-        route: string, 
-        data?: Record<string, any>, 
+        route: string,
+        data?: Record<string, any>,
         responseType: 'json' | 'blob' = 'json',
         withCredentials?: boolean
     ): Promise<ApiResponse<T>> => {
         try {
             const config: AxiosRequestConfig = {
-                responseType: responseType,
+                responseType,
                 withCredentials: withCredentials ?? true
             };
-            
             const response = await apiClient.patch<T>(route, data, config);
             return formatResponse<T>(response);
         } catch (error) {
             return formatError(error as AxiosError);
         }
     },
-    
+
     delete: async <T>(
-        route: string, 
-        data?: Record<string, any>, 
+        route: string,
+        data?: Record<string, any>,
         responseType: 'json' | 'blob' = 'json',
         withCredentials?: boolean
     ): Promise<ApiResponse<T>> => {
         try {
             const config: AxiosRequestConfig = {
                 data,
-                responseType: responseType,
+                responseType,
                 withCredentials: withCredentials ?? true
             };
-            
             const response = await apiClient.delete<T>(route, config);
             return formatResponse<T>(response);
         } catch (error) {

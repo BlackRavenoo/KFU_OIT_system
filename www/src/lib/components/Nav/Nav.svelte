@@ -17,6 +17,9 @@
     import Modal from './Modal.svelte';
     import { UserRole } from '$lib/utils/auth/types';
 
+    import { page } from '$app/stores';
+    import { goto } from '$app/navigation';
+
     let isShowModal: boolean = false;
     let modalElement: HTMLElement;
     let captchaComponent: any;
@@ -27,6 +30,41 @@
     let userPassword: string = '';
     let userEmail: string = '';
     let rememberMe: boolean = false;
+
+    let redirectAfterLogin: string | null = null;
+
+    /**
+     * Нормализует параметр route из URL
+     * Проверяет, что путь является внутренним и безопасным для редиректа
+     * @param val - значение параметра route из URL
+     * @returns нормализованный путь или null
+     */
+    function normalizeRouteParam(val: string | null): string | null {
+        if (!val) return null;
+        try {
+            const base = typeof window !== 'undefined' ? window.location.origin : 'https://local';
+            const url = new URL(val, base);
+            if (typeof window !== 'undefined' && url.origin !== window.location.origin) return '/';
+            const target = `${url.pathname}${url.search}${url.hash}`;
+            return target || '/';
+        } catch {
+            return null;
+        }
+    }
+
+    $: {
+        const u = $page?.url;
+        if (!u) {
+            // нет URL — ничего не делаем
+        } else {
+            const action = u.searchParams.get('action');
+            const route = u.searchParams.get('route');
+            if (action === 'login' && !$isAuthenticated) {
+                isShowModal = true;
+                redirectAfterLogin = normalizeRouteParam(route);
+            }
+        }
+    }
 
     /**
      * Обработчик входа в систему
@@ -59,6 +97,12 @@
                 }
                 userLogin = '';
                 userPassword = '';
+
+                if (redirectAfterLogin) {
+                    const target = redirectAfterLogin;
+                    redirectAfterLogin = null;
+                    goto(target, { replaceState: true });
+                }
             } else {
                 loginError = userData?.message || 'Неверный логин или пароль.';
             }

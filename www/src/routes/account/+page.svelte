@@ -4,6 +4,7 @@
     import { page } from '$app/stores';
     import { browser } from '$app/environment';
     import { goto } from '$app/navigation';
+    import { get } from 'svelte/store';
     
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
@@ -13,6 +14,7 @@
     import { Tab, type TabType, updateUrlParam, isValidTab } from '$lib/utils/account/tab-manager';
     import { UserRole } from '$lib/utils/auth/types';
     import { getAvatar } from '$lib/utils/account/avatar';
+    import { handleAuthError } from '$lib/utils/api';
     
     import Profile from './components/Profile.svelte';
     import Tickets from './components/Tickets.svelte';
@@ -68,10 +70,6 @@
         avatarContainer && getAvatar($currentUser, avatarContainer, 80, true);
     }
 
-    $: if (browser && $authCheckComplete && !$isAuthenticated) {
-        goto('/');
-    }
-
     function setTab(tab: TabType) {
         activeTab = tab;
         updateUrlParam(tab);
@@ -99,9 +97,13 @@
     onMount(() => {
         pageTitle.set('Личный кабинет | Система управления заявками ЕИ КФУ');
         pageDescription.set('Управление личной учетной записью и просмотр статистики по заявкам.');
-        
-        checkMobileView();
-        window.addEventListener('resize', checkMobileView);
+
+        if (!$isAuthenticated || $currentUser === null)
+            handleAuthError(($page as any).url.pathname);
+        else {
+            checkMobileView();
+            window.addEventListener('resize', checkMobileView);
+        }
     });
 
     onDestroy(() => {

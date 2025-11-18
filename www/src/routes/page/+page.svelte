@@ -9,9 +9,9 @@
     import Pagination from '$lib/components/Search/Pagination.svelte';
 
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
-    import { api } from '$lib/utils/api';
+    import { api, handleAuthError } from '$lib/utils/api';
 
-    import { currentUser } from '$lib/utils/auth/storage/initial';
+    import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { UserRole } from '$lib/utils/auth/types';
 
     type Tag = { id: number; name: string };
@@ -262,7 +262,9 @@
     onMount(async () => {
         pageTitle.set('Страницы | Система управления заявками ЕИ КФУ');
         pageDescription.set('Просматривайте справочные страницы и инструкции. Фильтруйте по тэгам и находите нужные материалы быстрее.');
-        await fetchPages();
+        if (!$isAuthenticated || $currentUser === null)
+            handleAuthError(get(pageStore).url.pathname);
+        else await fetchPages();
     });
 
     onDestroy(() => {
