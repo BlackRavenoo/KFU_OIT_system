@@ -126,3 +126,19 @@ async fn change_user_role_with_db_error_returns_500() {
 
     assert_eq!(resp.status(), 500);
 }
+
+#[tokio::test]
+async fn change_user_role_for_yourself_returns_400() {
+    let app = spawn_app().await;
+
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
+    let body = serde_json::json!({
+        "id": 1,
+        "role": "moderator",
+    });
+
+    let resp = change_user_role(&app, &body, Some(&access)).await;
+
+    assert_eq!(resp.status(), 400);
+}

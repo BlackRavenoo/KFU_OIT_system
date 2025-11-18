@@ -48,6 +48,7 @@ impl std::fmt::Display for UserRole {
 }
 
 impl UserRole {
+    #[inline]
     pub fn has_access(&self, required_level: Self) -> bool {
         *self >= required_level
     }
