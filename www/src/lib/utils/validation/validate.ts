@@ -111,5 +111,5 @@ export function formatDate(dateStr: string): string {
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return 'Без даты';
     const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${pad(date.getUTCDate())}.${pad(date.getUTCMonth() + 1)}.${date.getUTCFullYear()} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
+    return `${pad(date.getDate())}.${pad(date.getMonth() + 1)}.${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }

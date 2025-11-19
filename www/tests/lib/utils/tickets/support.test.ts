@@ -5,7 +5,8 @@ describe('Tickets support', () => {
     describe('normalizeDate', () => {
         it('Normalize date correctly', () => {
             const date = new Date('2023-10-01').toISOString();
-            expect(normalizeDate(date)).toBe(date + ':00Z');
+            const expected = date.replace(/\.\d{3}Z$/, 'Z');
+            expect(normalizeDate(date)).toBe(expected);
         });
 
         it('Return null for null', () => {
@@ -20,7 +21,8 @@ describe('Tickets support', () => {
 
         it('Handles date at the turn of the year', () => {
             const date = new Date('2023-12-31T23:59:59Z').toISOString();
-            expect(normalizeDate(date)).toBe(date + ':00Z');
+            const expected = date.replace(/\.\d{3}Z$/, 'Z');
+            expect(normalizeDate(date)).toBe(expected);
         });
 
         it('Returns date as is when it already matches the format', () => {
@@ -30,12 +32,44 @@ describe('Tickets support', () => {
 
         it('Returns date as is when it has timezone offset', () => {
             const date = '2023-12-31T23:59:59+03:00';
-            expect(normalizeDate(date)).toBe(date);
+            const expected = new Date(date).toISOString().replace(/\.\d{3}Z$/, 'Z');
+            expect(normalizeDate(date)).toBe(expected);
         });
 
         it('Handles leap year', () => {
             const date = new Date('2024-02-29').toISOString();
-            expect(normalizeDate(date)).toBe(date + ':00Z');
+            const expected = date.replace(/\.\d{3}Z$/, 'Z');
+            expect(normalizeDate(date)).toBe(expected);
+        });
+
+        it('Parses local datetime without timezone and converts to UTC', () => {
+            const input = '2023-10-01 14:30:45';
+            const expectedDate = new Date(2023, 9, 1, 14, 30, 45);
+            const expected = expectedDate.toISOString().replace(/\.\d{3}Z$/, 'Z');
+            expect(normalizeDate(input)).toBe(expected);
+        });
+
+        it('Parses local datetime without seconds and defaults to 0 seconds', () => {
+            const input = '2023-10-01 14:30';
+            const expectedDate = new Date(2023, 9, 1, 14, 30, 0);
+            const expected = expectedDate.toISOString().replace(/\.\d{3}Z$/, 'Z');
+            expect(normalizeDate(input)).toBe(expected);
+        });
+
+        it('Adds missing seconds to datetime with timezone when seconds are not present', () => {
+            const input = '2023-10-01T14:30+03:00';
+            const expected = new Date('2023-10-01T14:30:00+03:00').toISOString().replace(/\.\d{3}Z$/, 'Z');
+            expect(normalizeDate(input)).toBe(expected);
+        });
+
+        it('Returns null for invalid datetime with timezone that cannot be parsed', () => {
+            const input = '2023-13-45T25:99:99+03:00';
+            expect(normalizeDate(input)).toBe(null);
+        });
+
+        it('Returns null for completely invalid date string that fails all patterns', () => {
+            const input = 'not-a-valid-date-at-all';
+            expect(normalizeDate(input)).toBe(null);
         });
     });
 

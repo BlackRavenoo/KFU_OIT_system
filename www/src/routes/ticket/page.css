@@ -66,7 +66,7 @@ aside {
 }
 
 .filter_case input:nth-of-type(odd) { grid-column: 1; }
-.filter_case input:nth-of-type(even) { grid-column: 3; }
+filter_case input:nth-of-type(even) { grid-column: 3; }
 .filter_case label:nth-of-type(odd) { grid-column: 2; }
 .filter_case label:nth-of-type(even) { grid-column: 4; }
 
@@ -82,7 +82,6 @@ aside {
     font-weight: 700;
 }
 
-/* --- Правая часть --- */
 main {
     background: var(--light-gray);
     padding: 2.5rem 2rem 2rem 2rem;
@@ -151,7 +150,6 @@ main * * {
 .page-size-input[type="number"]::-webkit-outer-spin-button {
     opacity: 1;
 }
-
 
 .search-controls, 
 .search-controls-wrapper {
@@ -435,7 +433,6 @@ main * * {
     color: var(--critical);
 }
 
-/* --- Кнопка сворачивания фильтров --- */
 .filters-toggle-row {
     display: flex;
     align-items: center;
@@ -494,7 +491,7 @@ main * * {
     position: fixed;
     inset: 0;
     width: 100vw;
-    height: 100vh;
+    height: 100dvh;
     background: rgba(15,23,42,0.35);
     backdrop-filter: blur(3px);
     opacity: 0;
@@ -512,9 +509,10 @@ aside.mobile-full {
     top: 0;
     left: 0;
     width: calc(100vw - 2.2rem);
-    height: calc(100vh - 55px);
+    height: calc(100dvh - 55px);
     overflow-y: auto;
     padding: 2.5rem 1.1rem 7.5rem;
+    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px));
     background: var(--white);
     z-index: 1000;
     animation: panelIn .25s ease;
@@ -531,7 +529,7 @@ aside.mobile-full #clear_filters {
 }
 
 aside.mobile-full .filter:last-of-type .filter_case {
-    margin-bottom: 6rem;
+    margin-bottom: calc(8rem + env(safe-area-inset-bottom, 0px));
 }
 
 @keyframes panelIn {
@@ -561,18 +559,20 @@ aside.mobile-full .filter:last-of-type .filter_case {
 
 .filters-mobile-apply {
     position: fixed;
-    bottom: 0;
     left: 0;
-    width: 100vw;
+    right: 0;
+    bottom: env(safe-area-inset-bottom, 0px);
+    width: auto;
     border: none;
     background: var(--blue);
     color: #fff;
     font-size: 1.05rem;
     font-weight: 600;
     padding: 1rem .75rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     letter-spacing: .02em;
     box-shadow: 0 -4px 24px rgba(7,92,239,0.25);
-    z-index: 1001;
+    z-index: 1002;
     border-radius: 0;
     cursor: pointer;
 }
@@ -582,7 +582,6 @@ aside.mobile-full .filter:last-of-type .filter_case {
     transform: none;
 }
 
-/* --- Адаптив --- */
 @media (max-width: 900px) {
     #content-panel {
         grid-template-columns: 1fr;

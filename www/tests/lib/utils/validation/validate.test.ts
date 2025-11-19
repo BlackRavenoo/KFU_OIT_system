@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
     validateEmail,
@@ -292,44 +292,28 @@ describe('formatDescription', () => {
 });
 
 describe('formatDate', () => {
-    const originalDate = globalThis.Date;
-    const testTimezoneOffset = -180;
-    
-    beforeEach(() => {
-        const DateWithFixedTimezone = class extends Date {
-            getTimezoneOffset() { return testTimezoneOffset; }
-            getTime() { return super.getTime(); }
-            getDate() { return super.getDate(); }
-            getMonth() { return super.getMonth(); }
-            getFullYear() { return super.getFullYear(); }
-            getHours() { const utcHours = super.getUTCHours(); return (utcHours + 3) % 24; }
-            getMinutes() { return super.getMinutes(); }
-        };
-        globalThis.Date = DateWithFixedTimezone as any;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const expectedLocal = (iso: string) => {
+        const d = new Date(iso);
+        return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
+    it('Formats date in local timezone dynamically', () => {
+        const iso = new Date('2023-10-01T12:34:56Z').toISOString();
+        expect(formatDate(iso)).toBe(expectedLocal(iso));
     });
 
-    afterEach(() => {
-        globalThis.Date = originalDate;
-    });
-
-    it('Format date correctly with fixed timezone', () => {
-        const date = new Date('2023-10-01T12:34:56Z').toISOString();
-        expect(formatDate(date)).toBe('01.10.2023 12:34');
-    });
-
-    it('Handles midnight time with fixed timezone', () => {
-        const date = new Date('2023-10-01T00:00:00Z').toISOString();
-        expect(formatDate(date)).toBe('01.10.2023 00:00');
+    it('Handles midnight time in local timezone dynamically', () => {
+        const iso = new Date('2023-10-01T00:00:00Z').toISOString();
+        expect(formatDate(iso)).toBe(expectedLocal(iso));
     });
 
     it('Return "Без даты" for null', () => {
-        // @ts-ignore
-        expect(formatDate(null)).toBe('Без даты');
+        expect(formatDate(null as any)).toBe('Без даты');
     });
 
     it('Return "Без даты" for undefined', () => {
-        // @ts-ignore
-        expect(formatDate(undefined)).toBe('Без даты');
+        expect(formatDate(undefined as any)).toBe('Без даты');
     });
 
     it('Handles invalid date format', () => {

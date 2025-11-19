@@ -1,13 +1,41 @@
-import { notification, NotificationType } from "../notifications/notification";
-
 /**
  * Нормализует дату в формате ISO 8601.
+ * Вывод строго в UTC без таймзоны.
  * @param {string} date - Дата в строковом формате.
  */
 export function normalizeDate(date: string): string | null {
     if (!date || !date.trim()) return null;
-    if (/T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})?$/.test(date)) return date;
-    return date + ':00Z';
+    const s = date.trim();
+
+    const mDate = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (mDate) {
+        const [, y, mo, d] = mDate.map(Number) as unknown as [number, number, number, number];
+        const iso = new Date(y, mo - 1, d, 0, 0, 0).toISOString();
+        return iso.replace(/\.\d{3}Z$/, 'Z');
+    }
+
+    const mLocal = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+    if (mLocal && !/[Zz]|[+-]\d{2}:\d{2}$/.test(s)) {
+        const [, yS, moS, dS, hS, miS, sS] = mLocal;
+        const y = Number(yS), mo = Number(moS), d = Number(dS);
+        const h = Number(hS), mi = Number(miS), sec = sS ? Number(sS) : 0;
+        const iso = new Date(y, mo - 1, d, h, mi, sec).toISOString();
+        return iso.replace(/\.\d{3}Z$/, 'Z');
+    }
+
+    const withTz = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?(Z|[+-]\d{2}:\d{2})$/.exec(s);
+    if (withTz) {
+        const hasSeconds = !!withTz[6];
+        const normalized = s.replace(' ', 'T').replace(/(T\d{2}:\d{2})(Z|[+-]\d{2}:\d{2})$/, hasSeconds ? '$1$2' : '$1:00$2');
+        const d = new Date(normalized);
+        if (!isNaN(d.getTime())) return d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+        return null;
+    }
+
+    const d = new Date(s.replace(' ', 'T'));
+    if (!isNaN(d.getTime())) return d.toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+    return null;
 }
 
 /**
