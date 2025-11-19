@@ -112,3 +112,38 @@ async fn create_page_with_empty_body_returns_400() {
 
     assert_eq!(resp.status(), 400);
 }
+
+#[tokio::test]
+async fn create_page_with_related_returns_201() {
+    let app = spawn_app().await;
+
+    let email = app.create_user(ticketing_system::auth::types::UserRole::Moderator).await;
+
+    let (access, _) = app.get_jwt_tokens(&email, "admin").await;
+
+    let body = serde_json::json!({
+        "data": {
+            "text": "Some text"
+        },
+        "title": "Test title",
+        "tags": [],
+        "related": [],
+        "is_public": true
+    });
+
+    app.create_page(&body, Some(&access), 1).await;
+
+    let body = serde_json::json!({
+        "data": {
+            "text": "Some text"
+        },
+        "title": "Test title",
+        "tags": [],
+        "related": [1],
+        "is_public": true
+    });
+
+    let resp = app.create_page(&body, Some(&access), 1).await;
+
+    assert_eq!(resp.status(), 201);
+}
