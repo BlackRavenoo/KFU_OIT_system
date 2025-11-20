@@ -13,7 +13,7 @@ services:
       - APP_REDIS__URL=redis://redis:6379
       - APP_STORAGE__REGION=${S3_REGION:-us-east-1}
       - APP_STORAGE__ENDPOINT=${S3_ENDPOINT}
-      - APP_STORAGE__ALWAYS_PROXY=false
+      - APP_STORAGE__ALWAYS_PROXY=${S3_ALWAYS_PROXY:-false}
       - APP_STORAGE__ACCESS_KEY=${S3_ACCESS_KEY}
       - APP_STORAGE__SECRET_KEY=${S3_SECRET_KEY}
       - APP_STORAGE__PATH_STYLE=false
@@ -22,6 +22,10 @@ services:
       - APP_EMAIL_CLIENT__BASE_URL=https://api.mailersend.com
       - APP_EMAIL_CLIENT__SENDER_EMAIL=${SENDER_EMAIL}
       - APP_EMAIL_CLIENT__AUTHORIZATION_TOKEN=${EMAIL_CLIENT_TOKEN}
+      - APP_EVENT_PUBLISHER__BASE_URL=https://api.telegram.org
+      - APP_EVENT_PUBLISHER__BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - APP_EVENT_PUBLISHER__CHAT_ID=${TELEGRAM_CHAT_ID}
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
@@ -46,6 +50,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
     volumes:
       - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
     healthcheck:
       test: pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-ticketing_system}
       interval: 15s
@@ -74,7 +79,7 @@ services:
     volumes:
       - ./certbot/www:/var/www/certbot:rw
       - ./certbot/conf:/etc/letsencrypt:rw
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    # entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
   redis_data:
