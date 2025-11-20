@@ -18,18 +18,39 @@ impl std::fmt::Debug for UnassignTicketError {
 
 impl ResponseError for UnassignTicketError {}
 
-pub async fn unassign_ticket(
+pub async fn unassign_ticket_from_self(
     id: web::Path<TicketId>,
     user_id: UserIdExtractor,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, UnassignTicketError> {
     let ticket_id = id.into_inner();
 
+    unassign_ticket(&pool, ticket_id, user_id.0).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+pub async fn unassign_ticket_from_user(
+    id: web::Path<(TicketId, UserId)>,
+    pool: web::Data<PgPool>,
+) -> Result<HttpResponse, UnassignTicketError> {
+    let (ticket_id, user_id) = id.into_inner();
+
+    unassign_ticket(&pool, ticket_id, user_id).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+async fn unassign_ticket(
+    pool: &PgPool,
+    ticket_id: TicketId,
+    user_id: UserId,
+) -> Result<(), UnassignTicketError> {
     let mut transaction = pool.begin()
         .await
         .context("Failed to acquire a Postgres connection from the pool.")?;
 
-    unassign(&mut transaction, ticket_id, user_id.0).await
+    unassign(&mut transaction, ticket_id, user_id).await
         .context("Failed to unassign ticket.")?;
 
     update_status(&mut transaction, ticket_id).await
@@ -39,7 +60,7 @@ pub async fn unassign_ticket(
         .await
         .context("Failed to commit SQL transaction to unassign ticket.")?;
 
-    Ok(HttpResponse::Ok().finish())
+    Ok(())
 }
 
 #[tracing::instrument(

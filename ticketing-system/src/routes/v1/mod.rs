@@ -1,6 +1,6 @@
 use actix_web::web;
 
-use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{auth::{change_password, login, me, refresh_token, register, validate_register_token}, attachments::get_attachment, pages::{create_page, delete_page, get_page, get_page_data, get_pages}, tags::{create_tag, delete_tag, search_tags, update_tag}, tickets::{assign_ticket, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket, update_ticket}, user::{activate_account, change_user_role, change_user_status, deactivate_account, get_users, invite_user, update_avatar, update_user_profile}}};
+use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{attachments::get_attachment, auth::{change_password, login, me, refresh_token, register, validate_register_token}, pages::{create_page, delete_page, get_page, get_page_data, get_pages}, tags::{create_tag, delete_tag, search_tags, update_tag}, tickets::{assign_ticket_to_self, assign_ticket_to_user, create_ticket, delete_ticket, get_consts, get_ticket, get_tickets, unassign_ticket_from_self, unassign_ticket_from_user, update_ticket}, user::{activate_account, change_user_role, change_user_status, deactivate_account, get_users, invite_user, update_avatar, update_user_profile}}};
 
 pub mod auth;
 pub mod tickets;
@@ -31,10 +31,14 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                         .wrap(JwtMiddleware::min_role(UserRole::Employee)))
                     .route("/", web::get().to(get_tickets)
                         .wrap(JwtMiddleware::min_role(UserRole::Employee)))
-                    .route("/{id}/assign", web::patch().to(assign_ticket)
+                    .route("/{id}/assign", web::patch().to(assign_ticket_to_self)
                         .wrap(JwtMiddleware::min_role(UserRole::Employee)))
-                    .route("/{id}/unassign", web::patch().to(unassign_ticket)
+                    .route("/{id}/unassign", web::patch().to(unassign_ticket_from_self)
                         .wrap(JwtMiddleware::min_role(UserRole::Employee)))
+                    .route("/{id}/assign/{user_id}", web::post().to(assign_ticket_to_user)
+                        .wrap(JwtMiddleware::min_role(UserRole::Moderator)))
+                    .route("/{id}/unassign/{user_id}", web::post().to(unassign_ticket_from_user)
+                        .wrap(JwtMiddleware::min_role(UserRole::Moderator)))
                     .route("/{id}", web::get().to(get_ticket)
                         .wrap(JwtMiddleware::min_role(UserRole::Employee)))
                     .route("/{id}", web::delete().to(delete_ticket)

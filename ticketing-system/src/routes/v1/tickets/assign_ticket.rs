@@ -18,17 +18,38 @@ impl std::fmt::Debug for AssignTicketError {
 
 impl ResponseError for AssignTicketError {}
 
-pub async fn assign_ticket(
+pub async fn assign_ticket_to_self(
     id: web::Path<TicketId>,
     user_id: UserIdExtractor,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, AssignTicketError> {
     let ticket_id = id.into_inner();
 
+    assign_ticket(&pool, ticket_id, user_id.0).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+pub async fn assign_ticket_to_user(
+    path: web::Path<(TicketId, UserId)>,
+    pool: web::Data<PgPool>,
+) -> Result<HttpResponse, AssignTicketError> {
+    let (ticket_id, user_id) = path.into_inner();
+
+    assign_ticket(&pool, ticket_id, user_id).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+async fn assign_ticket(
+    pool: &PgPool,
+    ticket_id: TicketId,
+    user_id: UserId,
+) -> Result<(), AssignTicketError> {
     let mut transaction = pool.begin().await
         .context("Failed to begin transaction")?;
 
-    assign(&mut transaction, ticket_id, user_id.0).await
+    assign(&mut transaction, ticket_id, user_id).await
         .context("Failed to assign ticket")?;
 
     update_status(&mut transaction, ticket_id).await
@@ -37,7 +58,7 @@ pub async fn assign_ticket(
     transaction.commit().await
         .context("Failed to commit SQL transaction to assign ticket")?;
 
-    Ok(HttpResponse::Ok().finish())
+    Ok(())
 }
 
 #[tracing::instrument(
