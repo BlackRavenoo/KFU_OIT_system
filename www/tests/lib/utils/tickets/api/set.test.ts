@@ -91,7 +91,7 @@ import setupApiMock from '../../../../apiClientMock';
 const { apiMock, helpers } = setupApiMock();
 
 import { it, expect, describe, beforeEach } from 'vitest';
-import { fetchTicket, updateTicket, deleteTicket } from '$lib/utils/tickets/api/set';
+import { createTicket, updateTicket, deleteTicket } from '$lib/utils/tickets/api/set';
 import { TICKETS_API_ENDPOINTS } from '$lib/utils/tickets/api/endpoints';
 import { normalizeDate } from '$lib/utils/tickets/support';
 
@@ -100,7 +100,7 @@ describe('Ticket Set API', () => {
         helpers.resetMocks();
     });
 
-    describe('fetchTicket', () => {
+    describe('createTicket', () => {
         it('Send create ticket request with correct parameters', async () => {
             const title = 'Test Title';
             const description = 'Test Description';
@@ -109,6 +109,7 @@ describe('Ticket Set API', () => {
             const building = 1;
             const cabinet = '101';
             const date = '2023-10-15';
+            const department = 1;
             
             helpers.mockSuccess('post', { id: 'new-ticket-id' });
             
@@ -128,7 +129,7 @@ describe('Ticket Set API', () => {
             })) as any;
             
             try {
-                await fetchTicket(title, description, author, contacts, building, cabinet, date);
+                await createTicket(title, description, author, contacts, building, cabinet, date, department);
                 
                 expect(apiMock.post).toHaveBeenCalledTimes(1);
                 expect(apiMock.post).toHaveBeenCalledWith(
@@ -155,7 +156,8 @@ describe('Ticket Set API', () => {
                     author_contacts: contacts,
                     building_id: building,
                     cabinet: cabinet,
-                    planned_at: normalizeDate(date)
+                    planned_at: normalizeDate(date),
+                    department_id: department
                 });
             } finally {
                 globalThis.FormData = originalFormData;
@@ -163,7 +165,7 @@ describe('Ticket Set API', () => {
             }
         });
 
-        it('Send create ticket request withouth planned date', async () => {
+        it('Send create ticket request without planned date', async () => {
             const title = 'Test Title';
             const description = 'Test Description';
             const author = 'John Doe';
@@ -171,6 +173,7 @@ describe('Ticket Set API', () => {
             const building = 1;
             const cabinet = '101';
             const date = '';
+            const department = 1;
             
             helpers.mockSuccess('post', { id: 'new-ticket-id' });
             
@@ -190,7 +193,7 @@ describe('Ticket Set API', () => {
             })) as any;
             
             try {
-                await fetchTicket(title, description, author, contacts, building, cabinet, date);
+                await createTicket(title, description, author, contacts, building, cabinet, date, department);
                 
                 expect(apiMock.post).toHaveBeenCalledTimes(1);
                 expect(apiMock.post).toHaveBeenCalledWith(
@@ -217,7 +220,8 @@ describe('Ticket Set API', () => {
                     author_contacts: contacts,
                     building_id: building,
                     cabinet: cabinet,
-                    planned_at: normalizeDate(date)
+                    planned_at: normalizeDate(date),
+                    department_id: department
                 });
             } finally {
                 globalThis.FormData = originalFormData;
@@ -233,6 +237,7 @@ describe('Ticket Set API', () => {
             const building = 1;
             const cabinet = '101';
             const date = '2023-10-15';
+            const department = 1;
             const files = [
                 new File(['file1 content'], 'file1.txt', { type: 'text/plain' }),
                 new File(['file2 content'], 'file2.jpg', { type: 'image/jpeg' })
@@ -256,7 +261,7 @@ describe('Ticket Set API', () => {
             })) as any;
             
             try {
-                await fetchTicket(title, description, author, contacts, building, cabinet, date, files);
+                await createTicket(title, description, author, contacts, building, cabinet, date, department, files);
                 
                 expect(apiMock.post).toHaveBeenCalledTimes(1);
                 expect(appendMock).toHaveBeenCalledTimes(3);
@@ -276,8 +281,9 @@ describe('Ticket Set API', () => {
             const building = 1;
             const cabinet = '101';
             const date = '2023-10-15';
+            const department = 1;
             
-            await expect(fetchTicket(title, description, author, contacts, building, cabinet, date))
+            await expect(createTicket(title, description, author, contacts, building, cabinet, date, department))
                 .rejects
                 .toThrow('Все поля обязательны для заполнения');
             
@@ -292,6 +298,7 @@ describe('Ticket Set API', () => {
             const building = 1;
             const cabinet = '101';
             const date = '2023-10-15';
+            const department = 1;
 
             helpers.mockError('post', '');
 
@@ -312,7 +319,7 @@ describe('Ticket Set API', () => {
 
             try {
                 await expect(
-                    fetchTicket(title, description, author, contacts, building, cabinet, date)
+                    createTicket(title, description, author, contacts, building, cabinet, date, department)
                 ).rejects.toThrow('Ошибка создания заявки');
                 expect(apiMock.post).toHaveBeenCalledTimes(1);
             } finally {

@@ -1,10 +1,10 @@
 <script lang="ts">
     import { UserRole } from '$lib/utils/auth/types';
-    import { fetchTicket } from '$lib/utils/tickets/api/set';
+    import { createTicket } from '$lib/utils/tickets/api/set';
     import { handleFileChange, removeFile } from '$lib/utils/files/inputs';
     import { showModalWithFocus } from '$lib/components/Modal/Modal';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
-    import { buildings } from '$lib/utils/setup/stores';
+    import { buildings, departments } from '$lib/utils/setup/stores';
     import { validateFiles, validateName, validatePhone } from '$lib/utils/validation/validate';
     import Modal from '$lib/components/Modal/Modal.svelte';
     import { onMount } from 'svelte';
@@ -16,6 +16,7 @@
     let Name = '';
     let Contact = '';
     let Building: number = 1;
+    let Department: number | null = null;
     let Cabinet = '';
     let DateVal = '';
     let fileName: string[] = [];
@@ -78,6 +79,7 @@
         Contact = '';
         Cabinet = '';
         DateVal = '';
+        Department = null;
         File = [];
         fileName = [];
         Object.keys(touched).forEach(k => (touched as any)[k] = false);
@@ -89,7 +91,7 @@
         if (!validateForm() || !validateFiles(File)) return;
         try {
             isSubmitting = true;
-            await fetchTicket(Title, Description, Name, Contact, Building, Cabinet, DateVal, File);
+            await createTicket(Title, Description, Name, Contact, Building, Cabinet, DateVal, Department || -1, File);
             notification('Заявка отправлена!', NotificationType.Success);
             resetForm();
             dispatchEvent(new CustomEvent('ticket-sent'));
@@ -128,6 +130,12 @@
         const date = maybe('date');
         if (date !== null) DateVal = date;
 
+        const department = maybe('department');
+        if (department !== null) {
+            const d = Number(department);
+            if (!Number.isNaN(d)) Department = d;
+        }
+
         const nameParam = maybe('name');
         if (nameParam !== null) {
             Name = nameParam;
@@ -145,8 +153,11 @@
 
     <div class="intro-block">
         <p class="lead">
-            Здесь вы можете оставить заявку для ОИТ. Укажите краткий и понятный заголовок, затем подробно опишите проблему.
+            Здесь вы можете оставить заявку для отделов обеспечения ЕИ КФУ. Укажите краткий и понятный заголовок, затем подробно опишите проблему.
             Чем точнее описание — тем быстрее решение.
+        </p>
+        <p class="lead">
+            Выберите отдел, в который хотите отправить заявку. Это поможет быстрее направить её к нужным специалистам.
         </p>
         <div class="info-panels">
             <div class="panel">
@@ -159,7 +170,7 @@
             </div>
             <div class="panel">
                 <h4>Файлы</h4>
-                <p>Можно прикрепить до 5 файлов (JPEG/PNG/PDF). Не добавляйте конфиденциальные данные.</p>
+                <p>Можно прикрепить до 5 файлов (JPEG/PNG/PDF/DOCX/PPTX). Не добавляйте конфиденциальные данные.</p>
             </div>
             <div class="panel">
                 <h4>Обработка</h4>
@@ -205,6 +216,21 @@
                 {#if touched.Description && errors.Description}
                     <div class="input-error">{ errors.Description }</div>
                 {/if}
+            </div>
+
+            <div class="form-field form-field-full">
+                <select
+                    id="Department"
+                    name="Department"
+                    class="{ Department ? 'selected' : '' }"
+                    bind:value={ Department }
+                >
+                    <option value={null}>Не выбран</option>
+                    {#each $departments as dept}
+                        <option value={ dept.id }>{ dept.name }</option>
+                    {/each}
+                </select>
+                <label for="Department">Отдел</label>
             </div>
 
             <div class="form-row">

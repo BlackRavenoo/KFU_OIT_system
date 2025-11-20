@@ -76,7 +76,7 @@
                     assigned_to: $currentUser.id,
                     page: currentPage,
                     page_size,
-                    order_by: 'id',
+                    order_by: 0,
                     sort_order: sortOrder,
                     statuses
                 });

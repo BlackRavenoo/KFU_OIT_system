@@ -23,6 +23,7 @@
     import Bots from './components/Bots.svelte';
     import Request from './components/Request.svelte';
     import Buildings from './components/Buildings.svelte';
+    import Departments from './components/Departments.svelte';
     
     let activeTab: TabType = Tab.PROFILE;
     let isLoading: boolean = false;
@@ -64,8 +65,8 @@
         userData = $currentUser;
         userRole = $currentUser.role === UserRole.Administrator ? 'Администратор' :
             $currentUser.role === UserRole.Moderator ? 'Модератор' :
-            $currentUser.role === UserRole.Programmer ? 'Программист' :
-            'Сотрудник';
+            $currentUser.role === UserRole.Programmer ? 'Сотрудник' :
+            'Пользователь';
         
         avatarContainer && getAvatar($currentUser, avatarContainer, 80, true);
     }
@@ -205,8 +206,15 @@
                         class={ activeTab === (('buildings') as any) ? 'active' : '' }
                         on:click={ () => { activeTab = ('buildings' as any); updateUrlParam(('buildings') as any); isMobileView && toggleMenu(); } }
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
                         Здания
+                    </button>
+                    <button
+                        class={ activeTab === (('departments') as any) ? 'active' : '' }
+                        on:click={ () => { activeTab = ('departments' as any); updateUrlParam(('departments') as any); isMobileView && toggleMenu(); } }
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+                        Отделы
                     </button>
                     <button
                         class={ activeTab === Tab.BOTS ? 'active' : '' } 
@@ -243,6 +251,8 @@
                 <Users />
             {:else if activeTab === Tab.BUILDINGS}
                 <Buildings />
+            {:else if activeTab === Tab.DEPARTMENTS}
+                <Departments />
             {:else if activeTab === Tab.BOTS}
                 <Bots />
             {:else if activeTab === Tab.REQUEST}

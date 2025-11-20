@@ -4,7 +4,7 @@
     import { page } from '$app/stores';
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
-    import { pageTitle, pageDescription, buildings } from '$lib/utils/setup/stores';
+    import { pageTitle, pageDescription, buildings, departments } from '$lib/utils/setup/stores';
     import { formatDate, formatDescription } from '$lib/utils/validation/validate';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { getById, fetchImages } from '$lib/utils/tickets/api/get';
@@ -39,6 +39,7 @@
     let building_id: number | null = null;
     let cabinet: string = '';
     let note: string = '';
+    let department_id: number | null = null;
 
     const NOTE_MAX = 1024;
 
@@ -175,6 +176,7 @@
         building_id = ticketData.building?.id ?? null;
         cabinet = ticketData.cabinet ?? '';
         note = ticketData.note ?? '';
+        department_id = ticketData.department?.id ?? null;
         status = 'closed';
         await saveEdit();
     }
@@ -200,6 +202,7 @@
         building_id = ticketData.building?.id ?? null;
         cabinet = ticketData.cabinet ?? '';
         note = ticketData.note ?? '';
+        department_id = ticketData.department?.id ?? null;
         status = 'cancelled';
         await saveEdit();
     }
@@ -216,6 +219,7 @@
         building_id = ticketData.building?.id ?? null;
         cabinet = ticketData.cabinet ?? '';
         note = ticketData.note ?? '';
+        department_id = ticketData.department?.id ? Number(ticketData.department.id) : null;
     }
 
     async function saveEdit() {
@@ -239,6 +243,8 @@
             updatedFields.building = buildingsList.find(b => b.id === building_id) || ticketData.building;
         if (cabinet !== ticketData.cabinet) updatedFields.cabinet = cabinet;
         if (note !== ticketData.note) updatedFields.note = note;
+        if (department_id !== null && Number(department_id) !== Number(ticketData.department?.id ?? null))
+            (updatedFields as any).department_id = Number(department_id);
 
         try {
             isSubmitting = true;
@@ -257,7 +263,8 @@
                 priority: priority,
                 cabinet: cabinet,
                 building: updatedFields.building || ticketData?.building,
-                note: note
+                note: note,
+                department: $departments.find(d => Number(d.id) === Number(department_id)) || ticketData?.department
             } as Ticket;
 
             notification('Заявка обновлена', NotificationType.Success);
@@ -468,6 +475,18 @@
                         Запланированное время:
                         <span>{ formatDate(ticketData.planned_at || '') || 'Без даты' }</span>
                     </p>
+                    <p class="ticket-tag">
+                        Отдел:
+                        {#if isEditing}
+                            <select bind:value={ department_id } class="edit-mode">
+                                {#each $departments as dept}
+                                    <option value={ dept.id }>{ dept.name }</option>
+                                {/each}
+                            </select>
+                        {:else}
+                            <span>{ ticketData.department?.name || 'Не указан' }</span>
+                        {/if}
+                    </p>
                     <br>
                     <p class="ticket-tag">
                         Статус:
@@ -538,7 +557,7 @@
                                 ></div>
                                 <div class="executor-text">
                                     <span class="executor-name">{ executor.name }</span>
-                                    <span class="executor-status">{ executor.id === $currentUser?.id ? "Вы" : "Программист" }</span>
+                                    <span class="executor-status">{ executor.id === $currentUser?.id ? "Вы" : "Сотрудник" }</span>
                                 </div>
                             </div>
                         {/each}
@@ -751,6 +770,18 @@
                 <p class="ticket-tag">
                     Запланированное время:
                     <span>{ formatDate(ticketData.planned_at || '') || 'Без даты' }</span>
+                </p>
+                <p class="ticket-tag">
+                    Отдел:
+                    {#if isEditing}
+                        <select bind:value={ department_id } class="edit-mode">
+                            {#each $departments as dept}
+                                <option value={ dept.id }>{ dept.name }</option>
+                            {/each}
+                        </select>
+                    {:else}
+                        <span>{ ticketData.department?.name || 'Не указан' }</span>
+                    {/if}
                 </p>
                 <br>
                 <p class="ticket-tag">

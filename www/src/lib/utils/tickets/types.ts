@@ -23,6 +23,7 @@ export type Ticket = {
     created_at: string,
     attachments: null | any,
     building: Building,
+    department: Department,
     note: string,
     cabinet: string
 };
@@ -31,6 +32,11 @@ export type Building = {
     id: number; 
     code: string; 
     name: string 
+};
+
+export type Department = {
+    id: number;
+    name: string;
 };
 
 export type OrderBy = {
@@ -47,6 +53,7 @@ export type TicketsFilters = {
     plannedFrom: string;
     plannedTo: string;
     page_size: number;
+    department: number;
     selectedSort: number;
     page: number;
 };
@@ -74,12 +81,6 @@ export interface ITicketsFiltersStorage {
 }
 
 // Consts
-export const orderByMap: Record<number, string> = {
-    0: 'id',
-    1: 'plannedat',
-    2: 'priority'
-};
-
 export const statusOptions: StatusOption[] = [
     { value: 'all', label: 'Все', serverValue: null },
     { value: 'open', label: 'Активные', serverValue: 'open' },

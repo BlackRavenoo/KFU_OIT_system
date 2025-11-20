@@ -3,11 +3,10 @@ import { get } from 'svelte/store';
 import { api } from '$lib/utils/api';
 import { toRfc3339, buildQuery } from '$lib/utils/tickets/support';
 import { getTicketsFilters } from '$lib/utils/tickets/stores';
-import { orderByMap } from '$lib/utils/tickets/types';
 import { TICKETS_API_ENDPOINTS } from './endpoints';
-import { order, buildings } from '$lib/utils/setup/stores';
+import { order, buildings, departments } from '$lib/utils/setup/stores';
 import { validatePageSize } from '$lib/utils/validation/validate';
-import type { Building, OrderBy, Ticket } from '$lib/utils/tickets/types';
+import type { Building, OrderBy, Ticket, Department } from '$lib/utils/tickets/types';
 
 const CACHE_KEY_CONSTS = 'tickets_consts_cache';
 const CACHE_TTL_CONSTS = 15 * 60 * 1000;
@@ -35,20 +34,28 @@ export async function fetchTickets(search: string = '', search_params: Record<st
         params = {
             page,
             page_size,
-            order_by: orderByMap[filters.selectedSort] || 'id',
+            order_by: get(order)[filters.selectedSort].id || 0,
             sort_order: filters.sortOrder,
         };
         
-        if (filters.selectedStatus.length > 0)
-            params.statuses = toArrayParam(filters.selectedStatus);
-        else
-            params.statuses = ['open', 'closed', 'inprogress', 'cancelled'];
+        params.statuses = filters.selectedStatus.length > 0 ?
+            toArrayParam(filters.selectedStatus) :
+            ['open', 'closed', 'inprogress', 'cancelled'];
             
         if (filters.plannedFrom) params.planned_from = toRfc3339(filters.plannedFrom);
         if (filters.plannedTo) params.planned_to = toRfc3339(filters.plannedTo, true);
             
         if (filters.selectedBuildings.length > 0)
             params.buildings = toArrayParam(filters.selectedBuildings);
+        
+        if (filters.department !== undefined && filters.department !== null) {
+            if (filters.department === -1 || filters.department == -1) {
+                const allDepts = get(departments);
+                params.departments = allDepts.map(d => String(d.id));
+            } else {
+                params.departments = [String(filters.department)];
+            }
+        }
             
         if (search || filters.search) params.search = search || filters.search;
     } else {
@@ -59,6 +66,9 @@ export async function fetchTickets(search: string = '', search_params: Record<st
 
         if ('buildings' in params)
             params.buildings = toArrayParam(params.buildings);
+
+        if ('departments' in params)
+            params.departments = toArrayParam(params.departments);
     }
 
     const query = buildQuery(params);
@@ -95,9 +105,9 @@ export async function getById(id: string): Promise<Ticket> {
 /**
  * Получение констант для фильтров.
  * Если константы уже загружены, возвращает их из хранилища.
- * @returns {Promise<{ buildings: Building[], order: OrderBy[] }>}
+ * @returns {Promise<{ buildings: Building[], order: OrderBy[], departments: Department[] }>}
  */
-export async function fetchConsts(): Promise<{ buildings: Building[], order: OrderBy[] }> {
+export async function fetchConsts(): Promise<{ buildings: Building[], order: OrderBy[], departments: Department[] }> {
     try {
         const cacheRaw = localStorage.getItem(CACHE_KEY_CONSTS);
         if (cacheRaw) {
@@ -105,6 +115,7 @@ export async function fetchConsts(): Promise<{ buildings: Building[], order: Ord
             if (Date.now() - cache.timestamp < CACHE_TTL_CONSTS) {
                 buildings.set(Array.isArray(cache.data.buildings) ? cache.data.buildings : []);
                 order.set(Array.isArray(cache.data.order) ? cache.data.order : []);
+                departments.set(Array.isArray(cache.data.departments) ? cache.data.departments : []);
                 return cache.data;
             }
         }
@@ -113,7 +124,7 @@ export async function fetchConsts(): Promise<{ buildings: Building[], order: Ord
     }
 
     if (get(order).length === 0 || get(buildings).length === 0) {
-        const response = await api.get<{ buildings: Building[]; order_by: OrderBy[] }>(
+        const response = await api.get<{ buildings: Building[]; order_by: OrderBy[], departments: Department[] }>(
             TICKETS_API_ENDPOINTS.consts
         );
 
@@ -123,11 +134,13 @@ export async function fetchConsts(): Promise<{ buildings: Building[], order: Ord
         const data = response.data!;
         const result = {
             buildings: Array.isArray(data.buildings) ? data.buildings : [],
-            order: Array.isArray(data.order_by) ? data.order_by : []
+            order: Array.isArray(data.order_by) ? data.order_by : [],
+            departments: Array.isArray(data.departments) ? data.departments : []
         };
 
         buildings.set(result.buildings);
         order.set(result.order);
+        departments.set(result.departments);
 
         try {
             localStorage.setItem(CACHE_KEY_CONSTS, JSON.stringify({
@@ -141,7 +154,8 @@ export async function fetchConsts(): Promise<{ buildings: Building[], order: Ord
     } else {
         const result = {
             buildings: get(buildings),
-            order: get(order)
+            order: get(order),
+            departments: get(departments)
         };
 
         try {
@@ -195,7 +209,7 @@ export async function loadActiveUserTickets(userId: string): Promise<any[]> {
             assigned_to: userId,
             page: 1,
             page_size: 3,
-            order_by: 'id',
+            order_by: 0,
             sort_order: 'asc',
             statuses: ['inprogress']
         });

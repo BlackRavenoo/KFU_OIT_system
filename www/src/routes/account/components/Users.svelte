@@ -366,10 +366,10 @@
                                 <td class="email-cell">{ user.email }</td>
                                 <td class="role-cell">
                                     <span class="role-badge { user.role === UserRole.Administrator ? 'admin-role' : user.role === UserRole.Moderator ? 'moderator-role' : 'user-role' }">
-                                        { user.role === UserRole.Administrator ? 'Администратор' : user.role === UserRole.Moderator ? 'Модератор' : user.role === UserRole.Programmer ? 'Программист' : 'Сотрудник' }
+                                        { user.role === UserRole.Administrator ? 'Администратор' : user.role === UserRole.Moderator ? 'Модератор' : user.role === UserRole.Programmer ? 'Сотрудник' : 'Пользователь' }
                                     </span>
                                 </td>
-                                {#if canManageStatus}
+                                {#if canManageStatus && user.role !== UserRole.Client}
                                     <td class="status-cell">
                                         <select 
                                             class="role-badge status-badge-select { 'status-' + (user.status || UserStatus.Active) }"

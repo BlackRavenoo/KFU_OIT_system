@@ -1,4 +1,5 @@
 import { api } from '$lib/utils/api';
+import { departments } from '$lib/utils/setup/stores';
 import { TICKETS_API_ENDPOINTS } from '$lib/utils/tickets/api/endpoints';
 import { normalizeDate } from '$lib/utils/tickets/support';
 
@@ -11,7 +12,7 @@ import { normalizeDate } from '$lib/utils/tickets/support';
  * @param {string} DateVal - Дата, запланированная для заявки.
  * @param {File[] | null} File - Файлы, прикрепленные к заявке (необязательный параметр).
  */
-export async function fetchTicket(
+export async function createTicket(
     Title: string,
     Description: string,
     Name: string,
@@ -19,9 +20,10 @@ export async function fetchTicket(
     Building: number,
     Cabinet: string,
     DateVal: string,
+    Department: number,
     File?: File[] | null
 ) {
-    if (!Title || !Description || !Name || !Contact || !Building || !Cabinet)
+    if (!Title || !Description || !Name || !Contact || !Building || !Cabinet || Department === -1)
         throw new Error('Все поля обязательны для заполнения');
 
     const fields = {
@@ -31,7 +33,8 @@ export async function fetchTicket(
         author_contacts: Contact.trim(),
         building_id: Building,
         cabinet: Cabinet,
-        planned_at: DateVal && DateVal.trim() ? normalizeDate(DateVal) : null
+        planned_at: DateVal && DateVal.trim() ? normalizeDate(DateVal) : null,
+        department_id: Department
     };
 
     const formData = new FormData();
@@ -43,9 +46,8 @@ export async function fetchTicket(
 
     const response = await api.post(TICKETS_API_ENDPOINTS.create, formData);
 
-    if (!response.success) {
+    if (!response.success)
         throw new Error(response.error || 'Ошибка создания заявки');
-    }
 }
 
 /**
@@ -65,6 +67,7 @@ export async function updateTicket(
         assigned_to?: string | null;
         building_id?: number | null;
         cabinet?: string | null;
+        department_id?: number | null;
     }
 ): Promise<void> {
     const filteredData = Object.fromEntries(
@@ -75,9 +78,8 @@ export async function updateTicket(
 
     const response = await api.put(`${TICKETS_API_ENDPOINTS.read}${ticketId}`, filteredData);
 
-    if (!response.success) {
+    if (!response.success)
         throw new Error(response.error || 'Ошибка обновления заявки');
-    }
 }
 
 /**
@@ -88,7 +90,6 @@ export async function updateTicket(
 export async function deleteTicket(ticketId: string): Promise<void> {
     const response = await api.delete(`${TICKETS_API_ENDPOINTS.delete}${ticketId}`);
 
-    if (!response.success) {
+    if (!response.success)
         throw new Error(response.error || 'Ошибка при удалении заявки');
-    }
 }

@@ -8,7 +8,7 @@
 
     import { formatDate, formatName, formatTitle, formatDescription } from '$lib/utils/validation/validate';
     import { isAuthenticated, currentUser } from '$lib/utils/auth/storage/initial';
-    import { pageTitle, pageDescription, buildings } from '$lib/utils/setup/stores';
+    import { pageTitle, pageDescription, buildings, departments } from '$lib/utils/setup/stores';
     import { fetchTickets, fetchConsts } from '$lib/utils/tickets/api/get';
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { getTicketsFilters, setTicketsFilters, clearTicketsFilters } from '$lib/utils/tickets/stores';
@@ -31,12 +31,15 @@
     let filtersCollapsed = true;
     let isMobile = false;
 
-    let { search, viewMode, sortOrder, selectedStatus, selectedBuildings, plannedFrom, plannedTo, page_size, selectedSort } = filters;
+    let { search, viewMode, sortOrder, selectedStatus, selectedBuildings, department: selectedDepartment, plannedFrom, plannedTo, page_size, selectedSort } = filters;
 
     if (!Array.isArray(selectedStatus))
         selectedStatus = selectedStatus && selectedStatus !== 'all' ? [String(selectedStatus)] : [];
 
-    $: setTicketsFilters({ search, viewMode, sortOrder, selectedStatus, selectedBuildings, plannedFrom, plannedTo, page_size, selectedSort, page });
+    if (!selectedDepartment)
+        selectedDepartment = -1;
+
+    $: setTicketsFilters({ search, viewMode, sortOrder, selectedStatus, selectedBuildings, department: selectedDepartment, plannedFrom, plannedTo, page_size, selectedSort, page });
 
     $: {
         const $page = get(pageStore);
@@ -118,6 +121,7 @@
             sortOrder,
             selectedStatus,
             selectedBuildings,
+            department: selectedDepartment,
             plannedFrom,
             plannedTo,
             page_size,
@@ -126,6 +130,9 @@
 
         if (!Array.isArray(selectedStatus))
             selectedStatus = selectedStatus && selectedStatus !== 'all' ? [String(selectedStatus)] : [];
+
+        if (!selectedDepartment)
+            selectedDepartment = -1;
 
         combinedSort = `${selectedSort}|${sortOrder}`;
         page = 1;
@@ -320,6 +327,17 @@
                 </div>
             </div>
             <div class="filter">
+                <span class="filter_name">Отдел</span>
+                <div class="filter_case">
+                    <select id="department-select" bind:value={ selectedDepartment }>
+                        <option value="-1">Все отделы</option>
+                        {#each $departments as dept}
+                            <option value={ dept.id.toString() }>{ dept.name }</option>
+                        {/each}
+                    </select>
+                </div>
+            </div>
+            <div class="filter">
                 <span class="filter_name">Сортировка</span>
                 <div class="filter_case">
                     <select id="sort-select" bind:value={ combinedSort } on:change={ handleCombinedSortChange }>
@@ -391,6 +409,18 @@
                                 />
                                 <label for={ 'm-' + building.id.toString() }>{ building.name }</label>
                             {/each}
+                        </div>
+                    </div>
+
+                    <div class="filter">
+                        <span class="filter_name">Отдел</span>
+                        <div class="filter_case">
+                            <select id="department-select-m" bind:value={ selectedDepartment }>
+                                <option value="-1">Все отделы</option>
+                                {#each $departments as dept}
+                                    <option value={ dept.id.toString() }>{ dept.name }</option>
+                                {/each}
+                            </select>
                         </div>
                     </div>
 
@@ -617,59 +647,4 @@
 
 <style scoped>
     @import './page.css';
-
-    /* Стили селектора сортировки */
-#sort-select,
-#sort-select-m {
-    width: 100%;
-    padding: .55rem .9rem;
-    font-size: .95rem;
-    font-weight: 600;
-    line-height: 1.2;
-    color: var(--blue);
-    background: var(--white);
-    border: 2px solid var(--gray, #e5e7eb);
-    border-radius: 10px;
-    outline: none;
-    cursor: pointer;
-    transition: border-color .2s, box-shadow .2s, background .2s;
-    appearance: none;
-    position: relative;
-}
-
-#sort-select:focus,
-#sort-select-m:focus {
-    border-color: var(--light-blue);
-    box-shadow: 0 6px 24px rgba(7,92,239,0.14);
-    background: var(--light-gray);
-}
-
-#sort-select:hover,
-#sort-select-m:hover {
-    border-color: var(--light-blue);
-}
-
-#sort-select option,
-#sort-select-m option {
-    font-weight: 600;
-    background: var(--white);
-    color: var(--dark);
-}
-
-/* Обёртка (если нужно выделить область) */
-.filter_case select#sort-select,
-.filter_case select#sort-select-m {
-    grid-column: 1 / -1;
-}
-
-/* Мобильный селектор */
-@media (max-width: 900px) {
-    #sort-select {
-        display: none;
-    }
-    #sort-select-m {
-        font-size: 1rem;
-        border-radius: 12px;
-    }
-}
 </style>
