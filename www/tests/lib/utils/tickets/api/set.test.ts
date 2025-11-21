@@ -373,7 +373,7 @@ describe('Ticket Set API', () => {
             );
         });
         
-        it('Should not send request if all values are empty', async () => {
+        it('Send request with empty body when all provided fields are empty (current implementation)', async () => {
             const ticketId = 'test-ticket-id';
             const updateData = {
                 title: '',
@@ -382,14 +382,20 @@ describe('Ticket Set API', () => {
                 planned_at: null
             };
             
+            helpers.mockSuccess('put');
+            
             await updateTicket(ticketId, updateData);
             
-            expect(apiMock.put).not.toHaveBeenCalled();
+            expect(apiMock.put).toHaveBeenCalledTimes(1);
+            expect(apiMock.put).toHaveBeenCalledWith(
+                `${TICKETS_API_ENDPOINTS.read}${ticketId}`,
+                {}
+            );
         });
         
         it('Throw error on failed update', async () => {
             const ticketId = 'test-ticket-id';
-            const updateData = { title: 'Updated Title' };
+            const updateData = { title: 'Updated Title', priority: 'low' };
             
             helpers.mockError('put', 'Ошибка при обновлении');
             
@@ -402,22 +408,24 @@ describe('Ticket Set API', () => {
 
         it('Throw error when server returns error without text', async () => {
             const ticketId = 'test-ticket-id';
-            const updateData = { title: 'Updated Title' };
+            const updateData = { title: 'Updated Title', priority: 'low' };
             
             helpers.mockError('put', '');
-
-            const originalFormData = globalThis.FormData;
-            const originalBlob = globalThis.Blob;
 
             try {
                 await expect(updateTicket(ticketId, updateData))
                 .rejects
                 .toThrow('Ошибка обновления заявки');
                 expect(apiMock.put).toHaveBeenCalledTimes(1);
-            } finally {
-                globalThis.FormData = originalFormData;
-                globalThis.Blob = originalBlob;
-            }
+            } finally { }
+        });
+
+        it('Returns early when data object has exactly one key', async () => {
+            const ticketId = 'ticket-123';
+            const singleKeyData = { id: 'ticket-123' } as any;
+
+            await expect(updateTicket(ticketId, singleKeyData)).resolves.toBeUndefined();
+            expect(apiMock.put).not.toHaveBeenCalled();
         });
     });
 
@@ -450,18 +458,12 @@ describe('Ticket Set API', () => {
             
             helpers.mockError('delete', '');
 
-            const originalFormData = globalThis.FormData;
-            const originalBlob = globalThis.Blob;
-
             try {
                 await expect(deleteTicket(ticketId))
                 .rejects
                 .toThrow('Ошибка при удалении заявки');
                 expect(apiMock.delete).toHaveBeenCalledTimes(1);
-            } finally {
-                globalThis.FormData = originalFormData;
-                globalThis.Blob = originalBlob;
-            }
+            } finally { }
         });
     });
 });

@@ -58,8 +58,7 @@
         }
 
         try {
-            const newDept = await createDepartment(name);
-            departments.update(arr => [...(Array.isArray(arr) ? arr : []), newDept]);
+            await createDepartment(name);
             notification('Отдел успешно создан', NotificationType.Success);
             newName = '';
         } catch (error: any) {

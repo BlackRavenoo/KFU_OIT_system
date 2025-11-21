@@ -70,11 +70,14 @@ export async function updateTicket(
         department_id?: number | null;
     }
 ): Promise<void> {
-    const filteredData = Object.fromEntries(
-        Object.entries(data).filter(([_, value]) => value !== "" && value !== null)
-    );
+    if (Object.keys(data).length === 1) return;
 
-    if (Object.keys(filteredData).length === 0) return;
+    const filteredData = Object.fromEntries(
+        Object.entries(data).filter(([key, value]) => {
+            if (value === "" || value === null || value === undefined) return false;
+            return true;
+        })
+    );
 
     const response = await api.put(`${TICKETS_API_ENDPOINTS.read}${ticketId}`, filteredData);
 

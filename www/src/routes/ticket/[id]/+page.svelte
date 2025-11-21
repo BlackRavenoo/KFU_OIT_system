@@ -242,16 +242,22 @@
         if (building_id !== ticketData.building?.id)
             updatedFields.building = buildingsList.find(b => b.id === building_id) || ticketData.building;
         if (cabinet !== ticketData.cabinet) updatedFields.cabinet = cabinet;
-        if (note !== ticketData.note) updatedFields.note = note;
+        if (note !== (ticketData.note ?? '')) updatedFields.note = note;
         if (department_id !== null && Number(department_id) !== Number(ticketData.department?.id ?? null))
             (updatedFields as any).department_id = Number(department_id);
 
+        const hasAssignedToChanged = updatedFields.assigned_to !== undefined && 
+            JSON.stringify(updatedFields.assigned_to) !== JSON.stringify(ticketData.assigned_to);
+
         try {
             isSubmitting = true;
-            await updateTicket(ticketId as string, {
-                ...updatedFields,
-                assigned_to: updatedFields.assigned_to ? JSON.stringify(updatedFields.assigned_to) : null
-            });
+            
+            const dataToUpdate: any = { ...updatedFields };
+            
+            if (hasAssignedToChanged)
+                dataToUpdate.assigned_to = updatedFields.assigned_to ? JSON.stringify(updatedFields.assigned_to) : null;
+            
+            await updateTicket(ticketId as string, dataToUpdate);
 
             ticketData = {
                 ...ticketData,

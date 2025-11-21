@@ -107,12 +107,12 @@ export async function getById(id: string): Promise<Ticket> {
  * Если константы уже загружены, возвращает их из хранилища.
  * @returns {Promise<{ buildings: Building[], order: OrderBy[], departments: Department[] }>}
  */
-export async function fetchConsts(): Promise<{ buildings: Building[], order: OrderBy[], departments: Department[] }> {
+export async function fetchConsts(force_update: boolean = false): Promise<{ buildings: Building[], order: OrderBy[], departments: Department[] }> {
     try {
         const cacheRaw = localStorage.getItem(CACHE_KEY_CONSTS);
         if (cacheRaw) {
             const cache = JSON.parse(cacheRaw);
-            if (Date.now() - cache.timestamp < CACHE_TTL_CONSTS) {
+            if (Date.now() - cache.timestamp < CACHE_TTL_CONSTS && !force_update) {
                 buildings.set(Array.isArray(cache.data.buildings) ? cache.data.buildings : []);
                 order.set(Array.isArray(cache.data.order) ? cache.data.order : []);
                 departments.set(Array.isArray(cache.data.departments) ? cache.data.departments : []);
@@ -123,7 +123,7 @@ export async function fetchConsts(): Promise<{ buildings: Building[], order: Ord
         console.warn('Не удалось загрузить константы из кеша');
     }
 
-    if (get(order).length === 0 || get(buildings).length === 0) {
+    if (get(order).length === 0 || get(buildings).length === 0 || get(departments).length === 0 || force_update) {
         const response = await api.get<{ buildings: Building[]; order_by: OrderBy[], departments: Department[] }>(
             TICKETS_API_ENDPOINTS.consts
         );
