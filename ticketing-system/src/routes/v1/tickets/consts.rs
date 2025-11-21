@@ -4,12 +4,13 @@ use serde::Serialize;
 use sqlx::PgPool;
 use strum::IntoEnumIterator as _;
 
-use crate::{schema::tickets::{Building, OrderBy}, utils::error_chain_fmt};
+use crate::{schema::tickets::{Building, Department, OrderBy}, utils::error_chain_fmt};
 
 #[derive(Serialize)]
 pub struct ConstsSchema {
     pub order_by: Vec<OrderBy>,
     pub buildings: Vec<Building>,
+    pub departments: Vec<Department>,
 }
 
 #[derive(thiserror::Error)]
@@ -28,11 +29,15 @@ impl ResponseError for GetConstsError {}
 
 pub async fn get_consts(pool: web::Data<PgPool>) -> Result<HttpResponse, GetConstsError> {
     let buildings = get_buildings(&pool).await
-        .context("Failed to buildings")?;
+        .context("Failed to get buildings")?;
+
+    let departments = get_departments(&pool).await
+        .context("Failed to get departments")?;
 
     Ok(HttpResponse::Ok().json(ConstsSchema {
         order_by: OrderBy::iter().collect::<Vec<_>>(),
         buildings,
+        departments,
     }))
 }
 
@@ -48,6 +53,25 @@ async fn get_buildings(
         r#"
             SELECT id, code, name
             FROM buildings
+            WHERE is_active
+        "#
+    )
+    .fetch_all(pool)
+    .await
+}
+
+#[tracing::instrument(
+    name = "Get departments from database",
+    skip(pool)
+)]
+async fn get_departments(
+    pool: &PgPool,
+) -> Result<Vec<Department>, sqlx::Error> {
+    sqlx::query_as!(
+        Department,
+        r#"
+            SELECT id, name
+            FROM departments
             WHERE is_active
         "#
     )

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO departments(name)\n            VALUES($1)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dfd33a2e185c5fbdd21b214bd55fc1ce664094bcb82c29765bdcabbe2035184d"
+}
