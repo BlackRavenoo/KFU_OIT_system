@@ -8,14 +8,16 @@
     import { formatDate, formatDescription } from '$lib/utils/validation/validate';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { getById, fetchImages } from '$lib/utils/tickets/api/get';
-    import { unassign, assign } from '$lib/utils/tickets/api/assign';
+    import { unassign, assign, assignUserToTicket as assignUserToTicketApi, unassignUserFromTicket as unassignUserFromTicketApi } from '$lib/utils/tickets/api/assign';
     import { updateTicket, deleteTicket } from '$lib/utils/tickets/api/set';
     import { UserRole } from '$lib/utils/auth/types';
     import { getAvatar } from '$lib/utils/account/avatar';
+    import { loadUsersData } from '$lib/utils/admin/users';
     import type { Ticket, Building, UiStatus, PriorityStatus } from '$lib/utils/tickets/types';
+    import type { IUserData } from '$lib/utils/auth/types';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
     import FileCard from './File.svelte';
-    import { handleAuthError } from '$lib/utils/api';
+    import { handleAuthError, api } from '$lib/utils/api';
 
     let ticketId: string | undefined = undefined;
     $: ticketId = $page?.params?.id;
@@ -30,6 +32,9 @@
     let isEditing: boolean = false;
     let showDeleteConfirm: boolean = false;
 
+    let showRemoveConfirm: boolean = false;
+    let executorToRemove: { id: string; name: string } | null = null;
+
     let status: UiStatus;
     let priority: PriorityStatus;
     let title: string = '';
@@ -39,7 +44,7 @@
     let building_id: number | null = null;
     let cabinet: string = '';
     let note: string = '';
-    let department_id: number | null = null;
+    let department_id = null as number | null;
 
     const NOTE_MAX = 1024;
 
@@ -57,6 +62,11 @@
     let loadingExecutorAvatars: Set<string> = new Set();
 
     let isSubmitting: boolean = false;
+
+    let showAssignModal: boolean = false;
+    let assignSearchQuery: string = '';
+    let assignSearchResults: IUserData[] = [];
+    let assignSearchLoading: boolean = false;
 
     function updateScreenWidth() {
         isWideScreen = window.innerWidth > 1280;
@@ -88,6 +98,8 @@
         if (e.key === 'Escape') {
             closeModal();
             showDeleteConfirm = false;
+            closeAssignModal();
+            closeRemoveConfirm();
         }
     }
 
@@ -138,6 +150,45 @@
             .catch(() => {
                 notification('Ошибка при снятии заявки с выполнения', NotificationType.Error);
             });
+    }
+
+    async function onExecutorClick(executorId: string, executorName: string) {
+        if (!canAssignExecutors) return;
+        executorToRemove = { id: executorId, name: executorName };
+        showRemoveConfirm = true;
+        document.body.style.overflow = 'hidden';
+    }
+
+    function onRemoveBtnClick(e: MouseEvent | KeyboardEvent, executorId: string, executorName: string) {
+        if (e && typeof (e as MouseEvent).stopPropagation === 'function')
+            (e as MouseEvent).stopPropagation();
+        executorToRemove = { id: executorId, name: executorName };
+        showRemoveConfirm = true;
+        document.body.style.overflow = 'hidden';
+    }
+
+    async function confirmRemoveExecutor() {
+        const id = executorToRemove?.id;
+        showRemoveConfirm = false;
+        executorToRemove = null;
+        document.body.style.overflow = '';
+        if (!id || !ticketId) return;
+
+        try {
+            const res = await unassignUserFromTicketApi(ticketId as string, id);
+            if (res && (res as any).success && (res as any).ticket) {
+                ticketData = (res as any).ticket;
+                loadedExecutorAvatars.clear();
+                loadingExecutorAvatars.clear();
+                setTimeout(() => loadExecutorAvatars(), 100);
+            }
+        } catch (e) { }
+    }
+
+    function closeRemoveConfirm() {
+        showRemoveConfirm = false;
+        executorToRemove = null;
+        document.body.style.overflow = '';
     }
 
     function handleDelete() {
@@ -362,12 +413,70 @@
         };
     }
 
+    function openAssignModal() {
+        showAssignModal = true;
+        assignSearchQuery = '';
+        assignSearchResults = [];
+        document.body.style.overflow = 'hidden';
+        window.addEventListener('keydown', handleEsc);
+    }
+
+    function closeAssignModal() {
+        showAssignModal = false;
+        assignSearchQuery = '';
+        assignSearchResults = [];
+        document.body.style.overflow = '';
+        window.removeEventListener('keydown', handleEsc);
+    }
+
+    async function searchUsers() {
+        if (!assignSearchQuery.trim()) {
+            assignSearchResults = [];
+            return;
+        }
+
+        assignSearchLoading = true;
+        try {
+            const result = await loadUsersData(1, 10, assignSearchQuery);
+            if (!result.error) {
+                const assignedIds = new Set(ticketData?.assigned_to?.map(e => e.id) || []);
+                assignSearchResults = result.users.filter(u => !assignedIds.has(u.id));
+            } else {
+                assignSearchResults = [];
+            }
+        } catch (e) {
+            assignSearchResults = [];
+            notification('Ошибка при поиске сотрудников', NotificationType.Error);
+        } finally {
+            assignSearchLoading = false;
+        }
+    }
+
+    async function assignUserToTicket(userId: string) {
+        if (!ticketId) return;
+
+        try {
+            const res = await assignUserToTicketApi(ticketId as string, userId);
+            if (res && (res as any).success && (res as any).ticket) {
+                ticketData = (res as any).ticket;
+                loadedExecutorAvatars.clear();
+                loadingExecutorAvatars.clear();
+                setTimeout(() => loadExecutorAvatars(), 100);
+                closeAssignModal();
+            }
+        } catch (e) { }
+    }
+
     $: if (ticketData && authorAvatarContainer && !authorAvatarLoaded && !authorAvatarLoading) {
         loadAuthorAvatar();
     }
 
     $: if (ticketData && ticketData.assigned_to && ticketData.assigned_to.length > 0) {
         setTimeout(() => loadExecutorAvatars(), 100);
+    }
+
+    $: if (assignSearchQuery) {
+        setTimeout(() => searchUsers(), 300);
     }
 
     const IMAGE_EXTS = new Set(['png','jpg','jpeg','gif','webp','bmp','svg']);
@@ -399,6 +508,8 @@
         if (idx === -1) return '';
         return name.slice(idx + 1).toLowerCase();
     }
+
+    const canAssignExecutors = $currentUser && ($currentUser.role === UserRole.Administrator || $currentUser.role === UserRole.Moderator);
 
     onMount(async () => {
         if (!ticketId) return;
@@ -551,24 +662,72 @@
                     <p>Загрузка...</p>
                 {/if}
             </div>
-            {#if ticketData && ticketData.assigned_to?.length > 0}
+            {#if ticketData}
                 <div class="ticket-meta" style="margin-top: 2rem;">
                     <div style="font-weight: bold; margin-bottom: 0.5rem;">Исполнители:</div>
                     <div class="executors-list">
-                        {#each ticketData.assigned_to as executor (executor.id)}
-                            <div class="executor">
-                                <div 
-                                    class="avatar-container"
-                                    use:setExecutorAvatarContainer={ executor.id }
-                                ></div>
-                                <div class="executor-text">
-                                    <span class="executor-name">{ executor.name }</span>
-                                    <span class="executor-status">{ executor.id === $currentUser?.id ? "Вы" : "Сотрудник" }</span>
+                        {#if ticketData.assigned_to?.length > 0}
+                            {#each ticketData.assigned_to as executor (executor.id)}
+                                <button
+                                    type="button"
+                                    class="executor executor-wrapper"
+                                    class:removable={ canAssignExecutors }
+                                    on:click={ () => onExecutorClick(executor.id, executor.name) }
+                                    on:keydown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            onExecutorClick(executor.id, executor.name);
+                                        }
+                                    }}
+                                    aria-label={`Открыть меню для исполнителя ${ executor.name }`}
+                                    tabindex="0"
+                                >
+                                    <div 
+                                        class="avatar-container"
+                                        use:setExecutorAvatarContainer={ executor.id }
+                                    >
+                                        {#if canAssignExecutors}
+                                            <span 
+                                                class="remove-executor-btn"
+                                                role="button"
+                                                tabindex="0"
+                                                on:click|stopPropagation={(e) => onRemoveBtnClick(e, executor.id, executor.name)}
+                                                on:keydown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        onRemoveBtnClick(new MouseEvent('click'), executor.id, executor.name);
+                                                    }
+                                                }}
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                                </svg>
+                                            </span>
+                                        {/if}
+                                    </div>
+                                    <div class="executor-text">
+                                        <span class="executor-name">{ executor.name }</span>
+                                        <span class="executor-status">{ executor.id === $currentUser?.id ? "Вы" : "Сотрудник" }</span>
+                                    </div>
+                                </button>
+                            {/each}
+                        {:else}
+                            <p>Нет исполнителей</p>
+                        {/if}
+                        {#if canAssignExecutors}
+                            <button class="executor executor-add" on:click={ openAssignModal } aria-label="Назначить исполнителя">
+                                <div class="avatar-container avatar-add">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                                        <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    </svg>
                                 </div>
-                            </div>
-                        {/each}
+                                <div class="executor-text">
+                                    <span class="executor-name">Назначить</span>
+                                </div>
+                            </button>
+                        {/if}
                     </div>
-                    {#if $currentUser && ticketData.assigned_to.some(e => e.id === $currentUser.id)}
+                    {#if $currentUser && ticketData.assigned_to && ticketData.assigned_to.some(e => e.id === $currentUser.id)}
                         <div class="ticket-actions" style="margin-top: 1rem;">
                             {#if ticketData.status === 'inprogress'}
                                 <button class="btn btn-primary" on:click={ finishHandler }>Завершить</button>
@@ -576,11 +735,6 @@
                             <button class="btn btn-outline" on:click={ unassignHandler }>Отказаться</button>
                         </div>
                     {/if}
-                </div>
-            {:else}
-                <div class="ticket-meta" style="margin-top: 2rem;">
-                    <div style="font-weight: bold;">Исполнители:</div>
-                    <p>Нет исполнителей</p>
                 </div>
             {/if}
         </div>
@@ -714,6 +868,7 @@
             </div>
         </div>
     </div>
+
     {#if modalOpen && modalImg}
         <div
             class="modal-backdrop"
@@ -752,6 +907,73 @@
             cancelText="Отмена"
             onConfirm={ confirmDelete }
             onCancel={ closeDeleteConfirm }
+        />
+    {/if}
+    {#if showAssignModal}
+        <div
+            class="modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            tabindex="0"
+            transition:fade={{ duration: 180 }}
+            on:click={ (e) => { if (e.target === e.currentTarget) closeAssignModal(); } }
+            on:keydown={(e) => {
+                if (e.key === 'Escape') closeAssignModal();
+            }}
+        >
+            <section
+                class="assign-modal"
+                role="document"
+                aria-label="Назначить исполнителя"
+            >
+                <div class="assign-modal-header">
+                    <h2>Назначить исполнителя</h2>
+                    <button class="modal-close-btn" on:click={ closeAssignModal }>&times;</button>
+                </div>
+                <div class="assign-modal-body">
+                    <input
+                        type="text"
+                        class="assign-search-input"
+                        placeholder="Поиск сотрудников..."
+                        bind:value={ assignSearchQuery }
+                        aria-label="Поиск сотрудников"
+                        on:keydown={(e) => {
+                            if (e.key === 'Escape') closeAssignModal();
+                        }}
+                    />
+                    {#if assignSearchLoading}
+                        <p style="text-align: center; padding: 1rem;">Загрузка...</p>
+                    {:else if assignSearchResults.length > 0}
+                        <div class="assign-results-list">
+                            {#each assignSearchResults as user (user.id)}
+                                <button class="assign-result-item" on:click={ () => assignUserToTicket(user.id) }>
+                                    <span>{ user.name }</span>
+                                    <span class="user-email">{ user.email || '' }</span>
+                                </button>
+                            {/each}
+                        </div>
+                    {:else if assignSearchQuery.trim()}
+                        <p style="text-align: center; padding: 1rem; color: var(--text-secondary);">
+                            Сотрудники не найдены
+                        </p>
+                    {:else}
+                        <p style="text-align: center; padding: 1rem; color: var(--text-secondary);">
+                            Введите имя сотрудника для поиска
+                        </p>
+                    {/if}
+                </div>
+            </section>
+        </div>
+    {/if}
+
+    {#if showRemoveConfirm}
+        <Confirmation
+            title="Снять исполнителя"
+            message={ executorToRemove ? `Вы уверены, что хотите снять ${ executorToRemove.name } с заявки?` : 'Вы уверены?' }
+            confirmText="Снять"
+            cancelText="Отмена"
+            onConfirm={ confirmRemoveExecutor }
+            onCancel={ closeRemoveConfirm }
         />
     {/if}
 </main>
@@ -964,17 +1186,63 @@
                             <h3 style="margin-top:1.5rem;">Исполнители</h3>
                             <div class="executors-list">
                                 {#each ticketData.assigned_to as executor (executor.id)}
-                                    <div class="executor">
+                                    <button
+                                        type="button"
+                                        class="executor executor-wrapper"
+                                        class:removable={ canAssignExecutors }
+                                        on:click={ () => onExecutorClick(executor.id, executor.name) }
+                                        on:keydown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                onExecutorClick(executor.id, executor.name);
+                                            }
+                                        }}
+                                        aria-label={`Открыть меню для исполнителя ${ executor.name }`}
+                                        tabindex="0"
+                                    >
                                         <div
                                             class="avatar-container"
                                             use:setExecutorAvatarContainer={ executor.id }
-                                        ></div>
+                                        >
+                                            {#if canAssignExecutors}
+                                                <span 
+                                                    class="remove-executor-btn"
+                                                    role="button"
+                                                    tabindex="0"
+                                                    on:click|stopPropagation={ (e) => onRemoveBtnClick(e, executor.id, executor.name) }
+                                                    aria-label="Снять исполнителя"
+                                                    title="Снять с заявки"
+                                                    on:keydown={(e) => {
+                                                        if (e.key === 'Enter' || e.key === ' ') {
+                                                            e.preventDefault();
+                                                            onRemoveBtnClick(new MouseEvent('click'), executor.id, executor.name);
+                                                        }
+                                                    }}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                                                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                                    </svg>
+                                                </span>
+                                            {/if}
+                                        </div>
                                         <div class="executor-text executor-text-mobile">
                                             <span class="executor-name">{ executor.name }</span>
                                             <span class="executor-status">{ executor.id === $currentUser?.id ? 'Вы' : 'Программист' }</span>
                                         </div>
-                                    </div>
+                                    </button>
                                 {/each}
+                                {#if canAssignExecutors}
+                                    <button class="executor executor-add" on:click={ openAssignModal }>
+                                        <div class="avatar-container avatar-add">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                                                <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                            </svg>
+                                        </div>
+                                        <div class="executor-text executor-text-mobile">
+                                            <span class="executor-name">Назначить</span>
+                                        </div>
+                                    </button>
+                                {/if}
                             </div>
                             {#if $currentUser && ticketData.assigned_to.some(e => e.id === $currentUser.id)}
                                 <div class="ticket-actions" style="margin-top: .75rem;">
@@ -989,6 +1257,18 @@
                         <div class="executors-mobile" style="margin-top:1.5rem;">
                             <h3>Исполнители</h3>
                             <p>Нет исполнителей</p>
+                            {#if canAssignExecutors}
+                                <button class="executor executor-add" on:click={ openAssignModal } style="margin-top: 0.5rem;">
+                                    <div class="avatar-container avatar-add">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                                            <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                        </svg>
+                                    </div>
+                                    <div class="executor-text executor-text-mobile">
+                                        <span class="executor-name">Назначить</span>
+                                    </div>
+                                </button>
+                            {/if}
                         </div>
                     {/if}
                     {#if ticketData && $currentUser && (!ticketData.assigned_to || !ticketData.assigned_to.some(e => e.id === $currentUser.id))}
@@ -1007,49 +1287,77 @@
             </div>
         </div>
     </div>
-    {#if modalOpen && modalImg}
+
+    {#if showRemoveConfirm}
+        <Confirmation
+            title="Снять исполнителя"
+            message={ executorToRemove ? `Вы уверены, что хотите снять ${ executorToRemove.name } с заявки?` : 'Вы уверены?'}
+            confirmText="Снять"
+            cancelText="Отмена"
+            onConfirm={ confirmRemoveExecutor }
+            onCancel={ closeRemoveConfirm }
+        />
+    {/if}
+
+    {#if showAssignModal}
         <div
             class="modal-backdrop"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="modal-image-dialog"
             tabindex="0"
             transition:fade={{ duration: 180 }}
-            on:click={ closeModal }
+            on:click={(e) => { if (e.target === e.currentTarget) closeAssignModal(); }}
             on:keydown={(e) => {
-                if (e.key === 'Escape') closeModal();
+                if (e.key === 'Escape') closeAssignModal();
             }}
         >
-            <button
-                class="modal-image"
-                id="modal-image-dialog"
-                type="button"
-                on:click={ closeModal }
-                style="background: none; border: none; padding: 0; margin: 0; cursor: pointer;"
+            <div
+                class="assign-modal"
+                role="document"
+                aria-label="Назначить исполнителя"
             >
-                <img src={ modalImg } alt="Просмотр изображения" />
-            </button>
-            <button
-                class="modal-close"
-                type="button"
-                on:click={ closeModal }
-                aria-label="Закрыть"
-            >&times;</button>
+                <div class="assign-modal-header">
+                    <h2>Назначить исполнителя</h2>
+                    <button class="modal-close-btn" on:click={ closeAssignModal }>&times;</button>
+                </div>
+                <div class="assign-modal-body">
+                    <input
+                        type="text"
+                        class="assign-search-input"
+                        placeholder="Поиск сотрудников..."
+                        bind:value={ assignSearchQuery }
+                        aria-label="Поиск сотрудников"
+                        on:keydown={(e) => {
+                            if (e.key === 'Escape') closeAssignModal();
+                        }}
+                    />
+                    {#if assignSearchLoading}
+                        <p style="text-align: center; padding: 1rem;">Загрузка...</p>
+                    {:else if assignSearchResults.length > 0}
+                        <div class="assign-results-list">
+                            {#each assignSearchResults as user (user.id)}
+                                <button class="assign-result-item" on:click={ () => assignUserToTicket(user.id) }>
+                                    <span>{ user.name }</span>
+                                    <span class="user-email">{ user.email || '' }</span>
+                                </button>
+                            {/each}
+                        </div>
+                    {:else if assignSearchQuery.trim()}
+                        <p style="text-align: center; padding: 1rem; color: var(--text-secondary);">
+                            Сотрудники не найдены
+                        </p>
+                    {:else}
+                        <p style="text-align: center; padding: 1rem; color: var(--text-secondary);">
+                            Введите имя сотрудника для поиска
+                        </p>
+                    {/if}
+                </div>
+            </div>
         </div>
-    {/if}
-    {#if showDeleteConfirm}
-        <Confirmation 
-            title="Подтвердите действие"
-            message="Вы уверены, что хотите удалить заявку?"
-            confirmText="Удалить"
-            cancelText="Отмена"
-            onConfirm={ confirmDelete }
-            onCancel={ closeDeleteConfirm }
-        />
     {/if}
 </main>
 {/if}
 
-<style scoped>
+<style>
     @import './page.css';
 </style>
