@@ -16,6 +16,7 @@ pub struct UpdateTicketSchema {
     pub cabinet: Option<String>,
     pub note: Option<String>,
     pub building_id: Option<i16>,
+    pub department_id: Option<i16>,
 }
 
 #[derive(thiserror::Error)]
@@ -60,6 +61,7 @@ pub async fn update_ticket(
     build_update_query!(builder, has_fields, schema.cabinet, "cabinet");
     build_update_query!(builder, has_fields, schema.note, "note");
     build_update_query!(builder, has_fields, schema.building_id, "building_id");
+    build_update_query!(builder, has_fields, schema.department_id, "department_id");
 
     if !has_fields {
         return Err(UpdateTicketError::AllFieldsEmpty);

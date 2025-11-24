@@ -20,6 +20,7 @@ pub struct GetTicketsSchema {
     pub buildings: Option<Vec<i16>>,
     pub assigned_to: Option<UserId>,
     pub search: Option<String>,
+    pub departments: Option<Vec<i16>>,
 }
 
 pub struct TicketWithMeta {
@@ -171,6 +172,7 @@ fn get_builder<'a>(schema: &'a GetTicketsSchema, page: TicketId, page_size: i8) 
         LEFT JOIN tickets_users tu ON tu.ticket_id = t.id 
         LEFT JOIN users u ON u.id = tu.assigned_to
         JOIN buildings b ON b.id = t.building_id
+        JOIN departments d ON d.id = t.department_id
         "#
     );
 
@@ -182,6 +184,7 @@ fn get_builder<'a>(schema: &'a GetTicketsSchema, page: TicketId, page_size: i8) 
     build_where_condition!(builder, has_filters, schema.planned_to, "planned_at", "<=");
     build_where_condition!(builder, has_filters, schema.buildings, "building_id", in);
     build_where_condition!(builder, has_filters, schema.assigned_to, "tu.assigned_to", "=");
+    build_where_condition!(builder, has_filters, schema.departments, "department_id", in);
 
     if let Some(s) = &schema.search {
         build_where_condition!(@add_where_and builder, has_filters);

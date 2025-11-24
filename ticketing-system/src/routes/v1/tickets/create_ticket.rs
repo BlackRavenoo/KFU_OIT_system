@@ -19,6 +19,7 @@ pub struct CreateTicketSchema {
     pub planned_at: Option<DateTime<Utc>>,
     pub cabinet: Option<String>,
     pub building_id: i16,
+    pub department_id: Option<i16>, // Temporary solution
 }
 
 #[derive(MultipartForm)]
@@ -138,8 +139,8 @@ async fn insert_ticket(
 ) -> Result<TicketId, sqlx::Error> {
     sqlx::query!(
         r#"
-        INSERT INTO tickets(title, description, author, author_contacts, planned_at, cabinet, building_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO tickets(title, description, author, author_contacts, planned_at, cabinet, building_id, department_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id
         "#,
         fields.title,
@@ -149,6 +150,7 @@ async fn insert_ticket(
         fields.planned_at,
         fields.cabinet,
         fields.building_id,
+        fields.department_id.unwrap_or(1)
     )
     .fetch_one(transaction.as_mut())
     .await

@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, types::Json};
 
-use crate::{schema::{common::UserId, tickets::{Building, TicketId, TicketPriority, TicketStatus}}, utils::error_chain_fmt};
+use crate::{schema::{common::UserId, tickets::{Building, Department, TicketId, TicketPriority, TicketStatus}}, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum GetTicketError {
@@ -42,11 +42,10 @@ pub struct TicketQueryResult {
     pub assigned_to: Json<Vec<User>>,
     pub created_at: DateTime<Utc>,
     pub attachments: Option<Vec<String>>,
-    pub building_id: i16,
-    pub building_code: String,
-    pub building_name: String,
+    pub building: Json<Building>,
     pub note: Option<String>,
     pub cabinet: Option<String>,
+    pub department: Json<Department>,
 }
 
 #[derive(Serialize)]
@@ -59,12 +58,13 @@ pub struct TicketSchemaWithAttachments {
     pub status: TicketStatus,
     pub priority: TicketPriority,
     pub planned_at: Option<DateTime<Utc>>,
-    pub assigned_to: Json<Vec<User>>,
+    pub assigned_to: Vec<User>,
     pub created_at: DateTime<Utc>,
     pub attachments: Option<Vec<String>>,
     pub building: Building,
     pub note: Option<String>,
     pub cabinet: Option<String>,
+    pub department: Department,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -76,12 +76,6 @@ pub struct User {
 
 impl From<TicketQueryResult> for TicketSchemaWithAttachments {
     fn from(ticket: TicketQueryResult) -> Self {
-        let building = Building {
-            id: ticket.building_id,
-            code: ticket.building_code,
-            name: ticket.building_name,
-        };
-
         TicketSchemaWithAttachments {
             id: ticket.id,
             title: ticket.title,
@@ -92,11 +86,12 @@ impl From<TicketQueryResult> for TicketSchemaWithAttachments {
             priority: ticket.priority,
             planned_at: ticket.planned_at,
             created_at: ticket.created_at,
-            assigned_to: ticket.assigned_to,
+            assigned_to: ticket.assigned_to.0,
             attachments: ticket.attachments,
-            building,
+            building: ticket.building.0,
             note: ticket.note,
             cabinet: ticket.cabinet,
+            department: ticket.department.0
         }
     }
 }
@@ -146,18 +141,25 @@ async fn select_ticket(
             ) as "assigned_to!: Json<Vec<User>>",
             t.created_at,
             ARRAY_AGG(DISTINCT ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments,
-            b.id as "building_id",
-            b.code as "building_code",
-            b.name as "building_name",
+            JSON_BUILD_OBJECT(
+                'id', b.id,
+                'code', b.code,
+                'name', b.name
+            ) as "building!: Json<Building>",
             note,
-            cabinet
+            cabinet,
+            JSON_BUILD_OBJECT(
+                'id', d.id,
+                'name', d.name
+            ) as "department!: Json<Department>"
         FROM tickets t
         LEFT JOIN tickets_users tu ON tu.ticket_id = t.id 
         LEFT JOIN users u ON u.id = tu.assigned_to
         LEFT JOIN ticket_attachments ta ON ta.ticket_id = t.id
         JOIN buildings b ON b.id = t.building_id
+        JOIN departments d ON d.id = t.department_id
         WHERE t.id = $1
-        GROUP BY t.id, b.id
+        GROUP BY t.id, b.id, d.id
         "#,
         id
     )
