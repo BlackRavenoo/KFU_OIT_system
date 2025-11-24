@@ -33,8 +33,9 @@ pub enum TicketPriority {
     Critical = 3
 }
 
-#[derive(Deserialize, Clone, Copy, EnumIter, Default)]
-#[serde(rename_all = "lowercase")]
+#[derive(Deserialize, Clone, Copy, EnumIter, Default, FromPrimitive)]
+#[serde(from = "i8")]
+#[repr(i8)]
 pub enum OrderBy {
     #[default]
     Id = 0,

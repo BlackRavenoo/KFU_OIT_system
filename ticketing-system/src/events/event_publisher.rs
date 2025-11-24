@@ -83,7 +83,7 @@ impl EventPublisher {
                 );
 
                 if let Some(date) = planned_at {
-                    result.push_str(&format!(".\n📅 Плановая дата: {}", date.naive_local()));
+                    result.push_str(&format!(".\n📅 Плановая дата: {}", date));
                 }
 
                 result.push_str("</i>");
