@@ -10,7 +10,7 @@ use crate::{auth::types::{UserRole, UserStatus}, schema::common::{PaginationResu
 pub struct GetUsersSchema {
     pub page: Option<UserId>,
     pub page_size: Option<i8>,
-    pub q: Option<String>,
+    pub search: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -76,7 +76,7 @@ pub async fn get_users(
         return Err(GetUsersError::InvalidPage)
     }
 
-    let rows = get_users_page(&pool, page_size, page, schema.q)
+    let rows = get_users_page(&pool, page_size, page, schema.search)
         .await
         .context("Failed to get users from the database")?;
 
