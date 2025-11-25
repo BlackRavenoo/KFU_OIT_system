@@ -5,7 +5,7 @@ use crate::helpers::spawn_app;
 async fn insert_random_tickets(pool: &PgPool) {
     sqlx::query!(
         r#"
-            INSERT INTO tickets(building_id, title, author, author_contacts, description)
+            INSERT INTO tickets(building_id, title, author, author_contacts, description, department_id)
             SELECT
                 TRUNC(RANDOM() * 9) + 1,
                 md5(random()::text),
@@ -14,7 +14,8 @@ async fn insert_random_tickets(pool: &PgPool) {
                     FROM generate_series(1, 5 + floor(random() * 10)::int)
                 ), ''),
                 FLOOR(random() * 9999999999)::text,
-                md5(random()::text)
+                md5(random()::text),
+                1
             FROM generate_series(1, 100)
         "#
     )
@@ -132,8 +133,8 @@ async fn get_tickets_with_big_filter_returns_tickets() {
 
     sqlx::query!(
         r#"
-            INSERT INTO tickets(building_id, title, author, author_contacts, description)
-            VALUES (1, 'Test title', 'Test author', '999456', 'Test description')
+            INSERT INTO tickets(building_id, title, author, author_contacts, description, department_id)
+            VALUES (1, 'Test title', 'Test author', '999456', 'Test description', 1)
         "#
     )
     .execute(&app.db_pool)
@@ -141,7 +142,7 @@ async fn get_tickets_with_big_filter_returns_tickets() {
     .unwrap();
 
     let resp = reqwest::Client::new()
-        .get(format!("{}/v1/tickets/?statuses[]=open&priorities[]=low&order_by=plannedat&sort_order=desc&page=1&page_size=12&buildings[]=1&search=test%20title", app.address))
+        .get(format!("{}/v1/tickets/?statuses[]=open&priorities[]=low&order_by=plannedat&sort_order=desc&page=1&page_size=12&buildings[]=1&search=test%20title&departments[]=1", app.address))
         .bearer_auth(access)
         .send()
         .await
@@ -164,8 +165,8 @@ async fn get_tickets_ordered_by_priority_returns_ticket_with_higher_priority_fir
 
     sqlx::query!(
         r#"
-            INSERT INTO tickets(building_id, title, author, author_contacts, description, priority)
-            VALUES (1, 'Test title', 'Test author', '999456', 'Test description', 3)
+            INSERT INTO tickets(building_id, title, author, author_contacts, description, priority, department_id)
+            VALUES (1, 'Test title', 'Test author', '999456', 'Test description', 3, 1)
         "#
     )
     .execute(&app.db_pool)
@@ -196,8 +197,8 @@ async fn get_tickets_by_assigned_to_works() {
 
     let id = sqlx::query!(
         r#"
-            INSERT INTO tickets(building_id, title, author, author_contacts, description)
-            VALUES (1, 'Test title', 'Test author', '999456', 'Test description')
+            INSERT INTO tickets(building_id, title, author, author_contacts, description, department_id)
+            VALUES (1, 'Test title', 'Test author', '999456', 'Test description', 1)
             RETURNING id
         "#
     )

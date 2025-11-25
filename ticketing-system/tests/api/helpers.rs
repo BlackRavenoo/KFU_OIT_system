@@ -156,7 +156,8 @@ impl TestApp {
             "description": "Test description",
             "author": "Test author",
             "author_contacts": "Test contacts",
-            "building_id": 1
+            "building_id": 1,
+            "department_id": 1,
         });
 
         self.create_ticket(&json, None).await

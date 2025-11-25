@@ -12,6 +12,7 @@ async fn create_ticket_returns_201() {
         "author": "Author",
         "author_contacts": "79999999999",
         "building_id": 1,
+        "department_id": 1,
     });
 
     let resp = app.create_ticket(&json, None).await;
@@ -29,6 +30,7 @@ async fn create_ticket_with_pdf_returns_201() {
         "author": "Author",
         "author_contacts": "79999999999",
         "building_id": 1,
+        "department_id": 1,
     });
 
     Mock::given(path_regex(r"/test-bucket/attachments/.*"))
@@ -63,6 +65,7 @@ async fn create_ticket_with_a_lot_of_attachments_returns_400() {
         "author": "Author",
         "author_contacts": "79999999999",
         "building_id": 1,
+        "department_id": 1,
     });
 
     Mock::given(path_regex(r"/test-bucket/attachments/.*\.webp"))
@@ -92,6 +95,7 @@ async fn create_ticket_with_images_returns_201() {
         "author": "Author",
         "author_contacts": "79999999999",
         "building_id": 1,
+        "department_id": 1,
     });
 
     Mock::given(path_regex(r"/test-bucket/attachments/.*\.webp"))
@@ -121,6 +125,7 @@ async fn create_ticket_with_db_error_returns_500() {
         "author": "Author",
         "author_contacts": "79999999999",
         "building_id": 1,
+        "department_id": 1,
     });
 
     sqlx::query!(
@@ -145,6 +150,7 @@ async fn create_ticket_with_s3_error_returns_500() {
         "author": "Author",
         "author_contacts": "79999999999",
         "building_id": 1,
+        "department_id": 1,
     });
 
     Mock::given(path_regex(r"/test-bucket/attachments/.*\.webp"))
@@ -189,6 +195,7 @@ async fn create_ticket_with_empty_attachment_returns_400() {
         "author": "Author",
         "author_contacts": "79999999999",
         "building_id": 1,
+        "department_id": 1,
     });
 
     let attachment = Attachment::from_filename(

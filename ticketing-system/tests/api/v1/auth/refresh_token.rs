@@ -172,6 +172,7 @@ async fn refresh_token_for_deactivated_user_returns_403() {
 async fn refresh_token_with_mismatched_fingerprint_returns_403() {
     let app = spawn_app().await;
 
+    app.create_user(ticketing_system::auth::types::UserRole::Employee).await;
     let email = app.create_user(ticketing_system::auth::types::UserRole::Employee).await;
 
     let (_, refresh) = app.get_jwt_tokens(&email, "admin").await;

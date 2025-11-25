@@ -12,6 +12,7 @@ async fn create_ticket_with_attachments(app: &TestApp) {
         "author": "Author",
         "author_contacts": "79999999999",
         "building_id": 1,
+        "department_id": 1,
     });
 
     let _mock_guard = Mock::given(path_regex(r"/test-bucket/attachments/.*\.webp"))
