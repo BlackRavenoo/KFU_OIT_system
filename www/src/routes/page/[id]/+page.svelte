@@ -121,7 +121,7 @@
         pageDescription.set('Просмотр страницы в системе управления заявками ЕИ КФУ.');
         
         // @ts-ignore
-        if (!globalThis.$isAuthenticated || $currentUser === null)
+        if ($currentUser === null)
             handleAuthError(get(pageStore).url.pathname);
         else void loadPage();
     });

@@ -620,6 +620,16 @@ input.edit-mode::placeholder, textarea.edit-mode::placeholder {
     margin-top: 0.25rem;
 }
 
+.mobile-actions-container {
+    display: flex;
+    flex-direction: column;
+    width: calc(50% - 18px);
+}
+
+.executors-mobile {
+    width: calc(50% - 18px);
+}
+
 @media (max-width: 900px) {
     .ticket-container {
         flex-direction: column;
@@ -632,11 +642,14 @@ input.edit-mode::placeholder, textarea.edit-mode::placeholder {
         width: 100%;
         padding: 24px 12px;
     }
-    
-    .ticket-actions {
-        flex-direction: column;
+
+    .mobile-actions-container, .ticket-actions, .executors-mobile {
         width: 100%;
         gap: 0 !important;
+    }
+
+    .ticket-actions {
+        justify-content: space-between;
     }
 
     .executors-meta .ticket-actions .btn {

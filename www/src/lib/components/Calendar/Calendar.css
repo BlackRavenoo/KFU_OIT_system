@@ -1,0 +1,223 @@
+.cal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.cal-modal {
+    width: 90%;
+    max-width: 1300px;
+    max-height: 90vh;
+    overflow: auto;
+    background: var(--white);
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    color: var(--text);
+}
+
+.cal-header {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.close-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 0;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--text);
+    box-shadow: none !important;
+    position: relative;
+    top: -0.5rem;
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.arrow-btn {
+    background: transparent;
+    padding: 8px 12px;
+    cursor: pointer;
+    color: var(--text);
+    box-shadow: none !important;
+    border: none;
+    position: relative;
+    top: -0.5rem;
+}
+
+.range-inputs {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+input[type="date"] {
+    padding: 8px 10px;
+    border: 1px solid var(--light-blue);
+    border-radius: 6px;
+    color: var(--text);
+    background: var(--white);
+}
+
+.range-sep {
+    color: var(--text);
+}
+
+.week-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+.day-card {
+    border: 1px solid var(--light-blue);
+    padding: 16px;
+    border-radius: 10px;
+    min-height: 320px;
+    background: var(--white);
+    display: flex;
+    flex-direction: column;
+    color: var(--text);
+}
+
+.day-card.today {
+    outline: 3px solid #60a5fa;
+    background: #9fcaff4f;
+}
+
+.day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.day-key {
+    font-size: 12px;
+    color: var(--text);
+}
+
+.ticket-list {
+    overflow: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 6px;
+}
+
+.ticket-link {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    grid-auto-rows: auto;
+    gap: 10px;
+    align-items: start;
+    padding: 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text);
+    transition: position .06s ease, left .06s ease;
+    border: 1px solid rgba(0,0,0,0.03);
+    background: var(--white);
+    position: relative;
+    left: 0;
+}
+
+.ticket-link:hover {
+    left: 4px;
+}
+
+.ticket-time {
+    grid-column: 1 / 2;
+    font-size: 12px;
+    color: var(--text);
+    background: rgba(0,0,0,0.04);
+    padding: 6px;
+    border-radius: 6px;
+    min-width: 56px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.ticket-meta {
+    grid-column: 2 / 3;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+    color: var(--text);
+    width: calc(100% - 10px);
+    margin-left: 10px;
+}
+
+.ticket-top {
+    font-weight: 500;
+    font-size: .8rem;
+    color: var(--text);
+}
+
+.ticket-sub {
+    font-size: 12px;
+    color: var(--text);
+    opacity: 0.8;
+}
+
+.ticket-title {
+    grid-column: 1 / -1;
+    font-weight: 700;
+    font-size: .85rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: -4px;
+}
+
+.ticket-bottom {
+    display: none;
+}
+
+.priority-low {
+    background: rgba(156,163,175,0.12);
+    border-left: 6px solid rgba(156,163,175,0.45);
+}
+
+.priority-medium {
+    background: rgba(255,244,179,0.6);
+    border-left: 6px solid rgba(250,204,21,0.7);
+}
+
+.priority-high {
+    background: rgba(254,228,226,0.8);
+    border-left: 6px solid rgba(253,102,102,0.8);
+}
+
+.priority-critical {
+    background: #ff41412e;
+    border-left: 6px solid rgba(127,29,29,0.9);
+}
+
+.priority-normal {
+    background: rgba(230,240,255,0.2);
+    border-left: 6px solid rgba(96,165,250,0.5);
+}
+
+.loading {
+    opacity: 0.7;
+}

@@ -19,6 +19,7 @@
     import SearchBar from '$lib/components/Search/Searchfield.svelte';
     import Pagination from '$lib/components/Search/Pagination.svelte';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
+    import Calendar from '$lib/components/Calendar/Calendar.svelte';
 
     let tickets: any[] = [];
     let error: string | null = null;
@@ -224,6 +225,8 @@
         const current = getTicketsFilters();
         setTicketsFilters({ ...current, selectedSort, sortOrder });
     }
+
+    let calendarOpen = false;
 
     onMount(async () => {
         pageTitle.set('Заявки | Система управления заявками ЕИ КФУ');
@@ -453,6 +456,21 @@
             />
             <div class="search-controls">
                 <input type="number" bind:value={ page_size } placeholder="Количество тикетов" min="10" max="50" class="page-size-input">
+
+                <button
+                    type="button"
+                    class="calendar-open-btn"
+                    aria-label="Показать календарь"
+                    on:click={() => calendarOpen = true}
+                    title="Календарь заявок"
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M16 3v4M8 3v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        <path d="M3 11h18" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+
                 <button
                     type="button"
                     class="sort-order-btn"
@@ -643,6 +661,8 @@
             onCancel={ cancelSetCritical }
         />
     {/if}
+
+    <Calendar open={calendarOpen} on:close={() => { calendarOpen = false }} initialStart={plannedFrom} initialEnd={plannedTo} />
 </div>
 
 <style scoped>

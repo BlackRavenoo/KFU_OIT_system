@@ -1,8 +1,8 @@
 # Frontend часть системы управления заявками ЕИ КФУ
-Актуально для v0.1.6
+Актуально для v0.1.7
 
 [![Test frontend](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml/badge.svg)](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml)
-![Code Coverage](https://img.shields.io/badge/Coverage-99.38%25-brightgreen)
+![Code Coverage](https://img.shields.io/badge/Coverage-99.39%25-brightgreen)
 
 ## Технологический стек
 
@@ -27,6 +27,7 @@ www/
 │   ├── assets/                  # Статические ресурсы
 │   ├── lib/                     # Библиотеки и компоненты многократного использования
 │   │   ├── components/          # Переиспользуемые компоненты
+│   │   │   ├── Calendar/        # Компонент всплывающего окна календаря
 │   │   │   ├── Captcha/         # Компоненты для работы с капчей
 │   │   │   ├── Footer/          # Компонент футера
 │   │   │   ├── Modal/           # Модальные окна

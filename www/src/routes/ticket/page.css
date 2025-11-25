@@ -66,7 +66,7 @@ aside {
 }
 
 .filter_case input:nth-of-type(odd) { grid-column: 1; }
-filter_case input:nth-of-type(even) { grid-column: 3; }
+.filter_case input:nth-of-type(even) { grid-column: 3; }
 .filter_case label:nth-of-type(odd) { grid-column: 2; }
 .filter_case label:nth-of-type(even) { grid-column: 4; }
 
@@ -165,7 +165,8 @@ main * * {
 }
 
 .view-mode-btn,
-.sort-order-btn {
+.sort-order-btn,
+.calendar-open-btn {
     background: var(--white);
     border: 2px solid var(--gray);
     border-radius: 50%;
@@ -181,14 +182,16 @@ main * * {
 }
 
 .view-mode-btn:hover,
-.sort-order-btn:hover {
+.sort-order-btn:hover,
+.calendar-open-btn:hover {
     border-color: var(--light-blue);
     background: var(--light-gray);
     box-shadow: 0 6px 24px rgba(7,92,239,0.13);
 }
 
 .view-mode-btn svg,
-.sort-order-btn svg {
+.sort-order-btn svg,
+.calendar-open-btn svg {
     width: 22px;
     height: 22px;
     color: var(--blue);

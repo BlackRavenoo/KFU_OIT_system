@@ -1271,16 +1271,19 @@
                             {/if}
                         </div>
                     {/if}
-                    {#if ticketData && $currentUser && (!ticketData.assigned_to || !ticketData.assigned_to.some(e => e.id === $currentUser.id))}
-                        <button class="btn btn-primary" on:click={ assignHandler }>Взять в работу</button>
-                    {/if}
-                    <button class="btn btn-outline" on:click={ startEdit }>Редактировать</button>
-                    {#if ticketData && ticketData.status !== 'cancelled'}
-                        <button class="btn btn-secondary" on:click={ handleCancel }>Отменить</button>
-                    {/if}
-                    {#if $currentUser && $currentUser.role === UserRole.Administrator }
-                        <button class="btn btn-danger" on:click={ handleDelete }>Удалить</button>
-                    {/if}
+
+                    <div class="mobile-actions-container">
+                        {#if ticketData && $currentUser && (!ticketData.assigned_to || !ticketData.assigned_to.some(e => e.id === $currentUser.id))}
+                            <button class="btn btn-primary" on:click={ assignHandler }>Взять в работу</button>
+                        {/if}
+                        <button class="btn btn-outline" on:click={ startEdit }>Редактировать</button>
+                        {#if ticketData && ticketData.status !== 'cancelled'}
+                            <button class="btn btn-secondary" on:click={ handleCancel }>Отменить</button>
+                        {/if}
+                        {#if $currentUser && $currentUser.role === UserRole.Administrator }
+                            <button class="btn btn-danger" on:click={ handleDelete }>Удалить</button>
+                        {/if}
+                    </div>
                 {:else}
                     <button class="btn btn-primary" on:click={ saveEdit } disabled={ isSubmitting } aria-busy={ isSubmitting } aria-disabled={ isSubmitting } data-disabled={ isSubmitting }>Сохранить</button>
                 {/if}
