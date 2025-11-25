@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE departments SET name = $1 WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int2"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "77c169942da212179cdcbab7ae1d9224afedeeae4980e21700c1328a59f6787f"
+}

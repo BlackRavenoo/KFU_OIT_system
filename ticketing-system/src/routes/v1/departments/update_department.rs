@@ -45,8 +45,9 @@ async fn update(
     id: i16,
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
-        "UPDATE departments SET name = $1",
-        schema.name.as_ref()
+        "UPDATE departments SET name = $1 WHERE id = $2",
+        schema.name.as_ref(),
+        id
     )
     .execute(pool)
     .await?;
