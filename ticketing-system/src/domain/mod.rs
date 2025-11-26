@@ -6,3 +6,5 @@ pub mod login;
 pub mod title;
 pub mod tag_name;
 pub mod department_name;
+pub mod bulding_name;
+pub mod building_code;
