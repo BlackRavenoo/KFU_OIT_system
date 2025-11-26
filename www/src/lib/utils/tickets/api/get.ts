@@ -48,14 +48,8 @@ export async function fetchTickets(search: string = '', search_params: Record<st
         if (filters.selectedBuildings.length > 0)
             params.buildings = toArrayParam(filters.selectedBuildings);
         
-        if (filters.department !== undefined && filters.department !== null) {
-            if (filters.department === -1 || filters.department == -1) {
-                const allDepts = get(departments);
-                params.departments = allDepts.map(d => String(d.id));
-            } else {
-                params.departments = [String(filters.department)];
-            }
-        }
+        if (filters.department !== undefined && filters.department !== null && String(filters.department) !== '-1')
+            params.departments = [String(filters.department)];
             
         if (search || filters.search) params.search = search || filters.search;
     } else {

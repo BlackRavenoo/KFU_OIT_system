@@ -58,8 +58,8 @@ export function buildDays(start: Date, end: Date): Date[] {
 export async function loadTicketsForRange(startDate: Date, endDate: Date): Promise<Record<string, Ticket[]>> {
     const ticketsByDate: Record<string, Ticket[]> = {};
     const opts: any = {
-        start: startDate.toISOString(),
-        end: endDate.toISOString(),
+        planned_from: startDate.toISOString(),
+        planned_to: endDate.toISOString(),
         page_size: 100
     };
     const res = await fetchTickets('', opts);

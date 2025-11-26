@@ -389,7 +389,7 @@ describe('Tickets API GET methods', () => {
 
         expect(spy).toHaveBeenCalled();
         const calledWithDepartments = spy.mock.calls.some(call => call[0] === (modStores as any).departments);
-        expect(calledWithDepartments).toBe(true);
+        expect(calledWithDepartments).toBe(false);
     });
 });
 

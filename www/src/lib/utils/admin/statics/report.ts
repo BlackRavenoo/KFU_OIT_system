@@ -35,7 +35,7 @@ export async function generateStatisticsReport(
         const response = await fetchTickets('', {
             page,
             page_size,
-            order_by: 'id',
+            order_by: '0',
             sort_order: 'desc',
             search: ''
         });

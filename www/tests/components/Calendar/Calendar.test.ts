@@ -116,8 +116,8 @@ describe('loadTicketsForRange', () => {
         
         const calledOpts = fetchTickets.mock.calls[0][1];
         
-        expect(calledOpts).toHaveProperty('start', start.toISOString());
-        expect(calledOpts).toHaveProperty('end', end.toISOString());
+        expect(calledOpts).toHaveProperty('planned_from', start.toISOString());
+        expect(calledOpts).toHaveProperty('planned_to', end.toISOString());
         expect(calledOpts).toHaveProperty('page_size', 100);
     }); 
 
