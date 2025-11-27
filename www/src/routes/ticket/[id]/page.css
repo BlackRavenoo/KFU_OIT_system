@@ -7,7 +7,7 @@ main {
     background: var(--light-gray);
     border-top: 1px solid var(--light-blue);
     justify-content: start;
-    overflow-y: hidden;
+    overflow: hidden;
 }
 
 .ticket-container {
@@ -341,8 +341,7 @@ main {
 .mobile-view {
     position: relative !important;
     top: -6rem !important;
-    left: -8px !important;
-    width: calc(100vw - 6rem) !important;
+    width: calc(100vw - 6rem - 4px) !important;
     margin: 0 !important;
     margin-bottom: -12rem !important;
     padding: 3rem !important;
@@ -637,6 +636,10 @@ input.edit-mode::placeholder, textarea.edit-mode::placeholder {
         padding: 0 8px;
     }
 
+    .mobile-view {
+        right: 8px !important;
+    }
+
     .ticket-meta, .ticket-description {
         max-width: 100%;
         width: 100%;
@@ -649,7 +652,12 @@ input.edit-mode::placeholder, textarea.edit-mode::placeholder {
     }
 
     .ticket-actions {
+        flex-direction: column !important;
         justify-content: space-between;
+    }
+
+    .ticket-actions .btn {
+        width: 100%;
     }
 
     .executors-meta .ticket-actions .btn {

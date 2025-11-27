@@ -56,7 +56,14 @@
             showThemeButton = false;
         }, 3000);
     }
+
+    function handleTransitionStart() {
+        document.body.classList.add('page-transitioning');
+    }
     
+    let isNotificationVisible = false;
+    let _notificationObserver: MutationObserver | null = null;
+
     onMount(() => {
         checkAuthentication();
 
@@ -69,10 +76,44 @@
         
         window.addEventListener('scroll', handleScroll);
         handleScroll();
+
+        /**
+         * Отслеживает изменения в контейнере уведомлений и обновляет его видимость
+         * в зависимости от наличия контента
+         */
+        const container = document.getElementById('notificationContainer');
+        function updateNotificationVisibility() {
+            const c = document.getElementById('notificationContainer');
+            if (!c) {
+                isNotificationVisible = false;
+                return;
+            }
+            const hasContent = c.childElementCount > 0 || (c.textContent && c.textContent.trim().length > 0);
+            isNotificationVisible = !!hasContent;
+        }
+
+        if (container) {
+            _notificationObserver = new MutationObserver(() => updateNotificationVisibility());
+            _notificationObserver.observe(container, { childList: true, subtree: true, characterData: true });
+            updateNotificationVisibility();
+        } else {
+            setTimeout(() => {
+                const c2 = document.getElementById('notificationContainer');
+                if (c2) {
+                    _notificationObserver = new MutationObserver(() => updateNotificationVisibility());
+                    _notificationObserver.observe(c2, { childList: true, subtree: true, characterData: true });
+                    updateNotificationVisibility();
+                }
+            }, 0);
+        }
         
         return () => {
             window.removeEventListener('scroll', handleScroll);
             if (buttonHideTimeout) clearTimeout(buttonHideTimeout);
+            if (_notificationObserver) {
+                _notificationObserver.disconnect();
+                _notificationObserver = null;
+            }
         };
     });
 
@@ -80,10 +121,6 @@
         document.body.classList.remove('page-transitioning');
         handleScroll();
     });
-
-    function handleTransitionStart() {
-        document.body.classList.add('page-transitioning');
-    }
 </script>
 
 {#if $authCheckComplete}
@@ -135,6 +172,8 @@
         <span>В ночь</span>
     {/if}
 </button>
+
+<div id="notificationContainer" class:visible={ isNotificationVisible } aria-hidden={ !isNotificationVisible }></div>
 
 <style>
     :global(body.page-transitioning .nav-auth-elements) {
@@ -209,5 +248,28 @@
         z-index: 999;
         cursor: pointer;
         background: transparent;
+    }
+
+    #notificationContainer {
+        position: absolute;
+        top: -100vh;
+        right: -100vw;
+        opacity: 0;
+        pointer-events: none;
+        z-index: -1;
+    }
+
+    #notificationContainer.visible {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        opacity: 1;
+        cursor: pointer;
+        z-index: 1000;
+        height: auto;
+        transition: height 0.3s ease;
     }
 </style>
