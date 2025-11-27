@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO buildings(code, name)\n            VALUES($1, $2)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "933fa7c06bc666f3881c2866b19aa58539ba153f977a40d0fb9b2c90d1bdfae1"
+}
