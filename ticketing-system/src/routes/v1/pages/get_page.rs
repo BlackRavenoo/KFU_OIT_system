@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Serialize;
 use sqlx::PgPool;
 
-use crate::{auth::{extractor::user_role::OptionalUserRoleExtractor, types::UserRole}, schema::page::{PageId, Tag}, utils::error_chain_fmt};
+use crate::{auth::{extractor::user_role::OptionalUserRoleExtractor, types::UserRole}, schema::page::{Page, PageId, Tag}, utils::error_chain_fmt};
 
 #[derive(Serialize)]
 pub struct PageSchema {
@@ -11,6 +11,7 @@ pub struct PageSchema {
     pub title: String,
     pub key: String,
     pub tags: Vec<Tag>,
+    pub related_pages: Vec<Page>,
 }
 
 #[derive(thiserror::Error)]
@@ -69,9 +70,9 @@ async fn fetch_page(
         r#"
         SELECT
             p.id,
-            is_public,
-            title,
-            key,
+            p.is_public,
+            p.title,
+            p.key,
             COALESCE(
                 JSON_AGG(
                     JSON_BUILD_OBJECT(
@@ -80,10 +81,21 @@ async fn fetch_page(
                     )
                 ) FILTER (WHERE t.id IS NOT NULL), 
                 '[]'::json
-            ) as "tags!"
+            ) as "tags!",
+             COALESCE(
+                JSON_AGG(
+                    JSON_BUILD_OBJECT(
+                        'id', relp.id,
+                        'title', relp.title
+                    )
+                ) FILTER (WHERE relp.id IS NOT NULL), 
+                '[]'::json
+            ) as "related_pages!"
         FROM pages p
         LEFT JOIN pages_tags pt ON p.id = pt.page_id
         LEFT JOIN tags t ON pt.tag_id = t.id
+        LEFT JOIN related_pages rp ON rp.source_page_id = p.id
+        LEFT JOIN pages relp ON relp.id = rp.related_page_id
         WHERE p.id = $1
         GROUP BY p.id
         "#,
@@ -97,5 +109,6 @@ async fn fetch_page(
         title: row.title,
         key: row.key,
         tags: serde_json::from_value(row.tags).unwrap_or_default(),
+        related_pages: serde_json::from_value(row.related_pages).unwrap_or_default()
     }))
 }

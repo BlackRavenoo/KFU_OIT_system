@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Context;
+use chrono::Local;
 use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 
@@ -83,7 +84,7 @@ impl EventPublisher {
                 );
 
                 if let Some(date) = planned_at {
-                    result.push_str(&format!(".\n📅 Плановая дата: {}", date));
+                    result.push_str(&format!(".\n📅 Плановая дата: {}", date.with_timezone(&Local)));
                 }
 
                 result.push_str("</i>");

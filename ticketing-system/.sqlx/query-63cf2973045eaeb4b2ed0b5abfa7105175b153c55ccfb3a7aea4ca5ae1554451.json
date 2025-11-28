@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            p.id,\n            p.is_public,\n            p.title,\n            p.key,\n            COALESCE(\n                JSON_AGG(\n                    JSON_BUILD_OBJECT(\n                        'id', t.id,\n                        'name', t.name\n                    )\n                ) FILTER (WHERE t.id IS NOT NULL), \n                '[]'::json\n            ) as \"tags!\",\n             COALESCE(\n                JSON_AGG(\n                    JSON_BUILD_OBJECT(\n                        'id', relp.id,\n                        'title', relp.title\n                    )\n                ) FILTER (WHERE relp.id IS NOT NULL), \n                '[]'::json\n            ) as \"related_pages!\"\n        FROM pages p\n        LEFT JOIN pages_tags pt ON p.id = pt.page_id\n        LEFT JOIN tags t ON pt.tag_id = t.id\n        LEFT JOIN related_pages rp ON rp.source_page_id = p.id\n        LEFT JOIN pages relp ON relp.id = rp.related_page_id\n        WHERE p.id = $1\n        GROUP BY p.id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "is_public",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 2,
+        "name": "title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "tags!",
+        "type_info": "Json"
+      },
+      {
+        "ordinal": 5,
+        "name": "related_pages!",
+        "type_info": "Json"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "63cf2973045eaeb4b2ed0b5abfa7105175b153c55ccfb3a7aea4ca5ae1554451"
+}
