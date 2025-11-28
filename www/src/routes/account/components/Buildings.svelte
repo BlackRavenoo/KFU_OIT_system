@@ -7,6 +7,8 @@
     import { UserRole } from '$lib/utils/auth/types';
     import { buildings } from '$lib/utils/setup/stores';
     import type { Building } from '$lib/utils/tickets/types';
+    import { createBuilding, updateBuilding, toggleBuildingActive } from '$lib/utils/admin/buildings';
+    import { notification, NotificationType } from '$lib/utils/notifications/notification';
 
     let buildingsList: Building[] = [];
     let loading: boolean = true;
@@ -59,15 +61,25 @@
         editCode = '';
     }
 
-    function saveEdit() {
+    async function saveEdit() {
         if (editingId == null) return;
         const name = editName.trim();
         const code = sanitizeCode(editCode.trim());
         if (!name || !CODE_REGEX.test(code)) return;
-        buildings.update(arr => (Array.isArray(arr) ? arr : []).map(b => String(b.id) === String(editingId) ? { ...b, name, code } : b));
-        editingId = null;
-        editName = '';
-        editCode = '';
+        const prev = Array.isArray(buildingsList) ? buildingsList.find(b => String(b.id) === String(editingId)) : null;
+        try {
+            await updateBuilding(editingId, code, name);
+            buildings.update(arr => (Array.isArray(arr) ? arr : []).map(b => String(b.id) === String(editingId) ? { ...b, name, code } : b));
+            editingId = null;
+            editName = '';
+            editCode = '';
+            notification('Данные здания сохранены', NotificationType.Success);
+        } catch (err) {
+            notification('Не удалось сохранить здание', NotificationType.Error);
+            if (prev) {
+                buildings.update(arr => (Array.isArray(arr) ? arr : []).map(b => String(b.id) === String(editingId) ? prev : b));
+            }
+        }
     }
 
     async function handleAdd() {
@@ -75,12 +87,16 @@
         const name = newName.trim();
         const code = sanitizeCode(newCode.trim());
         if (!name || !CODE_REGEX.test(code)) { isAdding = false; return; }
-        const id = Date.now();
-        const b: Building = { id, name, code };
-        buildings.update(arr => [...(Array.isArray(arr) ? arr : []), b]);
-        newName = '';
-        newCode = '';
-        isAdding = false;
+        try {
+            await createBuilding(code, name);
+            newName = '';
+            newCode = '';
+            notification('Здание создано', NotificationType.Success);
+        } catch (err) {
+            notification('Не удалось создать здание', NotificationType.Error);
+        } finally {
+            isAdding = false;
+        }
     }
 
     function openDelete(b: Building) {
@@ -93,10 +109,19 @@
         showDeleteModal = false;
     }
 
-    function confirmDelete() {
+    async function confirmDelete() {
         if (!deletingBuilding) return;
-        buildings.update(arr => (Array.isArray(arr) ? arr : []).filter(b => String(b.id) !== String(deletingBuilding?.id)));
+        const id = deletingBuilding.id;
+        const prevArr = Array.isArray(buildingsList) ? [...buildingsList] : [];
+        buildings.update(arr => (Array.isArray(arr) ? arr : []).filter(b => String(b.id) !== String(id)));
         closeDelete();
+        try {
+            await toggleBuildingActive(id);
+            notification('Здание удалено', NotificationType.Success);
+        } catch (err) {
+            buildings.set(prevArr);
+            notification('Не удалось удалить здание', NotificationType.Error);
+        }
     }
 </script>
 
