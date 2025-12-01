@@ -8,7 +8,7 @@ use futures_util::{stream, StreamExt as _};
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};
 
-use crate::{domain::description::Description, events::{event_publisher::EventPublisher, events::Event}, schema::tickets::TicketId, services::attachment::{Attachment, AttachmentService, AttachmentServiceError, AttachmentType}, startup::ApplicationBaseUrl, utils::{cleanup_images, error_chain_fmt}};
+use crate::{auth::extractor::UserIdExtractor, domain::description::Description, events::{event_publisher::EventPublisher, events::Event}, schema::{common::UserId, tickets::TicketId}, services::attachment::{Attachment, AttachmentService, AttachmentServiceError, AttachmentType}, startup::ApplicationBaseUrl, utils::{cleanup_images, error_chain_fmt}};
 
 #[derive(Deserialize, Debug)]
 pub struct CreateTicketSchema {
@@ -19,7 +19,7 @@ pub struct CreateTicketSchema {
     pub planned_at: Option<DateTime<Utc>>,
     pub cabinet: Option<String>,
     pub building_id: i16,
-    pub department_id: Option<i16>, // Temporary solution
+    pub department_id: i16,
 }
 
 #[derive(MultipartForm)]
@@ -60,6 +60,7 @@ pub async fn create_ticket(
     service: web::Data<AttachmentService>,
     base_url: web::Data<ApplicationBaseUrl>,
     event_publisher: web::Data<EventPublisher>,
+    user_id: UserIdExtractor,
 ) -> Result<HttpResponse, CreateTicketError> {
     if ticket.attachments.len() > 5 {
         return Err(CreateTicketError::ALotOfAttachments)
@@ -70,7 +71,7 @@ pub async fn create_ticket(
     let mut transaction = pool.begin().await
         .context("Failed to begin transaction")?;
 
-    let ticket_id = insert_ticket(&mut transaction, &fields.0).await
+    let ticket_id = insert_ticket(&mut transaction, &fields.0, user_id.0).await
         .context("Failed to create ticket")?;
 
     let attachments_len = ticket.attachments.len();
@@ -136,11 +137,12 @@ pub async fn create_ticket(
 async fn insert_ticket(
     transaction: &mut Transaction<'_, Postgres>,
     fields: &CreateTicketSchema,
+    author_id: UserId,
 ) -> Result<TicketId, sqlx::Error> {
     sqlx::query!(
         r#"
-        INSERT INTO tickets(title, description, author, author_contacts, planned_at, cabinet, building_id, department_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO tickets(title, description, author, author_contacts, planned_at, cabinet, building_id, department_id, author_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id
         "#,
         fields.title,
@@ -150,7 +152,8 @@ async fn insert_ticket(
         fields.planned_at,
         fields.cabinet,
         fields.building_id,
-        fields.department_id.unwrap_or(1)
+        fields.department_id,
+        author_id
     )
     .fetch_one(transaction.as_mut())
     .await

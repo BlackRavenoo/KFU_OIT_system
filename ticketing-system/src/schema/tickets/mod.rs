@@ -64,3 +64,25 @@ impl Serialize for OrderBy {
         }).serialize(serializer)
     }
 }
+
+#[derive(Deserialize, Clone, Copy, EnumIter, Default, FromPrimitive)]
+#[serde(from = "i16")]
+#[repr(i16)]
+pub enum TicketSource {
+    #[default]
+    Web = 0,
+    Phone = 1,
+    Personal = 2,
+    Bot = 3,
+}
+
+impl TicketSource {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TicketSource::Web => "web",
+            TicketSource::Phone => "phone",
+            TicketSource::Personal => "personal",
+            TicketSource::Bot => "bot",
+        }
+    }
+}
