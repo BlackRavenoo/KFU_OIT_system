@@ -142,7 +142,7 @@ async fn get_tickets_with_big_filter_returns_tickets() {
     .unwrap();
 
     let resp = reqwest::Client::new()
-        .get(format!("{}/v1/tickets/?statuses[]=open&priorities[]=low&order_by=plannedat&sort_order=desc&page=1&page_size=12&buildings[]=1&search=test%20title&departments[]=1", app.address))
+        .get(format!("{}/v1/tickets/?statuses[]=open&priorities[]=low&order_by=1&sort_order=desc&page=1&page_size=12&buildings[]=1&search=test%20title&departments[]=1", app.address))
         .bearer_auth(access)
         .send()
         .await
@@ -174,7 +174,7 @@ async fn get_tickets_ordered_by_priority_returns_ticket_with_higher_priority_fir
     .unwrap();
 
     let resp = reqwest::Client::new()
-        .get(format!("{}/v1/tickets/?order_by=priority&sort_order=desc", app.address))
+        .get(format!("{}/v1/tickets/?order_by=2&sort_order=desc", app.address))
         .bearer_auth(access)
         .send()
         .await

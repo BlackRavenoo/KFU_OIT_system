@@ -108,7 +108,7 @@ async fn get_users_with_search_by_name_returns_only_1_user() {
     let (access, _) = app.get_admin_jwt_tokens().await;
 
     let resp = reqwest::Client::new()
-        .get(format!("{}/v1/user/list?q=admin", app.address))
+        .get(format!("{}/v1/user/list?search=admin", app.address))
         .bearer_auth(access)
         .send()
         .await
