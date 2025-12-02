@@ -68,9 +68,9 @@ pub async fn create_page(
 
 #[tracing::instrument(
     name = "Upload page data",
-    skip(page_service)
+    skip(page_service, data)
 )]
-async fn upload_page(page_service: &PageService, key: &str, data: &serde_json::Value, is_public: bool) -> Result<(), PageServiceError> {
+pub async fn upload_page(page_service: &PageService, key: &str, data: &serde_json::Value, is_public: bool) -> Result<(), PageServiceError> {
     let bytes = serde_json::to_vec(data)
         .context("Failed to serialize data to vec")?
         .into();
@@ -112,7 +112,7 @@ async fn insert_page(
     name = "Insert page relations into database",
     skip(transaction)
 )]
-async fn insert_related_pages(
+pub async fn insert_related_pages(
     transaction: &mut Transaction<'_, Postgres>,
     page_id: PageId,
     related_pages: &[PageId],
@@ -139,7 +139,7 @@ async fn insert_related_pages(
     name = "Insert tags relations into database",
     skip(transaction)
 )]
-async fn insert_tags(
+pub async fn insert_tags(
     transaction: &mut Transaction<'_, Postgres>,
     page_id: PageId,
     tags: &[TagId],
