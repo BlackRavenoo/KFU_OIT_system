@@ -1,11 +1,12 @@
 use std::time::Duration;
 
+use anyhow::Context;
 use async_trait::async_trait;
 use reqwest::Client;
 use secrecy::{ExposeSecret as _, SecretString};
 use serde::Serialize;
 
-use crate::{domain::email::Email, email_client::EmailClient};
+use crate::{domain::email::Email, email_client::{EmailClient, EmailError}};
 
 pub struct MailerSendClient{
     http_client: Client,
@@ -38,7 +39,7 @@ impl EmailClient for MailerSendClient {
         subject: &str,
         html_content: &str,
         text_content: &str
-    ) -> Result<(), reqwest::Error> {
+    ) -> Result<(), EmailError> {
         let url = format!("{}/{}", self.base_url, "v1/email");
 
         let request_body = SendEmailRequest {
@@ -55,13 +56,20 @@ impl EmailClient for MailerSendClient {
             html: html_content,
         };
 
-        self.http_client
+        let resp = self.http_client
             .post(url)
             .bearer_auth(self.auth_token.expose_secret())
             .json(&request_body)
             .send()
-            .await?
-            .error_for_status()?;
+            .await
+            .context("Failed to send request")?;
+
+        if matches!(resp.status().as_u16(), 401 | 403) {
+            return Err(EmailError::AuthenticationError)
+        }
+
+        resp.error_for_status()
+            .context("Response returned error status")?;
 
         Ok(())
     }
