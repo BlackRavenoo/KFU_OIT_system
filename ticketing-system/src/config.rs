@@ -1,11 +1,11 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Deserializer};
 use serde_aux::field_attributes::{deserialize_number_from_string, deserialize_bool_from_anything};
 use sqlx::{postgres::{PgConnectOptions, PgSslMode}, ConnectOptions};
 
-use crate::{domain::email::Email, storage::Storage};
+use crate::{domain::email::Email, email_client::{EmailClient, mailersend::MailerSendClient, smtp::SmtpClient}, storage::Storage};
 
 #[derive(Deserialize, Debug)]
 pub struct Settings {
@@ -136,18 +136,49 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
 pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
-    pub authorization_token: SecretString,
     pub timeout_milliseconds: u64,
+    pub client_type: EmailClientType,
 }
 
 impl EmailClientSettings {
-    pub fn sender(&self) -> Result<Email, String> {
-        Email::parse(self.sender_email.clone())
-    }
+    pub fn get_email_client(&self) -> Arc<dyn EmailClient> {
+        let sender = Email::parse(self.sender_email.clone()).expect("Invalid sender email address.");
+        let timeout = Duration::from_millis(self.timeout_milliseconds);
 
-    pub fn timeout(&self) -> Duration {
-        Duration::from_millis(self.timeout_milliseconds)
+
+        match &self.client_type {
+            EmailClientType::MailerSend {
+                authorization_token
+            } => Arc::new(MailerSendClient::new(
+                self.base_url.clone(),
+                sender,
+                authorization_token.clone(),
+                timeout
+            )),
+            EmailClientType::Smtp {
+                username,
+                password
+            } => Arc::new(SmtpClient::new(
+                self.base_url.clone(),
+                sender,
+                username,
+                password,
+                timeout
+            )),
+        }
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "client_name", rename_all = "lowercase")]
+pub enum EmailClientType {
+    MailerSend {
+        authorization_token: SecretString
+    },
+    Smtp {
+        username: SecretString,
+        password: SecretString,
+    },
 }
 
 #[derive(Deserialize, Debug)]

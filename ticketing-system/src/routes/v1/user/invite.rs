@@ -4,7 +4,7 @@ use rand::{distr::Alphanumeric, rng, Rng as _};
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::{domain::email::Email, email_client::{mailersend::MailerSendClient, EmailClient}, services::registration_token::RegistrationTokenStore, startup::ApplicationBaseUrl, utils::error_chain_fmt};
+use crate::{domain::email::Email, email_client::EmailClient, services::registration_token::RegistrationTokenStore, startup::ApplicationBaseUrl, utils::error_chain_fmt};
 
 #[derive(Debug, Deserialize)]
 pub struct InviteUserSchema {
@@ -42,7 +42,7 @@ pub async fn invite_user(
     web::Json(schema): web::Json<InviteUserSchema>,
     reg_store: web::Data<RegistrationTokenStore>,
     base_url: web::Data<ApplicationBaseUrl>,
-    email_client: web::Data<MailerSendClient>,
+    email_client: web::Data<dyn EmailClient>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, InviteUserError> {
     if is_email_exists(&pool, &schema.email)
@@ -60,7 +60,7 @@ pub async fn invite_user(
     reg_store.save_token(&token, &schema.email).await?;
 
     send_confirmation_email(
-        &email_client,
+        email_client.as_ref(),
         &schema.email,
         base_url.0.as_str(),
         &token
@@ -76,11 +76,11 @@ pub async fn invite_user(
     skip(email_client, base_url)
 )]
 async fn send_confirmation_email(
-    email_client: &MailerSendClient,
+    email_client: &dyn EmailClient,
     email: &Email,
     base_url: &str,
     token: &str,
-) -> Result<(), reqwest::Error> {
+) -> Result<(), anyhow::Error> {
     let link = format!("{}/confirm?token={}", base_url, token);
 
     email_client.send_email(
@@ -97,6 +97,7 @@ async fn send_confirmation_email(
         )
     )
     .await
+    .context("Failed to send a confirmation email.")
 }
 
 #[tracing::instrument(

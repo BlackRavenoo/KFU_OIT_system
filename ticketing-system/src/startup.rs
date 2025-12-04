@@ -1,4 +1,4 @@
-use std::{net::TcpListener, time::Duration};
+use std::{net::TcpListener, sync::Arc, time::Duration};
 
 use actix_multipart::form::MultipartFormConfig;
 use actix_web::{dev::Server, web::{self, Data}, App, HttpResponse, HttpServer};
@@ -7,7 +7,7 @@ use moka::future::CacheBuilder;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::mailersend::MailerSendClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::stats::TicketsStats}, services::{attachment::AttachmentService, pages::PageService, registration_token::RegistrationTokenStore}};
+use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::EmailClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::stats::TicketsStats}, services::{attachment::AttachmentService, pages::PageService, registration_token::RegistrationTokenStore}};
 
 pub struct Application {
     server: Server,
@@ -37,18 +37,9 @@ impl Application {
             .await
             .expect("Failed to build Redis pool");
 
-        let sender_email = config.email_client.sender()
-            .expect("Invalid sender email address.");
-        let timeout = config.email_client.timeout();
-
         let storage = config.storage.into_storage().await;
         
-        let email_client = MailerSendClient::new(
-            config.email_client.base_url,
-            sender_email,
-            config.email_client.authorization_token,
-            timeout
-        );
+        let email_client = config.email_client.get_email_client();
 
         let jwt_service = JwtService::new(&config.auth).unwrap();
         let attachment_service = AttachmentService::new(storage.clone(), config.storage.bucket());
@@ -105,7 +96,7 @@ pub fn run(
     pool: PgPool,
     attachment_service: AttachmentService,
     page_service: PageService,
-    email_client: MailerSendClient,
+    email_client: Arc<dyn EmailClient>,
     event_publisher: EventPublisher,
     base_url: String,
 ) -> Result<Server, std::io::Error> {
@@ -115,7 +106,7 @@ pub fn run(
     let attachment_service = Data::new(attachment_service);
     let page_service = Data::new(page_service);
     let pool = Data::new(pool);
-    let email_client = Data::new(email_client);
+    let email_client = Data::from(email_client);
     let event_publisher = Data::new(event_publisher);
     let base_url = Data::new(ApplicationBaseUrl(base_url));
 
