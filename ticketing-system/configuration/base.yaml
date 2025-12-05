@@ -21,8 +21,10 @@ redis:
 email_client:
   base_url: "localhost"
   sender_email: "test@gmail.com"
-  authorization_token: "my-secret-token"
   timeout_milliseconds: 10000
+  client_type:
+    client_name: mailersend
+    authorization_token: "my-secret-token"
 
 storage:
   type: s3
