@@ -50,7 +50,7 @@
                     
                     <tr>
                         <td style="padding: 30px 30px 20px; background-image: radial-gradient(circle at top right,rgba(255,255,255,.8) 0%,#bad2e6 70%); border-top-left-radius: 8px; border-top-right-radius: 8px;">
-                            <img src="http://127.0.0.1/_app/immutable/assets/KFU_large.DUfb1mf_.webp" alt="КФУ Система управления заявками" width="180" style="max-width: 100%; height: auto; margin-bottom: 2rem;">
+                            <img src="<%= self.base_url %>/_app/immutable/assets/KFU_large.DUfb1mf_.webp" alt="КФУ Система управления заявками" width="180" style="max-width: 100%; height: auto; margin-bottom: 2rem;">
                             <h1 style="margin-bottom: 20px; color: #242424;">Добро пожаловать в систему!</h1>
                             <h2 style="margin-bottom: 30px; font-weight: 600; background: linear-gradient(220deg, rgba(0, 64, 153, .85) 0%, rgba(0, 115, 255, 1) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: transparent;">Подтверждение регистрации</h2>        
                         </td>
@@ -63,14 +63,14 @@
                                 Для завершения регистрации и активации вашей учетной записи, пожалуйста, нажмите на кнопку ниже.
                             </p>
                             
-                            <a href="https://ссылка_на_подтверждение" class="button" style="background: linear-gradient(220deg, rgba(0, 64, 153, .85) 0%, rgba(0, 115, 255, 1) 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 30px; font-weight: 500; display: inline-block; margin: 20px 0; box-shadow: 0 4px 15px rgba(7, 92, 239, 0.25);">
+                            <a href="<%= self.link %>" class="button" style="background: linear-gradient(220deg, rgba(0, 64, 153, .85) 0%, rgba(0, 115, 255, 1) 100%); color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 30px; font-weight: 500; display: inline-block; margin: 20px 0; box-shadow: 0 4px 15px rgba(7, 92, 239, 0.25);">
                                 Подтвердить регистрацию
                             </a>
                             
                             <p style="color: rgba(0, 0, 0, 0.67); font-size: 14px; line-height: 1.6; margin-top: 15px;">
                                 Если кнопка не работает, скопируйте и вставьте следующую ссылку в адресную строку вашего браузера:
                                 <br>
-                                <a href="https://ссылка_на_подтверждение" style="color: #075cef; text-decoration: none;">https://ссылка_на_подтверждение</a>
+                                <a href="<%= self.link %>" style="color: #075cef; text-decoration: none;"><%= self.link %></a>
                             </p>
                         </td>
                     </tr>

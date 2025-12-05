@@ -61,7 +61,7 @@ pub async fn register(
 
     if let Err(e) = &res
         && let Some(db_err) = e.as_database_error()
-            && db_err.is_unique_violation() 
+            && db_err.is_unique_violation()
                 && let Some(constraint) = db_err.constraint() {
                     match constraint {
                         "users_email_key" => return Err(RegisterError::EmailAlreadyExists),

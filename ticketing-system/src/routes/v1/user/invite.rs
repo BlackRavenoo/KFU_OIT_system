@@ -1,10 +1,11 @@
 use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use anyhow::Context;
 use rand::{distr::Alphanumeric, rng, Rng as _};
+use sailfish::Template;
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::{domain::email::Email, email_client::EmailClient, services::registration_token::RegistrationTokenStore, startup::ApplicationBaseUrl, utils::error_chain_fmt};
+use crate::{domain::email::Email, email_client::EmailClient, services::registration_token::RegistrationTokenStore, startup::ApplicationBaseUrl, templates::InviteTemplate, utils::error_chain_fmt};
 
 #[derive(Debug, Deserialize)]
 pub struct InviteUserSchema {
@@ -65,8 +66,7 @@ pub async fn invite_user(
         base_url.0.as_str(),
         &token
     )
-    .await
-    .context("Failed to send a confirmation email.")?;
+    .await?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -83,14 +83,18 @@ async fn send_confirmation_email(
 ) -> Result<(), anyhow::Error> {
     let link = format!("{}/confirm?token={}", base_url, token);
 
+    let template = InviteTemplate {
+        base_url: base_url,
+        link: link.clone()
+    };
+
+    let s = template.render()
+        .context("Failed to render template")?;
+
     email_client.send_email(
         email,
         "Ссылка с регистрацией.",
-        &format!(
-            "Добро пожаловать!<br />\
-            Нажми <a href=\"{}\">сюда</a>, чтобы продолжить регистрацию аккаунта.",
-            link
-        ),
+        &s,
         &format!(
             "Добро пожаловать!\nПосети {}, чтобы продолжить регистрацию аккаунта.",
             link
