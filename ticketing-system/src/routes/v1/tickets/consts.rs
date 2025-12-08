@@ -4,13 +4,14 @@ use serde::Serialize;
 use sqlx::PgPool;
 use strum::IntoEnumIterator as _;
 
-use crate::{schema::tickets::{Building, Department, OrderBy}, utils::error_chain_fmt};
+use crate::{schema::tickets::{Building, Department, OrderBy, TicketSource}, utils::error_chain_fmt};
 
 #[derive(Serialize)]
 pub struct ConstsSchema {
     pub order_by: Vec<OrderBy>,
     pub buildings: Vec<Building>,
     pub departments: Vec<Department>,
+    pub sources: Vec<TicketSource>,
 }
 
 #[derive(thiserror::Error)]
@@ -38,6 +39,7 @@ pub async fn get_consts(pool: web::Data<PgPool>) -> Result<HttpResponse, GetCons
         order_by: OrderBy::iter().collect::<Vec<_>>(),
         buildings,
         departments,
+        sources: TicketSource::iter().collect::<Vec<_>>(),
     }))
 }
 

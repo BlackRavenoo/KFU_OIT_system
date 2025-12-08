@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Deserialize;
 use sqlx::{Execute as _, PgPool};
 
-use crate::{build_update_query, domain::description::Description, schema::tickets::{TicketId, TicketPriority, TicketStatus}, utils::error_chain_fmt};
+use crate::{build_update_query, domain::description::Description, schema::tickets::{TicketId, TicketPriority, TicketSource, TicketStatus}, utils::error_chain_fmt};
 
 #[derive(Deserialize)]
 pub struct UpdateTicketSchema {
@@ -17,6 +17,7 @@ pub struct UpdateTicketSchema {
     pub note: Option<String>,
     pub building_id: Option<i16>,
     pub department_id: Option<i16>,
+    pub source: Option<TicketSource>,
 }
 
 #[derive(thiserror::Error)]
@@ -62,6 +63,7 @@ pub async fn update_ticket(
     build_update_query!(builder, has_fields, schema.note, "note");
     build_update_query!(builder, has_fields, schema.building_id, "building_id");
     build_update_query!(builder, has_fields, schema.department_id, "department_id");
+    build_update_query!(builder, has_fields, schema.source, "source");
 
     if !has_fields {
         return Err(UpdateTicketError::AllFieldsEmpty);

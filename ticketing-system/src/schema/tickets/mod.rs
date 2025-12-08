@@ -65,7 +65,7 @@ impl Serialize for OrderBy {
     }
 }
 
-#[derive(Deserialize, Clone, Copy, EnumIter, Default, FromPrimitive)]
+#[derive(Deserialize, Clone, Copy, EnumIter, Default, FromPrimitive, Debug)]
 #[serde(from = "i16")]
 #[repr(i16)]
 pub enum TicketSource {
@@ -74,15 +74,29 @@ pub enum TicketSource {
     Phone = 1,
     Personal = 2,
     Bot = 3,
+    Email = 4,
 }
 
 impl TicketSource {
     pub fn as_str(&self) -> &'static str {
         match self {
-            TicketSource::Web => "web",
-            TicketSource::Phone => "phone",
-            TicketSource::Personal => "personal",
-            TicketSource::Bot => "bot",
+            TicketSource::Web => "Через сайт",
+            TicketSource::Phone => "По телефону",
+            TicketSource::Personal => "Персонально",
+            TicketSource::Bot => "Через бота",
+            TicketSource::Email => "По почте",
         }
+    }
+}
+
+impl Serialize for TicketSource {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer
+    {
+        serde_json::json!({
+            "name": self.as_str(),
+            "id": *self as i16
+        }).serialize(serializer)
     }
 }

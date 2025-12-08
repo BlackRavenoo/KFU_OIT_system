@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, types::Json};
 
-use crate::{schema::{common::UserId, tickets::{Building, Department, TicketId, TicketPriority, TicketStatus}}, utils::error_chain_fmt};
+use crate::{schema::{common::UserId, tickets::{Building, Department, TicketId, TicketPriority, TicketSource, TicketStatus}}, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum GetTicketError {
@@ -46,6 +46,7 @@ pub struct TicketQueryResult {
     pub note: Option<String>,
     pub cabinet: Option<String>,
     pub department: Json<Department>,
+    pub source: TicketSource,
 }
 
 #[derive(Serialize)]
@@ -65,6 +66,7 @@ pub struct TicketSchemaWithAttachments {
     pub note: Option<String>,
     pub cabinet: Option<String>,
     pub department: Department,
+    pub source: TicketSource,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -91,7 +93,8 @@ impl From<TicketQueryResult> for TicketSchemaWithAttachments {
             building: ticket.building.0,
             note: ticket.note,
             cabinet: ticket.cabinet,
-            department: ticket.department.0
+            department: ticket.department.0,
+            source: ticket.source,
         }
     }
 }
@@ -129,6 +132,7 @@ async fn select_ticket(
             t.status,
             priority,
             planned_at,
+            source,
             COALESCE(
                 JSON_AGG(
                     JSON_BUILD_OBJECT(
