@@ -765,12 +765,11 @@ describe('Finish registration function', () => {
         });
 
         const { finishRegistration } = await import("$lib/utils/auth/api/api");
-        const result = await finishRegistration("Иван Петров", "ivan123", "ivan@example.com", "password123", "token123");
+        const result = await finishRegistration("Иван Петров", "ivan123", "password123", "token123");
 
         expect(apiModule.api.post).toHaveBeenCalledWith('/api/v1/auth/register', {
             name: "Иван Петров",
             login: "ivan123",
-            email: "ivan@example.com",
             password: "password123",
             token: "token123"
         });
@@ -792,12 +791,11 @@ describe('Finish registration function', () => {
         } as any);
 
         const { finishRegistration } = await import("$lib/utils/auth/api/api");
-        const result = await finishRegistration("Анна Смирнова", "anna456", "anna@example.com", "mypass456", "badtoken");
+        const result = await finishRegistration("Анна Смирнова", "anna456", "mypass456", "badtoken");
 
         expect(apiModule.api.post).toHaveBeenCalledWith('/api/v1/auth/register', {
             name: "Анна Смирнова",
             login: "anna456",
-            email: "anna@example.com",
             password: "mypass456",
             token: "badtoken"
         });
@@ -813,12 +811,11 @@ describe('Finish registration function', () => {
         apiModule.api.post = vi.fn().mockRejectedValueOnce(new Error("Network error"));
 
         const { finishRegistration } = await import("$lib/utils/auth/api/api");
-        const result = await finishRegistration("Петр Козлов", "petr789", "petr@example.com", "secret789", "errortoken");
+        const result = await finishRegistration("Петр Козлов", "petr789", "secret789", "errortoken");
 
         expect(apiModule.api.post).toHaveBeenCalledWith('/api/v1/auth/register', {
             name: "Петр Козлов",
             login: "petr789",
-            email: "petr@example.com",
             password: "secret789",
             token: "errortoken"
         });
@@ -841,7 +838,7 @@ describe('Finish registration function', () => {
         const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
 
         const { finishRegistration } = await import("$lib/utils/auth/api/api");
-        await finishRegistration("Мария Волкова", "maria000", "maria@example.com", "pass000", "failtoken");
+        await finishRegistration("Мария Волкова", "maria000", "pass000", "failtoken");
 
         expect(setTimeoutSpy).not.toHaveBeenCalled();
         expect((globalThis as any).location.href).toBe("/current-page");
@@ -859,12 +856,11 @@ describe('Finish registration function', () => {
         } as any);
 
         const { finishRegistration } = await import("$lib/utils/auth/api/api");
-        const result = await finishRegistration("", "", "", "", "");
+        const result = await finishRegistration("", "", "", "");
 
         expect(apiModule.api.post).toHaveBeenCalledWith('/api/v1/auth/register', {
             name: "",
             login: "",
-            email: "",
             password: "",
             token: ""
         });

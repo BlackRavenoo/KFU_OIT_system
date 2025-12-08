@@ -92,3 +92,33 @@ export async function fetchPageContentByKey(isPublic: boolean, key: string): Pro
 
     throw new Error('Некорректный формат контента');
 }
+
+/**
+ * Обновляет страницу по идентификатору.
+ * @param id Идентификатор страницы
+ * @param req Параметры страницы: html, title, tags, related, is_public
+ * @returns Promise<void>
+ * @throws Error если сервер вернул ошибку или некорректный ответ
+ */
+export async function updatePage(id: string, req: SavePageRequest): Promise<void> {
+    const serializedData = serialize(req.html);
+
+    const tags = Array.from(
+        new Set((req.tags ?? []).map((t) => Number(t)).filter((n) => Number.isInteger(n) && n > 0))
+    );
+    const related = Array.from(
+        new Set((req.related ?? []).map((r) => Number(r)).filter((n) => Number.isInteger(n) && n > 0))
+    );
+
+    const payload = {
+        data: serializedData,
+        title: req.title,
+        tags,
+        related,
+        is_public: req.is_public ?? false
+    };
+
+    const response: any = await api.put(`${PagesRoute}${encodeURIComponent(id)}`, payload);
+    if (!response || typeof response.status !== 'number' || (response.status !== 200 && response.status !== 201 && response.status !== 204))
+        throw new Error('Failed to update page');
+}

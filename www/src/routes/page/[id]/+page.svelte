@@ -106,7 +106,7 @@
             const ok = resp.status === 200 || resp.status === 201 || resp.status === 204 || resp.status === 304;
             if (!ok) throw new Error(resp.error || `HTTP ${resp.status}`);
             showDeleteConfirm = false;
-            window.location.href = '/';
+            window.location.href = '/page';
         } catch (e: any) {
             showDeleteConfirm = false;
             notification(e?.message || 'Не удалось удалить статью', NotificationType.Error);

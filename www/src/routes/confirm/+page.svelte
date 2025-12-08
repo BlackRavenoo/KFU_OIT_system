@@ -15,7 +15,6 @@
     let loading: boolean = true;
     let fullName: string = '';
     let login: string = '';
-    let email: string = '';
     let password: string = '';
     let confirmPassword: string = '';
     let passwordVisible: boolean = false;
@@ -24,7 +23,6 @@
     
     let nameError: string = '';
     let loginError: string = '';
-    let emailError: string = '';
     let passwordError: string = '';
     let confirmPasswordError: string = '';
     
@@ -33,7 +31,6 @@
      */
     $: nameError = getNameError(fullName);
     $: loginError = getLoginError(login);
-    $: emailError = getEmailError(email);
     $: passwordError = getPasswordError(password);
     $: confirmPasswordError = getConfirmPasswordError(password, confirmPassword);
 
@@ -42,12 +39,10 @@
      */
     $: isFormValid = fullName.trim() && 
                      login.trim() && 
-                     email.trim() && 
                      password && 
                      confirmPassword &&
                      !nameError && 
                      !loginError && 
-                     !emailError && 
                      !passwordError && 
                      !confirmPasswordError;
 
@@ -57,7 +52,7 @@
     async function handleFinishRegistration() {
         if (!token) return;
         isSubmitting = true;
-        await finishRegistration(fullName, login, email, password, token);
+        await finishRegistration(fullName, login, password, token);
         isSubmitting = false;
     }
     
@@ -155,21 +150,6 @@
                                 />
                                 {#if loginError}
                                     <div class="input-error">{ loginError }</div>
-                                {/if}
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="email">Email</label>
-                                <input 
-                                    type="email" 
-                                    id="email" 
-                                    bind:value={ email }
-                                    placeholder="Введите email адрес"
-                                    class={ emailError ? "red-border" : "" }
-                                    autocomplete="email"
-                                />
-                                {#if emailError}
-                                    <div class="input-error">{ emailError }</div>
                                 {/if}
                             </div>
                             

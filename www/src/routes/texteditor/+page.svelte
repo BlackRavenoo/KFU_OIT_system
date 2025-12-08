@@ -9,7 +9,7 @@
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { getAvatar } from '$lib/utils/account/avatar';
-    import { savePageAndGetId } from '$lib/utils/pages/document';
+    import { savePageAndGetId, updatePage, type SavePageRequest } from '$lib/utils/pages/document';
     import { fetchRelated as fetchRelatedApi, addRelated as addRelatedUtil, removeRelated as removeRelatedUtil } from '$lib/utils/pages/related';
     import type { ServerTagDto } from '$lib/utils/pages/tags';
     import { fetchTags as fetchTagsApi, createTagIfAllowed, addTagFromSuggestion as addTagFromSuggestionUtil, removeTag as removeTagUtil } from '$lib/utils/pages/tags';
@@ -275,16 +275,26 @@
         const tagIds = Array.from(new Set(selectedTags.map(t => Number(t.id)).filter(n => Number.isInteger(n) && n > 0)));
         const relatedIds = Array.from(new Set(selectedRelated.map(r => Number(r.id)).filter(n => Number.isInteger(n) && n > 0)));
         
+        const payload: SavePageRequest = {
+            html: editorDiv.innerHTML,
+            title,
+            tags: tagIds,
+            related: relatedIds,
+            is_public: isPublic
+        };
+
+        const editId = get(pageStore).url.searchParams.get('edit');
+
         try {
-            const id = await savePageAndGetId({
-                html: editorDiv.innerHTML,
-                title,
-                tags: tagIds,
-                related: relatedIds,
-                is_public: isPublic
-            });
-            await goto(`/page/${id}`);
-        } catch {
+            if (editId) {
+                await updatePage(String(editId), payload);
+                notification('Страница обновлена', NotificationType.Success);
+                await goto(`/page/${editId}`);
+            } else {
+                const id = await savePageAndGetId(payload);
+                await goto(`/page/${id}`);
+            }
+        } catch (e) {
             notification('Ошибка при сохранении документа', NotificationType.Error);
         }
     }

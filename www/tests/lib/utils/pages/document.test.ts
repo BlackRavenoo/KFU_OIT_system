@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('$lib/utils/api', () => ({ api: { post: vi.fn(), get: vi.fn() } }));
+vi.mock('$lib/utils/api', () => ({ api: { post: vi.fn(), get: vi.fn(), put: vi.fn() } }));
 vi.mock('$lib/utils/texteditor/serialize', () => ({
     serialize: vi.fn((html: string) => [{ type: 'text', text: html }]),
     deserialize: vi.fn(() => '<p>DESERIALIZED</p>')
 }));
 
-import { savePage, savePageAndGetId, fetchPageContentByKey } from '$lib/utils/pages/document';
+import { savePage, savePageAndGetId, fetchPageContentByKey, updatePage } from '$lib/utils/pages/document';
 import { api } from '$lib/utils/api';
 import { serialize, deserialize } from '$lib/utils/texteditor/serialize';
 
@@ -227,5 +227,103 @@ describe('fetchPageContentByKey', () => {
         const html = await fetchPageContentByKey(true, undefined as any);
         expect((api.get as any).mock.calls[0][0]).toBe('/api/v1/page/public/');
         expect(html).toBe('<p>OK</p>');
+    });
+});
+
+describe('updatePage', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (serialize as any).mockImplementation((html: string) => [{ type: 'text', text: html }]);
+    });
+
+    it('succeeds on 200 status and sends correct payload', async () => {
+        (api.put as any).mockResolvedValue({ status: 200 });
+
+        const req = {
+            html: '<p>content</p>',
+            title: 'Title',
+            tags: [ '1', 2, '2', '3.5', -1 ],
+            related: [ '5', 5, 'x', 6.0 ],
+            is_public: true
+        } as any;
+
+        await expect(updatePage('123', req)).resolves.toBeUndefined();
+
+        expect(serialize).toHaveBeenCalledWith('<p>content</p>');
+        const call = (api.put as any).mock.calls[0];
+        expect(call[0]).toBe('/api/v1/pages/123');
+        expect(call[1]).toEqual({
+            data: [{ type: 'text', text: '<p>content</p>' }],
+            title: 'Title',
+            tags: [1, 2],
+            related: [5, 6],
+            is_public: true
+        });
+    });
+
+    it.each([200, 201, 204])('accepts status %i as success', async (status) => {
+        (api.put as any).mockResolvedValue({ status });
+        await expect(updatePage('9', { html: '<p>x</p>', title: 'T', tags: [], related: [] })).resolves.toBeUndefined();
+    });
+
+    it('encodes id in URL', async () => {
+        (api.put as any).mockResolvedValue({ status: 200 });
+        await updatePage('a b/§', { html: '', title: '', tags: [], related: [] });
+        expect((api.put as any).mock.calls[0][0]).toBe('/api/v1/pages/' + encodeURIComponent('a b/§'));
+    });
+
+    it('throws when response is undefined', async () => {
+        (api.put as any).mockResolvedValue(undefined);
+        await expect(updatePage('1', { html: '', title: '', tags: [], related: [] })).rejects.toThrow('Failed to update page');
+    });
+
+    it('throws when status is not a number', async () => {
+        (api.put as any).mockResolvedValue({ status: 'ok' });
+        await expect(updatePage('1', { html: '', title: '', tags: [], related: [] })).rejects.toThrow('Failed to update page');
+    });
+
+    it('throws on non-2xx/204 status', async () => {
+        (api.put as any).mockResolvedValue({ status: 500, error: 'server' });
+        await expect(updatePage('1', { html: '', title: '', tags: [], related: [] })).rejects.toThrow('Failed to update page');
+    });
+
+    it('uses [] when req.tags is undefined (triggers ?? [])', async () => {
+        (api.put as any).mockResolvedValue({ status: 200 });
+
+        const req: any = {
+            html: '<p>test</p>',
+            title: 'T',
+            related: [1, 2],
+            is_public: true
+        };
+
+        await expect(updatePage('42', req)).resolves.toBeUndefined();
+
+        expect(serialize).toHaveBeenCalledWith('<p>test</p>');
+        const call = (api.put as any).mock.calls[0];
+        expect(call).toBeDefined();
+        const payload = call[1];
+        expect(payload).toBeDefined();
+        expect(payload.tags).toEqual([]);
+    });
+
+    it('uses [] when req.related is undefined (triggers ?? [])', async () => {
+        (api.put as any).mockResolvedValue({ status: 200 });
+
+        const req: any = {
+            html: '<p>test</p>',
+            title: 'T',
+            tags: [1, 2],
+            is_public: true
+        };
+
+        await expect(updatePage('42', req)).resolves.toBeUndefined();
+
+        expect(serialize).toHaveBeenCalledWith('<p>test</p>');
+        const call = (api.put as any).mock.calls[0];
+        expect(call).toBeDefined();
+        const payload = call[1];
+        expect(payload).toBeDefined();
+        expect(payload.related).toEqual([]);
     });
 });

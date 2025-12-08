@@ -284,7 +284,6 @@ export async function checkAuthentication() {
  * Завершение регистрации пользователя
  * @param fullName Полное имя пользователя
  * @param login Логин пользователя
- * @param email Email пользователя
  * @param password Пароль пользователя
  * @param token Токен подтверждения регистрации
  * @returns Promise<boolean> - true если регистрация успешна, false в противном случае
@@ -292,7 +291,6 @@ export async function checkAuthentication() {
 export async function finishRegistration(
     fullName: string,
     login: string,
-    email: string,
     password: string,
     token: string
 ): Promise<boolean> {
@@ -300,7 +298,6 @@ export async function finishRegistration(
         const res = await api.post('/api/v1/auth/register', {
             name: fullName,
             login,
-            email,
             password,
             token
         });

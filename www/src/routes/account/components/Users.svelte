@@ -12,10 +12,10 @@
     import { changeRole, deleteUser } from '$lib/utils/admin/users';
     import { UserStatus, type IUserData } from '$lib/utils/auth/types';
     import {
-      loadUsersData,
-      sendInvitation,
-      setUserStatus,
-      type UsersState
+        loadUsersData,
+        sendInvitation,
+        setUserStatus,
+        type UsersState
     } from '$lib/utils/admin/users';
     import { getAvatar } from '$lib/utils/account/avatar';
     
@@ -37,6 +37,8 @@
     let deletingUser: IUserData | null = null;
 
     let emailError: string = '';
+    let parsedEmails: string[] = [];
+    let newEmailsValid: boolean = false;
 
     let avatarContainers: Map<string, HTMLDivElement> = new Map();
     let loadedAvatars: Set<string> = new Set();
@@ -44,9 +46,63 @@
 
     $: canManageStatus = $currentUser?.role === UserRole.Administrator || $currentUser?.role === UserRole.Moderator;
 
-    /**
-     * Обработчик изменения статуса пользователя
-     */
+    function parseAndValidateMultipleEmails(input: string): { valid: boolean; emails: string[]; error?: string } {
+        const s = input.trim();
+        if (s === '') return { valid: false, emails: [], error: 'Введите хотя бы один email' };
+        const emails: string[] = [];
+        let i = 0;
+        const n = s.length;
+        while (i < n) {
+            let start = i;
+            while (i < n && s[i] !== ';') i++;
+            let token = s.slice(start, i).trim();
+            if (token === '') return { valid: false, emails: [], error: 'Пустой email между разделителями' };
+            if (!validateEmail(token)) return { valid: false, emails: [], error: `Неверный email: ${token}` };
+            emails.push(token);
+            if (i >= n) break;
+            if (s[i] === ';') {
+                if (i + 1 < n && s[i + 1] === ' ') {
+                    if (i + 2 < n && s[i + 2] === ' ')
+                        return { valid: false, emails: [], error: 'После ";" разрешён только один пробел' };
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+                if (i === n) return { valid: false, emails: [], error: 'Строка не должна заканчиваться разделителем ";"' };
+            }
+        }
+        return { valid: true, emails, error: undefined };
+    }
+
+    async function handleSendInvitation() {
+        isAddingUser = true;
+        emailError = '';
+        const parsed = parseAndValidateMultipleEmails(newUserEmail);
+        if (!parsed.valid) {
+            emailError = parsed.error || 'Неверный формат email';
+            isAddingUser = false;
+            return;
+        }
+        const successes: string[] = [];
+        const failures: string[] = [];
+        for (const e of parsed.emails) {
+            try {
+                const ok = await sendInvitation(e);
+                if (ok) successes.push(e);
+                else failures.push(e);
+            } catch {
+                failures.push(e);
+            }
+        }
+        if (failures.length === 0) {
+            newUserEmail = '';
+            await loadUsers();
+        } else {
+            emailError = `Не удалось отправить на: ${failures.join(', ')}`;
+        }
+        isAddingUser = false;
+    }
+
     async function handleStatusChange(userId: string, newStatus: UserStatus) {
         const user = users.find(u => u.id === userId);
         if (!user) return;
@@ -76,10 +132,7 @@
             );
         }
     }
-    
-    /**
-     * Загрузка списка пользователей
-     */
+
     async function loadUsers() {
         loading = true;
         error = false;
@@ -98,9 +151,6 @@
         }, 100);
     }
 
-    /**
-     * Загрузка аватаров для всех пользователей
-     */
     async function loadAvatars() {
         for (const user of users) {
             if (loadedAvatars.has(user.id) || loadingAvatars.has(user.id)) continue;
@@ -112,9 +162,6 @@
         }
     }
 
-    /**
-     * Загрузка аватара для конкретного пользователя
-     */
     async function loadAvatarForUser(id: string, container: HTMLDivElement) {
         if (loadedAvatars.has(id) || loadingAvatars.has(id)) return;
         
@@ -131,9 +178,6 @@
         }
     }
 
-    /**
-     * Сохранение ссылки на контейнер аватара
-     */
     function setAvatarContainer(node: HTMLDivElement, userId?: string) {
         let currentId = userId;
         
@@ -165,57 +209,34 @@
             }
         };
     }
-    
-    /**
-     * Переход по страницам
-     */
+
     function changePage(page: number) {
         if (page !== currentPage && page > 0 && page <= totalPages) {
             currentPage = page;
             loadUsers();
         }
     }
-    
-    /**
-     * Отправка приглашения на email
-     */
-    async function handleSendInvitation() {
-        isAddingUser = true;
-        emailError = '';
 
-        if (!validateEmail(newUserEmail)) {
-            emailError = 'Введите корректный email';
-            isAddingUser = false;
-            return;
-        }
-
-        const success = await sendInvitation(newUserEmail);
-
-        if (success) {
-            newUserEmail = '';
-            await loadUsers();
-        }
-
-        isAddingUser = false;
-    }
-
-    /**
-     * Обработчик изменения роли пользователя
-     * @param id - ID пользователя
-     * @param promote - true для повышения, false для понижения
-    */
     async function handleChangeRole(id: string, promote: boolean) {
         const user = users.find(u => u.id === id);
         if (!user) return;
 
-        const newRole = promote
-            ? user.role === UserRole.Programmer ? UserRole.Moderator : UserRole.Administrator
-            : user.role === UserRole.Administrator ? UserRole.Moderator : UserRole.Programmer;
+        const ROLE_ORDER = Object.values(UserRole) as unknown as UserRole[];
+        const currentIndex = ROLE_ORDER.indexOf(user.role);
+
+        if (currentIndex === -1) return;
+
+        let newRole = user.role;
+        newRole = promote && currentIndex < ROLE_ORDER.length - 1 ? 
+            ROLE_ORDER[currentIndex + 1] :
+            !promote && currentIndex > 0 ? 
+            ROLE_ORDER[currentIndex - 1] : 
+            ROLE_ORDER[currentIndex];
 
         const success = await changeRole(id, newRole);
         if (success) {
             users = users.map(u => u.id === id ? { ...u, role: newRole } : u);
-            
+
             const container = avatarContainers.get(id);
             if (container) {
                 loadedAvatars.delete(id);
@@ -224,26 +245,17 @@
             }
         }
     }
-    
-    /**
-     * Открытие модального окна удаления пользователя
-     */
+
     function openDeleteModal(user: IUserData) {
         deletingUser = user;
         showDeleteModal = true;
     }
-    
-    /**
-     * Закрытие всех модальных окон
-     */
+
     function closeModals() {
         showDeleteModal = false;
         deletingUser = null;
     }
-    
-    /**
-     * Удаление пользователя
-     */
+
     async function handleDeleteUser() {
         if (!deletingUser) return;
 
@@ -257,25 +269,16 @@
             closeModals();
         }
     }
-    
-    /**
-     * Обработка поиска
-     */
+
     function handleSearch() {
         currentPage = 1;
         loadUsers();
     }
-  
-    /**
-     * Обработка изменения размера окна
-     */
+
     function handleResize() {
         if (browser) isMobile = window.innerWidth < 768;
     }
-  
-    /**
-     * Инициализация компонента
-     */
+
     onMount(async () => {
         if (browser) {
             isMobile = window.innerWidth < 768;
@@ -283,16 +286,20 @@
         }
         await loadUsers();
     });
-  
-    /**
-     * Удаление обработчика события при размонтировании компонента
-     */
+
     onDestroy(() => {
         browser && window.removeEventListener('resize', handleResize);
         avatarContainers.clear();
         loadedAvatars.clear();
         loadingAvatars.clear();
     });
+
+    $: {
+        const parsed = parseAndValidateMultipleEmails(newUserEmail);
+        newEmailsValid = parsed.valid;
+        parsedEmails = parsed.emails || [];
+        emailError = !parsed.valid && newUserEmail.trim() !== '' ? parsed.error || '' : '';
+    }
 </script>
 
 <div class="users-section">
@@ -306,16 +313,16 @@
                     <label for="newUserEmail">Email пользователя</label>
                     <div class="input-group">
                         <input 
-                            type="email" 
+                            type="text" 
                             id="newUserEmail" 
-                            placeholder="Введите email" 
+                            placeholder="Введите email или несколько через ; (например: a@x.com; b@y.com)" 
                             bind:value={ newUserEmail }
                             class="form-input { emailError ? 'red-border' : '' }"
                         />
                         <button 
                             class="btn btn-primary" 
                             on:click={ handleSendInvitation } 
-                            disabled={ isAddingUser || !newUserEmail?.trim() }
+                            disabled={ isAddingUser || !newUserEmail?.trim() || !newEmailsValid }
                         >
                             { isAddingUser ? 'Отправка...' : isMobile ? 'Отправить' : 'Отправить приглашение' }
                         </button>
@@ -323,7 +330,7 @@
                     {#if emailError}
                         <p class="input-error">{ emailError }</p>
                     {/if}
-                    <p class="help-text">На указанный email будет отправлено приглашение для регистрации</p>
+                    <p class="help-text">Можно указать несколько email, разделённых ";"</p>
                 </div>
             </div>
         </div>
@@ -335,7 +342,7 @@
         <SearchBar 
             bind:searchQuery
             placeholder="Поиск по имени или email..."
-            onSearch={handleSearch}
+            onSearch={ handleSearch }
         />
         
         {#if loading}
@@ -399,7 +406,7 @@
                                                 </button>
                                             {/if}
                                             
-                                            {#if user.role !== UserRole.Programmer && user.role !== UserRole.Administrator}
+                                            {#if user.role !== UserRole.Client && user.role !== UserRole.Administrator}
                                                 <button 
                                                     class="action-btn demote-btn" 
                                                     on:click={ () => handleChangeRole(user.id, false) }
