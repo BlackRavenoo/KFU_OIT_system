@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT \n            t.id,\n            title,\n            description,\n            author,\n            author_contacts,\n            t.status,\n            priority,\n            planned_at,\n            source,\n            COALESCE(\n                JSON_AGG(\n                    JSON_BUILD_OBJECT(\n                        'id', u.id,\n                        'name', u.name,\n                        'avatar_key', u.avatar_key\n                    )\n                ) FILTER (WHERE u.id IS NOT NULL),\n                '[]'::json\n            ) as \"assigned_to!: Json<Vec<User>>\",\n            t.created_at,\n            ARRAY_AGG(DISTINCT ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments,\n            JSON_BUILD_OBJECT(\n                'id', b.id,\n                'code', b.code,\n                'name', b.name\n            ) as \"building!: Json<Building>\",\n            note,\n            cabinet,\n            JSON_BUILD_OBJECT(\n                'id', d.id,\n                'name', d.name\n            ) as \"department!: Json<Department>\"\n        FROM tickets t\n        LEFT JOIN tickets_users tu ON tu.ticket_id = t.id \n        LEFT JOIN users u ON u.id = tu.assigned_to\n        LEFT JOIN ticket_attachments ta ON ta.ticket_id = t.id\n        JOIN buildings b ON b.id = t.building_id\n        JOIN departments d ON d.id = t.department_id\n        WHERE t.id = $1\n        GROUP BY t.id, b.id, d.id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "author",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "author_contacts",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "status",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 6,
+        "name": "priority",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 7,
+        "name": "planned_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 8,
+        "name": "source",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 9,
+        "name": "assigned_to!: Json<Vec<User>>",
+        "type_info": "Json"
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "attachments",
+        "type_info": "VarcharArray"
+      },
+      {
+        "ordinal": 12,
+        "name": "building!: Json<Building>",
+        "type_info": "Json"
+      },
+      {
+        "ordinal": 13,
+        "name": "note",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 14,
+        "name": "cabinet",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 15,
+        "name": "department!: Json<Department>",
+        "type_info": "Json"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      null,
+      false,
+      null,
+      null,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "4551e26869e5cd24655b977d642152b09f8ea29fe7642e3d3aca8a004c1600ca"
+}

@@ -65,7 +65,7 @@ impl Serialize for OrderBy {
     }
 }
 
-#[derive(Deserialize, Clone, Copy, EnumIter, Default, FromPrimitive, Debug)]
+#[derive(Deserialize, Clone, Copy, EnumIter, Default, FromPrimitive, Debug, Type)]
 #[serde(from = "i16")]
 #[repr(i16)]
 pub enum TicketSource {

@@ -1,4 +1,4 @@
-FROM lukemathwalker/cargo-chef:latest-rust-1.88 AS chef
+FROM lukemathwalker/cargo-chef:latest-rust-1.91 AS chef
 WORKDIR /app
 RUN apt update && apt install lld clang -y
 
@@ -15,7 +15,7 @@ COPY . .
 ENV SQLX_OFFLINE=true
 RUN cargo build --release --bin ticketing-system
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 
 WORKDIR /app
 RUN apt-get update -y \
