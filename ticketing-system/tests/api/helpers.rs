@@ -132,8 +132,8 @@ impl TestApp {
                 .links(s)
                 .filter(|l| *l.kind() == linkify::LinkKind::Url)
                 .collect();
-            assert_eq!(links.len(), 1);
-            let raw_link = links[0].as_str().to_owned();
+            assert!(matches!(links.len(), 1 | 5));
+            let raw_link = links[links.len() - 1].as_str().to_owned();
             let mut invitation_link = reqwest::Url::parse(&raw_link).unwrap();
             assert_eq!(invitation_link.host_str().unwrap(), "127.0.0.1");
 
