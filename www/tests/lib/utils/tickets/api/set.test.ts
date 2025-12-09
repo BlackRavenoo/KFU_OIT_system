@@ -427,6 +427,47 @@ describe('Ticket Set API', () => {
             await expect(updateTicket(ticketId, singleKeyData)).resolves.toBeUndefined();
             expect(apiMock.put).not.toHaveBeenCalled();
         });
+
+        it('Return false when all fields are empty', async () => {
+            const api = (await import('$lib/utils/api')).api;
+            (api.put as any).mockResolvedValue({ success: true });
+
+            const ticketId = 'test-id';
+            const data = {
+                id: 123,
+                title: 'Test title',
+                description: 'Test desc'
+            };
+
+            await updateTicket(ticketId, data as any);
+
+            expect(api.put).toHaveBeenCalledWith(
+                `${TICKETS_API_ENDPOINTS.read}${ticketId}`,
+                expect.not.objectContaining({ id: expect.anything() })
+            );
+            expect(api.put).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({ title: 'Test title', description: 'Test desc' })
+            );
+        });
+
+        it('Extract id from building object', async () => {
+            const api = (await import('$lib/utils/api')).api;
+            (api.put as any).mockResolvedValue({ success: true });
+
+            const ticketId = 'test-id';
+            const data = {
+                title: 'Test title',
+                building_id: { id: 42 }
+            };
+
+            await updateTicket(ticketId, { ...data } as any);
+
+            expect(api.put).toHaveBeenCalledWith(
+                `${TICKETS_API_ENDPOINTS.read}${ticketId}`,
+                expect.objectContaining({ building_id: 42 })
+            );
+        });
     });
 
     describe('deleteTicket', () => {

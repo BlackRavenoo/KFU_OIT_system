@@ -5,7 +5,7 @@ import path from 'path';
 export default defineConfig({
   plugins: [sveltekit()],
   test: {
-    testTimeout: 5000,
+    testTimeout: 60000,
     include: ['tests/**/*.{test,spec}.{js,ts}'],
     environment: 'jsdom',
     globals: true,

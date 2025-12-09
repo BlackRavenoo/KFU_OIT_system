@@ -58,6 +58,5 @@ export class SimpleCaptcha extends Captcha {
     public dispose(): void {
         const container = this.getContainer();
         if (container) container.innerHTML = '';
-        else throw new Error("Контейнер для капчи не найден");
     }
 }

@@ -94,7 +94,25 @@ export async function fetchPageContentByKey(isPublic: boolean, key: string): Pro
 }
 
 /**
+ * Вычисляет разницу между двумя массивами идентификаторов.
+ * @param current Текущие идентификаторы на сервере
+ * @param desired Желаемые идентификаторы после обновления
+ * @returns Объект с массивами toAdd и toDelete
+ */
+export function computeDiff(current: number[], desired: number[]): { toAdd: number[]; toDelete: number[] } {
+    const currentSet = new Set(current);
+    const desiredSet = new Set(desired);
+
+    const toAdd = desired.filter(id => !currentSet.has(id));
+    const toDelete = current.filter(id => !desiredSet.has(id));
+
+    return { toAdd, toDelete };
+}
+
+/**
  * Обновляет страницу по идентификатору.
+ * Запрашивает текущие данные страницы с сервера, вычисляет разницу
+ * между текущими и желаемыми тегами/связями и отправляет только изменения.
  * @param id Идентификатор страницы
  * @param req Параметры страницы: html, title, tags, related, is_public
  * @returns Promise<void>
@@ -103,18 +121,34 @@ export async function fetchPageContentByKey(isPublic: boolean, key: string): Pro
 export async function updatePage(id: string, req: SavePageRequest): Promise<void> {
     const serializedData = serialize(req.html);
 
-    const tags = Array.from(
+    const desiredTags = Array.from(
         new Set((req.tags ?? []).map((t) => Number(t)).filter((n) => Number.isInteger(n) && n > 0))
     );
-    const related = Array.from(
+    const desiredRelated = Array.from(
         new Set((req.related ?? []).map((r) => Number(r)).filter((n) => Number.isInteger(n) && n > 0))
     );
+
+    const pageResp = await api.get<{ tags?: { id: number }[]; related?: { id: number }[] }>(`${PagesRoute}${encodeURIComponent(id)}`);
+    const pageOk = pageResp.status === 200 || pageResp.status === 201 || pageResp.status === 304;
+    
+    let currentTags: number[] = [];
+    let currentRelated: number[] = [];
+    
+    if (pageOk && pageResp.data) {
+        currentTags = pageResp.data.tags?.map(t => t.id) ?? [];
+        currentRelated = pageResp.data.related?.map(r => r.id) ?? [];
+    } else console.warn(`Failed to fetch current page data for ID ${id}, proceeding with empty current tags/related`);
+
+    const tagsDiff = computeDiff(currentTags, desiredTags);
+    const relatedDiff = computeDiff(currentRelated, desiredRelated);
 
     const payload = {
         data: serializedData,
         title: req.title,
-        tags,
-        related,
+        tags_to_add: tagsDiff.toAdd,
+        tags_to_delete: tagsDiff.toDelete,
+        related_to_add: relatedDiff.toAdd,
+        related_to_delete: relatedDiff.toDelete,
         is_public: req.is_public ?? false
     };
 

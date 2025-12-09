@@ -96,11 +96,6 @@ describe('SimpleCaptcha', () => {
         expect(input).toBeFalsy();
     });
 
-    it('Throw error on dispose if container is missing', () => {
-        cleanupContainer();
-        expect(() => captcha.dispose()).toThrow('Контейнер для капчи не найден');
-    });
-
     it('Throw error on render if container is missing', async () => {
         cleanupContainer();
         await expect(captcha.render()).rejects.toThrow('Контейнер для капчи не найден');

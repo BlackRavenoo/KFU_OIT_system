@@ -65,15 +65,19 @@ export async function updateTicket(
         priority?: string;
         planned_at?: string | null;
         assigned_to?: string | null;
-        building_id?: number | null;
+        building_id?: number | { id: number } | null;
         cabinet?: string | null;
         department_id?: number | null;
     }
 ): Promise<void> {
     if (Object.keys(data).length === 1) return;
 
+    if (typeof data.building_id === 'object' && data.building_id !== null && 'id' in data.building_id)
+        data.building_id = (data.building_id as { id: number }).id;
+
     const filteredData = Object.fromEntries(
         Object.entries(data).filter(([key, value]) => {
+            if (key === 'id') return false;
             if (value === "" || value === null || value === undefined) return false;
             return true;
         })
