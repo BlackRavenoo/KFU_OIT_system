@@ -19,12 +19,16 @@ services:
       - APP_STORAGE__PATH_STYLE=false
       - APP_STORAGE__BUCKET=${S3_BUCKET:-ticketing-attachments}
       - APP_APPLICATION__BASE_URL=${APP_BASE_URL:-127.0.0.1}
-      - APP_EMAIL_CLIENT__BASE_URL=https://api.mailersend.com
+      - APP_EMAIL_CLIENT__BASE_URL=${EMAIL_CLIENT_URL}
       - APP_EMAIL_CLIENT__SENDER_EMAIL=${SENDER_EMAIL}
-      - APP_EMAIL_CLIENT__AUTHORIZATION_TOKEN=${EMAIL_CLIENT_TOKEN}
+      - APP_EMAIL_CLIENT__CLIENT_TYPE__CLIENT_NAME=smtp
+      - APP_EMAIL_CLIENT__CLIENT_TYPE__USERNAME=${EMAIL_CLIENT_USERNAME}
+      - APP_EMAIL_CLIENT__CLIENT_TYPE__PASSWORD=${EMAIL_CLIENT_PASSWORD}
       - APP_EVENT_PUBLISHER__BASE_URL=https://api.telegram.org
       - APP_EVENT_PUBLISHER__BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - APP_EVENT_PUBLISHER__CHAT_ID=${TELEGRAM_CHAT_ID}
+
+      - TZ=Europe/Moscow
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
@@ -66,6 +70,7 @@ services:
     volumes:
       - ./certbot/www:/var/www/certbot:ro
       - ./certbot/conf:/etc/nginx/ssl:ro
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
