@@ -72,8 +72,8 @@ export async function updateTicket(
 ): Promise<void> {
     if (Object.keys(data).length === 1) return;
 
-    if (typeof data.building_id === 'object' && data.building_id !== null && 'id' in data.building_id)
-        data.building_id = (data.building_id as { id: number }).id;
+    if (typeof (data as any).building === 'object' && (data as any).building !== null && 'id' in (data as any).building)
+        data.building_id = ((data as any).building as { id: number }).id;
 
     const filteredData = Object.fromEntries(
         Object.entries(data).filter(([key, value]) => {

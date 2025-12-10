@@ -458,7 +458,7 @@ describe('Ticket Set API', () => {
             const ticketId = 'test-id';
             const data = {
                 title: 'Test title',
-                building_id: { id: 42 }
+                building: { id: 42 }
             };
 
             await updateTicket(ticketId, { ...data } as any);

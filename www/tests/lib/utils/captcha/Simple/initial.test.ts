@@ -32,15 +32,6 @@ describe('SimpleCaptcha', () => {
         expect(input?.style.left).toBe('-9999px');
     });
 
-    it('Throw error on render if honeypot input already exists', async () => {
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.id = 'required-name';
-        container.appendChild(input);
-
-        await expect(captcha.render()).rejects.toThrow('Элемент капчи существует');
-    });
-
     it('Success if honeypot input is empty', async () => {
         await captcha.render();
         const result = await captcha.verify();

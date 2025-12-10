@@ -24,7 +24,7 @@
      * Инициализация капчи при монтировании компонента.
     */
     onMount(() => {
-        const captchaKey = import.meta.env.VITE_CAPTCHA_KEY;
+        const captchaKey = "lemin-cropped-captcha";
         if (!captchaKey) return;
 
         (async () => {
