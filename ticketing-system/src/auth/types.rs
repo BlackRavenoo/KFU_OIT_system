@@ -9,19 +9,21 @@ use strum::EnumString;
 #[serde(rename_all = "lowercase")]
 #[repr(i16)]
 pub enum UserRole {
-    Client = 0,
-    Employee = 1,
-    Moderator = 2,
-    Admin = 3,
+    AnonymousClient = 0,
+    Client = 1,
+    Employee = 2,
+    Moderator = 3,
+    Admin = 4,
 }
 
 impl From<i16> for UserRole {
     fn from(value: i16) -> Self {
         match value {
-            0 => UserRole::Client,
-            1 => UserRole::Employee,
-            2 => UserRole::Moderator,
-            3 => UserRole::Admin,
+            0 => UserRole::AnonymousClient,
+            1 => UserRole::Client,
+            2 => UserRole::Employee,
+            3 => UserRole::Moderator,
+            4 => UserRole::Admin,
             _ => {
                 tracing::error!("Invalid UserRole value: {}", value);
                 UserRole::Employee
@@ -33,6 +35,7 @@ impl From<i16> for UserRole {
 impl std::fmt::Display for UserRole {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
+            UserRole::AnonymousClient => "anonym",
             UserRole::Client => "client",
             UserRole::Employee => "employee",
             UserRole::Moderator => "moderator",

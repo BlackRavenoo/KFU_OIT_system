@@ -27,7 +27,7 @@ async fn create_ticket_with_attachments(app: &TestApp) {
         "KFU.png"
     );
 
-    let resp = app.create_ticket(&json, Some(vec![attachment; 2])).await;
+    let resp = app.create_ticket_from_admin(&json, Some(vec![attachment; 2])).await;
 
     assert_eq!(resp.status(), 201);
 }

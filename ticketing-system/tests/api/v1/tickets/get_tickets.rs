@@ -231,3 +231,42 @@ async fn get_tickets_by_assigned_to_works() {
 
     assert_eq!(data.first().unwrap()["author"], "Test author");
 }
+
+#[tokio::test]
+async fn get_tickets_for_client_returns_only_his_tickets() {
+    let app = spawn_app().await;
+
+    for _ in 0..100 {
+        app.create_test_ticket().await;
+    }
+
+    let login = app.create_user(ticketing_system::auth::types::UserRole::Client).await;
+
+    let (access, _) = app.get_jwt_tokens(&login, "admin").await;
+
+    let json = serde_json::json!({
+        "title": "Title",
+        "description": "Description",
+        "author": "Author",
+        "author_contacts": "79999999999",
+        "building_id": 1,
+        "department_id": 1,
+    });
+
+    for _ in 0..5 {
+        app.create_ticket(&json, None, Some(&access)).await;
+    }
+
+    let resp = reqwest::Client::new()
+        .get(format!("{}/v1/tickets/", app.address))
+        .bearer_auth(access)
+        .send()
+        .await
+        .unwrap();
+
+    let json: serde_json::Value = resp.json().await.unwrap();
+
+    let data = json["items"].as_array().unwrap();
+
+    assert_eq!(data.len(), 5);
+}

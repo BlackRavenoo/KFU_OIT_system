@@ -160,12 +160,16 @@ impl TestApp {
             "department_id": 1,
         });
 
-        self.create_ticket(&json, None).await
+        self.create_ticket_from_admin(&json, None).await
     }
 
-    pub async fn create_ticket(&self, body: &serde_json::Value, attachments: Option<Vec<Attachment>>) -> reqwest::Response {
+    pub async fn create_ticket_from_admin(&self, body: &serde_json::Value, attachments: Option<Vec<Attachment>>) -> reqwest::Response {
         let (access, _) = self.get_admin_jwt_tokens().await;
         
+        self.create_ticket(body, attachments, Some(&access)).await
+    }
+
+    pub async fn create_ticket(&self, body: &serde_json::Value, attachments: Option<Vec<Attachment>>, access: Option<&str>) -> reqwest::Response {
         let json_string = serde_json::to_string(body).unwrap();
 
         let mut form = reqwest::multipart::Form::new();
@@ -188,11 +192,15 @@ impl TestApp {
             }
         }
 
-        reqwest::Client::new()
+        let mut builder = reqwest::Client::new()
             .post(format!("{}/v1/tickets/", self.address))
-            .multipart(form)
-            .bearer_auth(&access)
-            .send()
+            .multipart(form);
+
+        if let Some(token) = access {
+            builder = builder.bearer_auth(&token);
+        }
+
+        builder.send()
             .await
             .unwrap()
     }

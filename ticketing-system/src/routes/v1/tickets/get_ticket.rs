@@ -4,10 +4,12 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, types::Json};
 
-use crate::{schema::{common::UserId, tickets::{Building, Department, TicketId, TicketPriority, TicketSource, TicketStatus}}, utils::error_chain_fmt};
+use crate::{auth::{extractor::{UserIdExtractor, UserRoleExtractor}, types::UserRole}, schema::{common::UserId, tickets::{Building, Department, TicketId, TicketPriority, TicketSource, TicketStatus}}, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum GetTicketError {
+    #[error("Insufficient permissions to get this ticket")]
+    InsufficientPermissions,
     #[error("Ticket not found")]
     NotFound,
     #[error(transparent)]
@@ -23,6 +25,7 @@ impl std::fmt::Debug for GetTicketError {
 impl ResponseError for GetTicketError {
     fn status_code(&self) -> StatusCode {
         match self {
+            GetTicketError::InsufficientPermissions => StatusCode::FORBIDDEN,
             GetTicketError::NotFound => StatusCode::NOT_FOUND,
             GetTicketError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -47,6 +50,7 @@ pub struct TicketQueryResult {
     pub cabinet: Option<String>,
     pub department: Json<Department>,
     pub source: TicketSource,
+    pub author_id: Option<UserId>,
 }
 
 #[derive(Serialize)]
@@ -101,13 +105,21 @@ impl From<TicketQueryResult> for TicketSchemaWithAttachments {
 
 pub async fn get_ticket(
     id: web::Path<TicketId>,
-    pool: web::Data<PgPool>
+    user_id: UserIdExtractor,
+    user_role: UserRoleExtractor,
+    pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, GetTicketError> {
     let id = id.into_inner();
 
     let ticket = select_ticket(&pool, id).await
         .context("Failed to get ticket by id")?
         .ok_or(GetTicketError::NotFound)?;
+
+    if user_role.0 == UserRole::Client 
+        && !ticket.author_id.is_some_and(|id| id == user_id.0) 
+    {
+        return Err(GetTicketError::InsufficientPermissions);
+    }
 
     Ok(HttpResponse::Ok().json(TicketSchemaWithAttachments::from(ticket)))
 }
@@ -133,6 +145,7 @@ async fn select_ticket(
             priority,
             planned_at,
             source,
+            t.author_id,
             COALESCE(
                 JSON_AGG(
                     JSON_BUILD_OBJECT(

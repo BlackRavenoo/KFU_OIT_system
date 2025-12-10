@@ -15,7 +15,7 @@ async fn create_ticket_returns_201() {
         "department_id": 1,
     });
 
-    let resp = app.create_ticket(&json, None).await;
+    let resp = app.create_ticket_from_admin(&json, None).await;
 
     assert_eq!(resp.status(), 201);
 }
@@ -50,7 +50,7 @@ async fn create_ticket_with_pdf_returns_201() {
         "KFU.png"
     );
 
-    let resp = app.create_ticket(&json, Some(vec![attachment1, attachment2])).await;
+    let resp = app.create_ticket_from_admin(&json, Some(vec![attachment1, attachment2])).await;
 
     assert_eq!(resp.status(), 201);
 }
@@ -80,7 +80,7 @@ async fn create_ticket_with_a_lot_of_attachments_returns_400() {
         "KFU.png"
     );
 
-    let resp = app.create_ticket(&json, Some(vec![attachment; 6])).await;
+    let resp = app.create_ticket_from_admin(&json, Some(vec![attachment; 6])).await;
 
     assert_eq!(resp.status(), 400);
 }
@@ -110,7 +110,7 @@ async fn create_ticket_with_images_returns_201() {
         "KFU.png"
     );
 
-    let resp = app.create_ticket(&json, Some(vec![attachment])).await;
+    let resp = app.create_ticket_from_admin(&json, Some(vec![attachment])).await;
 
     assert_eq!(resp.status(), 201);
 }
@@ -135,7 +135,7 @@ async fn create_ticket_with_db_error_returns_500() {
     .await
     .unwrap();
 
-    let resp = app.create_ticket(&json, None).await;
+    let resp = app.create_ticket_from_admin(&json, None).await;
 
     assert_eq!(resp.status(), 500);
 }
@@ -180,7 +180,7 @@ async fn create_ticket_with_s3_error_returns_500() {
         "KFU.png"
     );
 
-    let resp = app.create_ticket(&json, Some(vec![attachment; 2])).await;
+    let resp = app.create_ticket_from_admin(&json, Some(vec![attachment; 2])).await;
 
     assert_eq!(resp.status(), 500);
 }
@@ -203,7 +203,7 @@ async fn create_ticket_with_empty_attachment_returns_400() {
         "test.png"
     );
 
-    let resp = app.create_ticket(&json, Some(vec![attachment])).await;
+    let resp = app.create_ticket_from_admin(&json, Some(vec![attachment])).await;
 
     assert_eq!(resp.status(), 400);
 }

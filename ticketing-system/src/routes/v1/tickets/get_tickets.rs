@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_qs::actix::QsQuery;
 use sqlx::{FromRow, PgPool, QueryBuilder, Row};
 
-use crate::{build_where_condition, schema::{common::{PaginationResult, SortOrder, UserId}, tickets::{Building, OrderBy, TicketId, TicketPriority, TicketStatus}}, utils::error_chain_fmt};
+use crate::{auth::{extractor::{UserIdExtractor, UserRoleExtractor}, types::UserRole}, build_where_condition, schema::{common::{PaginationResult, SortOrder, UserId}, tickets::{Building, OrderBy, TicketId, TicketPriority, TicketStatus}}, utils::error_chain_fmt};
 
 #[derive(Deserialize)]
 pub struct GetTicketsSchema {
@@ -102,6 +102,8 @@ impl ResponseError for GetTicketsError {
 pub async fn get_tickets(
     schema: QsQuery<GetTicketsSchema>,
     pool: web::Data<PgPool>,
+    user_id: UserIdExtractor,
+    user_role: UserRoleExtractor,
 ) -> Result<HttpResponse, GetTicketsError> {
     let schema = schema.into_inner();
     
@@ -115,7 +117,13 @@ pub async fn get_tickets(
         return Err(GetTicketsError::InvalidPage)
     }
 
-    let mut builder = get_builder(&schema, page, page_size);
+    let client_id = if user_role.0 == UserRole::Client {
+        Some(user_id.0)
+    } else {
+        None
+    };
+
+    let mut builder = get_builder(&schema, page, page_size, &client_id);
 
     let query = builder.build_query_as::<TicketWithMeta>();
 
@@ -151,7 +159,12 @@ pub async fn get_tickets(
 }
 
 #[inline]
-fn get_builder<'a>(schema: &'a GetTicketsSchema, page: TicketId, page_size: i8) -> QueryBuilder<'a, sqlx::Postgres> {
+fn get_builder<'a>(
+    schema: &'a GetTicketsSchema,
+    page: TicketId,
+    page_size: i8,
+    client_id: &'a Option<UserId>,
+) -> QueryBuilder<'a, sqlx::Postgres> {
     let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new(
         r#"SELECT 
             t.id,
@@ -185,6 +198,7 @@ fn get_builder<'a>(schema: &'a GetTicketsSchema, page: TicketId, page_size: i8) 
     build_where_condition!(builder, has_filters, schema.buildings, "building_id", in);
     build_where_condition!(builder, has_filters, schema.assigned_to, "tu.assigned_to", "=");
     build_where_condition!(builder, has_filters, schema.departments, "department_id", in);
+    build_where_condition!(builder, has_filters, client_id, "author_id", "=");
 
     if let Some(s) = &schema.search {
         build_where_condition!(@add_where_and builder, has_filters);
