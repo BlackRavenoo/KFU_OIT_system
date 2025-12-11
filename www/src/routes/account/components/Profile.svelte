@@ -24,6 +24,7 @@
     
     import { UserRole, UserStatus } from '$lib/utils/auth/types';
     import { currentUser } from '$lib/utils/auth/storage/initial';
+    import { goto } from '$app/navigation';
     
     export let userData: { id: string, name: string, email: string, login: string, role: string, status?: UserStatus };
     export let stats: { assignedToMe: number, completedTickets: number, cancelledTickets: number };
@@ -527,9 +528,11 @@
             editedEmail = userData?.email || '';
             editedLogin = userData?.login || '';
             
-            if ($currentUser?.role !== UserRole.Client) {
+            if ($currentUser?.role !== UserRole.Anonymous) {
                 activeTickets = await getCachedTickets(userData.id);
                 stats = await getCachedStats(userData.id, stats);
+            } else {
+                goto('/account?tab=request');
             }
         })();
         

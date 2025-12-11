@@ -232,7 +232,7 @@
         pageTitle.set('Заявки | Система управления заявками ЕИ КФУ');
         pageDescription.set('Отслеживайте статус заявок, принимайте к выполнению новые. Настройте рабочее пространство под себя с множеством гибких фильтров и сортировок.');
         
-        if (!$isAuthenticated || $currentUser === null || $currentUser.role === UserRole.Client)
+        if (!$isAuthenticated || $currentUser === null || $currentUser.role === UserRole.Anonymous || $currentUser.role === UserRole.Client)
             handleAuthError(get(pageStore).url.pathname);
         else {
             checkMobile();

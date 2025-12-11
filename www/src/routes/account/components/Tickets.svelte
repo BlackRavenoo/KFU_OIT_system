@@ -6,6 +6,7 @@
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { getTicketsFilters, setTicketsFilters } from '$lib/utils/tickets/stores';
     import { updateTicket } from '$lib/utils/tickets/api/set';
+    import { UserRole } from '$lib/utils/auth/types';
     import Pagination from '$lib/components/Search/Pagination.svelte';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
 
@@ -202,32 +203,34 @@
         </div>
     </div>
 
-    <div class="status-filters" role="group" aria-label="Фильтр по статусу">
-        <button
-            type="button"
-            class="status-chip inprogress { selectedStatuses.includes('inprogress') ? 'active' : '' }"
-            on:click={ () => toggleStatusFilter('inprogress') }
-            aria-pressed={ selectedStatuses.includes('inprogress') }
-        >
-            В процессе
-        </button>
-        <button
-            type="button"
-            class="status-chip closed { selectedStatuses.includes('closed') ? 'active' : '' }"
-            on:click={ () => toggleStatusFilter('closed') }
-            aria-pressed={ selectedStatuses.includes('closed') }
-        >
-            Выполненные
-        </button>
-        <button
-            type="button"
-            class="status-chip cancelled { selectedStatuses.includes('cancelled') ? 'active' : '' }"
-            on:click={ () => toggleStatusFilter('cancelled') }
-            aria-pressed={ selectedStatuses.includes('cancelled') }
-        >
-            Отклоненные
-        </button>
-    </div>
+    {#if $currentUser?.role !== UserRole.Client}
+        <div class="status-filters" role="group" aria-label="Фильтр по статусу">
+            <button
+                type="button"
+                class="status-chip inprogress { selectedStatuses.includes('inprogress') ? 'active' : '' }"
+                on:click={ () => toggleStatusFilter('inprogress') }
+                aria-pressed={ selectedStatuses.includes('inprogress') }
+            >
+                В процессе
+            </button>
+            <button
+                type="button"
+                class="status-chip closed { selectedStatuses.includes('closed') ? 'active' : '' }"
+                on:click={ () => toggleStatusFilter('closed') }
+                aria-pressed={ selectedStatuses.includes('closed') }
+            >
+                Выполненные
+            </button>
+            <button
+                type="button"
+                class="status-chip cancelled { selectedStatuses.includes('cancelled') ? 'active' : '' }"
+                on:click={ () => toggleStatusFilter('cancelled') }
+                aria-pressed={ selectedStatuses.includes('cancelled') }
+            >
+                Отклоненные
+            </button>
+        </div>
+    {/if}
 
     {#if loading}
         <div class="loading-state">
@@ -329,31 +332,33 @@
                         }}
                     >
                         <span class="ticket-id">{ ticket.building.code }-{ ticket.id }</span>
-                        <button
-                            type="button"
-                            class="priority-flame { isCritical(ticket) ? 'critical' : 'inactive' }"
-                            aria-label={ isCritical(ticket) ? 'Критичный приоритет' : 'Сделать критичным' }
-                            title={ isCritical(ticket) ? 'Критичный приоритет' : 'Сделать критичным' }
-                            on:click|stopPropagation={() => promptCritical(ticket)}
-                            disabled={ isCritical(ticket) }
-                        >
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                {#if isCritical(ticket)}
-                                    <defs>
-                                        <radialGradient id={"flame-grad-" + ticket.id} cx="50%" cy="55%" r="60%">
-                                            <stop offset="0%" stop-color="#fde047" />
-                                            <stop offset="35%" stop-color="#fbbf24" />
-                                            <stop offset="100%" stop-color="#f97316" />
-                                        </radialGradient>
-                                    </defs>
-                                    <path d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
-                                        fill={"url(#flame-grad-" + ticket.id + ")"} />
-                                {:else}
-                                    <path d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
-                                        fill="currentColor" />
-                                {/if}
-                            </svg>
-                        </button>
+                        {#if $currentUser?.role !== UserRole.Client}
+                            <button
+                                type="button"
+                                class="priority-flame { isCritical(ticket) ? 'critical' : 'inactive' }"
+                                aria-label={ isCritical(ticket) ? 'Критичный приоритет' : 'Сделать критичным' }
+                                title={ isCritical(ticket) ? 'Критичный приоритет' : 'Сделать критичным' }
+                                on:click|stopPropagation={() => promptCritical(ticket)}
+                                disabled={ isCritical(ticket) }
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    {#if isCritical(ticket)}
+                                        <defs>
+                                            <radialGradient id={"flame-grad-" + ticket.id} cx="50%" cy="55%" r="60%">
+                                                <stop offset="0%" stop-color="#fde047" />
+                                                <stop offset="35%" stop-color="#fbbf24" />
+                                                <stop offset="100%" stop-color="#f97316" />
+                                            </radialGradient>
+                                        </defs>
+                                        <path d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
+                                            fill={"url(#flame-grad-" + ticket.id + ")"} />
+                                    {:else}
+                                        <path d="M12 2c1.4 2 1 3.6 1 3.6s2.1-1 3.6 1.4c1.2 1.8.5 4.1-.5 5.4A6.5 6.5 0 1 1 6 14c0-2 1.1-3.6 2.6-4.6 0 0-.6 2 1.4 3.1 0 0 .1-3 2-5.5z"
+                                            fill="currentColor" />
+                                    {/if}
+                                </svg>
+                            </button>
+                        {/if}
 
                         <div
                             class="priority-chip { String(ticket?.priority ?? '').toLowerCase() }"

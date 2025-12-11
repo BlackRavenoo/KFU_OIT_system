@@ -45,6 +45,13 @@
     let cabinet: string = '';
     let note: string = '';
     let department_id = null as number | null;
+    let planned_at: string | null = null;
+
+    let editingFiles: { name: string; url: string; ext: string; class: string }[] = [];
+    let attachments_to_delete: string[] = [];
+    let attachments_to_add: File[] = [];
+    let showFileRemoveConfirm: boolean = false;
+    let fileToRemoveIdx: number | null = null;
 
     const NOTE_MAX = 1024;
 
@@ -100,6 +107,7 @@
             showDeleteConfirm = false;
             closeAssignModal();
             closeRemoveConfirm();
+            showFileRemoveConfirm = false;
         }
     }
 
@@ -228,6 +236,7 @@
         cabinet = ticketData.cabinet ?? '';
         note = ticketData.note ?? '';
         department_id = ticketData.department?.id ?? null;
+        planned_at = ticketData.planned_at ?? null;
         status = 'closed';
         await saveEdit();
     }
@@ -254,6 +263,7 @@
         cabinet = ticketData.cabinet ?? '';
         note = ticketData.note ?? '';
         department_id = ticketData.department?.id ?? null;
+        planned_at = ticketData.planned_at ?? null;
         status = 'cancelled';
         await saveEdit();
     }
@@ -271,6 +281,50 @@
         cabinet = ticketData.cabinet ?? '';
         note = ticketData.note ?? '';
         department_id = ticketData.department?.id ? Number(ticketData.department.id) : null;
+        planned_at = ticketData.planned_at ?? null;
+
+        editingFiles = files.map(f => ({ ...f }));
+        attachments_to_delete = [];
+        attachments_to_add = [];
+    }
+
+    function handlePlannedAtChange(e: Event) {
+        planned_at = (e.target as HTMLInputElement).value || null;
+    }
+
+    function handleFileAdd(e: Event) {
+        const input = e.target as HTMLInputElement;
+        if (!input.files) return;
+        for (const file of Array.from(input.files)) {
+            attachments_to_add = [...attachments_to_add, file];
+        }
+        input.value = '';
+    }
+
+    function handleAttachmentRemove(type: 'image' | 'file', idx: number) {
+        if (type === 'image') {
+            attachments_to_delete = [...attachments_to_delete, images[idx]];
+            images = images.filter((_, i) => i !== idx);
+        } else if (type === 'file') {
+            attachments_to_delete = [...attachments_to_delete, editingFiles[idx].name];
+            editingFiles = editingFiles.filter((_, i) => i !== idx);
+        }
+    }
+
+    function confirmFileRemove() {
+        if (fileToRemoveIdx !== null && editingFiles[fileToRemoveIdx]) {
+            attachments_to_delete = [...attachments_to_delete, editingFiles[fileToRemoveIdx].name];
+            editingFiles = editingFiles.filter((_, i) => i !== fileToRemoveIdx);
+        }
+        showFileRemoveConfirm = false;
+        fileToRemoveIdx = null;
+        document.body.style.overflow = '';
+    }
+
+    function cancelFileRemove() {
+        showFileRemoveConfirm = false;
+        fileToRemoveIdx = null;
+        document.body.style.overflow = '';
     }
 
     async function saveEdit() {
@@ -280,7 +334,7 @@
         if (typeof note === 'string' && note.length > NOTE_MAX)
             note = note.slice(0, NOTE_MAX);
 
-        const updatedFields: Partial<Ticket> = {
+        const updatedFields: any = {
             id: ticketData.id
         };
 
@@ -295,7 +349,14 @@
         if (cabinet !== ticketData.cabinet) updatedFields.cabinet = cabinet;
         if (note !== (ticketData.note ?? '')) updatedFields.note = note;
         if (department_id !== null && Number(department_id) !== Number(ticketData.department?.id ?? null))
-            (updatedFields as any).department_id = Number(department_id);
+            updatedFields.department_id = Number(department_id);
+        if (planned_at !== ticketData.planned_at)
+            updatedFields.planned_at = planned_at;
+
+        if (attachments_to_delete.length > 0)
+            updatedFields.attachments_to_delete = attachments_to_delete;
+        if (attachments_to_add.length > 0)
+            updatedFields.attachments_to_add = attachments_to_add;
 
         const hasAssignedToChanged = updatedFields.assigned_to !== undefined && 
             JSON.stringify(updatedFields.assigned_to) !== JSON.stringify(ticketData.assigned_to);
@@ -303,12 +364,10 @@
         try {
             isSubmitting = true;
             
-            const dataToUpdate: any = { ...updatedFields };
-            
             if (hasAssignedToChanged)
-                dataToUpdate.assigned_to = updatedFields.assigned_to ? JSON.stringify(updatedFields.assigned_to) : null;
+                updatedFields.assigned_to = updatedFields.assigned_to ? JSON.stringify(updatedFields.assigned_to) : null;
             
-            await updateTicket(ticketId as string, dataToUpdate);
+            await updateTicket(ticketId as string, updatedFields);
 
             ticketData = {
                 ...ticketData,
@@ -321,8 +380,14 @@
                 cabinet: cabinet,
                 building: updatedFields.building || ticketData?.building,
                 note: note,
-                department: $departments.find(d => Number(d.id) === Number(department_id)) || ticketData?.department
+                department: $departments.find(d => Number(d.id) === Number(department_id)) || ticketData?.department,
+                planned_at: planned_at
             } as Ticket;
+
+            if (attachments_to_delete.length > 0)
+                editingFiles = editingFiles.filter(f => !attachments_to_delete.includes(f.name));
+            if (attachments_to_add.length > 0)
+                attachments_to_add = [];
 
             notification('Заявка обновлена', NotificationType.Success);
             isEditing = false;
@@ -514,7 +579,7 @@
     onMount(async () => {
         if (!ticketId) return;
 
-        if (!$isAuthenticated || $currentUser === null || $currentUser.role === UserRole.Client)
+        if (!$isAuthenticated || $currentUser === null || $currentUser.role === UserRole.Anonymous)
             handleAuthError(`/page/${ ticketId }`);
         else {
             ticketData = await getById(ticketId);
@@ -588,10 +653,24 @@
                         <h1 class="ticket-title">{ ticketData.title }</h1>
                     {/if}
                     <p class="ticket-tag">Время создания: <span>{ formatDate(ticketData.created_at) }</span></p>
-                    <p class="ticket-tag">
-                        Запланированное время:
-                        <span>{ formatDate(ticketData.planned_at || '') || 'Без даты' }</span>
-                    </p>
+                    {#if isEditing}
+                        <p class="ticket-tag">
+                            Запланированное время:
+                            <input
+                                type="datetime-local"
+                                bind:value={ planned_at }
+                                class="edit-mode"
+                                style="width: 180px;"
+                                aria-label="Запланированное время"
+                                on:change={ handlePlannedAtChange }
+                            />
+                        </p>
+                    {:else}
+                        <p class="ticket-tag">
+                            Запланированное время:
+                            <span>{ formatDate(ticketData.planned_at || '') || 'Без даты' }</span>
+                        </p>
+                    {/if}
                     <p class="ticket-tag">
                         Отдел:
                         {#if isEditing}
@@ -776,40 +855,84 @@
                 </div>
             {/if}
             {#if images.length > 0 || files.length > 0}
-                <div class="attachments-list">
-                    {#each images as img}
-                        <button
-                            class="attachment-img-button"
-                            aria-haspopup="dialog"
-                            aria-label="Открыть изображение во всплывающем окне"
-                            on:click={() => openModal(img)}
-                            on:keydown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    openModal(img);
-                                }
-                            }}
-                            style="all: unset; cursor: pointer;"
-                            type="button"
-                        >
-                            <img
-                                src={img}
-                                alt="Вложение"
-                                class="attachment-img"
-                                loading="lazy"
+                {#if isEditing}
+                    <div class="attachments-list editing">
+                        {#each images as img, i}
+                            <button
+                                class="attachment-img-button editing"
+                                aria-label="Удалить изображение"
+                                type="button"
+                                on:click={() => handleAttachmentRemove('image', i)}
+                                style="all: unset; cursor: pointer;"
+                            >
+                                <img
+                                    src={img}
+                                    alt="Вложение"
+                                    class="attachment-img"
+                                    loading="lazy"
+                                />
+                            </button>
+                        {/each}
+                        {#each editingFiles as f, i}
+                            <FileCard
+                                name={ f.name }
+                                url={ f.url }
+                                ext={ f.ext }
+                                colorClass={ f.class }
+                                on:click={ () => handleAttachmentRemove('file', i) }
                             />
-                        </button>
-                    {/each}
+                        {/each}
+                        <div class="file-upload">
+                            <input type="file" id="file-edit" multiple on:change={ handleFileAdd } />
+                            <label for="file-edit">
+                                <span class="file-icon">📎</span>
+                                Добавить файлы ({attachments_to_add.length}/5)
+                            </label>
+                            {#if attachments_to_add.length > 0}
+                                <div class="file-list">
+                                    {#each attachments_to_add as file, idx}
+                                        <div class="file-item">{file.name}</div>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                {:else}
+                    <div class="attachments-list">
+                        {#each images as img}
+                            <button
+                                class="attachment-img-button"
+                                aria-haspopup="dialog"
+                                aria-label="Открыть изображение во всплывающем окне"
+                                on:click={() => openModal(img)}
+                                on:keydown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        openModal(img);
+                                    }
+                                }}
+                                style="all: unset; cursor: pointer;"
+                                type="button"
+                            >
+                                <img
+                                    src={img}
+                                    alt="Вложение"
+                                    class="attachment-img"
+                                    loading="lazy"
+                                />
+                            </button>
+                        {/each}
 
-                    {#each files as f}
-                        <FileCard
-                            name={f.name}
-                            url={f.url}
-                            ext={f.ext}
-                            colorClass={f.class}
-                        />
-                    {/each}
-                </div>
+                        {#each files as f}
+                            <FileCard
+                                name={f.name}
+                                url={f.url}
+                                ext={f.ext}
+                                colorClass={f.class}
+                            />
+                        {/each}
+                    </div>
+                {/if}
             {/if}
             <div class="author-contacts">
                 {#if ticketData}
@@ -852,18 +975,20 @@
             </div>
             <div class="ticket-actions">
                 {#if !isEditing}
-                    {#if ticketData && $currentUser && (!ticketData.assigned_to || !ticketData.assigned_to.some(e => e.id === $currentUser.id))}
+                    {#if ticketData && $currentUser && (!ticketData.assigned_to || !ticketData.assigned_to.some(e => e.id === $currentUser.id)) && ($currentUser.role === UserRole.Programmer || $currentUser.role === UserRole.Moderator || $currentUser.role === UserRole.Administrator)}
                         <button class="btn btn-primary" on:click={ assignHandler }>Взять в работу</button>
                     {/if}
-                    <button class="btn btn-outline" on:click={ startEdit }>Редактировать</button>
-                    {#if ticketData && ticketData.status !== 'cancelled'}
+                    {#if $currentUser && $currentUser.role !== UserRole.Client && $currentUser.role !== UserRole.Anonymous}
+                        <button class="btn btn-outline" on:click={ startEdit }>Редактировать</button>
+                    {/if}
+                    {#if ticketData && ticketData.status !== 'cancelled' && $currentUser && ($currentUser.role === UserRole.Programmer || $currentUser.role === UserRole.Moderator || $currentUser.role === UserRole.Administrator || $currentUser.role === UserRole.Client && ticketData.status === 'open')}
                         <button class="btn btn-secondary" on:click={ handleCancel }>Отменить</button>
                     {/if}
-                    {#if $currentUser && ($currentUser.role === UserRole.Administrator || $currentUser.role === UserRole.Moderator) }
+                    {#if $currentUser && $currentUser.role === UserRole.Administrator }
                         <button class="btn btn-danger" on:click={ handleDelete }>Удалить</button>
                     {/if}
                 {:else}
-                    <button class="btn btn-primary" on:click={ saveEdit } disabled={isSubmitting} aria-busy={isSubmitting} aria-disabled={isSubmitting} data-disabled={isSubmitting}>Сохранить</button>
+                    <button class="btn btn-primary" on:click={ saveEdit } disabled={ isSubmitting } aria-busy={ isSubmitting } aria-disabled={ isSubmitting } data-disabled={ isSubmitting }>Сохранить</button>
                 {/if}
             </div>
         </div>
@@ -907,6 +1032,16 @@
             cancelText="Отмена"
             onConfirm={ confirmDelete }
             onCancel={ closeDeleteConfirm }
+        />
+    {/if}
+    {#if showFileRemoveConfirm}
+        <Confirmation
+            title="Удалить файл"
+            message="Вы уверены, что хотите удалить этот файл из заявки?"
+            confirmText="Удалить"
+            cancelText="Отмена"
+            onConfirm={ confirmFileRemove }
+            onCancel={ cancelFileRemove }
         />
     {/if}
     {#if showAssignModal}
@@ -995,10 +1130,24 @@
                     <h1 class="ticket-title">{ ticketData.title }</h1>
                 {/if}
                 <p class="ticket-tag">Время создания: <span>{ formatDate(ticketData.created_at) }</span></p>
-                <p class="ticket-tag">
-                    Запланированное время:
-                    <span>{ formatDate(ticketData.planned_at || '') || 'Без даты' }</span>
-                </p>
+                {#if isEditing}
+                    <p class="ticket-tag">
+                        Запланированное время:
+                        <input
+                            type="datetime-local"
+                            bind:value={ planned_at }
+                            class="edit-mode"
+                            style="width: 180px;"
+                            aria-label="Запланированное время"
+                            on:change={ handlePlannedAtChange }
+                        />
+                    </p>
+                {:else}
+                    <p class="ticket-tag">
+                        Запланированное время:
+                        <span>{ formatDate(ticketData.planned_at || '') || 'Без даты' }</span>
+                    </p>
+                {/if}
                 <p class="ticket-tag">
                     Отдел:
                     {#if isEditing}
@@ -1105,40 +1254,84 @@
                 </div>
             {/if}
             {#if images.length > 0 || files.length > 0}
-                <div class="attachments-list">
-                    {#each images as img}
-                        <button
-                            class="attachment-img-button"
-                            aria-haspopup="dialog"
-                            aria-label="Открыть изображение во всплывающем окне"
-                            on:click={() => openModal(img)}
-                            on:keydown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    openModal(img);
-                                }
-                            }}
-                            style="all: unset; cursor: pointer;"
-                            type="button"
-                        >
-                            <img
-                                src={img}
-                                alt="Вложение"
-                                class="attachment-img"
-                                loading="lazy"
+                {#if isEditing}
+                    <div class="attachments-list editing">
+                        {#each images as img, i}
+                            <button
+                                class="attachment-img-button editing"
+                                aria-label="Удалить изображение"
+                                type="button"
+                                on:click={() => handleAttachmentRemove('image', i)}
+                                style="all: unset; cursor: pointer;"
+                            >
+                                <img
+                                    src={img}
+                                    alt="Вложение"
+                                    class="attachment-img"
+                                    loading="lazy"
+                                />
+                            </button>
+                        {/each}
+                        {#each editingFiles as f, i}
+                            <FileCard
+                                name={ f.name }
+                                url={ f.url }
+                                ext={ f.ext }
+                                colorClass={ f.class }
+                                on:click={ () => handleAttachmentRemove('file', i) }
                             />
-                        </button>
-                    {/each}
+                        {/each}
+                        <div class="file-upload">
+                            <input type="file" id="file-edit" multiple on:change={ handleFileAdd } />
+                            <label for="file-edit">
+                                <span class="file-icon">📎</span>
+                                Добавить файлы ({attachments_to_add.length}/5)
+                            </label>
+                            {#if attachments_to_add.length > 0}
+                                <div class="file-list">
+                                    {#each attachments_to_add as file, idx}
+                                        <div class="file-item">{file.name}</div>
+                                    {/each}
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                {:else}
+                    <div class="attachments-list">
+                        {#each images as img}
+                            <button
+                                class="attachment-img-button"
+                                aria-haspopup="dialog"
+                                aria-label="Открыть изображение во всплывающем окне"
+                                on:click={() => openModal(img)}
+                                on:keydown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        openModal(img);
+                                    }
+                                }}
+                                style="all: unset; cursor: pointer;"
+                                type="button"
+                            >
+                                <img
+                                    src={img}
+                                    alt="Вложение"
+                                    class="attachment-img"
+                                    loading="lazy"
+                                />
+                            </button>
+                        {/each}
 
-                    {#each files as f}
-                        <FileCard
-                            name={f.name}
-                            url={f.url}
-                            ext={f.ext}
-                            colorClass={f.class}
-                        />
-                    {/each}
-                </div>
+                        {#each files as f}
+                            <FileCard
+                                name={f.name}
+                                url={f.url}
+                                ext={f.ext}
+                                colorClass={f.class}
+                            />
+                        {/each}
+                    </div>
+                {/if}
             {/if}
             <div class="author-contacts">
                 {#if ticketData}
@@ -1273,11 +1466,13 @@
                     {/if}
 
                     <div class="mobile-actions-container">
-                        {#if ticketData && $currentUser && (!ticketData.assigned_to || !ticketData.assigned_to.some(e => e.id === $currentUser.id))}
+                        {#if ticketData && $currentUser && (!ticketData.assigned_to || !ticketData.assigned_to.some(e => e.id === $currentUser.id)) && ($currentUser.role === UserRole.Programmer || $currentUser.role === UserRole.Moderator || $currentUser.role === UserRole.Administrator) }
                             <button class="btn btn-primary" on:click={ assignHandler }>Взять в работу</button>
                         {/if}
-                        <button class="btn btn-outline" on:click={ startEdit }>Редактировать</button>
-                        {#if ticketData && ticketData.status !== 'cancelled'}
+                        {#if $currentUser && $currentUser.role !== UserRole.Client && $currentUser.role !== UserRole.Anonymous}
+                            <button class="btn btn-outline" on:click={ startEdit }>Редактировать</button>
+                        {/if}
+                        {#if ticketData && ticketData.status !== 'cancelled' && $currentUser && $currentUser.role !== UserRole.Anonymous && (($currentUser.role === UserRole.Client && ticketData.status === 'open') || $currentUser.role === UserRole.Programmer || $currentUser.role === UserRole.Moderator || $currentUser.role === UserRole.Administrator) }
                             <button class="btn btn-secondary" on:click={ handleCancel }>Отменить</button>
                         {/if}
                         {#if $currentUser && $currentUser.role === UserRole.Administrator }

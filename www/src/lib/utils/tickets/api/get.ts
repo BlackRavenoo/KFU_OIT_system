@@ -5,8 +5,10 @@ import { toRfc3339, buildQuery } from '$lib/utils/tickets/support';
 import { getTicketsFilters } from '$lib/utils/tickets/stores';
 import { TICKETS_API_ENDPOINTS } from './endpoints';
 import { order, buildings, departments } from '$lib/utils/setup/stores';
+import { currentUser } from '$lib/utils/auth/storage/initial';
 import { validatePageSize } from '$lib/utils/validation/validate';
 import type { Building, OrderBy, Ticket, Department } from '$lib/utils/tickets/types';
+import { UserRole } from '$lib/utils/auth/types';
 
 const CACHE_KEY_CONSTS = 'tickets_consts_cache';
 const CACHE_TTL_CONSTS = 15 * 60 * 1000;
@@ -27,30 +29,38 @@ export async function fetchTickets(search: string = '', search_params: Record<st
         if (typeof v === 'string') return v.split(',').map(s => s.trim()).filter(Boolean);
         else return [];
     };
-    
+
+    const userRole = get(currentUser)?.role;
     let params: Record<string, any> = {};
-    
-    if (Object.keys(search_params).length === 0 || (Object.keys(search_params).length === 1 && 'page' in search_params)) {
+
+    if (userRole === UserRole.Client) {
         params = {
             page,
             page_size,
             order_by: get(order)[filters.selectedSort].id || 0,
             sort_order: filters.sortOrder,
         };
-        
+    } else if (Object.keys(search_params).length === 0 || (Object.keys(search_params).length === 1 && 'page' in search_params)) {
+        params = {
+            page,
+            page_size,
+            order_by: get(order)[filters.selectedSort].id || 0,
+            sort_order: filters.sortOrder,
+        };
+
         params.statuses = filters.selectedStatus.length > 0 ?
             toArrayParam(filters.selectedStatus) :
             ['open', 'closed', 'inprogress', 'cancelled'];
-            
+
         if (filters.plannedFrom) params.planned_from = toRfc3339(filters.plannedFrom);
         if (filters.plannedTo) params.planned_to = toRfc3339(filters.plannedTo, true);
-            
+
         if (filters.selectedBuildings.length > 0)
             params.buildings = toArrayParam(filters.selectedBuildings);
-        
+
         if (filters.department !== undefined && filters.department !== null && String(filters.department) !== '-1')
             params.departments = [String(filters.department)];
-            
+
         if (search || filters.search) params.search = search || filters.search;
     } else {
         params = { ...search_params };
@@ -198,16 +208,18 @@ export async function fetchImages(attachments: string[]): Promise<string[]> {
 export async function loadActiveUserTickets(userId: string): Promise<any[]> {
     try {
         if (!userId) return [];
-        
-        const result = await fetchTickets('', {
-            assigned_to: userId,
+        const userRole = get(currentUser)?.role;
+        let params: Record<string, any> = {
             page: 1,
             page_size: 3,
             order_by: 0,
             sort_order: 'asc',
             statuses: ['inprogress']
-        });
-        
+        };
+        if (userRole === UserRole.Client)
+            params.assigned_to = userId;
+
+        const result = await fetchTickets('', params);
         return result.tickets;
     } catch (error) {
         return [];

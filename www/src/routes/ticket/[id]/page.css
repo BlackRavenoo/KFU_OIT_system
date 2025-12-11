@@ -629,6 +629,15 @@ input.edit-mode::placeholder, textarea.edit-mode::placeholder {
     width: calc(50% - 18px);
 }
 
+.attachments-list.editing .file-card {
+    border: 2px dashed var(--color-accent);
+    background: var(--background-secondary);
+    cursor: pointer;
+}
+.attachments-list.editing .file-card.editing:hover {
+    background: var(--background-hover);
+}
+
 @media (max-width: 900px) {
     .ticket-container {
         flex-direction: column;

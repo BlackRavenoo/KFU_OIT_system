@@ -373,10 +373,10 @@
                                 <td class="email-cell">{ user.email }</td>
                                 <td class="role-cell">
                                     <span class="role-badge { user.role === UserRole.Administrator ? 'admin-role' : user.role === UserRole.Moderator ? 'moderator-role' : 'user-role' }">
-                                        { user.role === UserRole.Administrator ? 'Администратор' : user.role === UserRole.Moderator ? 'Модератор' : user.role === UserRole.Programmer ? 'Сотрудник' : 'Пользователь' }
+                                        { user.role === UserRole.Administrator ? 'Администратор' : user.role === UserRole.Moderator ? 'Модератор' : user.role === UserRole.Programmer ? 'Сотрудник' : user.role === UserRole.Client ? 'Пользователь' : 'Анонимный' }
                                     </span>
                                 </td>
-                                {#if canManageStatus && user.role !== UserRole.Client}
+                                {#if canManageStatus && user.role > UserRole.Client}
                                     <td class="status-cell">
                                         <select 
                                             class="role-badge status-badge-select { 'status-' + (user.status || UserStatus.Active) }"
@@ -406,7 +406,7 @@
                                                 </button>
                                             {/if}
                                             
-                                            {#if user.role !== UserRole.Client && user.role !== UserRole.Administrator}
+                                            {#if user.role !== UserRole.Anonymous && user.role < UserRole.Moderator}
                                                 <button 
                                                     class="action-btn demote-btn" 
                                                     on:click={ () => handleChangeRole(user.id, false) }

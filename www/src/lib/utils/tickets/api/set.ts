@@ -68,6 +68,8 @@ export async function updateTicket(
         building_id?: number | { id: number } | null;
         cabinet?: string | null;
         department_id?: number | null;
+        attachments_to_delete?: string[];
+        attachments_to_add?: File[] | null;
     }
 ): Promise<void> {
     if (Object.keys(data).length === 1) return;
@@ -75,18 +77,41 @@ export async function updateTicket(
     if (typeof (data as any).building === 'object' && (data as any).building !== null && 'id' in (data as any).building)
         data.building_id = ((data as any).building as { id: number }).id;
 
-    const filteredData = Object.fromEntries(
-        Object.entries(data).filter(([key, value]) => {
-            if (key === 'id') return false;
-            if (value === "" || value === null || value === undefined) return false;
-            return true;
-        })
-    );
+    if (data.attachments_to_add && data.attachments_to_add.length > 0) {
+        const formData = new FormData();
 
-    const response = await api.put(`${TICKETS_API_ENDPOINTS.read}${ticketId}`, filteredData);
+        const filteredData = Object.fromEntries(
+            Object.entries(data).filter(([key, value]) => {
+                if (key === 'id' || key === 'attachments_to_add') return false;
+                if (value === "" || value === null || value === undefined) return false;
+                return true;
+            })
+        );
 
-    if (!response.success)
-        throw new Error(response.error || 'Ошибка обновления заявки');
+        formData.append('fields', new Blob([JSON.stringify(filteredData)], { type: 'application/json' }));
+
+        for (const file of data.attachments_to_add)
+            formData.append('attachments', file);
+
+        const response = await api.put(`${TICKETS_API_ENDPOINTS.read}${ticketId}`, formData);
+
+        if (!response.success)
+            throw new Error(response.error || 'Ошибка обновления заявки');
+        return;
+    } else {
+        const filteredData = Object.fromEntries(
+            Object.entries(data).filter(([key, value]) => {
+                if (key === 'id' || key === 'attachments_to_add') return false;
+                if (value === "" || value === null || value === undefined) return false;
+                return true;
+            })
+        );
+
+        const response = await api.put(`${TICKETS_API_ENDPOINTS.read}${ticketId}`, filteredData);
+
+        if (!response.success)
+            throw new Error(response.error || 'Ошибка обновления заявки');
+    }
 }
 
 /**
