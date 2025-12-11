@@ -46,11 +46,6 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .route("/{id}", web::delete().to(delete_ticket)
                         .wrap(JwtMiddleware::min_role(UserRole::Admin)))
             )
-            // TODO: Delete this
-            .service(
-                web::scope("/images")
-                    .route("/{prefix}/{key}", web::get().to(get_attachment))
-            )
             .service(
                 web::scope("/attachments")
                     .route("/{prefix}/{key}", web::get().to(get_attachment))
@@ -66,15 +61,15 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .route("/stats", web::get().to(user::get_stats)
                         .wrap(JwtMiddleware::min_role(UserRole::Employee)))
                     .route("/profile", web::put().to(update_user_profile)
-                        .wrap(JwtMiddleware::min_role(UserRole::Employee)))
+                        .wrap(JwtMiddleware::min_role(UserRole::Client)))
                     .route("/password", web::put().to(change_password)
-                        .wrap(JwtMiddleware::min_role(UserRole::Employee)))
+                        .wrap(JwtMiddleware::min_role(UserRole::Client)))
                     .route("/list", web::get().to(get_users)
                         .wrap(JwtMiddleware::min_role(UserRole::Employee)))
                     .route("/status", web::patch().to(change_user_status)
                         .wrap(JwtMiddleware::min_role(UserRole::Employee)))
                     .route("/avatar", web::put().to(update_avatar)
-                        .wrap(JwtMiddleware::min_role(UserRole::Employee)))
+                        .wrap(JwtMiddleware::min_role(UserRole::Client)))
                     .service(
                         web::scope("/{id}")
                         .route("/activate", web::post().to(activate_account)
