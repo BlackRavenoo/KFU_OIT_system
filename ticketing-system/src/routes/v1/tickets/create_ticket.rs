@@ -164,7 +164,7 @@ async fn insert_ticket(
     name = "Upload attachments",
     skip_all
 )]
-async fn upload_attachments(
+pub async fn upload_attachments(
     service: Arc<AttachmentService>,
     attachments: Vec<Bytes>,
 ) -> (Vec<String>, Result<(), AttachmentServiceError>) {
@@ -208,7 +208,7 @@ async fn upload_attachments(
     name = "Insert attachments into database",
     skip(transaction)
 )]
-async fn insert_attachments(
+pub async fn insert_attachments(
     transaction: &mut Transaction<'_, Postgres>,
     ticket_id: TicketId,
     keys: &[String],
