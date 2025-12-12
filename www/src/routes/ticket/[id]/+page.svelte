@@ -51,7 +51,8 @@
     let attachments_to_delete: string[] = [];
     let attachments_to_add: File[] = [];
     let showFileRemoveConfirm: boolean = false;
-    let fileToRemoveIdx: number | null = null;
+    let attachmentToRemove: { type: 'image' | 'file', idx: number } | null = null;
+    let showAttachmentRemoveConfirm = false;
 
     const NOTE_MAX = 1024;
 
@@ -301,30 +302,45 @@
         input.value = '';
     }
 
-    function handleAttachmentRemove(type: 'image' | 'file', idx: number) {
+    $: totalFilesCount = editingFiles.length + images.length + attachments_to_add.length;
+    $: newImagePreviews = attachments_to_add
+        .filter(f => IMAGE_EXTS.has((f.name.split('.').pop() ?? '').toLowerCase()))
+        .map((f, i) => ({
+            type: 'newimage',
+            idx: i,
+            name: f.name,
+            url: URL.createObjectURL(f),
+            ext: f.name.split('.').pop() ?? '',
+            class: FILE_COLOR_CLASS(f.name.split('.').pop() ?? ''),
+            isNew: true,
+            file: f
+        }));
+    
+    function handleAttachmentRemove(type: 'image' | 'file' | 'newfile' | 'newimage', idx: number) {
         if (type === 'image') {
-            attachments_to_delete = [...attachments_to_delete, images[idx]];
+            const att = ticketData?.attachments.find((a: string) => {
+                const imgName = images[idx].split('/').pop();
+                return a.endsWith(imgName ?? '');
+            });
+            if (att) {
+                attachments_to_delete = [...attachments_to_delete, att];
+            }
             images = images.filter((_, i) => i !== idx);
         } else if (type === 'file') {
-            attachments_to_delete = [...attachments_to_delete, editingFiles[idx].name];
+            const att = ticketData?.attachments.find((a: string) => {
+                const fileName = editingFiles[idx].name;
+                return a.endsWith(fileName);
+            });
+            if (att) {
+                attachments_to_delete = [...attachments_to_delete, att];
+            }
             editingFiles = editingFiles.filter((_, i) => i !== idx);
+        } else if (type === 'newfile') {
+            attachments_to_add = attachments_to_add.filter((_, i) => i !== idx);
+        } else if (type === 'newimage') {
+            URL.revokeObjectURL(newImagePreviews[idx].url);
+            attachments_to_add = attachments_to_add.filter((_, i) => i !== idx);
         }
-    }
-
-    function confirmFileRemove() {
-        if (fileToRemoveIdx !== null && editingFiles[fileToRemoveIdx]) {
-            attachments_to_delete = [...attachments_to_delete, editingFiles[fileToRemoveIdx].name];
-            editingFiles = editingFiles.filter((_, i) => i !== fileToRemoveIdx);
-        }
-        showFileRemoveConfirm = false;
-        fileToRemoveIdx = null;
-        document.body.style.overflow = '';
-    }
-
-    function cancelFileRemove() {
-        showFileRemoveConfirm = false;
-        fileToRemoveIdx = null;
-        document.body.style.overflow = '';
     }
 
     async function saveEdit() {
@@ -660,7 +676,6 @@
                                 type="datetime-local"
                                 bind:value={ planned_at }
                                 class="edit-mode"
-                                style="width: 180px;"
                                 aria-label="Запланированное время"
                                 on:change={ handlePlannedAtChange }
                             />
@@ -857,43 +872,78 @@
             {#if images.length > 0 || files.length > 0}
                 {#if isEditing}
                     <div class="attachments-list editing">
-                        {#each images as img, i}
-                            <button
-                                class="attachment-img-button editing"
-                                aria-label="Удалить изображение"
-                                type="button"
-                                on:click={() => handleAttachmentRemove('image', i)}
-                                style="all: unset; cursor: pointer;"
-                            >
-                                <img
-                                    src={img}
-                                    alt="Вложение"
-                                    class="attachment-img"
-                                    loading="lazy"
+                        {#each [
+                            ...images.map((img, i) => ({
+                                type: 'image',
+                                idx: i,
+                                name: img.split('/').pop(),
+                                url: img,
+                                ext: img.split('.').pop() ?? '',
+                                class: FILE_COLOR_CLASS(img.split('.').pop() ?? ''),
+                                isNew: false
+                            })),
+                            ...newImagePreviews,
+                            ...editingFiles.map((f, i) => ({
+                                type: 'file',
+                                idx: i,
+                                name: f.name,
+                                url: f.url,
+                                ext: f.ext,
+                                class: f.class,
+                                isNew: false
+                            })),
+                            ...attachments_to_add
+                                .filter(f => !IMAGE_EXTS.has((f.name.split('.').pop() ?? '').toLowerCase()))
+                                .map((f, i) => ({
+                                    type: 'newfile',
+                                    idx: i,
+                                    name: f.name,
+                                    url: '',
+                                    ext: f.name.split('.').pop() ?? '',
+                                    class: FILE_COLOR_CLASS(f.name.split('.').pop() ?? ''),
+                                    isNew: true
+                                }))
+                        ] as att}
+                            {#if att.type === 'image' || att.type === 'newimage'}
+                                <button
+                                    class="attachment-img-button editing"
+                                    aria-label="Удалить изображение"
+                                    type="button"
+                                    on:click={() => {
+                                        attachmentToRemove = { type: (att.type as 'file' || 'image'), idx: att.idx };
+                                        showAttachmentRemoveConfirm = true;
+                                    }}
+                                    style="all: unset; cursor: pointer;"
+                                >
+                                    <img
+                                        src={ att.url }
+                                        alt="Вложение"
+                                        class="attachment-img"
+                                        loading="lazy"
+                                    />
+                                </button>
+                            {:else}
+                                <FileCard
+                                    name={ (att.name as string) || 'Вложение' }
+                                    url={ att.url }
+                                    ext={ att.ext }
+                                    colorClass={ att.class }
+                                    editing={ true }
+                                    on:click={(event) => {
+                                        event.preventDefault();
+                                        attachmentToRemove = { type: (att.type as 'file' || 'image'), idx: att.idx };
+                                        showAttachmentRemoveConfirm = true;
+                                    }}
                                 />
-                            </button>
-                        {/each}
-                        {#each editingFiles as f, i}
-                            <FileCard
-                                name={ f.name }
-                                url={ f.url }
-                                ext={ f.ext }
-                                colorClass={ f.class }
-                                on:click={ () => handleAttachmentRemove('file', i) }
-                            />
+                            {/if}
                         {/each}
                         <div class="file-upload">
-                            <input type="file" id="file-edit" multiple on:change={ handleFileAdd } />
-                            <label for="file-edit">
-                                <span class="file-icon">📎</span>
-                                Добавить файлы ({attachments_to_add.length}/5)
-                            </label>
-                            {#if attachments_to_add.length > 0}
-                                <div class="file-list">
-                                    {#each attachments_to_add as file, idx}
-                                        <div class="file-item">{file.name}</div>
-                                    {/each}
-                                </div>
+                            {#if editingFiles.length + images.length + attachments_to_add.length < 5}
+                                <input type="file" id="file-edit" multiple on:change={ handleFileAdd } />
+                                <label for="file-edit">
+                                    <span class="file-icon">📎</span>
+                                    Добавить файлы ({ totalFilesCount }/5)
+                                </label>
                             {/if}
                         </div>
                     </div>
@@ -904,7 +954,7 @@
                                 class="attachment-img-button"
                                 aria-haspopup="dialog"
                                 aria-label="Открыть изображение во всплывающем окне"
-                                on:click={() => openModal(img)}
+                                on:click={ () => openModal(img) }
                                 on:keydown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                         e.preventDefault();
@@ -915,7 +965,7 @@
                                 type="button"
                             >
                                 <img
-                                    src={img}
+                                    src={ img }
                                     alt="Вложение"
                                     class="attachment-img"
                                     loading="lazy"
@@ -925,10 +975,10 @@
 
                         {#each files as f}
                             <FileCard
-                                name={f.name}
-                                url={f.url}
-                                ext={f.ext}
-                                colorClass={f.class}
+                                name={ f.name }
+                                url={ f.url }
+                                ext={ f.ext }
+                                colorClass={ f.class }
                             />
                         {/each}
                     </div>
@@ -938,7 +988,7 @@
                 {#if ticketData}
                     <div 
                         class="avatar-container"
-                        bind:this={authorAvatarContainer}
+                        bind:this={ authorAvatarContainer }
                     ></div>
                     <div class="author-data">
                         {#if isEditing}
@@ -1034,14 +1084,21 @@
             onCancel={ closeDeleteConfirm }
         />
     {/if}
-    {#if showFileRemoveConfirm}
+    {#if showAttachmentRemoveConfirm && attachmentToRemove}
         <Confirmation
-            title="Удалить файл"
-            message="Вы уверены, что хотите удалить этот файл из заявки?"
+            title="Удалить вложение"
+            message="Вы уверены, что хотите удалить это вложение из заявки?"
             confirmText="Удалить"
             cancelText="Отмена"
-            onConfirm={ confirmFileRemove }
-            onCancel={ cancelFileRemove }
+            onConfirm={() => {
+                attachmentToRemove && handleAttachmentRemove(attachmentToRemove.type, attachmentToRemove.idx);
+                showAttachmentRemoveConfirm = false;
+                attachmentToRemove = null;
+            }}
+            onCancel={() => {
+                showAttachmentRemoveConfirm = false;
+                attachmentToRemove = null;
+            }}
         />
     {/if}
     {#if showAssignModal}
@@ -1111,6 +1168,24 @@
             onCancel={ closeRemoveConfirm }
         />
     {/if}
+
+    {#if showAttachmentRemoveConfirm && attachmentToRemove}
+        <Confirmation
+            title="Удалить вложение"
+            message="Вы уверены, что хотите удалить это вложение из заявки?"
+            confirmText="Удалить"
+            cancelText="Отмена"
+            onConfirm={() => {
+                attachmentToRemove && handleAttachmentRemove(attachmentToRemove.type, attachmentToRemove.idx);
+                showAttachmentRemoveConfirm = false;
+                attachmentToRemove = null;
+            }}
+            onCancel={() => {
+                showAttachmentRemoveConfirm = false;
+                attachmentToRemove = null;
+            }}
+        />
+    {/if}
 </main>
 
 {:else}
@@ -1137,7 +1212,6 @@
                             type="datetime-local"
                             bind:value={ planned_at }
                             class="edit-mode"
-                            style="width: 180px;"
                             aria-label="Запланированное время"
                             on:change={ handlePlannedAtChange }
                         />
@@ -1256,43 +1330,78 @@
             {#if images.length > 0 || files.length > 0}
                 {#if isEditing}
                     <div class="attachments-list editing">
-                        {#each images as img, i}
-                            <button
-                                class="attachment-img-button editing"
-                                aria-label="Удалить изображение"
-                                type="button"
-                                on:click={() => handleAttachmentRemove('image', i)}
-                                style="all: unset; cursor: pointer;"
-                            >
-                                <img
-                                    src={img}
-                                    alt="Вложение"
-                                    class="attachment-img"
-                                    loading="lazy"
+                        {#each [
+                            ...images.map((img, i) => ({
+                                type: 'image',
+                                idx: i,
+                                name: img.split('/').pop(),
+                                url: img,
+                                ext: img.split('.').pop() ?? '',
+                                class: FILE_COLOR_CLASS(img.split('.').pop() ?? ''),
+                                isNew: false
+                            })),
+                            ...newImagePreviews,
+                            ...editingFiles.map((f, i) => ({
+                                type: 'file',
+                                idx: i,
+                                name: f.name,
+                                url: f.url,
+                                ext: f.ext,
+                                class: f.class,
+                                isNew: false
+                            })),
+                            ...attachments_to_add
+                                .filter(f => !IMAGE_EXTS.has((f.name.split('.').pop() ?? '').toLowerCase()))
+                                .map((f, i) => ({
+                                    type: 'newfile',
+                                    idx: i,
+                                    name: f.name,
+                                    url: '',
+                                    ext: f.name.split('.').pop() ?? '',
+                                    class: FILE_COLOR_CLASS(f.name.split('.').pop() ?? ''),
+                                    isNew: true
+                                }))
+                        ] as att}
+                            {#if att.type === 'image' || att.type === 'newimage'}
+                                <button
+                                    class="attachment-img-button editing"
+                                    aria-label="Удалить изображение"
+                                    type="button"
+                                    on:click={() => {
+                                        attachmentToRemove = { type: (att.type as 'file' || 'image'), idx: att.idx };
+                                        showAttachmentRemoveConfirm = true;
+                                    }}
+                                    style="all: unset; cursor: pointer;"
+                                >
+                                    <img
+                                        src={ att.url }
+                                        alt="Вложение"
+                                        class="attachment-img"
+                                        loading="lazy"
+                                    />
+                                </button>
+                            {:else}
+                                <FileCard
+                                    name={ (att.name as string) || 'Вложение' }
+                                    url={ att.url }
+                                    ext={ att.ext }
+                                    colorClass={ att.class }
+                                    editing={ true }
+                                    on:click={(event) => {
+                                        event.preventDefault();
+                                        attachmentToRemove = { type: (att.type as 'file' || 'image'), idx: att.idx };
+                                        showAttachmentRemoveConfirm = true;
+                                    }}
                                 />
-                            </button>
-                        {/each}
-                        {#each editingFiles as f, i}
-                            <FileCard
-                                name={ f.name }
-                                url={ f.url }
-                                ext={ f.ext }
-                                colorClass={ f.class }
-                                on:click={ () => handleAttachmentRemove('file', i) }
-                            />
+                            {/if}
                         {/each}
                         <div class="file-upload">
-                            <input type="file" id="file-edit" multiple on:change={ handleFileAdd } />
-                            <label for="file-edit">
-                                <span class="file-icon">📎</span>
-                                Добавить файлы ({attachments_to_add.length}/5)
-                            </label>
-                            {#if attachments_to_add.length > 0}
-                                <div class="file-list">
-                                    {#each attachments_to_add as file, idx}
-                                        <div class="file-item">{file.name}</div>
-                                    {/each}
-                                </div>
+                            {#if editingFiles.length + attachments_to_add.length < 5}
+                                <input type="file" id="file-edit" multiple on:change={ handleFileAdd } />
+                                <label for="file-edit">
+                                    <span class="file-icon">📎</span>
+                                    Добавить файлы ({ totalFilesCount }/5)
+                                </label>
                             {/if}
                         </div>
                     </div>
@@ -1303,7 +1412,7 @@
                                 class="attachment-img-button"
                                 aria-haspopup="dialog"
                                 aria-label="Открыть изображение во всплывающем окне"
-                                on:click={() => openModal(img)}
+                                on:click={ () => openModal(img) }
                                 on:keydown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                         e.preventDefault();
@@ -1314,7 +1423,7 @@
                                 type="button"
                             >
                                 <img
-                                    src={img}
+                                    src={ img }
                                     alt="Вложение"
                                     class="attachment-img"
                                     loading="lazy"
@@ -1324,10 +1433,10 @@
 
                         {#each files as f}
                             <FileCard
-                                name={f.name}
-                                url={f.url}
-                                ext={f.ext}
-                                colorClass={f.class}
+                                name={ f.name }
+                                url={ f.url }
+                                ext={ f.ext }
+                                colorClass={ f.class }
                             />
                         {/each}
                     </div>
@@ -1337,7 +1446,7 @@
                 {#if ticketData}
                     <div 
                         class="avatar-container"
-                        bind:this={authorAvatarContainer}
+                        bind:this={ authorAvatarContainer }
                     ></div>
                     <div class="author-data">
                         {#if isEditing}

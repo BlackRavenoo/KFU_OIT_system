@@ -1,5 +1,4 @@
 import { api } from '$lib/utils/api';
-import { departments } from '$lib/utils/setup/stores';
 import { TICKETS_API_ENDPOINTS } from '$lib/utils/tickets/api/endpoints';
 import { normalizeDate } from '$lib/utils/tickets/support';
 
@@ -76,42 +75,27 @@ export async function updateTicket(
 
     if (typeof (data as any).building === 'object' && (data as any).building !== null && 'id' in (data as any).building)
         data.building_id = ((data as any).building as { id: number }).id;
+    if (data.planned_at) data.planned_at = normalizeDate(data.planned_at);
+    const formData = new FormData();
 
-    if (data.attachments_to_add && data.attachments_to_add.length > 0) {
-        const formData = new FormData();
+    const filteredData = Object.fromEntries(
+        Object.entries(data).filter(([key, value]) => {
+            if (key === 'id' || key === 'attachments_to_add') return false;
+            if (value === "" || value === null || value === undefined) return false;
+            return true;
+        })
+    );
 
-        const filteredData = Object.fromEntries(
-            Object.entries(data).filter(([key, value]) => {
-                if (key === 'id' || key === 'attachments_to_add') return false;
-                if (value === "" || value === null || value === undefined) return false;
-                return true;
-            })
-        );
+    formData.append('fields', new Blob([JSON.stringify(filteredData)], { type: 'application/json' }));
 
-        formData.append('fields', new Blob([JSON.stringify(filteredData)], { type: 'application/json' }));
-
+    if (data.attachments_to_add && data.attachments_to_add.length > 0)
         for (const file of data.attachments_to_add)
-            formData.append('attachments', file);
+            formData.append('attachments_to_add', file);
 
-        const response = await api.put(`${TICKETS_API_ENDPOINTS.read}${ticketId}`, formData);
+    const response = await api.put(`${TICKETS_API_ENDPOINTS.read}${ticketId}`, formData);
 
-        if (!response.success)
-            throw new Error(response.error || 'Ошибка обновления заявки');
-        return;
-    } else {
-        const filteredData = Object.fromEntries(
-            Object.entries(data).filter(([key, value]) => {
-                if (key === 'id' || key === 'attachments_to_add') return false;
-                if (value === "" || value === null || value === undefined) return false;
-                return true;
-            })
-        );
-
-        const response = await api.put(`${TICKETS_API_ENDPOINTS.read}${ticketId}`, filteredData);
-
-        if (!response.success)
-            throw new Error(response.error || 'Ошибка обновления заявки');
-    }
+    if (!response.success)
+        throw new Error(response.error || 'Ошибка обновления заявки');
 }
 
 /**

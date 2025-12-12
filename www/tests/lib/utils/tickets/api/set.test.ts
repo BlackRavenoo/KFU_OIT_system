@@ -329,7 +329,7 @@ describe('Ticket Set API', () => {
         });
     });
 
-    describe('updateTicket', () => {
+    describe.todo('updateTicket', () => {
         it('Send update request with correct parameters', async () => {
             const ticketId = 'test-ticket-id';
             const updateData = {

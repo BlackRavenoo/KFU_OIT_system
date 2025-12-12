@@ -1,10 +1,14 @@
 <script lang="ts">
+    import { createEventDispatcher } from 'svelte';
+    
     export let name: string;
     export let url: string;
     export let ext: string;
     export let colorClass: string = '';
+    export let editing: boolean = false;
 
     const uid = Math.random().toString(36).slice(2,9);
+    const dispatch = createEventDispatcher();
 
     function downloadFile(u: string) {
         window.open(u, '_blank', 'noopener');
@@ -114,12 +118,23 @@
 <button
     class="file-card { colorClass }"
     type="button"
-    on:click={ () => downloadFile(url) }
-    on:keydown={ (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); downloadFile(url); } } }
+    on:click={e => {
+        if (editing) {
+            e.preventDefault();
+            dispatch('click', e);
+        } else downloadFile(url);
+    }}
+    on:keydown={ (e) => { 
+        if (e.key === 'Enter' || e.key === ' ') { 
+            e.preventDefault(); 
+            if (editing) dispatch('click', e);
+            else downloadFile(url);
+        } 
+    } }
     aria-label={ `Скачать файл ${ name } `}
 >
     <div class="file-icon" aria-hidden="true">
-        { @html fileIconSvg(ext) }
+        {@html fileIconSvg(ext)}
     </div>
     <div class="file-name" title={ name }>{ name }</div>
 </button>

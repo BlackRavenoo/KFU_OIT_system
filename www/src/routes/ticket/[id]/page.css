@@ -638,6 +638,37 @@ input.edit-mode::placeholder, textarea.edit-mode::placeholder {
     background: var(--background-hover);
 }
 
+#file-edit {
+    display: none;
+}
+
+label {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    width: 133px;
+    height: 133px;
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: center;
+    border: 2px solid transparent;
+    background: transparent;
+    box-shadow: 0 1px 3px #0000000f;
+    color: inherit;
+    margin-top: 0;
+    transition: transform .2s ease;
+}
+
+label:hover {
+    transform: translateY(-3px);
+}
+
+input[type="datetime-local"].edit-mode, .ticket-title-input.edit-mode {
+    width: calc(100% - 24px);
+}
+
 @media (max-width: 900px) {
     .ticket-container {
         flex-direction: column;
