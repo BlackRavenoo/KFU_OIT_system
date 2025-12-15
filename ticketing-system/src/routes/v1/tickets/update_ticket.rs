@@ -22,6 +22,7 @@ pub struct UpdateTicketSchema {
     pub department_id: Option<i16>,
     pub source: Option<TicketSource>,
     pub planned_at: Option<DateTime<Utc>>,
+    #[serde(default)]
     pub attachments_to_delete: Vec<String>,
 }
 
@@ -29,6 +30,23 @@ pub struct UpdateTicketSchema {
 pub struct UpdateTicketForm {
     pub fields: Json<UpdateTicketSchema>,
     pub attachments_to_add: Vec<Bytes>,
+}
+
+impl UpdateTicketSchema {
+    fn all_fields_none(&self) -> bool {
+        self.title.is_none()
+            && self.description.is_none()
+            && self.author.is_none()
+            && self.author_contacts.is_none()
+            && self.status.is_none()
+            && self.priority.is_none()
+            && self.cabinet.is_none()
+            && self.note.is_none()
+            && self.building_id.is_none()
+            && self.department_id.is_none()
+            && self.source.is_none()
+            && self.planned_at.is_none()
+    }
 }
 
 #[derive(thiserror::Error)]
@@ -66,6 +84,14 @@ pub async fn update_ticket(
     let schema = form.fields.0;
     let ticket_id = ticket_id.into_inner();
 
+    let all_fields_none = schema.all_fields_none();
+
+    if all_fields_none
+        && form.attachments_to_add.is_empty()
+        && schema.attachments_to_delete.is_empty() {
+        return Err(UpdateTicketError::AllFieldsEmpty)
+    }
+
     let mut transaction = pool.begin().await
         .context("Failed to begin transaction")?;
 
@@ -98,8 +124,10 @@ pub async fn update_ticket(
     ).await
     .context("Failed to delete ticket attachments")?;
 
-    update(ticket_id, &schema, &mut transaction)
-        .await?;
+    if !all_fields_none {
+        update(ticket_id, &schema, &mut transaction)
+            .await?;
+    }
 
     if !schema.attachments_to_delete.is_empty() {
         cleanup_images(service.into_inner(), schema.attachments_to_delete, 30, AttachmentType::TicketAttachments).await;
@@ -137,10 +165,8 @@ async fn update(
     build_update_query!(builder, has_fields, schema.department_id, "department_id");
     build_update_query!(builder, has_fields, schema.source, "source");
     build_update_query!(builder, has_fields, schema.planned_at, "planned_at");
-
-    if !has_fields {
-        return Err(UpdateTicketError::AllFieldsEmpty);
-    }
+    
+    let _ = has_fields;
 
     builder.push(" WHERE id = ");
     builder.push_bind(ticket_id);
