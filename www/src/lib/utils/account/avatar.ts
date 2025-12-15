@@ -395,7 +395,7 @@ export async function getAvatar(
     if (user.avatar_key) {
         try {
             const response = await api.get<Blob>(
-                `/api/v1/images/avatars/${user.avatar_key}.webp`,
+                `/api/v1/attachments/avatars/${user.avatar_key}.webp`,
                 undefined,
                 'blob',
                 false

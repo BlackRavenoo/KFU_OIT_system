@@ -575,7 +575,7 @@
                                 </span>
                             </div>
                             <div class="ticket-meta">
-                                { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building?.name ?? 'Не указано' }, {ticket.cabinet ?? 'Не указано'}
+                                { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building?.name ?? 'Не указано' }, {ticket.cabinet ?? 'Не указано'} кб.
                             </div>
                             <div class="ticket-desc">
                                 { formatDescription(ticket.description) }
@@ -633,7 +633,7 @@
 
                             <div class="ticket-title">{ formatTitle(ticket.title) }</div>
                             <div class="ticket-meta">
-                                { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building?.name ?? 'Не указано' }
+                                { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building?.name ?? 'Не указано' }, {ticket.cabinet ?? 'Не указано'} кб.
                             </div>
                             <div class="ticket-desc">
                                 { formatDescription(ticket.description) }

@@ -44,6 +44,9 @@
     let loadedAvatars: Set<string> = new Set();
     let loadingAvatars: Set<string> = new Set();
 
+    let showOnlyStaff: boolean = true;
+    let previousShowOnlyStaff: boolean = true;
+
     $: canManageStatus = $currentUser?.role === UserRole.Administrator || $currentUser?.role === UserRole.Moderator;
 
     function parseAndValidateMultipleEmails(input: string): { valid: boolean; emails: string[]; error?: string } {
@@ -137,7 +140,12 @@
         loading = true;
         error = false;
 
-        const state: UsersState = await loadUsersData(currentPage, itemsPerPage, searchQuery);
+        const state: UsersState = await loadUsersData(
+            currentPage, 
+            itemsPerPage, 
+            searchQuery,
+            showOnlyStaff ? UserRole.Programmer : undefined
+        );
         users = state.users;
         totalPages = state.totalPages;
         error = state.error;
@@ -279,6 +287,12 @@
         if (browser) isMobile = window.innerWidth < 768;
     }
 
+    $: if (showOnlyStaff !== previousShowOnlyStaff) {
+        previousShowOnlyStaff = showOnlyStaff;
+        currentPage = 1;
+        loadUsers();
+    }
+
     onMount(async () => {
         if (browser) {
             isMobile = window.innerWidth < 768;
@@ -339,6 +353,20 @@
     <div class="users-list-section">
         <h3>Список пользователей</h3>
         
+        <div class="filter-controls">
+            <div class="toggle-container">
+                <label class="toggle-label">
+                    <input 
+                        type="checkbox" 
+                        bind:checked={ showOnlyStaff }
+                        class="toggle-checkbox"
+                    />
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-text">{ showOnlyStaff ? 'Только сотрудники' : 'Все пользователи' }</span>
+                </label>
+            </div>
+        </div>
+        
         <SearchBar 
             bind:searchQuery
             placeholder="Поиск по имени или email..."
@@ -376,7 +404,7 @@
                                         { user.role === UserRole.Administrator ? 'Администратор' : user.role === UserRole.Moderator ? 'Модератор' : user.role === UserRole.Programmer ? 'Сотрудник' : user.role === UserRole.Client ? 'Пользователь' : 'Анонимный' }
                                     </span>
                                 </td>
-                                {#if canManageStatus && user.role > UserRole.Client}
+                                {#if canManageStatus && user.role >= UserRole.Programmer}
                                     <td class="status-cell">
                                         <select 
                                             class="role-badge status-badge-select { 'status-' + (user.status || UserStatus.Active) }"

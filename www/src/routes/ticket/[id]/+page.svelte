@@ -53,6 +53,8 @@
     let showFileRemoveConfirm: boolean = false;
     let attachmentToRemove: { type: 'image' | 'file', idx: number } | null = null;
     let showAttachmentRemoveConfirm = false;
+    let originalImageNames: string[] = []; // Добавьте эту переменную
+
 
     const NOTE_MAX = 1024;
 
@@ -318,22 +320,23 @@
     
     function handleAttachmentRemove(type: 'image' | 'file' | 'newfile' | 'newimage', idx: number) {
         if (type === 'image') {
-            const att = ticketData?.attachments.find((a: string) => {
-                const imgName = images[idx].split('/').pop();
-                return a.endsWith(imgName ?? '');
-            });
-            if (att) {
-                attachments_to_delete = [...attachments_to_delete, att];
-            }
+            const originalName = originalImageNames[idx];
+            
+            const att = ticketData?.attachments.find((a: string) => 
+                a.endsWith(originalName)
+            );
+
+            if (att) attachments_to_delete = [...attachments_to_delete, att];
             images = images.filter((_, i) => i !== idx);
+            originalImageNames = originalImageNames.filter((_, i) => i !== idx);
         } else if (type === 'file') {
-            const att = ticketData?.attachments.find((a: string) => {
-                const fileName = editingFiles[idx].name;
-                return a.endsWith(fileName);
-            });
-            if (att) {
-                attachments_to_delete = [...attachments_to_delete, att];
-            }
+            const fileName = editingFiles[idx].name;
+            
+            const att = ticketData?.attachments.find((a: string) => 
+                a.endsWith(fileName)
+            );
+            
+            if (att) attachments_to_delete = [...attachments_to_delete, att];
             editingFiles = editingFiles.filter((_, i) => i !== idx);
         } else if (type === 'newfile') {
             attachments_to_add = attachments_to_add.filter((_, i) => i !== idx);
@@ -518,7 +521,7 @@
 
         assignSearchLoading = true;
         try {
-            const result = await loadUsersData(1, 10, assignSearchQuery);
+            const result = await loadUsersData(1, 10, assignSearchQuery, UserRole.Programmer);
             if (!result.error) {
                 const assignedIds = new Set(ticketData?.assigned_to?.map(e => e.id) || []);
                 assignSearchResults = result.users.filter(u => !assignedIds.has(u.id));
@@ -609,10 +612,14 @@
                     const ext = getExtFromName(name);
                     return IMAGE_EXTS.has(ext);
                 });
+                
+                originalImageNames = imageAtts.map((att: any) => getAttachmentName(att));
+                
                 const fetched = imageAtts.length ? await fetchImages(imageAtts) : [];
                 images = Array.isArray(fetched)
                     ? fetched.filter((u) => typeof u === 'string' && u.trim().length > 0)
                     : [];
+                    
                 files = atts.map((att: any) => {
                     const name = getAttachmentName(att);
                     const ext = getExtFromName(name);
@@ -622,6 +629,7 @@
             } else {
                 images = [];
                 files = [];
+                originalImageNames = [];
             }
     
             if (ticketData) title = ticketData.title;
@@ -869,7 +877,7 @@
                     {/if}
                 </div>
             {/if}
-            {#if images.length > 0 || files.length > 0}
+            {#if images.length > 0 || files.length > 0 || isEditing}
                 {#if isEditing}
                     <div class="attachments-list editing">
                         {#each [
@@ -1044,36 +1052,6 @@
         </div>
     </div>
 
-    {#if modalOpen && modalImg}
-        <div
-            class="modal-backdrop"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-image-dialog"
-            tabindex="0"
-            transition:fade={{ duration: 180 }}
-            on:click={ closeModal }
-            on:keydown={(e) => {
-                if (e.key === 'Escape') closeModal();
-            }}
-        >
-            <button
-                class="modal-image"
-                id="modal-image-dialog"
-                type="button"
-                on:click={ closeModal }
-                style="background: none; border: none; padding: 0; margin: 0; cursor: pointer;"
-            >
-                <img src={ modalImg } alt="Просмотр изображения" />
-            </button>
-            <button
-                class="modal-close"
-                type="button"
-                on:click={ closeModal }
-                aria-label="Закрыть"
-            >&times;</button>
-        </div>
-    {/if}
     {#if showDeleteConfirm}
         <Confirmation 
             title="Подтвердите действие"
@@ -1327,7 +1305,7 @@
                     {/if}
                 </div>
             {/if}
-            {#if images.length > 0 || files.length > 0}
+            {#if images.length > 0 || files.length > 0 || isEditing}
                 {#if isEditing}
                     <div class="attachments-list editing">
                         {#each [
@@ -1663,6 +1641,37 @@
         </div>
     {/if}
 </main>
+{/if}
+
+{#if modalOpen && modalImg}
+    <div
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-image-dialog"
+        tabindex="0"
+        transition:fade={{ duration: 180 }}
+        on:click={ closeModal }
+        on:keydown={(e) => {
+            if (e.key === 'Escape') closeModal();
+        }}
+    >
+        <button
+            class="modal-image"
+            id="modal-image-dialog"
+            type="button"
+            on:click={ closeModal }
+            style="background: none; border: none; padding: 0; margin: 0; cursor: pointer;"
+        >
+            <img src={ modalImg } alt="Просмотр изображения" />
+        </button>
+        <button
+            class="modal-close"
+            type="button"
+            on:click={ closeModal }
+            aria-label="Закрыть"
+        >&times;</button>
+    </div>
 {/if}
 
 <style>

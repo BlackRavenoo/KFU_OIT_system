@@ -4,7 +4,7 @@ import { api } from '$lib/utils/api';
 import { validateEmail } from '$lib/utils/validation/validate'
 import { UserStatus } from '$lib/utils/auth/types';
 
-import type { IUserData } from '$lib/utils/auth/types';
+import type { IUserData, UserRole } from '$lib/utils/auth/types';
 
 let marked_id: number = 999999999;
 
@@ -30,14 +30,16 @@ export interface UsersState {
 export async function loadUsersData(
     currentPage: number,
     itemsPerPage: number,
-    searchQuery: string
+    searchQuery: string,
+    minimal_role?: UserRole
 ): Promise<UsersState> {
     const result = await loadItems({
         endpoint: USER_LIST_ENDPOINT,
         currentPage,
         itemsPerPage,
         searchQuery,
-        errorMessage: 'Ошибка при загрузке пользователей'
+        errorMessage: 'Ошибка при загрузке пользователей',
+        minimal_role: minimal_role || undefined
     });
 
     return {

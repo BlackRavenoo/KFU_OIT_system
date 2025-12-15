@@ -216,7 +216,7 @@ export async function loadActiveUserTickets(userId: string): Promise<any[]> {
             sort_order: 'asc',
             statuses: ['inprogress']
         };
-        if (userRole === UserRole.Client)
+        if (userRole !== UserRole.Client)
             params.assigned_to = userId;
 
         const result = await fetchTickets('', params);

@@ -111,9 +111,7 @@
             const cacheRaw = localStorage.getItem(CACHE_KEY_TICKETS);
             if (cacheRaw) {
                 const cache = JSON.parse(cacheRaw);
-                if (cache.userId === userId && Date.now() - cache.timestamp < CACHE_TTL) {
-                    return cache.data;
-                }
+                if (cache.userId === userId && Date.now() - cache.timestamp < CACHE_TTL) return cache.data;
             }
             const fresh = await loadActiveUserTickets(userId);
             localStorage.setItem(CACHE_KEY_TICKETS, JSON.stringify({
@@ -529,7 +527,7 @@
             editedLogin = userData?.login || '';
             
             if ($currentUser?.role !== UserRole.Anonymous) {
-                activeTickets = await getCachedTickets(userData.id);
+                if ($currentUser?.role !== UserRole.Client) activeTickets = await getCachedTickets(userData.id);
                 stats = await getCachedStats(userData.id, stats);
             } else {
                 goto('/account?tab=request');
@@ -780,32 +778,34 @@
         </div>
     </div>
     
-    <div class="active-tickets-section">
-        <div class="section-header">
-            <h2>Активные заявки</h2>
-            <a href="/ticket" class="view-all">Все заявки</a>
+    {#if $currentUser?.role !== UserRole.Client}
+        <div class="active-tickets-section">
+            <div class="section-header">
+                <h2>Активные заявки</h2>
+                <a href="/ticket" class="view-all">Все заявки</a>
+            </div>
+            
+            {#if activeTickets.length > 0}
+                <div class="tickets-grid">
+                    {#each activeTickets.slice(0, 3) as ticket}
+                        <a href={`/ticket/${ ticket.id }`} class="ticket-card">
+                            <div class="ticket-header">
+                                <span class="ticket-id">{ ticket.building?.code || '' }-{ ticket.id }</span>
+                            </div>
+                            <h3 class="ticket-title">{ ticket.title }</h3>
+                            <div class="ticket-meta">
+                                { formatDate(ticket.planned_at) }
+                            </div>
+                        </a>
+                    {/each}
+                </div>
+            {:else}
+                <div class="empty-state">
+                    <p>У вас нет активных заявок</p>
+                </div>
+            {/if}
         </div>
-        
-        {#if activeTickets.length > 0}
-            <div class="tickets-grid">
-                {#each activeTickets.slice(0, 3) as ticket}
-                    <a href={`/ticket/${ ticket.id }`} class="ticket-card">
-                        <div class="ticket-header">
-                            <span class="ticket-id">{ ticket.building?.code || '' }-{ ticket.id }</span>
-                        </div>
-                        <h3 class="ticket-title">{ ticket.title }</h3>
-                        <div class="ticket-meta">
-                            { formatDate(ticket.planned_at) }
-                        </div>
-                    </a>
-                {/each}
-            </div>
-        {:else}
-            <div class="empty-state">
-                <p>У вас нет активных заявок</p>
-            </div>
-        {/if}
-    </div>
+    {/if}
 </div>
 
 {#if showAvatarModal && avatarPreviewUrl}

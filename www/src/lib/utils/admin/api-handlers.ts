@@ -1,5 +1,6 @@
 import { api } from '$lib/utils/api';
 import { notification, NotificationType } from '$lib/utils/notifications/notification';
+import type { UserRole } from '../auth/types';
 
 /**
  * Общая функция для загрузки данных с пагинацией и поиском
@@ -9,13 +10,15 @@ export async function loadItems<T>({
     currentPage = 1,
     itemsPerPage = 10,
     searchQuery = '',
-    errorMessage = 'Ошибка при загрузке данных'
+    errorMessage = 'Ошибка при загрузке данных',
+    minimal_role = undefined
 }: {
     endpoint: string;
     currentPage?: number;
     itemsPerPage?: number;
     searchQuery?: string;
     errorMessage?: string;
+    minimal_role?: UserRole | undefined;
 }): Promise<{
     items: T[];
     totalPages: number;
@@ -29,7 +32,8 @@ export async function loadItems<T>({
         const response = await api.get(endpoint, {
             page: currentPage,
             page_size: itemsPerPage,
-            search: searchQuery?.trim() || undefined
+            search: searchQuery?.trim() || undefined,
+            ...(minimal_role !== undefined && { minimal_role })
         });
 
         if (response.success) {

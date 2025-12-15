@@ -562,7 +562,7 @@ describe('Work with avatar utils', () => {
         expect(img?.style.height).toBe('64px');
         expect(img?.style.borderRadius).toBe('');
         expect(api.api.get).toHaveBeenCalledWith(
-            '/api/v1/images/avatars/test-key.webp',
+            '/api/v1/attachments/avatars/test-key.webp',
             undefined,
             'blob',
             false
