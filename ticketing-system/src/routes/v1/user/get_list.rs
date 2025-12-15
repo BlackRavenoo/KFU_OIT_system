@@ -6,11 +6,12 @@ use sqlx::PgPool;
 
 use crate::{auth::types::{UserRole, UserStatus}, schema::common::{PaginationResult, UserId}, utils::error_chain_fmt};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct GetUsersSchema {
     pub page: Option<UserId>,
     pub page_size: Option<i8>,
     pub search: Option<String>,
+    pub minimal_role: Option<UserRole>,
 }
 
 #[derive(Serialize)]
@@ -76,7 +77,7 @@ pub async fn get_users(
         return Err(GetUsersError::InvalidPage)
     }
 
-    let rows = get_users_page(&pool, page_size, page, schema.search)
+    let rows = get_users_page(&pool, page_size, page, schema)
         .await
         .context("Failed to get users from the database")?;
 
@@ -106,19 +107,23 @@ pub async fn get_users(
     name = "Get page of users from the database",
     skip(pool)
 )]
-async fn get_users_page(pool: &PgPool, page_size: i8, page: i32, q: Option<String>) -> Result<Vec<Row>, sqlx::Error> {
+async fn get_users_page(pool: &PgPool, page_size: i8, page: i32, schema: GetUsersSchema) -> Result<Vec<Row>, sqlx::Error> {
     let mut builder = sqlx::QueryBuilder::new("
             SELECT id, name, email, login, role, status, avatar_key, COUNT(*) OVER() as total_items
             FROM users
             WHERE is_active
         ");
 
-    if let Some(q) = &q {
-        let q = format!("%{}%", q);
+    if let Some(search) = &schema.search {
+        let q = format!("%{}%", search);
 
         builder.push(" AND (name ILIKE ").push_bind(q.clone())
             .push(" OR login ILIKE ").push_bind(q)
             .push(")");
+    }
+
+    if let Some(minimal_role) = schema.minimal_role {
+        builder.push("role >= ").push_bind(minimal_role as i16);
     }
 
     builder.push(" LIMIT ").push_bind(page_size as i64)
