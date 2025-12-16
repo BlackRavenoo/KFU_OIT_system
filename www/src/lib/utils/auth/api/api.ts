@@ -253,8 +253,7 @@ export async function checkAuthentication() {
 
                             if (!get(currentUser)) {
                                 const user = await getUserData();
-                                if (user) currentUser.set(user);
-                                else isAuthenticated.set(false);
+                                currentUser.set(user);
                             } else {
                                 isAuthenticated.set(true);
                             }

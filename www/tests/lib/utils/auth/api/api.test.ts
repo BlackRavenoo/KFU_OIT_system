@@ -739,6 +739,197 @@ describe("Auth API", () => {
 
         getSpy.mockRestore();
     });
+
+    it("Sets currentUser when getUserData returns user", async () => {
+        vi.resetModules();
+        
+        const userSetSpy = vi.fn();
+        const authSetSpy = vi.fn();
+        
+        vi.doMock("$lib/utils/auth/storage/initial", () => ({
+            currentUser: {
+                subscribe: (run: (v: any) => void) => { run(null); return () => {}; },
+                set: userSetSpy
+            },
+            isAuthenticated: {
+                subscribe: (run: (v: any) => void) => { run(false); return () => {}; },
+                set: authSetSpy
+            },
+        }));
+        
+        vi.doMock("$lib/utils/auth/tokens/tokens", () => ({
+            getAuthTokens: vi.fn().mockReturnValue({ accessToken: "valid_token" }),
+            clearAuthTokens: vi.fn(),
+            isTokenValid: vi.fn().mockReturnValue(true),
+        }));
+        
+        vi.doMock("$lib/utils/auth/tokens/storage", () => ({
+            setTokenStore: vi.fn(),
+        }));
+        
+        vi.doMock("$lib/utils/api", () => ({
+            api: {
+                post: vi.fn(),
+                get: vi.fn().mockResolvedValue({ 
+                    success: true, 
+                    data: { id: 99, name: "TestUser" } 
+                }),
+            },
+        }));
+        
+        vi.doMock("@fingerprintjs/fingerprintjs", () => ({
+            default: { load: vi.fn() },
+            load: vi.fn()
+        }));
+        
+        localStorageMock.getItem.mockImplementation((key: string) => {
+            if (key === 'auth_tokens') {
+                return JSON.stringify({ accessToken: "valid_token" });
+            }
+            return null;
+        });
+        
+        const freshAuthApi = await import("$lib/utils/auth/api/api");
+        await freshAuthApi.checkAuthentication();
+        
+        expect(userSetSpy).toHaveBeenCalledWith({ id: 99, name: "TestUser" });
+        expect(authSetSpy).toHaveBeenCalledWith(true);
+    });
+
+    it("Sets isAuthenticated to true when currentUser already exists", async () => {
+        vi.resetModules();
+        
+        const userSetSpy = vi.fn();
+        const authSetSpy = vi.fn();
+        
+        vi.doMock("svelte/store", () => ({
+            writable: (initial: any) => ({
+                subscribe: (run: (v: any) => void) => { run(initial); return () => {}; },
+                set: vi.fn(),
+                update: vi.fn()
+            }),
+            get: () => ({ id: 1, name: "ExistingUser" })
+        }));
+        
+        vi.doMock("$lib/utils/auth/storage/initial", () => ({
+            currentUser: {
+                subscribe: (run: (v: any) => void) => { run({ id: 1, name: "ExistingUser" }); return () => {}; },
+                set: userSetSpy
+            },
+            isAuthenticated: {
+                subscribe: (run: (v: any) => void) => { run(false); return () => {}; },
+                set: authSetSpy
+            },
+        }));
+        
+        vi.doMock("$lib/utils/auth/tokens/tokens", () => ({
+            getAuthTokens: vi.fn().mockReturnValue({ accessToken: "valid_token" }),
+            clearAuthTokens: vi.fn(),
+            isTokenValid: vi.fn().mockReturnValue(true),
+        }));
+        
+        vi.doMock("$lib/utils/auth/tokens/storage", () => ({
+            setTokenStore: vi.fn(),
+        }));
+        
+        vi.doMock("$lib/utils/api", () => ({
+            api: {
+                post: vi.fn(),
+                get: vi.fn(),
+            },
+        }));
+        
+        vi.doMock("@fingerprintjs/fingerprintjs", () => ({
+            default: { load: vi.fn() },
+            load: vi.fn()
+        }));
+        
+        localStorageMock.getItem.mockImplementation((key: string) => {
+            if (key === 'auth_tokens') {
+                return JSON.stringify({ accessToken: "valid_token" });
+            }
+            return null;
+        });
+        
+        const freshAuthApi = await import("$lib/utils/auth/api/api");
+        const getUserDataSpy = vi.spyOn(freshAuthApi, "getUserData");
+        
+        await freshAuthApi.checkAuthentication();
+        
+        expect(getUserDataSpy).not.toHaveBeenCalled();
+        const trueCalls = authSetSpy.mock.calls.filter((call: any[]) => call[0] === true);
+        expect(trueCalls.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("Returns immediately when authChecking is true", async () => {
+        vi.resetModules();
+        
+        const authSetSpy = vi.fn();
+        
+        vi.doMock("svelte/store", () => ({
+            writable: (initial: any) => ({
+                subscribe: (run: (v: any) => void) => { run(initial); return () => {}; },
+                set: vi.fn(),
+                update: vi.fn()
+            }),
+            get: () => null
+        }));
+        
+        vi.doMock("$lib/utils/auth/storage/initial", () => ({
+            currentUser: {
+                subscribe: (run: (v: any) => void) => { run(null); return () => {}; },
+                set: vi.fn()
+            },
+            isAuthenticated: {
+                subscribe: (run: (v: any) => void) => { run(false); return () => {}; },
+                set: authSetSpy
+            },
+        }));
+        
+        vi.doMock("$lib/utils/auth/tokens/tokens", () => ({
+            getAuthTokens: vi.fn().mockReturnValue({ accessToken: "valid_token" }),
+            clearAuthTokens: vi.fn(),
+            isTokenValid: vi.fn().mockReturnValue(true),
+        }));
+        
+        vi.doMock("$lib/utils/auth/tokens/storage", () => ({
+            setTokenStore: vi.fn(),
+        }));
+        
+        let resolveGetUserData: (value: any) => void;
+        const hangingPromise = new Promise((resolve) => {
+            resolveGetUserData = resolve;
+        });
+        
+        vi.doMock("$lib/utils/api", () => ({
+            api: {
+                post: vi.fn(),
+                get: vi.fn().mockReturnValue(hangingPromise),
+            },
+        }));
+        
+        vi.doMock("@fingerprintjs/fingerprintjs", () => ({
+            default: { load: vi.fn() },
+            load: vi.fn()
+        }));
+        
+        localStorageMock.getItem.mockImplementation((key: string) => {
+            if (key === 'auth_tokens') {
+                return JSON.stringify({ accessToken: "valid_token" });
+            }
+            return null;
+        });
+        
+        const freshAuthApi = await import("$lib/utils/auth/api/api");
+        const firstCall = freshAuthApi.checkAuthentication();
+        await freshAuthApi.checkAuthentication();
+        
+        const trueCallsBeforeResolve = authSetSpy.mock.calls.filter((c: any[]) => c[0] === true).length;
+        expect(trueCallsBeforeResolve).toBe(1);
+        
+        resolveGetUserData!({ success: true, data: { id: 1 } });
+        await firstCall;
+    });
 });
 
 describe('Finish registration function', () => {

@@ -391,6 +391,75 @@ describe('Tickets API GET methods', () => {
         const calledWithDepartments = spy.mock.calls.some(call => call[0] === (modStores as any).departments);
         expect(calledWithDepartments).toBe(false);
     });
+
+    it('Fetch tickets as Client role', async () => {
+        const modAuth = await import('$lib/utils/auth/storage/initial');
+        const modStores = await import('$lib/utils/setup/stores');
+        const { UserRole } = await import('$lib/utils/auth/types');
+        
+        mockSvelteGet((store: any) => {
+            if (store === (modAuth as any).currentUser)
+                return { role: UserRole.Client };
+            if (store === (modStores as any).order)
+                return [{ id: 5 }, { id: 10 }];
+            return [];
+        });
+
+        (getTicketsFilters as any).mockReturnValue({
+            ...filtersValue,
+            selectedSort: 1,
+            sortOrder: 'desc',
+            page_size: 15
+        });
+
+        helpers.mockSuccess('get', { items: [{ id: 'client-ticket-1' }], max_page: 3 });
+
+        const { fetchTickets } = await import('$lib/utils/tickets/api/get');
+        const result = await fetchTickets();
+
+        expect(result).toEqual({ tickets: [{ id: 'client-ticket-1' }], max_page: 3 });
+
+        const calledUrl = (apiMock.get as any).mock.calls[0][0] as string;
+        
+        expect(calledUrl).not.toContain('statuses');
+        expect(calledUrl).toContain('page=1');
+        expect(calledUrl).toContain('page_size=15');
+        expect(calledUrl).toContain('order_by=10');
+        expect(calledUrl).toContain('sort_order=desc');
+    });
+
+    it('Uses fallback order_by=0 when order is undefined', async () => {
+        const modAuth = await import('$lib/utils/auth/storage/initial');
+        const modStores = await import('$lib/utils/setup/stores');
+        const { UserRole } = await import('$lib/utils/auth/types');
+        
+        mockSvelteGet((store: any) => {
+            if (store === (modAuth as any).currentUser)
+                return { role: UserRole.Client };
+            if (store === (modStores as any).order)
+                return [{ name: 'test' }, { name: 'another' }];
+            return [];
+        });
+
+        (getTicketsFilters as any).mockReturnValue({
+            ...filtersValue,
+            selectedSort: 0,
+            sortOrder: 'asc',
+            page_size: 10
+        });
+
+        helpers.mockSuccess('get', { items: [{ id: 'fallback-order' }], max_page: 1 });
+
+        const { fetchTickets } = await import('$lib/utils/tickets/api/get');
+        const result = await fetchTickets();
+
+        expect(result).toEqual({ tickets: [{ id: 'fallback-order' }], max_page: 1 });
+
+        const calledUrl = (apiMock.get as any).mock.calls[0][0] as string;
+        
+        expect(calledUrl).toContain('order_by=0');
+        expect(calledUrl).not.toContain('statuses');
+    });
 });
 
 describe('Get ticket by ID', () => {
@@ -781,17 +850,58 @@ describe('Load active user tickets', () => {
         spy.mockRestore();
     });
 
-    // it('Returns tickets successfully', async () => {
-    //     const tickets = [{ id: 't1' }, { id: 't2' }];
-    //     helpers.mockSuccess('get', { items: tickets, max_page: 1 });
-    //     const { loadActiveUserTickets } = await import('$lib/utils/tickets/api/get');
-    //     const result = await loadActiveUserTickets('user-123');
+    it('Returns tickets successfully', async () => {
+        const tickets = [{ id: 't1' }, { id: 't2' }];
+        helpers.mockSuccess('get', { items: tickets, max_page: 1 });
+        
+        const modAuth = await import('$lib/utils/auth/storage/initial');
+        mockSvelteGet((store: any) => {
+            if (store === (modAuth as any).currentUser) {
+                return { role: 2 };
+            }
+            return [];
+        });
+        
+        const { loadActiveUserTickets } = await import('$lib/utils/tickets/api/get');
+        const result = await loadActiveUserTickets('user-123');
 
-    //     expect(result).toEqual(tickets);
-    //     expect(apiMock.get).toHaveBeenCalled();
+        expect(result).toEqual(tickets);
+        expect(apiMock.get).toHaveBeenCalled();
 
-    //     const calledUrl = (apiMock.get as any).mock.calls[0][0] as string;
-    //     expect(calledUrl).toContain('assigned_to=user-123');
-    //     expect(calledUrl).toContain('page_size=3');
-    // });
+        const calledUrl = (apiMock.get as any).mock.calls[0][0] as string;
+        expect(calledUrl).toContain('page=1');
+        expect(calledUrl).toContain('page_size=3');
+        expect(calledUrl).toContain('statuses[]=inprogress');
+        expect(calledUrl).toContain('assigned_to=user-123');
+    });
+
+    it('Logs warning when user is Client role', async () => {
+        const modAuth = await import('$lib/utils/auth/storage/initial');
+        const { UserRole } = await import('$lib/utils/auth/types');
+        
+        mockSvelteGet((store: any) => {
+            if (store === (modAuth as any).currentUser) {
+                return { role: UserRole.Client };
+            }
+            return [];
+        });
+
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        
+        const tickets = [{ id: 'client-t1' }];
+        helpers.mockSuccess('get', { items: tickets, max_page: 1 });
+
+        const { loadActiveUserTickets } = await import('$lib/utils/tickets/api/get');
+        const result = await loadActiveUserTickets('user-456');
+
+        expect(result).toEqual(tickets);
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+            'UserRole.Client cannot load active user tickets with assigned_to filter'
+        );
+        
+        const calledUrl = (apiMock.get as any).mock.calls[0][0] as string;
+        expect(calledUrl).not.toContain('assigned_to');
+
+        consoleWarnSpy.mockRestore();
+    });
 });

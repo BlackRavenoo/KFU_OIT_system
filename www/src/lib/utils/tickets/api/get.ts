@@ -218,6 +218,7 @@ export async function loadActiveUserTickets(userId: string): Promise<any[]> {
         };
         if (userRole !== UserRole.Client)
             params.assigned_to = userId;
+        else console.warn('UserRole.Client cannot load active user tickets with assigned_to filter');
 
         const result = await fetchTickets('', params);
         return result.tickets;

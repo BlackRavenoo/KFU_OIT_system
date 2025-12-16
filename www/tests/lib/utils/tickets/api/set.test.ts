@@ -329,7 +329,7 @@ describe('Ticket Set API', () => {
         });
     });
 
-    describe.todo('updateTicket', () => {
+    describe('updateTicket', () => {
         it('Send update request with correct parameters', async () => {
             const ticketId = 'test-ticket-id';
             const updateData = {
@@ -341,13 +341,42 @@ describe('Ticket Set API', () => {
             
             helpers.mockSuccess('put');
             
-            await updateTicket(ticketId, updateData);
+            const originalFormData = globalThis.FormData;
+            const originalBlob = globalThis.Blob;
             
-            expect(apiMock.put).toHaveBeenCalledTimes(1);
-            expect(apiMock.put).toHaveBeenCalledWith(
-                `${TICKETS_API_ENDPOINTS.read}${ticketId}`,
-                updateData
-            );
+            const appendMock = vi.fn();
+            globalThis.FormData = vi.fn().mockImplementation(() => ({
+                append: appendMock
+            })) as any;
+            
+            globalThis.Blob = vi.fn().mockImplementation((content, options) => ({
+                content,
+                options,
+                size: 123,
+                type: options?.type || 'application/octet-stream'
+            })) as any;
+            
+            try {
+                await updateTicket(ticketId, updateData);
+                
+                expect(apiMock.put).toHaveBeenCalledTimes(1);
+                expect(apiMock.put).toHaveBeenCalledWith(
+                    `${TICKETS_API_ENDPOINTS.read}${ticketId}`,
+                    expect.any(Object)
+                );
+                
+                const blobCall = (globalThis.Blob as any).mock.calls[0];
+                const blobContent = JSON.parse(blobCall[0][0]);
+                expect(blobContent).toEqual({
+                    title: 'Updated Title',
+                    description: 'Updated Description',
+                    priority: 'high',
+                    planned_at: normalizeDate('2023-11-15T10:00:00Z')
+                });
+            } finally {
+                globalThis.FormData = originalFormData;
+                globalThis.Blob = originalBlob;
+            }
         });
         
         it('Filter out empty values', async () => {
@@ -361,16 +390,38 @@ describe('Ticket Set API', () => {
             
             helpers.mockSuccess('put');
             
-            await updateTicket(ticketId, updateData);
+            const originalFormData = globalThis.FormData;
+            const originalBlob = globalThis.Blob;
             
-            expect(apiMock.put).toHaveBeenCalledTimes(1);
-            expect(apiMock.put).toHaveBeenCalledWith(
-                `${TICKETS_API_ENDPOINTS.read}${ticketId}`,
-                {
+            const appendMock = vi.fn();
+            globalThis.FormData = vi.fn().mockImplementation(() => ({
+                append: appendMock
+            })) as any;
+            
+            globalThis.Blob = vi.fn().mockImplementation((content, options) => ({
+                content,
+                options,
+                size: 123,
+                type: options?.type || 'application/octet-stream'
+            })) as any;
+            
+            try {
+                await updateTicket(ticketId, updateData);
+                
+                expect(apiMock.put).toHaveBeenCalledTimes(1);
+                
+                const blobCall = (globalThis.Blob as any).mock.calls[0];
+                const blobContent = JSON.parse(blobCall[0][0]);
+                expect(blobContent).toEqual({
                     title: 'Updated Title',
                     priority: 'high'
-                }
-            );
+                });
+                expect(blobContent).not.toHaveProperty('description');
+                expect(blobContent).not.toHaveProperty('planned_at');
+            } finally {
+                globalThis.FormData = originalFormData;
+                globalThis.Blob = originalBlob;
+            }
         });
         
         it('Send request with empty body when all provided fields are empty (current implementation)', async () => {
@@ -384,13 +435,33 @@ describe('Ticket Set API', () => {
             
             helpers.mockSuccess('put');
             
-            await updateTicket(ticketId, updateData);
+            const originalFormData = globalThis.FormData;
+            const originalBlob = globalThis.Blob;
             
-            expect(apiMock.put).toHaveBeenCalledTimes(1);
-            expect(apiMock.put).toHaveBeenCalledWith(
-                `${TICKETS_API_ENDPOINTS.read}${ticketId}`,
-                {}
-            );
+            const appendMock = vi.fn();
+            globalThis.FormData = vi.fn().mockImplementation(() => ({
+                append: appendMock
+            })) as any;
+            
+            globalThis.Blob = vi.fn().mockImplementation((content, options) => ({
+                content,
+                options,
+                size: 123,
+                type: options?.type || 'application/octet-stream'
+            })) as any;
+            
+            try {
+                await updateTicket(ticketId, updateData);
+                
+                expect(apiMock.put).toHaveBeenCalledTimes(1);
+                
+                const blobCall = (globalThis.Blob as any).mock.calls[0];
+                const blobContent = JSON.parse(blobCall[0][0]);
+                expect(blobContent).toEqual({});
+            } finally {
+                globalThis.FormData = originalFormData;
+                globalThis.Blob = originalBlob;
+            }
         });
         
         it('Throw error on failed update', async () => {
@@ -412,12 +483,10 @@ describe('Ticket Set API', () => {
             
             helpers.mockError('put', '');
 
-            try {
-                await expect(updateTicket(ticketId, updateData))
+            await expect(updateTicket(ticketId, updateData))
                 .rejects
                 .toThrow('Ошибка обновления заявки');
-                expect(apiMock.put).toHaveBeenCalledTimes(1);
-            } finally { }
+            expect(apiMock.put).toHaveBeenCalledTimes(1);
         });
 
         it('Returns early when data object has exactly one key', async () => {
@@ -428,9 +497,8 @@ describe('Ticket Set API', () => {
             expect(apiMock.put).not.toHaveBeenCalled();
         });
 
-        it('Return false when all fields are empty', async () => {
-            const api = (await import('$lib/utils/api')).api;
-            (api.put as any).mockResolvedValue({ success: true });
+        it('Filters out id field from data', async () => {
+            helpers.mockSuccess('put');
 
             const ticketId = 'test-id';
             const data = {
@@ -439,21 +507,40 @@ describe('Ticket Set API', () => {
                 description: 'Test desc'
             };
 
-            await updateTicket(ticketId, data as any);
+            const originalFormData = globalThis.FormData;
+            const originalBlob = globalThis.Blob;
+            
+            const appendMock = vi.fn();
+            globalThis.FormData = vi.fn().mockImplementation(() => ({
+                append: appendMock
+            })) as any;
+            
+            globalThis.Blob = vi.fn().mockImplementation((content, options) => ({
+                content,
+                options,
+                size: 123,
+                type: options?.type || 'application/octet-stream'
+            })) as any;
 
-            expect(api.put).toHaveBeenCalledWith(
-                `${TICKETS_API_ENDPOINTS.read}${ticketId}`,
-                expect.not.objectContaining({ id: expect.anything() })
-            );
-            expect(api.put).toHaveBeenCalledWith(
-                expect.any(String),
-                expect.objectContaining({ title: 'Test title', description: 'Test desc' })
-            );
+            try {
+                await updateTicket(ticketId, data as any);
+
+                const blobCall = (globalThis.Blob as any).mock.calls[0];
+                const blobContent = JSON.parse(blobCall[0][0]);
+                
+                expect(blobContent).not.toHaveProperty('id');
+                expect(blobContent).toEqual({
+                    title: 'Test title',
+                    description: 'Test desc'
+                });
+            } finally {
+                globalThis.FormData = originalFormData;
+                globalThis.Blob = originalBlob;
+            }
         });
 
         it('Extract id from building object', async () => {
-            const api = (await import('$lib/utils/api')).api;
-            (api.put as any).mockResolvedValue({ success: true });
+            helpers.mockSuccess('put');
 
             const ticketId = 'test-id';
             const data = {
@@ -461,12 +548,78 @@ describe('Ticket Set API', () => {
                 building: { id: 42 }
             };
 
-            await updateTicket(ticketId, { ...data } as any);
+            const originalFormData = globalThis.FormData;
+            const originalBlob = globalThis.Blob;
+            
+            const appendMock = vi.fn();
+            globalThis.FormData = vi.fn().mockImplementation(() => ({
+                append: appendMock
+            })) as any;
+            
+            globalThis.Blob = vi.fn().mockImplementation((content, options) => ({
+                content,
+                options,
+                size: 123,
+                type: options?.type || 'application/octet-stream'
+            })) as any;
 
-            expect(api.put).toHaveBeenCalledWith(
-                `${TICKETS_API_ENDPOINTS.read}${ticketId}`,
-                expect.objectContaining({ building_id: 42 })
-            );
+            try {
+                await updateTicket(ticketId, { ...data } as any);
+
+                const blobCall = (globalThis.Blob as any).mock.calls[0];
+                const blobContent = JSON.parse(blobCall[0][0]);
+                
+                expect(blobContent).toHaveProperty('building_id', 42);
+                expect(blobContent).toHaveProperty('title', 'Test title');
+            } finally {
+                globalThis.FormData = originalFormData;
+                globalThis.Blob = originalBlob;
+            }
+        });
+
+        it('Handles attachments_to_add correctly', async () => {
+            helpers.mockSuccess('put');
+
+            const ticketId = 'test-id';
+            const files = [
+                new File(['file1'], 'file1.txt', { type: 'text/plain' }),
+                new File(['file2'], 'file2.txt', { type: 'text/plain' })
+            ];
+            const data = {
+                title: 'Test title',
+                attachments_to_add: files
+            };
+
+            const originalFormData = globalThis.FormData;
+            const originalBlob = globalThis.Blob;
+            
+            const appendMock = vi.fn();
+            globalThis.FormData = vi.fn().mockImplementation(() => ({
+                append: appendMock
+            })) as any;
+            
+            globalThis.Blob = vi.fn().mockImplementation((content, options) => ({
+                content,
+                options,
+                size: 123,
+                type: options?.type || 'application/octet-stream'
+            })) as any;
+
+            try {
+                await updateTicket(ticketId, data as any);
+
+                expect(appendMock).toHaveBeenCalledTimes(3);
+                expect(appendMock).toHaveBeenCalledWith('fields', expect.any(Object));
+                expect(appendMock).toHaveBeenCalledWith('attachments_to_add', files[0]);
+                expect(appendMock).toHaveBeenCalledWith('attachments_to_add', files[1]);
+                
+                const blobCall = (globalThis.Blob as any).mock.calls[0];
+                const blobContent = JSON.parse(blobCall[0][0]);
+                expect(blobContent).not.toHaveProperty('attachments_to_add');
+            } finally {
+                globalThis.FormData = originalFormData;
+                globalThis.Blob = originalBlob;
+            }
         });
     });
 

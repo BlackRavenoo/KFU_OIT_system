@@ -20,7 +20,7 @@ export class SimpleCaptcha extends Captcha {
                     tabindex="-1"
                     style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"
                 />`;
-            }
+            } else console.warn("Элемент капчи уже существует в контейнере");
         }
     }
 
@@ -58,5 +58,6 @@ export class SimpleCaptcha extends Captcha {
     public dispose(): void {
         const container = this.getContainer();
         if (container) container.innerHTML = '';
+        else console.warn("Контейнер для капчи не найден");
     }
 }

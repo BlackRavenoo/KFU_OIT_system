@@ -319,4 +319,28 @@ describe('Admin api handlers', () => {
         expect(res.items).toEqual([]);
         expect(res.totalPages).toBe(1);
     });
+
+    it('Include minimal_role in request when provided', async () => {
+        vi.resetModules();
+        vi.clearAllMocks();
+        setupApiMock();
+
+        const api = await import('$lib/utils/api');
+        api.api.get = vi.fn().mockResolvedValue({
+            success: true,
+            data: { items: [], max_page: 1 }
+        });
+
+        const { UserRole } = await import('$lib/utils/auth/types');
+        const { loadItems } = await import('$lib/utils/admin/api-handlers');
+        
+        await loadItems<any>({
+            endpoint: '/users',
+            minimal_role: UserRole.Programmer
+        });
+
+        expect(api.api.get).toHaveBeenCalledWith('/users', expect.objectContaining({
+            minimal_role: UserRole.Programmer
+        }));
+    });
 });

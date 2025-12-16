@@ -91,4 +91,31 @@ describe('SimpleCaptcha', () => {
         cleanupContainer();
         await expect(captcha.render()).rejects.toThrow('Контейнер для капчи не найден');
     });
+
+    it('Warn if honeypot input already exists on second render', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        
+        await captcha.render();
+        const input = container.querySelector<HTMLInputElement>('#required-name');
+        expect(input).toBeTruthy();
+        
+        await captcha.render();
+        
+        expect(warnSpy).toHaveBeenCalledWith('Элемент капчи уже существует в контейнере');
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        
+        warnSpy.mockRestore();
+    });
+
+    it('Warn on dispose if container is missing', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        
+        cleanupContainer();
+        captcha.dispose();
+        
+        expect(warnSpy).toHaveBeenCalledWith('Контейнер для капчи не найден');
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        
+        warnSpy.mockRestore();
+    });
 });
