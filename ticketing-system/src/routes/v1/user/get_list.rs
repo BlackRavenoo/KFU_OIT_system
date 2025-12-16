@@ -12,6 +12,12 @@ pub struct GetUsersSchema {
     pub page_size: Option<i8>,
     pub search: Option<String>,
     pub minimal_role: Option<UserRole>,
+    #[serde(default = "default_is_active")]
+    pub is_active: bool,
+}
+
+fn default_is_active() -> bool {
+    true
 }
 
 #[derive(Serialize)]
@@ -108,11 +114,17 @@ pub async fn get_users(
     skip(pool)
 )]
 async fn get_users_page(pool: &PgPool, page_size: i8, page: i32, schema: GetUsersSchema) -> Result<Vec<Row>, sqlx::Error> {
-    let mut builder = sqlx::QueryBuilder::new("
-            SELECT id, name, email, login, role, status, avatar_key, COUNT(*) OVER() as total_items
-            FROM users
-            WHERE is_active
-        ");
+    let mut builder = sqlx::QueryBuilder::new(
+        "SELECT id, name, email, login, role, status, avatar_key, COUNT(*) OVER() as total_items
+        FROM users
+        WHERE "
+    );
+
+    if !schema.is_active {
+        builder.push("NOT ");
+    }
+
+    builder.push("is_active");
 
     if let Some(search) = &schema.search {
         let q = format!("%{}%", search);
