@@ -46,7 +46,7 @@ async fn update(
     schema: UpdateBuildingSchema,
     id: i16,
 ) -> Result<(), UpdateBuildingError> {
-    let mut builder = sqlx::QueryBuilder::new("UPDATE buildinds SET ");
+    let mut builder = sqlx::QueryBuilder::new("UPDATE buildings SET ");
     let mut has_fields = false;
 
     let code = schema.code.as_ref().map(|code| code.as_ref());
@@ -65,7 +65,7 @@ async fn update(
     let query = builder.build();
 
     query.execute(pool).await
-        .context("Failed to update ticket.")?;
+        .context("Failed to update building.")?;
 
     Ok(())
 }

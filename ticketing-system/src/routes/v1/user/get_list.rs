@@ -123,7 +123,7 @@ async fn get_users_page(pool: &PgPool, page_size: i8, page: i32, schema: GetUser
     }
 
     if let Some(minimal_role) = schema.minimal_role {
-        builder.push("role >= ").push_bind(minimal_role as i16);
+        builder.push(" AND role >= ").push_bind(minimal_role as i16);
     }
 
     builder.push(" LIMIT ").push_bind(page_size as i64)
