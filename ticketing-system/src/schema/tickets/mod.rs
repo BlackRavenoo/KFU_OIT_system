@@ -8,6 +8,7 @@ pub mod output;
 pub use output::*;
 
 pub type TicketId = i64;
+pub type MessageId = i64;
 
 // Common
 
