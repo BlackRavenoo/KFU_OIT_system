@@ -83,7 +83,7 @@ export async function generateStatisticsReport(
         if (Array.isArray(ticket.assigned_to)) {
             names = ticket.assigned_to.map((a: any) => a.name);
         } else if (ticket.assigned_to) {
-            names = [ticket.assigned_to ?? ticket.assigned_to];
+            names = [ticket.assigned_to];
         }
         names.forEach(name => {
             if (!name) return;
@@ -334,32 +334,10 @@ export async function generateStatisticsReport(
         }
     }
 
-    // --- обводка для строк в таблице исполнителей ---
-    const perfStartRow = statHeaderRow + 1;
-    const perfEndRow = perfStartRow + performerBlock.length - 1;
-    for (let R = perfStartRow; R <= perfEndRow; ++R) {
-        const hasData = worksheet[XLSX.utils.encode_cell({ r: R, c: 3 })]?.v || worksheet[XLSX.utils.encode_cell({ r: R, c: 4 })]?.v;
-        for (const C of [3, 4]) {
-            const cell = worksheet[XLSX.utils.encode_cell({ r: R, c: C })];
-            if (cell) {
-                cell.s = cell.s || {};
-                cell.s.border = hasData ? {
-                    top: { style: "thin", color: { rgb: "000000" } },
-                    bottom: { style: "thin", color: { rgb: "000000" } },
-                    left: { style: "thin", color: { rgb: "000000" } },
-                    right: { style: "thin", color: { rgb: "000000" } }
-                } : undefined;
-            } else {
-                console.warn(`Cell at (${R}, ${C}) not found for performer border styling.`);
-            }
-        }
-    }
-
     // --- остальные ячейки ---
     for (let R = 0; R <= range.e.r; ++R) {
         for (let C = 0; C <= range.e.c; ++C) {
-            if ((R >= afterRowsStart && (C === 2 || C === 5)) ||
-                (R >= perfStartRow && R <= perfEndRow && (C === 3 || C === 4))) continue;
+            if (R >= afterRowsStart && (C === 2 || C === 5)) continue;
             const cell = worksheet[XLSX.utils.encode_cell({ r: R, c: C })];
             if (cell && !cell.s?.border) {
                 cell.s = cell.s || {};

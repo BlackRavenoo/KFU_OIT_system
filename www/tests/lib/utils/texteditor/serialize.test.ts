@@ -1079,4 +1079,20 @@ describe('deserialize', () => {
 
         spy.mockRestore();
     });
+
+    it('Returns right for unknown align value when direction is rtl', () => {
+        const spy = vi.spyOn(window, 'getComputedStyle').mockImplementation(() => ({
+            direction: 'rtl',
+            textAlign: 'unknown-value',
+            color: 'rgb(0, 0, 0)',
+            backgroundColor: 'transparent',
+            getPropertyValue: () => ''
+        } as any));
+
+        const out = serialize('<div align="invalid-align-value">Text</div>');
+        expect(out[0].type).toBe('text');
+        expect(out[0].align).toBe('right');
+
+        spy.mockRestore();
+    });    
 });

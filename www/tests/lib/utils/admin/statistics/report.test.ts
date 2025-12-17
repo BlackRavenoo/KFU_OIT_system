@@ -982,4 +982,161 @@ describe('generateStatisticsReport', () => {
         expect(worksheet['!rows'].length).toBeGreaterThan(0);
         expect(mockSaveAs).toHaveBeenCalled();
     });
+
+    it('ID centering when cell exists without s', async () => {
+        const tickets = [
+            {
+                id: 1,
+                title: 'Test 1',
+                description: 'Desc 1',
+                building: { name: 'Bldg1' },
+                cabinet: '101',
+                created_at: '2024-06-01T10:00:00.000Z',
+                assigned_to: [{ name: 'Ivan' }],
+                status: 'open',
+                note: 'Note 1'
+            }
+        ];
+        (fetchTickets as any).mockResolvedValueOnce({ tickets, max_page: 1 });
+        (getStore as any).mockReturnValue({ name: 'Admin' });
+
+        let worksheet: any = {};
+        
+        // @ts-ignore
+        mockAoaToSheet.mockImplementationOnce((excelData: any[][]) => {
+            worksheet = {};
+            worksheet['!cols'] = [];
+            worksheet['!rows'] = [];
+            worksheet['!merges'] = [];
+            worksheet['!ref'] = 'A1:H10';
+            worksheet['A2'] = { t: 's' };
+            
+            return worksheet;
+        });
+
+        await generateStatisticsReport('2024-06-01', '2024-06-03');
+
+        expect(worksheet['A2'].s).toBeDefined();
+        expect(worksheet['A2'].s.alignment).toBeDefined();
+        expect(worksheet['A2'].s.alignment.horizontal).toBe('center');
+        expect(mockSaveAs).toHaveBeenCalled();
+    });
+
+    it('cancelled row styling when cell exists without s', async () => {
+        const tickets = [
+            {
+                id: 1,
+                title: 'Cancelled ticket',
+                description: 'Desc',
+                building: { name: 'Bldg1' },
+                cabinet: '101',
+                created_at: '2024-06-01T10:00:00.000Z',
+                assigned_to: [{ name: 'Ivan' }],
+                status: 'cancelled',
+                note: 'Note'
+            }
+        ];
+        (fetchTickets as any).mockResolvedValueOnce({ tickets, max_page: 1 });
+        (getStore as any).mockReturnValue({ name: 'Admin' });
+
+        let worksheet: any = {};
+        
+        // @ts-ignore
+        mockAoaToSheet.mockImplementationOnce((excelData: any[][]) => {
+            worksheet = {};
+            worksheet['!cols'] = [];
+            worksheet['!rows'] = [];
+            worksheet['!merges'] = [];
+            worksheet['!ref'] = 'A1:H10';
+            worksheet['G2'] = { v: 'Отменено', t: 's' };
+            worksheet['B2'] = { t: 's' };
+            
+            return worksheet;
+        });
+
+        await generateStatisticsReport('2024-06-01', '2024-06-03');
+
+        expect(worksheet['B2'].s).toBeDefined();
+        expect(worksheet['B2'].s.fill).toEqual({ patternType: "solid", fgColor: { rgb: "FFC7CE" } });
+        expect(mockSaveAs).toHaveBeenCalled();
+    });
+
+    it('border removal when cell exists without s', async () => {
+        const tickets = [
+            {
+                id: 1,
+                title: 'Test 1',
+                description: 'Desc 1',
+                building: { name: 'Bldg1' },
+                cabinet: '101',
+                created_at: '2024-06-01T10:00:00.000Z',
+                assigned_to: [{ name: 'Ivan' }],
+                status: 'open',
+                note: 'Note 1'
+            }
+        ];
+        (fetchTickets as any).mockResolvedValueOnce({ tickets, max_page: 1 });
+        (getStore as any).mockReturnValue({ name: 'Admin' });
+
+        let worksheet: any = {};
+        
+        // @ts-ignore
+        mockAoaToSheet.mockImplementationOnce((excelData: any[][]) => {
+            worksheet = {};
+            worksheet['!cols'] = [];
+            worksheet['!rows'] = [];
+            worksheet['!merges'] = [];
+            worksheet['!ref'] = 'A1:H10';
+            worksheet['C3'] = { t: 's' };
+            worksheet['F3'] = { t: 's' };
+            
+            return worksheet;
+        });
+
+        await generateStatisticsReport('2024-06-01', '2024-06-03');
+
+        expect(worksheet['C3'].s).toBeDefined();
+        expect(worksheet['C3'].s.border).toBeUndefined();
+        expect(worksheet['F3'].s).toBeDefined();
+        expect(worksheet['F3'].s.border).toBeUndefined();
+        expect(mockSaveAs).toHaveBeenCalled();
+    });
+
+    it('cell exists without value and without s', async () => {
+        const tickets = [
+            {
+                id: 1,
+                title: 'Test 1',
+                description: 'Desc 1',
+                building: { name: 'Bldg1' },
+                cabinet: '101',
+                created_at: '2024-06-01T10:00:00.000Z',
+                assigned_to: [{ name: 'Ivan' }],
+                status: 'open',
+                note: 'Note 1'
+            }
+        ];
+        (fetchTickets as any).mockResolvedValueOnce({ tickets, max_page: 1 });
+        (getStore as any).mockReturnValue({ name: 'Admin' });
+
+        let worksheet: any = {};
+        
+        // @ts-ignore
+        mockAoaToSheet.mockImplementationOnce((excelData: any[][]) => {
+            worksheet = {};
+            worksheet['!cols'] = [];
+            worksheet['!rows'] = [];
+            worksheet['!merges'] = [];
+            worksheet['!ref'] = 'A1:H10';
+            worksheet['A5'] = { t: 's' }; 
+            
+            return worksheet;
+        });
+
+        await generateStatisticsReport('2024-06-01', '2024-06-03');
+
+        expect(worksheet['A5'].s).toBeDefined();
+        expect(worksheet['A5'].s.border).toBeDefined();
+        expect(mockSaveAs).toHaveBeenCalled();
+    });
 });
