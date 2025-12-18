@@ -170,15 +170,9 @@
         } catch { }
     }
 
-    function resolveCriticalServerValue(): string {
-        const val = statusPriority.find(o => (o as any).value === 'critical')?.serverValue;
-        return String(val ?? 'critical');
-    }
-
     function isCritical(ticket: any): boolean {
         const v = String(ticket?.priority ?? '').toLowerCase();
-        const critical = resolveCriticalServerValue().toLowerCase();
-        return v === critical || v === 'critical';
+        return v  === 'critical';
     }
 
     let confirmVisible = false;
@@ -198,9 +192,8 @@
             return;
         }
         try {
-            const newPriority = resolveCriticalServerValue();
-            await updateTicket(id, { priority: newPriority });
-            tickets = tickets.map(t => t.id === ticketForCritical.id ? { ...t, priority: newPriority } : t);
+            await updateTicket(id, { priority: 'critical' });
+            tickets = tickets.map(t => t.id === ticketForCritical.id ? { ...t, priority: 'critical' } : t);
         } catch (e) {
             console.error(e);
         } finally {

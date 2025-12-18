@@ -71,8 +71,6 @@ export async function updateTicket(
         attachments_to_add?: File[] | null;
     }
 ): Promise<void> {
-    if (Object.keys(data).length === 1) return;
-
     if (typeof (data as any).building === 'object' && (data as any).building !== null && 'id' in (data as any).building)
         data.building_id = ((data as any).building as { id: number }).id;
     if (data.planned_at) data.planned_at = normalizeDate(data.planned_at);

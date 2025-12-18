@@ -489,14 +489,6 @@ describe('Ticket Set API', () => {
             expect(apiMock.put).toHaveBeenCalledTimes(1);
         });
 
-        it('Returns early when data object has exactly one key', async () => {
-            const ticketId = 'ticket-123';
-            const singleKeyData = { id: 'ticket-123' } as any;
-
-            await expect(updateTicket(ticketId, singleKeyData)).resolves.toBeUndefined();
-            expect(apiMock.put).not.toHaveBeenCalled();
-        });
-
         it('Filters out id field from data', async () => {
             helpers.mockSuccess('put');
 
