@@ -24,7 +24,6 @@ export type Ticket = {
     attachments: null | any,
     building: Building,
     department: Department,
-    note: string,
     cabinet: string
 };
 
@@ -78,6 +77,25 @@ export interface ITicketsFiltersStorage {
     get(): TicketsFilters;
     set(filters: TicketsFilters): void;
     clear(): void;
+}
+
+export interface Message {
+    id: number;
+    user: { id: number; name: string };
+    text: string;
+    is_internal: boolean;
+    created_at: string;
+}
+
+export interface GetMessagesParams {
+    before?: number;
+    after?: number;
+    limit?: number;
+}
+
+export interface CreateMessageParams {
+    message: string;
+    is_internal?: boolean;
 }
 
 // Consts

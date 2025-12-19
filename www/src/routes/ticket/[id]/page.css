@@ -351,21 +351,22 @@ main {
     box-shadow: none !important;
 }
 
-.ticket-notes {
-    margin: -.5rem 0 1rem;
-    padding: 1rem;
-    font-size: 1rem;
-    color: var(--dark);
-    background-color: var(--light-gray);
-    border-radius: 8px;
-    font-family: monospace;
+.chat-open-btn {
+    background: transparent;
+    color: var(--white);
+    height: 60px;
+    width: 60px;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 15px;
+    cursor: pointer;
+    margin-left: 8px;
+    box-shadow: none !important;
 }
 
-.ticket-notes-text {
-    font-size: 1rem;
-    color: var(--text);
-    line-height: 1.5;
-    white-space: pre-wrap;
+.chat-open-btn:hover {
+    background: transparent;
 }
 
 input.edit-mode, textarea.edit-mode, select.edit-mode {

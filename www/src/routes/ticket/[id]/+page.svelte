@@ -13,11 +13,12 @@
     import { UserRole } from '$lib/utils/auth/types';
     import { getAvatar } from '$lib/utils/account/avatar';
     import { loadUsersData } from '$lib/utils/admin/users';
+    import { handleAuthError } from '$lib/utils/api';
     import type { Ticket, Building, UiStatus, PriorityStatus } from '$lib/utils/tickets/types';
     import type { IUserData } from '$lib/utils/auth/types';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
     import FileCard from './File.svelte';
-    import { handleAuthError, api } from '$lib/utils/api';
+    import Chat from './Chat.svelte';
 
     let ticketId: string | undefined = undefined;
     $: ticketId = $page?.params?.id;
@@ -43,7 +44,6 @@
     let author_contacts: string = '';
     let building_id: number | null = null;
     let cabinet: string = '';
-    let note: string = '';
     let department_id = null as number | null;
     let planned_at: string | null = null;
 
@@ -53,10 +53,7 @@
     let showFileRemoveConfirm: boolean = false;
     let attachmentToRemove: { type: 'image' | 'file', idx: number } | null = null;
     let showAttachmentRemoveConfirm = false;
-    let originalImageNames: string[] = []; // Добавьте эту переменную
-
-
-    const NOTE_MAX = 1024;
+    let originalImageNames: string[] = [];
 
     let buildingsList: Building[] = [];
     $: buildings.subscribe(val => buildingsList = val);
@@ -73,10 +70,40 @@
 
     let isSubmitting: boolean = false;
 
+    let showChat = false;
+    let chatModalEl: HTMLDivElement | null = null;
+    let isDragging = false;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+
     let showAssignModal: boolean = false;
     let assignSearchQuery: string = '';
     let assignSearchResults: IUserData[] = [];
     let assignSearchLoading: boolean = false;
+
+    function startDrag(e: MouseEvent) {
+        if (!(e.target as HTMLElement).closest('.chat-header')) return;
+        isDragging = true;
+        const rect = chatModalEl?.getBoundingClientRect();
+        dragOffsetX = e.clientX - (rect?.left ?? 0);
+        dragOffsetY = e.clientY - (rect?.top ?? 0);
+        window.addEventListener('mousemove', onDrag);
+        window.addEventListener('mouseup', stopDrag);
+    }
+
+    function onDrag(e: MouseEvent) {
+        if (!isDragging || !chatModalEl) return;
+        chatModalEl.style.left = `${e.clientX - dragOffsetX}px`;
+        chatModalEl.style.top = `${e.clientY - dragOffsetY}px`;
+        chatModalEl.style.right = 'auto';
+        chatModalEl.style.bottom = 'auto';
+    }
+
+    function stopDrag() {
+        isDragging = false;
+        window.removeEventListener('mousemove', onDrag);
+        window.removeEventListener('mouseup', stopDrag);
+    }
 
     function updateScreenWidth() {
         isWideScreen = window.innerWidth > 1280;
@@ -237,7 +264,6 @@
         author_contacts = ticketData.author_contacts;
         building_id = ticketData.building?.id ?? null;
         cabinet = ticketData.cabinet ?? '';
-        note = ticketData.note ?? '';
         department_id = ticketData.department?.id ?? null;
         planned_at = ticketData.planned_at ?? null;
         status = 'closed';
@@ -264,7 +290,6 @@
         author_contacts = ticketData.author_contacts;
         building_id = ticketData.building?.id ?? null;
         cabinet = ticketData.cabinet ?? '';
-        note = ticketData.note ?? '';
         department_id = ticketData.department?.id ?? null;
         planned_at = ticketData.planned_at ?? null;
         status = 'cancelled';
@@ -282,7 +307,6 @@
         author_contacts = ticketData.author_contacts;
         building_id = ticketData.building?.id ?? null;
         cabinet = ticketData.cabinet ?? '';
-        note = ticketData.note ?? '';
         department_id = ticketData.department?.id ? Number(ticketData.department.id) : null;
         planned_at = ticketData.planned_at ?? null;
 
@@ -350,9 +374,6 @@
         if (!ticketData) return;
         if (isSubmitting) return;
 
-        if (typeof note === 'string' && note.length > NOTE_MAX)
-            note = note.slice(0, NOTE_MAX);
-
         const updatedFields: any = {
             id: ticketData.id
         };
@@ -366,7 +387,6 @@
         if (building_id !== ticketData.building?.id)
             updatedFields.building = buildingsList.find(b => b.id === building_id) || ticketData.building;
         if (cabinet !== ticketData.cabinet) updatedFields.cabinet = cabinet;
-        if (note !== (ticketData.note ?? '')) updatedFields.note = note;
         if (department_id !== null && Number(department_id) !== Number(ticketData.department?.id ?? null))
             updatedFields.department_id = Number(department_id);
         if (planned_at !== ticketData.planned_at)
@@ -398,7 +418,6 @@
                 priority: priority,
                 cabinet: cabinet,
                 building: updatedFields.building || ticketData?.building,
-                note: note,
                 department: $departments.find(d => Number(d.id) === Number(department_id)) || ticketData?.department,
                 planned_at: planned_at
             } as Ticket;
@@ -857,26 +876,6 @@
             {:else}
                 <p>Загрузка...</p>
             {/if}
-            {#if ticketData && (ticketData.note || isEditing)}
-                <div class="ticket-notes">
-                    {#if isEditing}
-                        <textarea
-                            bind:value={ note }
-                            class="edit-mode"
-                            rows="4"
-                            placeholder="Введите примечания"
-                            maxlength={ NOTE_MAX }
-                            on:input={ (e) => {
-                                const el = e.target as HTMLTextAreaElement;
-                                if (el.value.length > NOTE_MAX) el.value = el.value.slice(0, NOTE_MAX);
-                                note = el.value;
-                            } }
-                        ></textarea>
-                    {:else}
-                        <p class="ticket-notes-text">{ ticketData.note }</p>
-                    {/if}
-                </div>
-            {/if}
             {#if images.length > 0 || files.length > 0 || isEditing}
                 {#if isEditing}
                     <div class="attachments-list editing">
@@ -1017,16 +1016,34 @@
                         {:else}
                             <p class="ticket-author">{ ticketData.author }</p>
                             <p class="contacts-tag">Телефон: <span>
-                                <a href={ "tel:" + ticketData.author_contacts } 
-                                    style="
-                                    outline: none; 
-                                    color: inherit;
-                                    text-decoration: none;">
-                                    { ticketData.author_contacts }
-                                </a>
-                            </span></p>
-                        {/if}
-                    </div>
+                                    <a href={ "tel:" + ticketData.author_contacts } 
+                                        style="
+                                        outline: none; 
+                                        color: inherit;
+                                        text-decoration: none;">
+                                        { ticketData.author_contacts }
+                                    </a>
+                                </span>
+                            </p>
+                            {/if}
+                        </div>
+                        <button
+                            class="chat-open-btn"
+                            type="button"
+                            style="margin-left: 1em;"
+                            on:click={ () => showChat = true }
+                            aria-label="Открыть чат по заявке"
+                        >
+                            <svg viewBox="0 0 48 48" width="48" height="48" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#fff">
+                                <g>
+                                    <path d="M24 10V10C33.732 10 42 16.268 42 24V32.909C42 33.923 42 34.43 41.9086 34.8502C41.5758 36.3804 40.3804 37.5758 38.8502 37.9086C38.43 38 37.923 38 36.909 38H24C14.268 38 6 29.732 6 20V20" stroke="#fff" stroke-width="3"/>
+                                    <path d="M18 22L30 22" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M10 16L10 4" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M4 10L16 10" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M24 30H30" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                </g>
+                            </svg>
+                        </button>
                 {:else}
                     <p>Загрузка...</p>
                 {/if}
@@ -1285,26 +1302,6 @@
             {:else}
                 <p>Загрузка...</p>
             {/if}
-            {#if ticketData && (ticketData.note || isEditing)}
-                <div class="ticket-notes">
-                    {#if isEditing}
-                        <textarea
-                            bind:value={ note }
-                            class="edit-mode"
-                            rows="4"
-                            placeholder="Введите примечания"
-                            maxlength={ NOTE_MAX }
-                            on:input={ (e) => {
-                                const el = e.target as HTMLTextAreaElement;
-                                if (el.value.length > NOTE_MAX) el.value = el.value.slice(0, NOTE_MAX);
-                                note = el.value;
-                            } }
-                        ></textarea>
-                    {:else}
-                        <p class="ticket-notes-text">{ ticketData.note }</p>
-                    {/if}
-                </div>
-            {/if}
             {#if images.length > 0 || files.length > 0 || isEditing}
                 {#if isEditing}
                     <div class="attachments-list editing">
@@ -1445,16 +1442,34 @@
                         {:else}
                             <p class="ticket-author">{ ticketData.author }</p>
                             <p class="contacts-tag">Телефон: <span>
-                                <a href={ "tel:" + ticketData.author_contacts } 
-                                    style="
-                                    outline: none; 
-                                    color: inherit;
-                                    text-decoration: none;">
-                                    { ticketData.author_contacts }
-                                </a>
-                            </span></p>
-                        {/if}
-                    </div>
+                                    <a href={ "tel:" + ticketData.author_contacts } 
+                                        style="
+                                        outline: none; 
+                                        color: inherit;
+                                        text-decoration: none;">
+                                        { ticketData.author_contacts }
+                                    </a>
+                                </span>
+                            </p>
+                            {/if}
+                        </div>
+                        <button
+                            class="chat-open-btn"
+                            type="button"
+                            style="margin-left: 1em;"
+                            on:click={ () => showChat = true }
+                            aria-label="Открыть чат по заявке"
+                        >
+                            <svg viewBox="0 0 48 48" width="48" height="48" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#fff">
+                                <g>
+                                    <path d="M24 10V10C33.732 10 42 16.268 42 24V32.909C42 33.923 42 34.43 41.9086 34.8502C41.5758 36.3804 40.3804 37.5758 38.8502 37.9086C38.43 38 37.923 38 36.909 38H24C14.268 38 6 29.732 6 20V20" stroke="#fff" stroke-width="3"/>
+                                    <path d="M18 22L30 22" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M10 16L10 4" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M4 10L16 10" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M24 30H30" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                </g>
+                            </svg>
+                        </button>
                 {:else}
                     <p>Загрузка...</p>
                 {/if}
@@ -1671,6 +1686,24 @@
             on:click={ closeModal }
             aria-label="Закрыть"
         >&times;</button>
+    </div>
+{/if}
+
+{#if showChat && ticketData}
+    <div
+        class="draggable-chat-modal"
+        bind:this={ chatModalEl }
+        role="dialog"
+        aria-modal="true"
+        tabindex="0"
+        style="position:fixed; right:40px; bottom:40px; z-index:2000;"
+        on:mousedown={ startDrag }
+    >
+        <Chat
+            ticketId={ ticketData?.id || 0 }
+            userRole={ $currentUser?.role || UserRole.Anonymous }
+            on:close={ () => showChat = false }
+        />
     </div>
 {/if}
 
