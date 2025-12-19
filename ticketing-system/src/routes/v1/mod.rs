@@ -1,6 +1,6 @@
 use actix_web::web;
 
-use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{attachments::get_attachment, auth::{change_password, login, me, refresh_token, register, validate_register_token}, buildings::{create_building, toggle_building_active, update_building}, departments::{create_department, toggle_department_active, update_department}, pages::{create_page, delete_page, get_page, get_page_data, get_pages, update_page}, tags::{create_tag, delete_tag, search_tags, update_tag}, tickets::{assign_ticket_to_self, assign_ticket_to_user, create_message::create_message, create_ticket, delete_ticket, get_consts, get_messages::get_messages, get_ticket, get_tickets, unassign_ticket_from_self, unassign_ticket_from_user, update_ticket}, user::{activate_account, change_user_role, change_user_status, deactivate_account, get_users, invite_user, update_avatar, update_user_profile}}};
+use crate::{auth::{middleware::JwtMiddleware, types::UserRole}, routes::v1::{attachments::get_attachment, auth::{change_password, login, me, refresh_token, register, validate_register_token}, buildings::{create_building, toggle_building_active, update_building}, departments::{create_department, toggle_department_active, update_department}, pages::{create_page, delete_page, get_page, get_page_data, get_pages, update_page}, tags::{create_tag, delete_tag, search_tags, update_tag}, tickets::{assign_ticket_to_self, assign_ticket_to_user, create_message::create_message, create_ticket, delete_message::delete_message, delete_ticket, get_consts, get_messages::get_messages, get_ticket, get_tickets, unassign_ticket_from_self, unassign_ticket_from_user, update_ticket}, user::{activate_account, change_user_role, change_user_status, deactivate_account, get_users, invite_user, update_avatar, update_user_profile}}};
 
 pub mod auth;
 pub mod tickets;
@@ -53,6 +53,8 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                                         .wrap(JwtMiddleware::min_role(UserRole::Client)))
                                     .route("", web::post().to(create_message)
                                         .wrap(JwtMiddleware::min_role(UserRole::Client)))
+                                    .route("/{id}", web::delete().to(delete_message)
+                                        .wrap(JwtMiddleware::min_role(UserRole::Employee)))
                             )
                     )
             )
