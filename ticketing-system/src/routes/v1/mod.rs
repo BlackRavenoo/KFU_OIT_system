@@ -10,6 +10,7 @@ pub mod pages;
 pub mod tags;
 pub mod departments;
 pub mod buildings;
+pub mod notifications;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
