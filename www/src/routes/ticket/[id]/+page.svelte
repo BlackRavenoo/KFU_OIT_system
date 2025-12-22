@@ -69,6 +69,7 @@
     let loadingExecutorAvatars: Set<string> = new Set();
 
     let isSubmitting: boolean = false;
+    let isMobile = window.innerWidth <= 900;
 
     let showChat = false;
     let chatModalEl: HTMLDivElement | null = null;
@@ -80,6 +81,10 @@
     let assignSearchQuery: string = '';
     let assignSearchResults: IUserData[] = [];
     let assignSearchLoading: boolean = false;
+
+    function updateIsMobile() {
+        isMobile = window.innerWidth <= 900;
+    }
 
     function startDrag(e: MouseEvent) {
         if (!(e.target as HTMLElement).closest('.chat-header')) return;
@@ -654,6 +659,7 @@
             if (ticketData) title = ticketData.title;
     
             window.addEventListener('resize', updateScreenWidth);
+            window.addEventListener('resize', updateIsMobile);
         }
     });
 
@@ -668,6 +674,7 @@
         document.body.style.overflow = '';
         window.removeEventListener('keydown', handleEsc);
         window.removeEventListener('resize', updateScreenWidth);
+        window.removeEventListener('resize', updateIsMobile);
         
         executorAvatarContainers.clear();
         loadedExecutorAvatars.clear();
@@ -1034,13 +1041,13 @@
                             on:click={ () => showChat = true }
                             aria-label="Открыть чат по заявке"
                         >
-                            <svg viewBox="0 0 48 48" width="48" height="48" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#fff">
+                            <svg viewBox="0 0 48 48" width="48" height="48" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#075cef">
                                 <g>
-                                    <path d="M24 10V10C33.732 10 42 16.268 42 24V32.909C42 33.923 42 34.43 41.9086 34.8502C41.5758 36.3804 40.3804 37.5758 38.8502 37.9086C38.43 38 37.923 38 36.909 38H24C14.268 38 6 29.732 6 20V20" stroke="#fff" stroke-width="3"/>
-                                    <path d="M18 22L30 22" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <path d="M10 16L10 4" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <path d="M4 10L16 10" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <path d="M24 30H30" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M24 10V10C33.732 10 42 16.268 42 24V32.909C42 33.923 42 34.43 41.9086 34.8502C41.5758 36.3804 40.3804 37.5758 38.8502 37.9086C38.43 38 37.923 38 36.909 38H24C14.268 38 6 29.732 6 20V20" stroke="#075cef" stroke-width="3"/>
+                                    <path d="M18 22L30 22" stroke="#075cef" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M10 16L10 4" stroke="#075cef" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M4 10L16 10" stroke="#075cef" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M24 30H30" stroke="#075cef" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                                 </g>
                             </svg>
                         </button>
@@ -1460,13 +1467,13 @@
                             on:click={ () => showChat = true }
                             aria-label="Открыть чат по заявке"
                         >
-                            <svg viewBox="0 0 48 48" width="48" height="48" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#fff">
+                            <svg viewBox="0 0 48 48" width="48" height="48" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#075cef">
                                 <g>
-                                    <path d="M24 10V10C33.732 10 42 16.268 42 24V32.909C42 33.923 42 34.43 41.9086 34.8502C41.5758 36.3804 40.3804 37.5758 38.8502 37.9086C38.43 38 37.923 38 36.909 38H24C14.268 38 6 29.732 6 20V20" stroke="#fff" stroke-width="3"/>
-                                    <path d="M18 22L30 22" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <path d="M10 16L10 4" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <path d="M4 10L16 10" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                                    <path d="M24 30H30" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M24 10V10C33.732 10 42 16.268 42 24V32.909C42 33.923 42 34.43 41.9086 34.8502C41.5758 36.3804 40.3804 37.5758 38.8502 37.9086C38.43 38 37.923 38 36.909 38H24C14.268 38 6 29.732 6 20V20" stroke="#075cef" stroke-width="3"/>
+                                    <path d="M18 22L30 22" stroke="#075cef" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M10 16L10 4" stroke="#075cef" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M4 10L16 10" stroke="#075cef" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M24 30H30" stroke="#075cef" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
                                 </g>
                             </svg>
                         </button>
@@ -1691,13 +1698,16 @@
 
 {#if showChat && ticketData}
     <div
-        class="draggable-chat-modal"
+        class="draggable-chat-modal {isMobile ? 'mobile' : ''}"
         bind:this={ chatModalEl }
         role="dialog"
         aria-modal="true"
         tabindex="0"
-        style="position:fixed; right:40px; bottom:40px; z-index:2000;"
-        on:mousedown={ startDrag }
+        style={ isMobile
+            ? 'position:fixed; left:0; top:0; right:0; bottom:0; width:100vw; height:100vh; z-index:2000;'
+            : 'position:fixed; right:40px; bottom:40px; z-index:2000;'
+        }
+        on:mousedown={ isMobile ? undefined : startDrag }
     >
         <Chat
             ticketId={ ticketData?.id || 0 }

@@ -1,5 +1,6 @@
 import { api } from '$lib/utils/api';
 import type { Message, CreateMessageParams, GetMessagesParams } from '$lib/utils/tickets/types';
+import { tick } from 'svelte';
 
 const BASE = '/api/v1/tickets';
 
@@ -27,8 +28,8 @@ export async function createMessage(ticketId: number | string, data: CreateMessa
  * Удаление сообщения тикета
  * @param messageId id сообщения
  */
-export async function deleteMessage(messageId: number | string) {
-    return api.delete(`${BASE}/${messageId}`);
+export async function deleteMessage(ticketId: number | string, messageId: number | string) {
+    return api.delete(`${BASE}/${ticketId}/messages/${messageId}`);
 }
 
 /**
