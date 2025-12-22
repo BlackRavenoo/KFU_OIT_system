@@ -2,6 +2,7 @@ use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_qs::actix::QsQuery;
 use sqlx::{PgPool, prelude::FromRow, types::Json};
 
 use crate::{auth::{extractor::UserRoleExtractor, types::UserRole}, schema::{common::UserId, tickets::{MessageId, TicketId}}, utils::error_chain_fmt};
@@ -48,9 +49,11 @@ impl ResponseError for GetMessagesError {}
 pub async fn get_messages(
     pool: web::Data<PgPool>,
     ticket_id: web::Path<TicketId>,
-    web::Json(schema): web::Json<GetMessagesSchema>,
+    schema: QsQuery<GetMessagesSchema>,
     user_role: UserRoleExtractor,
 ) -> Result<HttpResponse, GetMessagesError> {
+    let schema = schema.into_inner();
+
     let only_not_internal = !user_role.0.has_access(UserRole::Employee);
 
     let messages = select_messages(
@@ -88,17 +91,17 @@ async fn select_messages(
     builder.push_bind(ticket_id);
 
     if only_not_internal {
-        builder.push(" AND NOT is_internal");
+        builder.push(" AND NOT is_internal ");
     }
 
     if let Some(after) = schema.after {
-        builder.push(" AND id > ").push_bind(after);
+        builder.push(" AND id >").push_bind(after);
     } else if let Some(before) = schema.before {
-        builder.push(" AND id < ").push_bind(before);
+        builder.push(" AND id <").push_bind(before);
     }
 
-    builder.push("GROUP BY tm.id ORDER BY created_at DESC LIMIT")
-        .push_bind(schema.limit.clamp(20, 100))
+    builder.push(" GROUP BY tm.id, u.id ORDER BY created_at DESC LIMIT ")
+        .push_bind(schema.limit.clamp(20, 100) as i64)
         .build_query_as::<Message>()
         .fetch_all(pool)
         .await
