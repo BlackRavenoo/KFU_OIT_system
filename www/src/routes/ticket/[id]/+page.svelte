@@ -72,10 +72,6 @@
     let isMobile = window.innerWidth <= 900;
 
     let showChat = false;
-    let chatModalEl: HTMLDivElement | null = null;
-    let isDragging = false;
-    let dragOffsetX = 0;
-    let dragOffsetY = 0;
 
     let showAssignModal: boolean = false;
     let assignSearchQuery: string = '';
@@ -84,30 +80,6 @@
 
     function updateIsMobile() {
         isMobile = window.innerWidth <= 900;
-    }
-
-    function startDrag(e: MouseEvent) {
-        if (!(e.target as HTMLElement).closest('.chat-header')) return;
-        isDragging = true;
-        const rect = chatModalEl?.getBoundingClientRect();
-        dragOffsetX = e.clientX - (rect?.left ?? 0);
-        dragOffsetY = e.clientY - (rect?.top ?? 0);
-        window.addEventListener('mousemove', onDrag);
-        window.addEventListener('mouseup', stopDrag);
-    }
-
-    function onDrag(e: MouseEvent) {
-        if (!isDragging || !chatModalEl) return;
-        chatModalEl.style.left = `${e.clientX - dragOffsetX}px`;
-        chatModalEl.style.top = `${e.clientY - dragOffsetY}px`;
-        chatModalEl.style.right = 'auto';
-        chatModalEl.style.bottom = 'auto';
-    }
-
-    function stopDrag() {
-        isDragging = false;
-        window.removeEventListener('mousemove', onDrag);
-        window.removeEventListener('mouseup', stopDrag);
     }
 
     function updateScreenWidth() {
@@ -1698,8 +1670,7 @@
 
 {#if showChat && ticketData}
     <div
-        class="draggable-chat-modal {isMobile ? 'mobile' : ''}"
-        bind:this={ chatModalEl }
+        class="draggable-chat-modal { isMobile ? 'mobile' : '' }"
         role="dialog"
         aria-modal="true"
         tabindex="0"
@@ -1707,7 +1678,6 @@
             ? 'position:fixed; left:0; top:0; right:0; bottom:0; width:100vw; height:100vh; z-index:2000;'
             : 'position:fixed; right:40px; bottom:40px; z-index:2000;'
         }
-        on:mousedown={ isMobile ? undefined : startDrag }
     >
         <Chat
             ticketId={ ticketData?.id || 0 }

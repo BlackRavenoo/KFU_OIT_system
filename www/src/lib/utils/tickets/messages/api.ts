@@ -48,7 +48,6 @@ export function subscribeMessages(
     let timer: ReturnType<typeof setTimeout>;
 
     async function poll() {
-        if (stopped) return;
         const res = await getMessages(ticketId, params);
         if (res.success && Array.isArray(res.data)) onUpdate(res.data);
         timer = setTimeout(poll, 30000);
@@ -59,5 +58,6 @@ export function subscribeMessages(
     return () => {
         stopped = true;
         if (timer) clearTimeout(timer);
+        else console.warn('No timer to clear in subscribeMessages');
     };
 }

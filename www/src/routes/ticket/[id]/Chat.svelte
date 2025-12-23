@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+    import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
     import { getMessages, createMessage, deleteMessage, subscribeMessages } from '$lib/utils/tickets/messages/api';
     import type { Message } from '$lib/utils/tickets/types';
     import { currentUser } from '$lib/utils/auth/storage/initial';
@@ -19,6 +19,24 @@
 
     let isInternal = false;
 
+    let chatMessagesEl: HTMLDivElement | null = null;
+    let loadingMore = false;
+    let allLoaded = false;
+
+    // Для ресайза
+    let chatModalEl: HTMLDivElement | null = null;
+    let resizing = false;
+    let resizeStartX = 0;
+    let resizeStartY = 0;
+    let startWidth = 0;
+    let startHeight = 0;
+
+    // Для мобильного режима
+    let isMobile = false;
+    function updateIsMobile() {
+        isMobile = window.innerWidth <= 900;
+    }
+
     const dispatch = createEventDispatcher();
 
     $: userId = $currentUser?.id ? Number($currentUser.id) : null;
@@ -34,6 +52,8 @@
         input = '';
         const res = await getMessages(ticketId);
         if (res.success && Array.isArray(res.data)) messages = res.data;
+        await tick();
+        if (chatMessagesEl) chatMessagesEl.scrollTop = 0;
     }
 
     function askDelete(msg: Message) {
@@ -56,7 +76,63 @@
         messageToDelete = null;
     }
 
+    function handleInputKeydown(e: KeyboardEvent) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    }
+
+    async function handleScroll() {
+        if (!chatMessagesEl || loadingMore || allLoaded || messages.length === 0) return;
+        const epsilon = 2;
+        if (chatMessagesEl.scrollTop >= chatMessagesEl.scrollHeight - chatMessagesEl.clientHeight - epsilon) {
+            loadingMore = true;
+            const minId = Math.min(...messages.map(m => m.id));
+            const prevHeight = chatMessagesEl.scrollHeight;
+            const res = await getMessages(ticketId, { before: minId });
+            if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+                messages = [...messages, ...res.data];
+                await tick();
+                chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight - prevHeight;
+            } else {
+                allLoaded = true;
+            }
+            loadingMore = false;
+        }
+    }
+
+    function startResize(e: MouseEvent) {
+        if (!chatModalEl || isMobile) return;
+        resizing = true;
+        resizeStartX = e.clientX;
+        resizeStartY = e.clientY;
+        startWidth = chatModalEl.offsetWidth;
+        startHeight = chatModalEl.offsetHeight;
+        window.addEventListener('mousemove', onResize);
+        window.addEventListener('mouseup', stopResize);
+        e.preventDefault();
+    }
+
+    function onResize(e: MouseEvent) {
+        if (!resizing || !chatModalEl) return;
+        const minWidth = 320;
+        const minHeight = 320;
+        let newWidth = Math.max(minWidth, startWidth - (e.clientX - resizeStartX));
+        let newHeight = Math.max(minHeight, startHeight - (e.clientY - resizeStartY));
+        chatModalEl.style.width = newWidth + 'px';
+        chatModalEl.style.height = newHeight + 'px';
+    }
+
+    function stopResize() {
+        resizing = false;
+        window.removeEventListener('mousemove', onResize);
+        window.removeEventListener('mouseup', stopResize);
+    }
+
     onMount(() => {
+        updateIsMobile();
+        window.addEventListener('resize', updateIsMobile);
         unsubscribe = subscribeMessages(ticketId, undefined, (msgs) => {
             messages = msgs;
         });
@@ -64,17 +140,20 @@
 
     onDestroy(() => {
         if (unsubscribe) unsubscribe();
+        window.removeEventListener('resize', updateIsMobile);
     });
-
-    function handleInputKeydown(e: KeyboardEvent) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    }
 </script>
 
-<div class="chat-modal">
+<div class="chat-modal" bind:this={chatModalEl}>
+    {#if !isMobile}
+        <button
+            class="resize-handle"
+            type="button"
+            aria-label="Изменить размер окна чата"
+            tabindex="0"
+            on:mousedown={startResize}
+        ></button>
+    {/if}
     <div class="chat-header">
         Чат по заявке
         <button class="chat-close-btn" aria-label="Закрыть чат" on:click={ () => dispatch('close') }>
@@ -84,7 +163,11 @@
             </svg>
         </button>
     </div>
-    <div class="chat-messages">
+    <div
+        class="chat-messages"
+        bind:this={chatMessagesEl}
+        on:scroll={handleScroll}
+    >
         {#each messages as msg (msg.id)}
             {#if !msg.is_internal || canShowInternal()}
                 <div
@@ -96,7 +179,7 @@
                         <button
                             class="delete-btn"
                             aria-label="Удалить сообщение"
-                            on:click={() => askDelete(msg)}
+                            on:click={ () => askDelete(msg) }
                         >
                             <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
                                 <path d="M6 8V14M10 8V14M14 8V14M3 6H17M8 6V4C8 3.44772 8.44772 3 9 3H11C11.5523 3 12 3.44772 12 4V6M5 6V16C5 17.1046 5.89543 18 7 18H13C14.1046 18 15 17.1046 15 16V6" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -176,6 +259,39 @@
         z-index: 1000;
         overflow: hidden;
         user-select: none;
+        min-width: 320px;
+        min-height: 320px;
+        box-sizing: border-box;
+        resize: none;
+    }
+
+    .resize-handle {
+        position: absolute;
+        left: .25rem;
+        top: -.5rem;
+        width: 28px;
+        height: 28px;
+        cursor: nw-resize;
+        z-index: 10;
+        opacity: .4;
+        background: transparent;
+        border: none;
+        padding: 0;
+        box-shadow: none !important;
+    }
+
+    .resize-handle::after {
+        content: '';
+        display: block;
+        width: 18px;
+        height: 18px;
+        border-top: 3px solid #fff;
+        border-left: 3px solid #fff;
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        border-radius: 4px 0 0 0;
+        background: transparent;
     }
 
     .chat-header {
@@ -380,13 +496,16 @@
         filter: brightness(1);
         transition: ease filter 0.15s;
     }
+
     .chat-send-icon:disabled {
         opacity: 0.3;
         cursor: not-allowed;
     }
+
     .chat-send-icon:hover:enabled {
         filter: brightness(.5);
     }
+
     .chat-send-icon svg {
         display: block;
         pointer-events: none;
@@ -404,6 +523,12 @@
             max-height: 100vh !important;
             border-radius: 0 !important;
             box-shadow: none !important;
+            min-width: 0;
+            min-height: 0;
+        }
+
+        .resize-handle {
+            display: none;
         }
     }
 </style>
