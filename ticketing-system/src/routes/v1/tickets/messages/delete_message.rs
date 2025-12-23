@@ -2,7 +2,7 @@ use actix_web::{HttpResponse, ResponseError, http::StatusCode, web};
 use anyhow::Context;
 use sqlx::{PgPool, postgres::PgQueryResult};
 
-use crate::{auth::{extractor::{UserIdExtractor, UserRoleExtractor}, types::UserRole}, schema::{common::UserId, tickets::MessageId}, utils::error_chain_fmt};
+use crate::{auth::{extractor::{UserIdExtractor, UserRoleExtractor}, types::UserRole}, schema::{common::UserId, tickets::{MessageId, TicketId}}, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum DeleteMessageError {
@@ -29,13 +29,16 @@ impl ResponseError for DeleteMessageError {
 
 pub async fn delete_message(
     pool: web::Data<PgPool>,
-    message_id: web::Path<MessageId>,
+    path: web::Path<(TicketId, MessageId)>,
     user_id: UserIdExtractor,
     user_role: UserRoleExtractor,
 ) -> Result<HttpResponse, DeleteMessageError> {
+    let (ticket_id, message_id) = path.into_inner();
+
     let res = delete(
         &pool,
-        message_id.into_inner(),
+        ticket_id,
+        message_id,
         user_id.0,
         user_role.0
     ).await
@@ -50,6 +53,7 @@ pub async fn delete_message(
 
 async fn delete(
     pool: &PgPool,
+    ticket_id: TicketId,
     message_id: MessageId,
     user_id: UserId,
     user_role: UserRole,
@@ -58,18 +62,20 @@ async fn delete(
         sqlx::query!(
             "
                 DELETE FROM ticket_messages
-                WHERE id = $1 AND user_id = $2
+                WHERE id = $1 AND ticket_id = $2 AND user_id = $3
             ",
             message_id,
+            ticket_id,
             user_id
         )
     } else {
         sqlx::query!(
             "
                 DELETE FROM ticket_messages
-                WHERE id = $1
+                WHERE id = $1 AND ticket_id = $2
             ",
-            message_id
+            message_id,
+            ticket_id
         )
     }
     .execute(pool)
