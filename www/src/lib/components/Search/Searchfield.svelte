@@ -1,9 +1,22 @@
 <script lang="ts">
+    import { createEventDispatcher } from 'svelte';
     export let searchQuery: string = '';
     export let placeholder: string = 'Поиск...';
     export let onSearch: () => void;
-    
+
     let focused: boolean = false;
+    const dispatch = createEventDispatcher();
+
+    function clearSearch() {
+        searchQuery = '';
+        dispatch('update', searchQuery);
+        onSearch();
+        setTimeout(() => {
+            inputEl?.focus();
+        }, 0);
+    }
+
+    let inputEl: HTMLInputElement | null = null;
 </script>
 
 <div class="search-module">
@@ -12,6 +25,7 @@
             type="text"
             placeholder={ placeholder }
             bind:value={ searchQuery }
+            bind:this={inputEl}
             on:focus={ () => focused = true }
             on:blur={ () => focused = false }
             on:keydown={(e) => {
@@ -22,21 +36,20 @@
             <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/>
             <line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2"/>
         </svg>
-        <button
-            type="button"
-            class="clear-icon-btn"
-            aria-label="Очистить поиск"
-            on:click={() => {
-                searchQuery = '';
-                onSearch();
-            }}
-            tabindex="-1"
-        >
-            <svg viewBox="0 0 24 24" width="22" height="22">
-                <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2"/>
-                <line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" stroke-width="2"/>
-            </svg>
-        </button>
+        {#if focused || searchQuery}
+            <button
+                type="button"
+                class="clear-icon-btn"
+                aria-label="Очистить поиск"
+                on:click={ clearSearch }
+                tabindex="-1"
+            >
+                <svg viewBox="0 0 24 24" width="22" height="22">
+                    <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2"/>
+                    <line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" stroke-width="2"/>
+                </svg>
+            </button>
+        {/if}
     </div>
 </div>
 
@@ -83,8 +96,7 @@
         letter-spacing: 0.01em;
     }
 
-    .search-icon,
-    .clear-icon-btn {
+    .search-icon {
         position: absolute;
         left: 1.2rem;
         top: 50%;
@@ -95,12 +107,13 @@
         opacity: 0.8;
         transition: opacity 0.2s;
         box-shadow: none;
+        pointer-events: none;
     }
 
     .clear-icon-btn {
-        left: unset;
+        position: absolute;
         right: 1.2rem;
-        top: 22px;
+        top: 11px;
         background: none;
         border: none;
         cursor: pointer;
@@ -109,26 +122,13 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        z-index: 2;
+        box-shadow: none !important;
     }
 
     .clear-icon-btn svg {
         width: 22px;
         height: 22px;
         color: var(--blue);
-    }
-
-    .search-block input[type="text"]:focus ~ .search-icon {
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    .search-block input[type="text"]:focus ~ .clear-icon-btn {
-        opacity: 1;
-        pointer-events: auto;
-    }
-
-    .search-block .clear-icon-btn {
-        opacity: 0;
-        pointer-events: none;
     }
 </style>

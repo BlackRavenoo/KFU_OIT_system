@@ -356,6 +356,7 @@ main {
     color: var(--white);
     height: 60px;
     width: 60px;
+    min-width: 36px !important;
     border: none;
     border-radius: 6px;
     padding: 4px 12px;
@@ -367,6 +368,10 @@ main {
 
 .chat-open-btn:hover {
     background: transparent;
+}
+
+.chat-open-btn svg {
+    min-width: 36px !important;
 }
 
 input.edit-mode, textarea.edit-mode, select.edit-mode {

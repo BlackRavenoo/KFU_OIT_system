@@ -23,7 +23,6 @@
     let loadingMore = false;
     let allLoaded = false;
 
-    // Для ресайза
     let chatModalEl: HTMLDivElement | null = null;
     let resizing = false;
     let resizeStartX = 0;
@@ -31,7 +30,6 @@
     let startWidth = 0;
     let startHeight = 0;
 
-    // Для мобильного режима
     let isMobile = false;
     function updateIsMobile() {
         isMobile = window.innerWidth <= 900;
@@ -53,7 +51,7 @@
         const res = await getMessages(ticketId);
         if (res.success && Array.isArray(res.data)) messages = res.data;
         await tick();
-        if (chatMessagesEl) chatMessagesEl.scrollTop = 0;
+        if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
     }
 
     function askDelete(msg: Message) {
@@ -86,15 +84,17 @@
     async function handleScroll() {
         if (!chatMessagesEl || loadingMore || allLoaded || messages.length === 0) return;
         const epsilon = 2;
-        if (chatMessagesEl.scrollTop >= chatMessagesEl.scrollHeight - chatMessagesEl.clientHeight - epsilon) {
+        if (chatMessagesEl.scrollTop <= epsilon) {
             loadingMore = true;
             const minId = Math.min(...messages.map(m => m.id));
             const prevHeight = chatMessagesEl.scrollHeight;
             const res = await getMessages(ticketId, { before: minId });
             if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-                messages = [...messages, ...res.data];
+                messages = [...res.data, ...messages];
                 await tick();
-                chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight - prevHeight;
+                if (chatMessagesEl) {
+                    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight - prevHeight;
+                }
             } else {
                 allLoaded = true;
             }
@@ -135,6 +135,9 @@
         window.addEventListener('resize', updateIsMobile);
         unsubscribe = subscribeMessages(ticketId, undefined, (msgs) => {
             messages = msgs;
+            tick().then(() => {
+                if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+            });
         });
     });
 
@@ -165,10 +168,10 @@
     </div>
     <div
         class="chat-messages"
-        bind:this={chatMessagesEl}
-        on:scroll={handleScroll}
+        bind:this={ chatMessagesEl }
+        on:scroll={ handleScroll }
     >
-        {#each messages as msg (msg.id)}
+        {#each [...messages].reverse() as msg (msg.id)}
             {#if !msg.is_internal || canShowInternal()}
                 <div
                     class="chat-message
@@ -271,6 +274,7 @@
         top: -.5rem;
         width: 28px;
         height: 28px;
+        transform: scale(.8) translate(-4px, -8px);
         cursor: nw-resize;
         z-index: 10;
         opacity: .4;
@@ -327,7 +331,7 @@
         overflow-y: auto;
         padding: 16px;
         display: flex;
-        flex-direction: column-reverse;
+        flex-direction: column;
         gap: 10px;
     }
 
