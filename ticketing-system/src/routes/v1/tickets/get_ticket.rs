@@ -46,7 +46,6 @@ pub struct TicketQueryResult {
     pub created_at: DateTime<Utc>,
     pub attachments: Option<Vec<String>>,
     pub building: Json<Building>,
-    pub note: Option<String>,
     pub cabinet: Option<String>,
     pub department: Json<Department>,
     pub source: TicketSource,
@@ -67,7 +66,6 @@ pub struct TicketSchemaWithAttachments {
     pub created_at: DateTime<Utc>,
     pub attachments: Option<Vec<String>>,
     pub building: Building,
-    pub note: Option<String>,
     pub cabinet: Option<String>,
     pub department: Department,
     pub source: TicketSource,
@@ -95,7 +93,6 @@ impl From<TicketQueryResult> for TicketSchemaWithAttachments {
             assigned_to: ticket.assigned_to.0,
             attachments: ticket.attachments,
             building: ticket.building.0,
-            note: ticket.note,
             cabinet: ticket.cabinet,
             department: ticket.department.0,
             source: ticket.source,
@@ -163,7 +160,6 @@ async fn select_ticket(
                 'code', b.code,
                 'name', b.name
             ) as "building!: Json<Building>",
-            note,
             cabinet,
             JSON_BUILD_OBJECT(
                 'id', d.id,

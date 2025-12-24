@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT \n            t.id,\n            title,\n            description,\n            author,\n            author_contacts,\n            t.status,\n            priority,\n            planned_at,\n            source,\n            t.author_id,\n            COALESCE(\n                JSON_AGG(\n                    JSON_BUILD_OBJECT(\n                        'id', u.id,\n                        'name', u.name,\n                        'avatar_key', u.avatar_key\n                    )\n                ) FILTER (WHERE u.id IS NOT NULL),\n                '[]'::json\n            ) as \"assigned_to!: Json<Vec<User>>\",\n            t.created_at,\n            ARRAY_AGG(DISTINCT ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments,\n            JSON_BUILD_OBJECT(\n                'id', b.id,\n                'code', b.code,\n                'name', b.name\n            ) as \"building!: Json<Building>\",\n            note,\n            cabinet,\n            JSON_BUILD_OBJECT(\n                'id', d.id,\n                'name', d.name\n            ) as \"department!: Json<Department>\"\n        FROM tickets t\n        LEFT JOIN tickets_users tu ON tu.ticket_id = t.id \n        LEFT JOIN users u ON u.id = tu.assigned_to\n        LEFT JOIN ticket_attachments ta ON ta.ticket_id = t.id\n        JOIN buildings b ON b.id = t.building_id\n        JOIN departments d ON d.id = t.department_id\n        WHERE t.id = $1\n        GROUP BY t.id, b.id, d.id\n        ",
+  "query": "\n        SELECT \n            t.id,\n            title,\n            description,\n            author,\n            author_contacts,\n            t.status,\n            priority,\n            planned_at,\n            source,\n            t.author_id,\n            COALESCE(\n                JSON_AGG(\n                    JSON_BUILD_OBJECT(\n                        'id', u.id,\n                        'name', u.name,\n                        'avatar_key', u.avatar_key\n                    )\n                ) FILTER (WHERE u.id IS NOT NULL),\n                '[]'::json\n            ) as \"assigned_to!: Json<Vec<User>>\",\n            t.created_at,\n            ARRAY_AGG(DISTINCT ta.key) FILTER (WHERE ta.key IS NOT NULL) as attachments,\n            JSON_BUILD_OBJECT(\n                'id', b.id,\n                'code', b.code,\n                'name', b.name\n            ) as \"building!: Json<Building>\",\n            cabinet,\n            JSON_BUILD_OBJECT(\n                'id', d.id,\n                'name', d.name\n            ) as \"department!: Json<Department>\"\n        FROM tickets t\n        LEFT JOIN tickets_users tu ON tu.ticket_id = t.id \n        LEFT JOIN users u ON u.id = tu.assigned_to\n        LEFT JOIN ticket_attachments ta ON ta.ticket_id = t.id\n        JOIN buildings b ON b.id = t.building_id\n        JOIN departments d ON d.id = t.department_id\n        WHERE t.id = $1\n        GROUP BY t.id, b.id, d.id\n        ",
   "describe": {
     "columns": [
       {
@@ -75,16 +75,11 @@
       },
       {
         "ordinal": 14,
-        "name": "note",
-        "type_info": "Varchar"
-      },
-      {
-        "ordinal": 15,
         "name": "cabinet",
         "type_info": "Varchar"
       },
       {
-        "ordinal": 16,
+        "ordinal": 15,
         "name": "department!: Json<Department>",
         "type_info": "Json"
       }
@@ -110,9 +105,8 @@
       null,
       null,
       true,
-      true,
       null
     ]
   },
-  "hash": "45b7aa575369b23c03f124e4b419f2c049e86a799851d115049ee5124479feb5"
+  "hash": "4cf4ec5fd5dffb7c6e705a7081d6a46e1e3488b60fb9b57821ff7469f4ab2103"
 }
