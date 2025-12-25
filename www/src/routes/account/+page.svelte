@@ -4,13 +4,11 @@
     import { page } from '$app/stores';
     import { browser } from '$app/environment';
     import { goto } from '$app/navigation';
-    import { get } from 'svelte/store';
     
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { logout } from '$lib/utils/auth/api/api';
-    import { authCheckComplete } from '$lib/utils/auth/api/api';
     import { Tab, type TabType, updateUrlParam, isValidTab } from '$lib/utils/account/tab-manager';
     import { UserRole } from '$lib/utils/auth/types';
     import { getAvatar } from '$lib/utils/account/avatar';
@@ -24,7 +22,8 @@
     import Request from './components/Request.svelte';
     import Buildings from './components/Buildings.svelte';
     import Departments from './components/Departments.svelte';
-    
+    import Notifications from './components/Notifications.svelte';
+
     let activeTab: TabType = Tab.PROFILE;
     let isLoading: boolean = false;
     let userRole: string = '';
@@ -204,6 +203,16 @@
                 </button>
                 {#if $currentUser?.role === UserRole.Administrator}
                     <button
+                        class={ activeTab === Tab.NOTIFICATIONS ? 'active' : '' }
+                        on:click={ () => { activeTab = Tab.NOTIFICATIONS; updateUrlParam(Tab.NOTIFICATIONS); isMobileView && toggleMenu(); } }
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                        Уведомления
+                    </button>
+                    <button
                         class={ activeTab === Tab.BUILDINGS ? 'active' : '' }
                         on:click={ () => { activeTab = Tab.BUILDINGS; updateUrlParam(Tab.BUILDINGS); isMobileView && toggleMenu(); } }
                     >
@@ -258,6 +267,8 @@
                 <Bots />
             {:else if activeTab === Tab.REQUEST}
                 <Request />
+            {:else if activeTab === Tab.NOTIFICATIONS}
+                <Notifications />
             {:else}
                 <div class="content-section">
                     <h1>Страница в разработке</h1>

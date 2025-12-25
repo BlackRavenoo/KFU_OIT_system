@@ -11,7 +11,8 @@ export const Tab = {
     REQUEST: 'request',
     PAGES: 'pages',
     BUILDINGS: 'buildings',
-    DEPARTMENTS: 'departments'
+    DEPARTMENTS: 'departments',
+    NOTIFICATIONS: 'notifications' 
 } as const;
 
 export type TabType = typeof Tab[keyof typeof Tab];
