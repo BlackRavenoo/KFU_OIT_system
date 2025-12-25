@@ -10,6 +10,7 @@
     import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import { currentUser } from '$lib/utils/auth/storage/initial';
+    import { getSystemNotifications, SystemNotificationCategory, type SystemNotification } from '$lib/utils/notifications/system';
 
     let Title = '';
     let Description = '';
@@ -45,7 +46,10 @@
     $: nameValid = validateName(Name);
     $: phoneValid = validatePhone(Contact);
 
-   let isSubmitting = false;
+    let isSubmitting = false;
+
+    let systemNotifications: SystemNotification[] = [];
+    let loadingNotifications = true;
 
     function validateForm() {
         errors.Title = Title.trim() === '' ? 'Заполните заголовок' : '';
@@ -102,7 +106,17 @@
         }
     }
 
-    onMount(() => {
+    onMount(async () => {
+        loadingNotifications = true;
+        const res = await getSystemNotifications();
+        if (res.success && Array.isArray(res.data)) {
+            const now = new Date();
+            systemNotifications = res.data.filter(n =>
+                !n.active_until || new Date(n.active_until) > now
+            );
+        }
+        loadingNotifications = false;
+
         const sp = $page?.url?.searchParams;
         /** !!! TDD !!! */
         if (!sp && $currentUser && $currentUser.role !== UserRole.Client) {
@@ -150,6 +164,33 @@
 
 <div class="main-container">
     <h1>Создание заявки</h1>
+
+    {#if loadingNotifications}
+        <div class="system-notifications-loading">Загрузка уведомлений...</div>
+    {:else if systemNotifications.length > 0}
+        <div class="system-notifications-list">
+            {#each systemNotifications as n (n.id)}
+                <div class="system-notification { n.category === SystemNotificationCategory.INFO || (n.category as any as string) == "Info" ? 'info' : 'warning' }">
+                    {#if n.category === SystemNotificationCategory.INFO || (n.category as any as string) == "Info"}
+                        <span class="notif-icon info-icon">
+                            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                                <circle cx="11" cy="11" r="10" stroke="#1976d2" stroke-width="2" fill="#e3f2fd"/>
+                                <text x="11" y="13" text-anchor="middle" font-size="14" fill="#1976d2" font-family="Arial" font-weight="bold" dominant-baseline="middle">i</text>
+                            </svg>
+                        </span>
+                    {:else}
+                        <span class="notif-icon warning-icon">
+                            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                                <polygon points="11,3 21,19 1,19" fill="#fffde7" stroke="#fbc02d" stroke-width="2"/>
+                                <text x="11" y="16" text-anchor="middle" font-size="16" fill="#fbc02d" font-family="Arial" font-weight="bold" dominant-baseline="middle">!</text>
+                            </svg>
+                        </span>
+                    {/if}
+                    <span class="notif-text">{ n.text }</span>
+                </div>
+            {/each}
+        </div>
+    {/if}
 
     <div class="intro-block">
         <p class="lead">
@@ -360,7 +401,7 @@
     <Modal
         bind:this={ modalElement }
         modalMessage="Доступно максимум 5 изображений для загрузки."
-        on:close={() => showModal = false}
+        on:close={ () => showModal = false }
     />
 {/if}
 

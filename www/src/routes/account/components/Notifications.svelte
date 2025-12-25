@@ -103,8 +103,12 @@
 
     function categoryLabel(cat: SystemNotificationCategory) {
         switch (cat) {
-            case SystemNotificationCategory.INFO: return 'Информация';
-            case SystemNotificationCategory.WARNING: return 'Внимание';
+            case SystemNotificationCategory.INFO: 
+            // @ts-ignore
+            case "Info": return 'Информация';
+            case SystemNotificationCategory.WARNING:
+            // @ts-ignore
+            case "Warning": return 'Внимание';
             default: return '—';
         }
     }
@@ -144,25 +148,27 @@
                         />
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="newNotificationCategory">Категория</label>
-                    <select
-                        id="newNotificationCategory"
-                        bind:value={ newCategory }
-                        class="form-input"
-                    >
-                        <option value={ SystemNotificationCategory.INFO }>Информация</option>
-                        <option value={ SystemNotificationCategory.WARNING }>Внимание</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="newNotificationActiveUntil">Активно до (опционально)</label>
-                    <input
-                        id="newNotificationActiveUntil"
-                        type="datetime-local"
-                        bind:value={ newActiveUntil }
-                        class="form-input"
-                    />
+                <div class="form-group form-group-row">
+                    <div class="form-group-column">
+                        <label for="newNotificationCategory">Категория</label>
+                        <select
+                            id="newNotificationCategory"
+                            bind:value={ newCategory }
+                            class="form-input"
+                        >
+                            <option value={ SystemNotificationCategory.INFO }>Информация</option>
+                            <option value={ SystemNotificationCategory.WARNING }>Внимание</option>
+                        </select>
+                    </div>
+                    <div class="form-group-column">
+                        <label for="newNotificationActiveUntil">Активно до (опционально)</label>
+                        <input
+                            id="newNotificationActiveUntil"
+                            type="datetime-local"
+                            bind:value={ newActiveUntil }
+                            class="form-input"
+                        />
+                    </div>
                 </div>
                 <button
                     class="btn btn-primary"

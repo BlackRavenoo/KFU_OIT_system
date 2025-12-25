@@ -1,0 +1,4 @@
+.form-group-row {
+    display: flex;
+    flex-direction: row;
+}

@@ -33,5 +33,5 @@ export async function getSystemNotifications(): Promise<ApiResponse<SystemNotifi
  * @return {Promise<ApiResponse<void>>} Результат создания уведомления
  */
 export async function createSystemNotification(data: CreateSystemNotificationParams): Promise<ApiResponse<void>> {
-    return api.put('/api/v1/system_notifications', data);
+    return api.post('/api/v1/system_notifications', data);
 }

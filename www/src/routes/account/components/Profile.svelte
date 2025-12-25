@@ -25,6 +25,8 @@
     import { UserRole, UserStatus } from '$lib/utils/auth/types';
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { goto } from '$app/navigation';
+
+    import { getSystemNotifications, SystemNotificationCategory, type SystemNotification } from '$lib/utils/notifications/system';
     
     export let userData: { id: string, name: string, email: string, login: string, role: string, status?: UserStatus };
     export let stats: { assignedToMe: number, completedTickets: number, cancelledTickets: number };
@@ -58,6 +60,9 @@
     const CACHE_KEY_STATS = 'profile_stats_cache';
     const CACHE_KEY_TICKETS = 'profile_tickets_cache';
     const CACHE_TTL = 2 * 60 * 1000;
+
+    let systemNotifications: SystemNotification[] = [];
+    let loadingNotifications = true;
 
     /**
      * Обработчик изменения статуса пользователя
@@ -532,6 +537,16 @@
             } else {
                 goto('/account?tab=request');
             }
+
+            loadingNotifications = true;
+            const res = await getSystemNotifications();
+            if (res.success && Array.isArray(res.data)) {
+                const now = new Date();
+                systemNotifications = res.data.filter(n =>
+                    !n.active_until || new Date(n.active_until) > now
+                );
+            }
+            loadingNotifications = false;
         })();
         
         return () => {
@@ -546,6 +561,33 @@
 
 <div class="content-section">
     <h1>Личный кабинет</h1>
+
+    {#if loadingNotifications}
+        <div class="system-notifications-loading">Загрузка уведомлений...</div>
+    {:else if systemNotifications && systemNotifications.length > 0}
+        <div class="system-notifications-list">
+            {#each systemNotifications as n (n.id)}
+                <div class="system-notification {n.category === SystemNotificationCategory.INFO || (n.category as any as string) == "Info" ? 'info' : 'warning'}">
+                    {#if n.category === SystemNotificationCategory.INFO || (n.category as any as string) == "Info"}
+                        <span class="notif-icon info-icon">
+                            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                                <circle cx="11" cy="11" r="10" stroke="#1976d2" stroke-width="2" fill="#e3f2fd"/>
+                                <text x="11" y="13" text-anchor="middle" font-size="14" fill="#1976d2" font-family="Arial" font-weight="bold" dominant-baseline="middle">i</text>
+                            </svg>
+                        </span>
+                    {:else}
+                        <span class="notif-icon warning-icon">
+                            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                                <polygon points="11,3 21,19 1,19" fill="#fffde7" stroke="#fbc02d" stroke-width="2"/>
+                                <text x="11" y="16" text-anchor="middle" font-size="16" fill="#fbc02d" font-family="Arial" font-weight="bold" dominant-baseline="middle">!</text>
+                            </svg>
+                        </span>
+                    {/if}
+                    <span class="notif-text">{n.text}</span>
+                </div>
+            {/each}
+        </div>
+    {/if}
     
     <div class="profile-dashboard">
         <div class="profile-section">
