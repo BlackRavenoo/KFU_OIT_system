@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, web};
+use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -24,6 +24,8 @@ impl std::fmt::Debug for CreateNotificationError {
         error_chain_fmt(self, f)
     }
 }
+
+impl ResponseError for CreateNotificationError {}
 
 pub async fn create_system_notification(
     pool: web::Data<PgPool>,

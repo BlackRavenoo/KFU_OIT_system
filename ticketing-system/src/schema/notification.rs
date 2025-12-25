@@ -1,8 +1,10 @@
 use num_enum::FromPrimitive;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use strum::EnumIter;
 
-#[derive(Deserialize, Clone, Copy, EnumIter, Default, FromPrimitive, Debug)]
+pub type NotificationId = i32;
+
+#[derive(Deserialize, Serialize, Clone, Copy, EnumIter, Default, FromPrimitive, Debug)]
 #[serde(from = "i16")]
 #[repr(i16)]
 pub enum SystemNotificationCategory {
