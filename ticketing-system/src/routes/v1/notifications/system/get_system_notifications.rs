@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
 
-use crate::{auth::{extractor::UserRoleExtractor, types::UserRole}, schema::notification::{NotificationId, SystemNotificationCategory}, utils::error_chain_fmt};
+use crate::{auth::{extractor::{user_role::OptionalUserRoleExtractor}, types::UserRole}, schema::notification::{NotificationId, SystemNotificationCategory}, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum GetNotificationsError {
@@ -30,11 +30,11 @@ pub struct Notification {
 
 pub async fn get_system_notifications(
     pool: web::Data<PgPool>,
-    role: UserRoleExtractor,
+    role: OptionalUserRoleExtractor,
 ) -> Result<HttpResponse, GetNotificationsError> {
     let notifications = get_notifications(
         &pool,
-        role.0.has_access(UserRole::Admin)
+        role.0.is_some_and(|role| role.has_access(UserRole::Admin))
     ).await
     .context("Failed to get system notifications")?;
 

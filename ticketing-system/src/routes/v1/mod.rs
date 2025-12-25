@@ -135,8 +135,9 @@ pub fn config(cfg: &mut web::ServiceConfig) {
             )
             .service(
                 web::scope("/system_notifications")
+                    .wrap(JwtMiddleware::optional())
                     .route("", web::get().to(get_system_notifications))
-                    .route("", web::put().to(create_system_notification))
+                    .route("", web::post().to(create_system_notification))
             )
     );
 }
