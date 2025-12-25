@@ -9,6 +9,6 @@ pub type NotificationId = i32;
 #[repr(i16)]
 pub enum SystemNotificationCategory {
     #[default]
-    Info,
-    Warning,
+    Info = 0,
+    Warning = 1,
 }
