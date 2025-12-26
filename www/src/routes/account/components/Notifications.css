@@ -1,4 +1,19 @@
 .form-group-row {
     display: flex;
     flex-direction: row;
+    gap: 2rem;
+}
+
+@media (max-width: 740px) {
+    .form-group-row {
+        flex-direction: column;
+    }
+
+    #newNotificationCategory {
+        width: 100%;
+    }
+
+    #newNotificationActiveUntil {
+        width: calc(100% - 1.5rem);
+    }
 }

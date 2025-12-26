@@ -680,3 +680,54 @@ table, tr, td {
     margin: 0 !important;
     padding: 0.25rem 0 !important;
 }
+
+/* ---------------------------- */
+/*     SYSTEM NOTIFICATIONS     */
+/* ---------------------------- */
+
+.system-notifications-list {
+    margin: 1.5rem 0 0.5rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.system-notification {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    font-size: 1.08rem;
+    border-radius: 7px;
+    padding: 0.7rem 1.1rem 0.7rem 0.7rem;
+    font-weight: 500;
+    box-sizing: border-box;
+    min-height: 38px;
+    line-height: 1.4;
+}
+
+.system-notification.info {
+    background: #e3f2fd;
+    color: var(--blue);
+    border: 1.5px solid #90caf9;
+}
+
+.system-notification.warning {
+    background: #fffde7;
+    color: var(--yellow);
+    border: 1.5px solid #ffe082;
+}
+
+.notif-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.7rem;
+    flex-shrink: 0;
+    background-color: transparent !important;
+}
+
+.notif-text {
+    flex: 1 1 auto;
+    word-break: break-word;
+    white-space: pre-line;
+}

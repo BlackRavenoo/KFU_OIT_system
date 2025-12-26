@@ -4,11 +4,11 @@
     import { navigateToForm } from '$lib/utils/setup/navigate';
     import { handleFileChange, removeFile } from '$lib/utils/files/inputs';
     import { showModalWithFocus } from '$lib/components/Modal/Modal';
-    import { notification, NotificationType } from '$lib/utils/notifications/notification';
     import { buildings } from '$lib/utils/setup/stores';
     import { getPublicStats } from '$lib/utils/account/stats';
     import { isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { goto } from '$app/navigation';
+    import { getSystemNotifications, SystemNotificationCategory, type SystemNotification } from '$lib/utils/notifications/system';
 
     import Modal from '$lib/components/Modal/Modal.svelte';
     import pageCSS from './page.css?inline';
@@ -63,6 +63,9 @@
         Description: '',
         Building: ''
     };
+
+    let systemNotifications: SystemNotification[] = [];
+    let loadingNotifications = true;
 
     function updateTheme() {
         isDarkTheme = document.querySelector("html")?.classList.contains("dark") || false;
@@ -126,6 +129,18 @@
         }
     }
 
+    async function loadSystemNotifications() {
+        loadingNotifications = true;
+        const res = await getSystemNotifications();
+        if (res.success && Array.isArray(res.data)) {
+            const now = new Date();
+            systemNotifications = res.data.filter(n =>
+                !n.active_until || new Date(n.active_until) > now
+            );
+        }
+        loadingNotifications = false;
+    }
+
     onMount(() => {
         loadStyleContent(pageCSS, styleElements, 'page-styles');
         observer = setupIntersectionObserver(
@@ -136,6 +151,7 @@
 
         updateTheme();
         loadStats();
+        loadSystemNotifications();
         
         themeObserver = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
@@ -297,6 +313,30 @@
                 </div>
                 <form on:submit|preventDefault={ onSubmitForm } class="form_container" in:fly={{ x: 50, duration: 800 }}>
                     <h2>Наш отдел спешит на помощь!</h2>
+                    {#if !loadingNotifications && systemNotifications.length > 0}
+                        <div class="system-notifications-list">
+                            {#each systemNotifications as n (n.id)}
+                                <div class="system-notification { n.category === SystemNotificationCategory.INFO || (n.category as any as string) == "Info" ? 'info' : 'warning' }">
+                                    {#if n.category === SystemNotificationCategory.INFO || (n.category as any as string) == "Info"}
+                                        <span class="notif-icon info-icon">
+                                            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                                                <circle cx="11" cy="11" r="10" stroke="#1976d2" stroke-width="2" fill="#e3f2fd"/>
+                                                <text x="11" y="13" text-anchor="middle" font-size="14" fill="#1976d2" font-family="Arial" font-weight="bold" dominant-baseline="middle">i</text>
+                                            </svg>
+                                        </span>
+                                    {:else}
+                                        <span class="notif-icon warning-icon">
+                                            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                                                <polygon points="11,3 21,19 1,19" fill="#fffde7" stroke="#fbc02d" stroke-width="2"/>
+                                                <text x="11" y="16" text-anchor="middle" font-size="16" fill="#fbc02d" font-family="Arial" font-weight="bold" dominant-baseline="middle">!</text>
+                                            </svg>
+                                        </span>
+                                    {/if}
+                                    <span class="notif-text">{ n.text }</span>
+                                </div>
+                            {/each}
+                        </div>
+                    {/if}
                     <p>Оставьте заявку и мы сделаем всё возможное, чтобы решить Вашу проблему</p>
                     
                     <div class="form-field">
@@ -315,7 +355,7 @@
                         >
                         <label for="Title">Заголовок заявки</label>
                         {#if touched.Title && errors.Title}
-                            <div class="input-error">{errors.Title}</div>
+                            <div class="input-error">{ errors.Title }</div>
                         {/if}
                     </div>
                     

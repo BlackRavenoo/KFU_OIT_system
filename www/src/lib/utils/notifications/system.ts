@@ -14,6 +14,12 @@ export interface CreateSystemNotificationParams {
     active_until?: string | null;
 }
 
+export interface UpdateSystemNotificationParams {
+    text?: string;
+    category?: number;
+    active_until?: string | null;
+}
+
 export enum SystemNotificationCategory {
     INFO = 0,
     WARNING = 1
@@ -34,4 +40,23 @@ export async function getSystemNotifications(): Promise<ApiResponse<SystemNotifi
  */
 export async function createSystemNotification(data: CreateSystemNotificationParams): Promise<ApiResponse<void>> {
     return api.post('/api/v1/system_notifications', data);
+}
+
+/**
+ * Удалить системное уведомление
+ * @param {number} id ID уведомления
+ * @return {Promise<ApiResponse<void>>}
+ */
+export async function deleteSystemNotification(id: number): Promise<ApiResponse<void>> {
+    return api.delete(`/api/v1/system_notifications/${id}`);
+}
+
+/**
+ * Обновить системное уведомление
+ * @param {number} id ID уведомления
+ * @param {UpdateSystemNotificationParams} data Данные для обновления
+ * @return {Promise<ApiResponse<void>>}
+ */
+export async function updateSystemNotification(id: number, data: UpdateSystemNotificationParams): Promise<ApiResponse<void>> {
+    return api.put(`/api/v1/system_notifications/${id}`, data);
 }

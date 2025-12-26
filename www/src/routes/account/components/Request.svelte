@@ -165,9 +165,7 @@
 <div class="main-container">
     <h1>Создание заявки</h1>
 
-    {#if loadingNotifications}
-        <div class="system-notifications-loading">Загрузка уведомлений...</div>
-    {:else if systemNotifications.length > 0}
+    {#if !loadingNotifications && systemNotifications.length > 0}
         <div class="system-notifications-list">
             {#each systemNotifications as n (n.id)}
                 <div class="system-notification { n.category === SystemNotificationCategory.INFO || (n.category as any as string) == "Info" ? 'info' : 'warning' }">

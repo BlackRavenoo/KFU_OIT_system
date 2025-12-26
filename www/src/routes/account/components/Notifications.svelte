@@ -9,6 +9,8 @@
     import {
         getSystemNotifications,
         createSystemNotification,
+        updateSystemNotification,
+        deleteSystemNotification,
         SystemNotificationCategory,
         type SystemNotification
     } from '$lib/utils/notifications/system';
@@ -45,7 +47,25 @@
     }
 
     async function saveEdit() {
-        /* !!! TDD !!! */
+        if (editingId == null) return;
+        const text = editText.trim();
+        if (!text) return;
+
+        try {
+            await updateSystemNotification(editingId, {
+                text,
+                category: editCategory,
+                active_until: `${editActiveUntil}:00Z` || null
+            });
+
+            const res = await getSystemNotifications();
+            if (res.success && Array.isArray(res.data)) notifications = res.data;
+
+            notification('Уведомление обновлено', NotificationType.Success);
+            cancelEdit();
+        } catch (error: any) {
+            notification(error.message || 'Ошибка при обновлении уведомления', NotificationType.Error);
+        }
     }
 
     async function handleAdd() {
@@ -60,7 +80,7 @@
             await createSystemNotification({
                 text,
                 category: newCategory,
-                active_until: newActiveUntil || null
+                active_until: `${newActiveUntil}:00Z` || null
             });
 
             const res = await getSystemNotifications();
@@ -91,8 +111,11 @@
         if (!deletingNotification) return;
 
         try {
-            /* !!! TDD !!! */
-            notifications = notifications.filter(n => n.id !== deletingNotification?.id);
+            await deleteSystemNotification(deletingNotification.id);
+
+            const res = await getSystemNotifications();
+            if (res.success && Array.isArray(res.data)) notifications = res.data;
+
             notification('Уведомление удалено', NotificationType.Success);
         } catch (error: any) {
             notification(error.message || 'Ошибка при удалении уведомления', NotificationType.Error);
