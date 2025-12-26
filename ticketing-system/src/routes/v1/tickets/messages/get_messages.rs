@@ -95,9 +95,9 @@ async fn select_messages(
     }
 
     if let Some(after) = schema.after {
-        builder.push(" AND id >").push_bind(after);
+        builder.push(" AND tm.id >").push_bind(after);
     } else if let Some(before) = schema.before {
-        builder.push(" AND id <").push_bind(before);
+        builder.push(" AND tm.id <").push_bind(before);
     }
 
     builder.push(" GROUP BY tm.id, u.id ORDER BY created_at DESC LIMIT ")
