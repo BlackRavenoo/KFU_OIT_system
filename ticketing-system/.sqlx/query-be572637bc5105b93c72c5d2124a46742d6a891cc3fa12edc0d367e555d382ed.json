@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id, text, category, active_until\n            FROM system_notifications\n            WHERE active_until > CURRENT_TIMESTAMP",
+  "query": "SELECT id, text, category, active_until\n            FROM system_notifications\n            WHERE active_until > CURRENT_TIMESTAMP OR active_until IS NULL",
   "describe": {
     "columns": [
       {
@@ -34,5 +34,5 @@
       true
     ]
   },
-  "hash": "cdfa89a1bd87c407c5f0d2e8cd6972cba2159c4464b121aa31c7ec71c48b8c34"
+  "hash": "be572637bc5105b93c72c5d2124a46742d6a891cc3fa12edc0d367e555d382ed"
 }

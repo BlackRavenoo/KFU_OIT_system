@@ -42,7 +42,8 @@ pub async fn get_system_notifications(
 }
 
 #[tracing::instrument(
-    name = "Get system notifications from database"
+    name = "Get system notifications from database",
+    skip(pool)
 )]
 async fn get_notifications(
     pool: &PgPool,
@@ -61,7 +62,7 @@ async fn get_notifications(
             Notification,
             "SELECT id, text, category, active_until
             FROM system_notifications
-            WHERE active_until > CURRENT_TIMESTAMP"
+            WHERE active_until > CURRENT_TIMESTAMP OR active_until IS NULL"
         )
         .fetch_all(pool)
         .await
