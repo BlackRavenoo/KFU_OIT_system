@@ -6,6 +6,7 @@
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { UserRole } from '$lib/utils/auth/types';
     import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { normalizeDate } from '$lib/utils/tickets/support';
     import {
         getSystemNotifications,
         createSystemNotification,
@@ -36,7 +37,9 @@
         editingId = n.id;
         editText = n.text ?? '';
         editCategory = n.category;
-        editActiveUntil = n.active_until ?? '';
+        editActiveUntil = n.active_until
+            ? new Date(n.active_until).toISOString().slice(0, 16)
+            : '';
     }
 
     function cancelEdit() {
@@ -55,7 +58,7 @@
             await updateSystemNotification(editingId, {
                 text,
                 category: editCategory,
-                active_until: `${editActiveUntil}:00Z` || null
+                active_until: normalizeDate(editActiveUntil) || null
             });
 
             const res = await getSystemNotifications();
@@ -80,7 +83,7 @@
             await createSystemNotification({
                 text,
                 category: newCategory,
-                active_until: `${newActiveUntil}:00Z` || null
+                active_until: normalizeDate(newActiveUntil) || null
             });
 
             const res = await getSystemNotifications();
@@ -233,9 +236,23 @@
                                 </td>
                                 <td>
                                     {#if editingId === n.id}
-                                        <input type="datetime-local" bind:value={ editActiveUntil } class="form-input" />
+                                        <input
+                                            type="datetime-local"
+                                            bind:value={ editActiveUntil }
+                                            class="form-input"
+                                        />
                                     {:else}
-                                        { n.active_until ? n.active_until.replace('T', ' ').slice(0, 16) : '—' }
+                                        { n.active_until
+                                            ? new Date(n.active_until).toLocaleString(undefined, {
+                                                year: 'numeric',
+                                                month: '2-digit',
+                                                day: '2-digit',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                                hour12: false
+                                            }).replace(',', '')
+                                            : '—'
+                                        }
                                     {/if}
                                 </td>
                                 <td class="actions-cell">
