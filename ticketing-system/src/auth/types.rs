@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use bb8_redis::redis::{from_redis_value, ErrorKind, FromRedisValue};
+use bb8_redis::redis::{FromRedisValue, ParsingError, from_redis_value};
 use serde::{Deserialize, Serialize};
 use sqlx::Type;
 use strum::EnumString;
@@ -90,12 +90,12 @@ pub struct RefreshToken {
 }
 
 impl FromRedisValue for RefreshToken {
-    fn from_redis_value(v: &bb8_redis::redis::Value) -> bb8_redis::redis::RedisResult<Self> {
+    fn from_redis_value(v: bb8_redis::redis::Value) -> Result<RefreshToken, ParsingError> {
         let json_str = from_redis_value::<String>(v)?;
 
         match serde_json::from_str::<Self>(&json_str) {
             Ok(v) => Ok(v),
-            Err(_) => Err((ErrorKind::TypeError, "Failed to parse json").into()),
+            Err(e) => Err(ParsingError::from(format!("Failed to parse json: {}", e))),
         }
     }
 }
