@@ -1,5 +1,5 @@
 # Service Desk ЕИ КФУ
-Frontend v0.1.15 | Backend v0.2.0 | API v1
+Frontend v0.1.15 | Backend v0.3.0 | API v1
 
 [![Build and Test](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/build_and_test.yaml/badge.svg)](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/build_and_test.yaml) 
 [![Test frontend](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml/badge.svg)](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml)
@@ -11,7 +11,7 @@ Frontend v0.1.15 | Backend v0.2.0 | API v1
 -----------------
 Данный репозиторий представляет собой внутреннюю платформу для управления заявками и сопровождения ИТ‑сервисов Елабужского института Казанского (Приволжского) Федерального Университета. Система предоставляет интерфейсы для создания, назначения и отслеживания заявок, а также административные инструменты для управления справочными сущностями (здания, отделы и т.д.), сбора и систематизации внутренней статистики, управления пользователями.
 
-Предусмотрена возможность использовать веб-версию системы, установить её в качестве приложения (технология PWA), а также использовать некоторые функции платформы через Bot API (собственные боты для Telehram, WhatsApp и тд.).
+Предусмотрена возможность использовать веб-версию системы, установить её в качестве приложения (технология PWA), а также использовать некоторые функции платформы через Bot API (собственные боты для Telegram, WhatsApp и тд.).
 
 Структура репозитория
 ---------------------
