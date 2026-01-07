@@ -7,7 +7,7 @@ use moka::future::CacheBuilder;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::EmailClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::stats::TicketsStats}, services::{attachment::AttachmentService, pages::PageService, registration_token::RegistrationTokenStore}};
+use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::EmailClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::stats::TicketsStats}, services::{attachment::AttachmentService, notification::NotificationService, pages::PageService, registration_token::RegistrationTokenStore}};
 
 pub struct Application {
     server: Server,
@@ -109,6 +109,7 @@ pub fn run(
     let email_client = Data::from(email_client);
     let event_publisher = Data::new(event_publisher);
     let base_url = Data::new(ApplicationBaseUrl(base_url));
+    let notification_service = Data::new(NotificationService {});
 
     let stats_cache = Data::new(
         CacheBuilder::<(), TicketsStats, _>::new(1)
@@ -128,6 +129,7 @@ pub fn run(
             .app_data(email_client.clone())
             .app_data(event_publisher.clone())
             .app_data(base_url.clone())
+            .app_data(notification_service.clone())
             .app_data(stats_cache.clone())
             .app_data(
                 MultipartFormConfig::default()
