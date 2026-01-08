@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::{build_update_query, schema::notification::{NotificationId, SystemNotificationCategory}, utils::error_chain_fmt};
+use crate::{build_update_query, schema::notification::{SystemNotificationId, SystemNotificationCategory}, utils::error_chain_fmt};
 
 #[derive(Deserialize, Debug)]
 pub struct UpdateNotificationSchema {
@@ -29,7 +29,7 @@ impl ResponseError for UpdateNotificationError {}
 
 pub async fn update_system_notification(
     pool: web::Data<PgPool>,
-    path: web::Path<NotificationId>,
+    path: web::Path<SystemNotificationId>,
     web::Json(schema): web::Json<UpdateNotificationSchema>,
 ) -> Result<HttpResponse, UpdateNotificationError> {
     update_notification(&pool, path.into_inner(), schema).await
@@ -45,7 +45,7 @@ pub async fn update_system_notification(
 )]
 async fn update_notification(
     pool: &PgPool,
-    id: NotificationId,
+    id: SystemNotificationId,
     schema: UpdateNotificationSchema,
 ) -> Result<bool, sqlx::Error> {
     let mut builder = sqlx::QueryBuilder::new("UPDATE system_notifications SET ");

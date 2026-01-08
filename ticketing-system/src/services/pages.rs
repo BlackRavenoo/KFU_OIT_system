@@ -84,7 +84,7 @@ impl PageService {
     pub async fn upload_page(&self, key: &str, data: Bytes, is_public: bool) -> Result<(), PageServiceError> {
         let bucket = self.get_bucket(is_public);
 
-        self.storage.store(&bucket, &key, data).await?;
+        self.storage.store(bucket, key, data).await?;
 
         Ok(())
     }

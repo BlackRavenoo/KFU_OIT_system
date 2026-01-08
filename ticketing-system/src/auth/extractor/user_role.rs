@@ -15,8 +15,8 @@ impl FromRequest for UserRoleExtractor {
             .extensions()
             .get::<Claims>()
             .ok_or(Self::Error::MissingClaims)
-            .and_then(|claims| {
-                Ok(Self(claims.role))
+            .map(|claims| {
+                Self(claims.role)
             });
 
         ready(result)

@@ -4,7 +4,8 @@ use strum::EnumIter;
 
 use crate::schema::tickets::TicketStatus;
 
-pub type NotificationId = i32;
+pub type SystemNotificationId = i32;
+pub type NotificationId = i64;
 
 #[derive(Deserialize, Serialize, Clone, Copy, EnumIter, Default, FromPrimitive, Debug)]
 #[serde(from = "i16")]

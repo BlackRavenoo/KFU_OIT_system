@@ -55,8 +55,8 @@ pub async fn create_message(
         user_id.0,
     )
     .await {
-        if !user_ids.is_empty() {
-            if let Err(e) = notification_service.notify(
+        if !user_ids.is_empty() 
+            && let Err(e) = notification_service.notify(
                 pool.as_ref(),
                 ticket_id,
                 &user_ids,
@@ -67,7 +67,7 @@ pub async fn create_message(
             .await {
                 tracing::error!("Failed to create notifications: {:?}", e)
             };
-        }
+        
     } else {
         tracing::error!("Failed to get user ids")
     }

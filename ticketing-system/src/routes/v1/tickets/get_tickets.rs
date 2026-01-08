@@ -62,7 +62,7 @@ impl FromRow<'_, sqlx::postgres::PgRow> for TicketWithMeta {
 }
 
 #[derive(Serialize)]
-pub struct TicketSchema {
+struct TicketSchema {
     pub id: TicketId,
     pub title: String,
     pub description: String,

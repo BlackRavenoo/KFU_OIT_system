@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use sqlx::PgPool;
 
-use crate::{auth::{extractor::{user_role::OptionalUserRoleExtractor}, types::UserRole}, schema::notification::{NotificationId, SystemNotificationCategory}, utils::error_chain_fmt};
+use crate::{auth::{extractor::{user_role::OptionalUserRoleExtractor}, types::UserRole}, schema::notification::{SystemNotificationId, SystemNotificationCategory}, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum GetNotificationsError {
@@ -21,8 +21,8 @@ impl std::fmt::Debug for GetNotificationsError {
 impl ResponseError for GetNotificationsError {}
 
 #[derive(Serialize)]
-pub struct Notification {
-    pub id: NotificationId,
+struct SystemNotification {
+    pub id: SystemNotificationId,
     pub text: String,
     pub category: SystemNotificationCategory,
     pub active_until: Option<DateTime<Utc>>,
@@ -48,10 +48,10 @@ pub async fn get_system_notifications(
 async fn get_notifications(
     pool: &PgPool,
     for_admin: bool,
-) -> Result<Vec<Notification>, sqlx::Error> {
+) -> Result<Vec<SystemNotification>, sqlx::Error> {
     if for_admin {
         sqlx::query_as!(
-            Notification,
+            SystemNotification,
             "SELECT id, text, category, active_until
             FROM system_notifications"
         )
@@ -59,7 +59,7 @@ async fn get_notifications(
         .await
     } else {
         sqlx::query_as!(
-            Notification,
+            SystemNotification,
             "SELECT id, text, category, active_until
             FROM system_notifications
             WHERE active_until > CURRENT_TIMESTAMP OR active_until IS NULL"

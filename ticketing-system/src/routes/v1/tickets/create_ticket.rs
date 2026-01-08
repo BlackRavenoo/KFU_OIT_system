@@ -8,7 +8,7 @@ use futures_util::{stream, StreamExt as _};
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};
 
-use crate::{auth::extractor::UserIdExtractor, domain::description::Description, events::{event_publisher::EventPublisher, events::Event}, schema::{common::UserId, tickets::TicketId}, services::attachment::{Attachment, AttachmentService, AttachmentServiceError, AttachmentType}, startup::ApplicationBaseUrl, utils::{cleanup_images, error_chain_fmt}};
+use crate::{auth::extractor::UserIdExtractor, domain::description::Description, events::{event_publisher::EventPublisher, Event}, schema::{common::UserId, tickets::TicketId}, services::attachment::{Attachment, AttachmentService, AttachmentServiceError, AttachmentType}, startup::ApplicationBaseUrl, utils::{cleanup_images, error_chain_fmt}};
 
 #[derive(Deserialize, Debug)]
 pub struct CreateTicketSchema {
@@ -171,12 +171,12 @@ pub async fn upload_attachments(
     let attachments_len = attachments.len();
 
     let attachments: Result<Vec<_>, _> = attachments.into_iter()
-        .map(|b| Attachment::try_from(b))
+        .map(Attachment::try_from)
         .collect();
     
     let attachments = match attachments {
         Ok(att) => att,
-        Err(e) => return (vec![], Err(e.into())),
+        Err(e) => return (vec![], Err(e)),
     };
 
     let results = stream::iter(attachments)

@@ -7,7 +7,7 @@ use strum::IntoEnumIterator as _;
 use crate::{schema::tickets::{Building, Department, OrderBy, TicketSource}, utils::error_chain_fmt};
 
 #[derive(Serialize)]
-pub struct ConstsSchema {
+struct ConstsSchema {
     pub order_by: Vec<OrderBy>,
     pub buildings: Vec<Building>,
     pub departments: Vec<Department>,

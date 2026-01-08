@@ -21,7 +21,7 @@ fn default_is_active() -> bool {
 }
 
 #[derive(Serialize)]
-pub struct UserSchema {
+struct UserSchema {
     pub id: UserId,
     pub name: String,
     pub email: String,

@@ -2,7 +2,7 @@ use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context as _;
 use sqlx::PgPool;
 
-use crate::{schema::notification::NotificationId, utils::error_chain_fmt};
+use crate::{schema::notification::SystemNotificationId, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum DeleteNotificationError {
@@ -20,7 +20,7 @@ impl ResponseError for DeleteNotificationError {}
 
 pub async fn delete_system_notification(
     pool: web::Data<PgPool>,
-    path: web::Path<NotificationId>
+    path: web::Path<SystemNotificationId>
 ) -> Result<HttpResponse, DeleteNotificationError> {
     delete_notification(&pool, path.into_inner()).await
         .context("Failed to delete notification")?;
@@ -35,7 +35,7 @@ pub async fn delete_system_notification(
 )]
 async fn delete_notification(
     pool: &PgPool,
-    id: NotificationId,
+    id: SystemNotificationId,
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
         "DELETE FROM system_notifications

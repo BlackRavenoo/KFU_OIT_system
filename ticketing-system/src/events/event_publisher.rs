@@ -5,7 +5,7 @@ use chrono::Local;
 use reqwest::Client;
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::{events::events::Event, startup::ApplicationBaseUrl};
+use crate::{events::Event, startup::ApplicationBaseUrl};
 
 pub struct EventPublisher {
     http_client: Client,
@@ -80,7 +80,7 @@ impl EventPublisher {
                     escape_html(&author),
                     escape_html(&author_contacts),
                     escape_html(&building_name),
-                    cabinet.as_deref().map(|cab| escape_html(cab)).unwrap_or("не указан".to_string())
+                    cabinet.as_deref().map(escape_html).unwrap_or("не указан".to_string())
                 );
 
                 if let Some(date) = planned_at {

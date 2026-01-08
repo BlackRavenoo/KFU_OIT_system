@@ -24,7 +24,7 @@ pub struct User {
 }
 
 #[derive(Serialize, FromRow)]
-pub struct Message {
+struct Message {
     pub id: MessageId,
     pub user: Json<User>,
     pub text: String,

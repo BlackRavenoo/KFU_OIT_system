@@ -17,7 +17,7 @@ pub struct GetPagesSchema {
 }
 
 #[derive(Serialize)]
-pub struct PageSchema {
+struct PageSchema {
     pub id: i32,
     pub is_public: bool,
     pub title: String,
@@ -25,7 +25,7 @@ pub struct PageSchema {
 }
 
 #[derive(FromRow)]
-pub struct PageWithMeta {
+struct PageWithMeta {
     pub id: i32,
     pub is_public: bool,
     pub title: String,
@@ -74,11 +74,7 @@ pub async fn get_pages(
     }
 
     let only_public = if let Some(role) = role.0 {
-        if role.has_access(crate::auth::types::UserRole::Employee) {
-            false
-        } else {
-            true
-        }
+        !role.has_access(crate::auth::types::UserRole::Employee)
     } else {
         true
     };

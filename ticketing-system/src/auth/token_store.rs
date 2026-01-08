@@ -147,9 +147,7 @@ impl TokenStore {
 
         if let Some(except_token) = except_token {
             let except_token_key = self.get_key(except_token);
-            tokens = tokens.into_iter()
-                .filter(|token| token != &except_token_key)
-                .collect();
+            tokens.retain(|token| token != &except_token_key)
         }
 
         if !tokens.is_empty() {

@@ -6,7 +6,7 @@ use sqlx::PgPool;
 use crate::{auth::{extractor::user_role::OptionalUserRoleExtractor, types::UserRole}, schema::page::{Page, PageId, Tag}, utils::error_chain_fmt};
 
 #[derive(Serialize)]
-pub struct PageSchema {
+struct PageSchema {
     pub is_public: bool,
     pub title: String,
     pub key: String,

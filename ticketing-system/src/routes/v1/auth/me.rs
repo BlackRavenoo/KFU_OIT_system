@@ -29,7 +29,7 @@ impl ResponseError for MeError {
 }
 
 #[derive(Debug, Serialize)]
-pub struct User {
+struct User {
     pub id: UserId,
     pub name: String,
     pub email: String,

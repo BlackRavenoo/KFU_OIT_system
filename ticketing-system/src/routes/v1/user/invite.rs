@@ -84,7 +84,7 @@ async fn send_confirmation_email(
     let link = format!("{}/confirm?token={}", base_url, token);
 
     let template = InviteTemplate {
-        base_url: base_url,
+        base_url,
         link: link.clone()
     };
 

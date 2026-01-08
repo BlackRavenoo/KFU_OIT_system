@@ -3,8 +3,6 @@ use anyhow::Context;
 
 use crate::{auth::{extractor::user_role::OptionalUserRoleExtractor, types::UserRole}, services::pages::{PageService, PageType}, storage::FileAccess, utils::error_chain_fmt};
 
-
-
 #[derive(thiserror::Error)]
 pub enum GetPageDataError {
     #[error("Insufficient permissions to get page data")]

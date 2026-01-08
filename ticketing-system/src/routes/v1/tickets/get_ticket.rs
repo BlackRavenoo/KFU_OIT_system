@@ -33,7 +33,7 @@ impl ResponseError for GetTicketError {
 }
 
 #[derive(Debug)]
-pub struct TicketQueryResult {
+struct TicketQueryResult {
     pub id: TicketId,
     pub title: String,
     pub description: String,
@@ -53,7 +53,7 @@ pub struct TicketQueryResult {
 }
 
 #[derive(Serialize)]
-pub struct TicketSchemaWithAttachments {
+struct TicketSchemaWithAttachments {
     pub id: TicketId,
     pub title: String,
     pub description: String,
@@ -72,7 +72,7 @@ pub struct TicketSchemaWithAttachments {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct User {
+struct User {
     pub id: UserId,
     pub name: String,
     pub avatar_key: Option<String>,
@@ -113,7 +113,7 @@ pub async fn get_ticket(
         .ok_or(GetTicketError::NotFound)?;
 
     if user_role.0 == UserRole::Client 
-        && !ticket.author_id.is_some_and(|id| id == user_id.0) 
+        && ticket.author_id.is_none_or(|id| id != user_id.0) 
     {
         return Err(GetTicketError::InsufficientPermissions);
     }

@@ -6,7 +6,7 @@ use sqlx::PgPool;
 use crate::{auth::extractor::UserIdExtractor, schema::{common::UserId, tickets::TicketStatus}, utils::error_chain_fmt};
 
 #[derive(Serialize)]
-pub struct UserStats {
+struct UserStats {
     pub active_tickets_count: i64,
     pub closed_tickets_count: i64,
     pub cancelled_tickets_count: i64,
