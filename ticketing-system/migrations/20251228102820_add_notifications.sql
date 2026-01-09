@@ -15,6 +15,9 @@ CREATE UNIQUE INDEX idx_notifications_user_ticket_new_messages
 ON notifications (user_id, ticket_id) 
 WHERE NOT read AND payload->>'type' = 'new_messages';
 
+CREATE INDEX idx_notifications_user
+ON notifications (user_id);
+
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
