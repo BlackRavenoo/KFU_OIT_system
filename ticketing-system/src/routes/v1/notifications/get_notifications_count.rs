@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, web};
+use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
 use serde::Serialize;
 use sqlx::PgPool;
@@ -21,6 +21,8 @@ impl std::fmt::Debug for GetNotificationsCountError {
         error_chain_fmt(self, f)
     }
 }
+
+impl ResponseError for GetNotificationsCountError {}
 
 pub async fn get_notifications_count(
     pool: web::Data<PgPool>,

@@ -1,9 +1,11 @@
-use actix_web::{HttpResponse, web};
+use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
+use serde::Deserialize;
 use sqlx::PgPool;
 
 use crate::{auth::extractor::UserIdExtractor, schema::{common::UserId, notification::NotificationId}, utils::error_chain_fmt};
 
+#[derive(Deserialize)]
 pub struct ReadNotificationsSchema {
     pub notification_ids: Vec<NotificationId>
 }
@@ -19,6 +21,8 @@ impl std::fmt::Debug for ReadNotificationsError {
         error_chain_fmt(self, f)
     }
 }
+
+impl ResponseError for ReadNotificationsError {}
 
 pub async fn read_notifications(
     pool: web::Data<PgPool>,
@@ -36,6 +40,10 @@ pub async fn read_notifications(
     Ok(HttpResponse::Ok().finish())
 }
 
+#[tracing::instrument(
+    name = "Update 'read' field for notifications",
+    skip(pool)
+)]
 async fn update_notifications_read_field(
     pool: &PgPool,
     user_id: UserId,
