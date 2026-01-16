@@ -3,7 +3,7 @@ use anyhow::Context;
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};
 
-use crate::{build_update_query, domain::title::Title, routes::v1::pages::create_page::{insert_related_pages, insert_tags, upload_page}, schema::page::{PageId, TagId}, services::pages::PageService, utils::error_chain_fmt};
+use crate::{build_update_query, domain::title::Title, routes::v1::pages::create_page::{insert_related_pages, insert_tags}, schema::page::{PageId, TagId}, utils::error_chain_fmt};
 
 #[derive(Deserialize, Debug)]
 pub struct UpdatePageSchema {
@@ -39,7 +39,6 @@ impl ResponseError for UpdatePageError {
 pub async fn update_page(
     web::Json(schema): web::Json<UpdatePageSchema>,
     pool: web::Data<PgPool>,
-    page_service: web::Data<PageService>,
     path: web::Path<PageId>,
 ) -> Result<HttpResponse, UpdatePageError> {
     let page_id = path.into_inner();
@@ -62,14 +61,6 @@ pub async fn update_page(
     delete_tags(&mut transaction, page_id, &schema.tags_to_delete).await
         .context("Failed to delete tags")?;
 
-    if let Some(data) = schema.data {
-        let (key, is_public) = get_page_fields(&mut transaction, page_id).await
-            .context("Failed to get page fields for upload")?;
-
-        upload_page(&page_service, &key, &data, is_public).await
-            .context("Failed to upload page")?;
-    }
-
     transaction.commit().await
         .context("Failed to commit transaction")?;
 
@@ -89,9 +80,11 @@ async fn update(
     let mut has_fields = false;
 
     let title = schema.title.as_ref().map(|desc| desc.as_ref());
+    let data = schema.data.as_ref().map(|data| data.to_string());
 
     build_update_query!(builder, has_fields, title, "title");
     build_update_query!(builder, has_fields, schema.is_public, "is_public");
+    build_update_query!(builder, has_fields, data, "text");
 
     if !has_fields {
         return Ok(());
@@ -170,23 +163,4 @@ async fn delete_tags(
         .await?;
 
     Ok(())
-}
-
-#[tracing::instrument(
-    name = "Get page key",
-    skip(transaction)
-)]
-async fn get_page_fields(
-    transaction: &mut Transaction<'_, Postgres>,
-    page_id: PageId,
-) -> Result<(String, bool), sqlx::Error> {
-    sqlx::query!(
-        "
-            SELECT key, is_public FROM pages WHERE id = $1
-        ",
-        page_id
-    )
-    .fetch_one(transaction.as_mut())
-    .await
-    .map(|r| (r.key, r.is_public))
 }

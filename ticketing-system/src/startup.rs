@@ -7,7 +7,7 @@ use moka::future::CacheBuilder;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::EmailClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::stats::TicketsStats}, services::{attachment::AttachmentService, notification::NotificationService, pages::PageService, registration_token::RegistrationTokenStore}};
+use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::EmailClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::stats::TicketsStats}, services::{attachment::AttachmentService, notification::NotificationService, registration_token::RegistrationTokenStore}};
 
 pub struct Application {
     server: Server,
@@ -43,11 +43,6 @@ impl Application {
 
         let jwt_service = JwtService::new(&config.auth).unwrap();
         let attachment_service = AttachmentService::new(storage.clone(), config.storage.bucket());
-        let page_service = PageService::new(
-            storage,
-            config.storage.bucket(),
-            config.storage.private_bucket()
-        );
 
         let timeout = config.event_publisher.timeout();
 
@@ -66,7 +61,6 @@ impl Application {
             jwt_service,
             connection_pool,
             attachment_service,
-            page_service,
             email_client,
             event_publisher,
             config.application.base_url
@@ -95,7 +89,6 @@ pub fn run(
     jwt_service: JwtService,
     pool: PgPool,
     attachment_service: AttachmentService,
-    page_service: PageService,
     email_client: Arc<dyn EmailClient>,
     event_publisher: EventPublisher,
     base_url: String,
@@ -104,7 +97,6 @@ pub fn run(
     let reg_store = Data::new(RegistrationTokenStore::new(redis_pool));
     let jwt_service = Data::new(jwt_service);
     let attachment_service = Data::new(attachment_service);
-    let page_service = Data::new(page_service);
     let pool = Data::new(pool);
     let email_client = Data::from(email_client);
     let event_publisher = Data::new(event_publisher);
@@ -124,7 +116,6 @@ pub fn run(
             .app_data(reg_store.clone())
             .app_data(jwt_service.clone())
             .app_data(attachment_service.clone())
-            .app_data(page_service.clone())
             .app_data(pool.clone())
             .app_data(email_client.clone())
             .app_data(event_publisher.clone())

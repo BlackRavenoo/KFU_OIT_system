@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO pages(author, is_public, title, key, text)\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING id\n        ",
+  "query": "\n            INSERT INTO pages(author, is_public, title, text)\n            VALUES ($1, $2, $3, $4)\n            RETURNING id\n        ",
   "describe": {
     "columns": [
       {
@@ -14,7 +14,6 @@
         "Int4",
         "Bool",
         "Varchar",
-        "Varchar",
         "Text"
       ]
     },
@@ -22,5 +21,5 @@
       false
     ]
   },
-  "hash": "a6930550320b977a3c9e325ea6988e8e4e3b76a532923dfb0230e24f14a85bdc"
+  "hash": "bf7bdca9a5c777f30ec158c062cdb028789895ab5a434d32c860c5a74b92d4fb"
 }

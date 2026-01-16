@@ -1,10 +1,9 @@
-use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
+use actix_web::{web, HttpResponse, ResponseError};
 use anyhow::Context;
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};
-use uuid::Uuid;
 
-use crate::{auth::extractor::UserIdExtractor, domain::title::Title, schema::{common::UserId, page::{PageId, TagId}}, services::pages::{PageService, PageServiceError}, utils::error_chain_fmt};
+use crate::{auth::extractor::UserIdExtractor, domain::title::Title, schema::{common::UserId, page::{PageId, TagId}}, utils::error_chain_fmt};
 
 #[derive(Deserialize, Debug)]
 pub struct InsertPageSchema {
@@ -27,26 +26,17 @@ impl std::fmt::Debug for InsertPageError {
     }
 }
 
-impl ResponseError for InsertPageError {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            InsertPageError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-}
+impl ResponseError for InsertPageError {}
 
 pub async fn create_page(
     web::Json(schema): web::Json<InsertPageSchema>,
     pool: web::Data<PgPool>,
-    page_service: web::Data<PageService>,
     user_id: UserIdExtractor,
 ) -> Result<HttpResponse, InsertPageError> {
     let mut transaction = pool.begin().await
         .context("Failed to begin transaction")?;
 
-    let key = page_service.get_key(&Uuid::new_v4().to_string());
-
-    let page_id = insert_page(&mut transaction, &schema, user_id.0, &key).await
+    let page_id = insert_page(&mut transaction, &schema, user_id.0).await
         .context("Failed to insert page into database")?;
 
     insert_related_pages(&mut transaction, page_id, &schema.related).await
@@ -54,9 +44,6 @@ pub async fn create_page(
 
     insert_tags(&mut transaction, page_id, &schema.tags).await
         .context("Failed to insert tags")?;
-
-    upload_page(&page_service, &key, &schema.data, schema.is_public).await
-        .context("Failed to upload page to storage")?;
 
     transaction.commit().await
         .context("Failed to commit transaction")?;
@@ -67,18 +54,6 @@ pub async fn create_page(
 }
 
 #[tracing::instrument(
-    name = "Upload page data",
-    skip(page_service, data)
-)]
-pub async fn upload_page(page_service: &PageService, key: &str, data: &serde_json::Value, is_public: bool) -> Result<(), PageServiceError> {
-    let bytes = serde_json::to_vec(data)
-        .context("Failed to serialize data to vec")?
-        .into();
-
-    page_service.upload_page(key, bytes, is_public).await
-}
-
-#[tracing::instrument(
     name = "Insert page into database",
     skip(transaction),
 )]
@@ -86,22 +61,18 @@ async fn insert_page(
     transaction: &mut Transaction<'_, Postgres>,
     schema: &InsertPageSchema,
     author_id: UserId,
-    key: &str
 ) -> Result<PageId, sqlx::Error> {
-    // TODO: insert the actual text into the text field
-    // Using the title as a temporary placeholder for search
     let title = schema.title.as_ref();
     sqlx::query!(
         "
-            INSERT INTO pages(author, is_public, title, key, text)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO pages(author, is_public, title, text)
+            VALUES ($1, $2, $3, $4)
             RETURNING id
         ",
         author_id,
         schema.is_public,
         title,
-        key,
-        title,
+        schema.data.to_string()
     )
     .fetch_one(transaction.as_mut())
     .await
