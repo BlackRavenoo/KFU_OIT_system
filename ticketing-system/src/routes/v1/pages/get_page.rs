@@ -9,7 +9,7 @@ use crate::{auth::{extractor::user_role::OptionalUserRoleExtractor, types::UserR
 struct PageSchema {
     pub is_public: bool,
     pub title: String,
-    pub key: String,
+    pub text: String,
     pub tags: Vec<Tag>,
     pub related_pages: Vec<Page>,
 }
@@ -72,7 +72,7 @@ async fn fetch_page(
             p.id,
             p.is_public,
             p.title,
-            p.key,
+            p.text,
             COALESCE(
                 JSON_AGG(
                     JSON_BUILD_OBJECT(
@@ -107,7 +107,7 @@ async fn fetch_page(
     Ok(result.map(|row| PageSchema {
         is_public: row.is_public,
         title: row.title,
-        key: row.key,
+        text: row.text,
         tags: serde_json::from_value(row.tags).unwrap_or_default(),
         related_pages: serde_json::from_value(row.related_pages).unwrap_or_default()
     }))

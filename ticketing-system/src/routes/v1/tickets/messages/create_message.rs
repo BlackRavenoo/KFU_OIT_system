@@ -48,29 +48,29 @@ pub async fn create_message(
     ).await
     .context("Failed to insert message")?;
 
-    // TODO: Spawn a task for this
-    if let Ok(user_ids) = get_user_ids(
-        &pool,
-        ticket_id,
-        user_id.0,
-    )
-    .await {
-        if !user_ids.is_empty() 
-            && let Err(e) = notification_service.notify(
-                pool.as_ref(),
-                ticket_id,
-                &user_ids,
-                Notification::NewMessages {
-                    count: 1
-                }
-            )
-            .await {
-                tracing::error!("Failed to create notifications: {:?}", e)
-            };
-        
-    } else {
-        tracing::error!("Failed to get user ids")
-    }
+    tokio::spawn(async move {
+        if let Ok(user_ids) = get_user_ids(
+            &pool,
+            ticket_id,
+            user_id.0,
+        )
+        .await {
+            if !user_ids.is_empty() 
+                && let Err(e) = notification_service.notify(
+                    pool.as_ref(),
+                    ticket_id,
+                    &user_ids,
+                    Notification::NewMessages {
+                        count: 1
+                    }
+                )
+                .await {
+                    tracing::error!("Failed to create notifications: {:?}", e)
+                };
+        } else {
+            tracing::error!("Failed to get user ids")
+        }
+    });
 
     Ok(HttpResponse::Created().finish())
 }
