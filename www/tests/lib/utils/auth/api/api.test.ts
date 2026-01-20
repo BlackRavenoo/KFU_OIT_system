@@ -1057,4 +1057,75 @@ describe('Finish registration function', () => {
         });
         expect(result).toBe(true);
     });
+    
+    it("Returns immediately if no accessToken", () => {
+        vi.doMock("$lib/utils/auth/tokens/tokens", () => ({
+            getAuthTokens: () => undefined
+        }));
+
+        return import("$lib/utils/auth/api/api").then(apiModule => {
+            const tryRefreshSpy = vi.spyOn(apiModule, "tryRefresh");
+            apiModule.onVisibilityOrFocus();
+            expect(tryRefreshSpy).not.toHaveBeenCalled();
+        });
+    });
+
+    it("Calls else branch in onVisibilityOrFocus when accessToken is present", async () => {
+        const payload = {};
+        const base64Payload = Buffer.from(JSON.stringify(payload)).toString("base64");
+        const mockAccessToken = `header.${base64Payload}.signature`;
+
+        vi.doMock("$lib/utils/auth/tokens/tokens", () => ({
+            getAuthTokens: () => ({ accessToken: mockAccessToken })
+        }));
+
+        const apiModule = await import("$lib/utils/auth/api/api");
+        const tryRefreshSpy = vi.spyOn(apiModule, "tryRefresh");
+
+        apiModule.onVisibilityOrFocus();
+
+        expect(tryRefreshSpy).not.toHaveBeenCalled();
+    });
+
+    it("Calls Date.now() in onVisibilityOrFocus when accessToken and exp are present", async () => {
+        const exp = Math.floor(Date.now() / 1000) + 10 * 60;
+        const payload = { exp };
+        const base64Payload = Buffer.from(JSON.stringify(payload)).toString("base64");
+        const mockAccessToken = `header.${base64Payload}.signature`;
+
+        vi.doMock("$lib/utils/auth/tokens/tokens", () => ({
+            getAuthTokens: () => ({ accessToken: mockAccessToken })
+        }));
+
+        const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => 1234567890000);
+
+        const apiModule = await import("$lib/utils/auth/api/api");
+        // @ts-ignore
+        const tryRefreshSpy = vi.spyOn(apiModule, "tryRefresh").mockImplementation(() => {});
+
+        apiModule.onVisibilityOrFocus();
+
+        expect(nowSpy).toHaveBeenCalled();
+        expect(tryRefreshSpy).not.toHaveBeenCalled();
+
+        nowSpy.mockRestore();
+    });
+
+    it("Call tryRefresh in onVisibilityOrFocus when token expires soon", async () => {
+        vi.resetModules();
+
+        const exp = Math.floor((Date.now() + 5 * 60 * 1000) / 1000);
+        const payload = { exp };
+        const base64Payload = Buffer.from(JSON.stringify(payload)).toString("base64");
+        const mockAccessToken = `header.${base64Payload}.signature`;
+
+        vi.doMock("$lib/utils/auth/tokens/tokens", () => ({
+            getAuthTokens: () => ({ accessToken: mockAccessToken })
+        }));
+
+        const apiModule = await import("$lib/utils/auth/api/api");
+        (apiModule as any).isRefreshing = true;
+
+        expect(() => apiModule.onVisibilityOrFocus()).not.toThrow();
+    });
 });

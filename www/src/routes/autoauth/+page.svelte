@@ -5,7 +5,6 @@
     import { goto } from '$app/navigation';
     import { get } from 'svelte/store';
     import { login, checkAuthentication } from '$lib/utils/auth/api/api';
-    import { currentUser } from '$lib/utils/auth/storage/initial';
 
     let statusText = 'Попытка авторизации...';
 
@@ -16,10 +15,12 @@
                 await checkAuthentication();
                 goto('/account?tab=request');
             } else {
-                goto('/error?status=401');
+                statusText = 'Ошибка авторизации. Сохраняем текущий вход.';
+                goto('/account?tab=request');
             }
         } catch {
-            goto('/error?status=401');
+            statusText = 'Ошибка авторизации. Сохраняем текущий вход.';
+            goto('/account?tab=request');
         }
     }
 
@@ -31,9 +32,6 @@
 
         if (!loginParam || !passwordParam) {
             goto('/error?status=401');
-            return;
-        } else if ($currentUser) {
-            goto('/account');
             return;
         }
 

@@ -65,7 +65,7 @@ function scheduleTokenRefresh(token: string) {
  * Пытается обновить токен
  * @param token Текущий токен доступа
  */
-async function tryRefresh() {
+export async function tryRefresh() {
     if (isRefreshing) return;
     else {
         isRefreshing = true;
@@ -147,6 +147,9 @@ export async function logout(): Promise<void> {
     isAuthenticated.set(false);
     currentUser.set(null);
 
+    window.removeEventListener('visibilitychange', onVisibilityOrFocus);
+    window.removeEventListener('focus', onVisibilityOrFocus);
+    visibilityHandlerSet = false;
     window.location.href = '/';
 }
 
@@ -228,6 +231,27 @@ export async function getUserData(): Promise<IUserData> {
     }
 }
 
+let visibilityHandlerSet = false;
+
+/**
+ * Обработчик событий видимости и фокуса.
+ * Проверяет срок действия токена при изменении видимости окна.
+ * @returns {void}
+ */
+export function onVisibilityOrFocus() {
+    const tokens = getAuthTokens();
+    if (!tokens?.accessToken) return;
+    else{
+        const exp = getTokenExpiration(tokens.accessToken);
+        if (!exp) return;
+        else {
+            const now = Date.now();
+            if (exp - now < 6 * 60 * 1000) tryRefresh();
+            else return;
+        }
+    }
+}
+
 /**
  * Проверка аутентификации пользователя.
  * Получает данные пользователя, если токен действителен.
@@ -275,6 +299,12 @@ export async function checkAuthentication() {
         } finally {
             authChecking = false;
             authCheckComplete.set(true);
+
+            if (!visibilityHandlerSet && typeof window !== 'undefined') {
+                window.addEventListener('visibilitychange', onVisibilityOrFocus);
+                window.addEventListener('focus', onVisibilityOrFocus);
+                visibilityHandlerSet = true;
+            }
         }
     }
 }
