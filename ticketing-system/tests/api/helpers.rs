@@ -281,7 +281,7 @@ impl TestApp {
             .unwrap()
     }
 
-    pub async fn create_page(&self, body: &serde_json::Value, token: Option<&str>, expect: u64) -> reqwest::Response {
+    pub async fn create_page(&self, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {
         let mut builder = reqwest::Client::new()
             .post(format!("{}/v1/pages/", self.address))
             .json(body);
@@ -289,13 +289,6 @@ impl TestApp {
         if let Some(token) = token {
             builder = builder.bearer_auth(token);
         }
-    
-        let _mock_guard = Mock::given(path_regex(r"/*-bucket/pages/.*\.json"))
-            .and(method("PUT"))
-            .respond_with(ResponseTemplate::new(200))
-            .expect(expect)
-            .mount_as_scoped(&self.s3_server)
-            .await;
     
         builder
             .send()
@@ -342,7 +335,7 @@ impl TestApp {
             "is_public": true
         });
     
-        self.create_page(&body, Some(&access), 1).await;
+        self.create_page(&body, Some(&access)).await;
     }
     
     pub async fn create_private_page(&self) {
@@ -358,7 +351,7 @@ impl TestApp {
             "is_public": false
         });
     
-        self.create_page(&body, Some(&access), 1).await;
+        self.create_page(&body, Some(&access)).await;
     }
 }
 

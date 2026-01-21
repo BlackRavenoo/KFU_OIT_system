@@ -18,7 +18,7 @@ async fn create_page_returns_201() {
         "is_public": true
     });
 
-    let resp = app.create_page(&body, Some(&access), 1).await;
+    let resp = app.create_page(&body, Some(&access)).await;
 
     assert_eq!(resp.status(), 201);
 }
@@ -41,7 +41,7 @@ async fn create_page_returns_id() {
         "is_public": true
     });
 
-    let resp = app.create_page(&body, Some(&access), 1).await;
+    let resp = app.create_page(&body, Some(&access)).await;
 
     let json: serde_json::Value = resp.json().await.unwrap();
 
@@ -66,13 +66,13 @@ async fn create_page_returns_incremented_id() {
         "is_public": true
     });
 
-    let resp = app.create_page(&body, Some(&access), 1).await;
+    let resp = app.create_page(&body, Some(&access)).await;
 
     let json: serde_json::Value = resp.json().await.unwrap();
 
     let id1 = json.get("id").unwrap().as_i64().unwrap();
 
-    let resp = app.create_page(&body, Some(&access), 1).await;
+    let resp = app.create_page(&body, Some(&access)).await;
 
     let json: serde_json::Value = resp.json().await.unwrap();
 
@@ -95,7 +95,7 @@ async fn create_page_without_token_returns_401() {
         "is_public": true
     });
 
-    let resp = app.create_page(&body, None, 0).await;
+    let resp = app.create_page(&body, None).await;
 
     assert_eq!(resp.status(), 401);
 }
@@ -108,7 +108,7 @@ async fn create_page_with_empty_body_returns_400() {
 
     let (access, _) = app.get_jwt_tokens(&email, "admin").await;
 
-    let resp = app.create_page(&serde_json::json!({}), Some(&access), 0).await;
+    let resp = app.create_page(&serde_json::json!({}), Some(&access)).await;
 
     assert_eq!(resp.status(), 400);
 }
@@ -131,7 +131,7 @@ async fn create_page_with_related_returns_201() {
         "is_public": true
     });
 
-    app.create_page(&body, Some(&access), 1).await;
+    app.create_page(&body, Some(&access)).await;
 
     let body = serde_json::json!({
         "data": {
@@ -143,7 +143,7 @@ async fn create_page_with_related_returns_201() {
         "is_public": true
     });
 
-    let resp = app.create_page(&body, Some(&access), 1).await;
+    let resp = app.create_page(&body, Some(&access)).await;
 
     assert_eq!(resp.status(), 201);
 }

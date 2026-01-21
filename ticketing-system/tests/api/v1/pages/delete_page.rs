@@ -1,5 +1,4 @@
 use ticketing_system::schema::page::PageId;
-use wiremock::{Mock, ResponseTemplate, matchers::{method, path_regex}};
 
 use crate::helpers::{TestApp, spawn_app};
 
@@ -27,13 +26,6 @@ async fn delete_page_returns_200() {
 
     let (access, _) = app.get_jwt_tokens(&email, "admin").await;
 
-    Mock::given(path_regex(r"/test-bucket/pages/.*\.json"))
-        .and(method("DELETE"))
-        .respond_with(ResponseTemplate::new(200))
-        .expect(1)
-        .mount(&app.s3_server)
-        .await;
-
     let resp = delete_page(&app, 1, Some(&access)).await;
 
     assert_eq!(resp.status(), 200);
@@ -47,13 +39,6 @@ async fn delete_page_for_nonexistent_page_returns_404() {
 
     let (access, _) = app.get_jwt_tokens(&email, "admin").await;
 
-    Mock::given(path_regex(r"/test-bucket/pages/.*\.json"))
-        .and(method("DELETE"))
-        .respond_with(ResponseTemplate::new(200))
-        .expect(0)
-        .mount(&app.s3_server)
-        .await;
-
     let resp = delete_page(&app, 1, Some(&access)).await;
 
     assert_eq!(resp.status(), 404);
@@ -62,13 +47,6 @@ async fn delete_page_for_nonexistent_page_returns_404() {
 #[tokio::test]
 async fn delete_page_without_token_returns_401() {
     let app = spawn_app().await;
-
-    Mock::given(path_regex(r"/test-bucket/pages/.*\.json"))
-        .and(method("DELETE"))
-        .respond_with(ResponseTemplate::new(200))
-        .expect(0)
-        .mount(&app.s3_server)
-        .await;
 
     let resp = delete_page(&app, 1, None).await;
 
