@@ -60,8 +60,10 @@ async fn get_stats_returns_correct_data() {
         "status": "closed"
     });
 
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
     for id in 1..=7 {
-        app.update_ticket(id, &json).await;
+        app.update_ticket(id, &json, None, Some(&access)).await;
     }
 
     let resp = get_stats(&app).await;

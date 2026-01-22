@@ -1,6 +1,6 @@
 use fake::{faker::internet::en::SafeEmail, Fake};
 use sqlx::{Connection, Executor, PgConnection, PgPool, postgres::PgPoolOptions};
-use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path, path_regex}};
+use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
 use std::{borrow::Cow, path::Path, sync::LazyLock};
 use uuid::Uuid;
 use ticketing_system::{
@@ -216,14 +216,38 @@ impl TestApp {
             .unwrap()
     }
 
-    pub async fn update_ticket(&self, ticket_id: TicketId, body: &serde_json::Value) -> reqwest::Response {
-        let (access, _) = self.get_admin_jwt_tokens().await;
+    pub async fn update_ticket(&self, id: TicketId, body: &serde_json::Value, attachments: Option<Vec<Attachment>>, access: Option<&str>) -> reqwest::Response {
+        let json_string = serde_json::to_string(body).unwrap();
 
-        reqwest::Client::new()
-            .put(format!("{}/v1/tickets/{}", self.address, ticket_id))
-            .json(body)
-            .bearer_auth(access)
-            .send()
+        let mut form = reqwest::multipart::Form::new();
+    
+        form = form.part("fields", 
+            reqwest::multipart::Part::text(json_string)
+                .mime_str("application/json")
+                .unwrap()
+        );
+
+        if let Some(files) = attachments {
+            for attachment in files.into_iter() {
+                form = form.part(
+                    "attachments_to_add",
+                    reqwest::multipart::Part::bytes(attachment.data)
+                        .file_name(attachment.filename)
+                        .mime_str(&attachment.mime_type)
+                        .unwrap()
+                );
+            }
+        }
+
+        let mut builder = reqwest::Client::new()
+            .put(format!("{}/v1/tickets/{}", self.address, id))
+            .multipart(form);
+
+        if let Some(token) = access {
+            builder = builder.bearer_auth(&token);
+        }
+
+        builder.send()
             .await
             .unwrap()
     }
