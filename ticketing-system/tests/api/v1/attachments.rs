@@ -16,7 +16,7 @@ async fn get_image(app: &TestApp, data: Option<&[u8]>, status: u16, bucket: &str
         .mount_as_scoped(&app.s3_server)
         .await;
 
-    reqwest::get(format!("{}/v1/images/{}/test.png", app.address, bucket))
+    reqwest::get(format!("{}/v1/attachments/{}/test.png", app.address, bucket))
         .await
         .unwrap()
 }
@@ -43,7 +43,7 @@ pub async fn get_avatar_returns_200() {
 pub async fn get_image_with_wrong_bucket_returns_400() {
     let app = spawn_app().await;
 
-    let resp = reqwest::get(format!("{}/v1/images/wrong_bucket/test.png", app.address))
+    let resp = reqwest::get(format!("{}/v1/attachments/wrong_bucket/test.png", app.address))
         .await
         .unwrap();
 

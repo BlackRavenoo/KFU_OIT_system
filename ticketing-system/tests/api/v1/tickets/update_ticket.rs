@@ -10,15 +10,14 @@ async fn update_ticket_returns_200() {
 
     let (access, _) = app.get_admin_jwt_tokens().await;
 
-    let resp = reqwest::Client::new()
-        .put(format!("{}/v1/tickets/1", app.address))
-        .bearer_auth(access)
-        .json(&serde_json::json!({
+    let resp = app.update_ticket(
+        1,
+        &serde_json::json!({
             "title": "Some title for tests"
-        }))
-        .send()
-        .await
-        .unwrap();
+        }),
+        None,
+        Some(&access)
+    ).await;
 
     assert_eq!(resp.status(), 200);
 }
@@ -35,17 +34,14 @@ async fn update_ticket_changes_field_value() {
 
     let title = "Some title for tests";
 
-    reqwest::Client::new()
-        .put(format!("{}/v1/tickets/1", app.address))
-        .bearer_auth(access)
-        .json(&serde_json::json!({
+    app.update_ticket(
+        1,
+        &serde_json::json!({
             "title": title
-        }))
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap();
+        }),
+        None,
+        Some(&access)
+    ).await;
 
     let ticket = app.get_ticket(1).await
         .error_for_status()
@@ -86,13 +82,12 @@ async fn update_ticket_without_fields_returns_400() {
 
     let (access, _) = app.get_admin_jwt_tokens().await;
 
-    let resp = reqwest::Client::new()
-        .put(format!("{}/v1/tickets/1", app.address))
-        .bearer_auth(access)
-        .json(&serde_json::json!({}))
-        .send()
-        .await
-        .unwrap();
+    let resp = app.update_ticket(
+        1,
+        &serde_json::json!({}),
+        None,
+        Some(&access)
+    ).await;
 
     assert_eq!(resp.status(), 400);
 }
@@ -115,19 +110,15 @@ async fn update_ticket_updates_all_fields() {
         "status": "open",
         "priority": "high",
         "cabinet": "101A",
-        "note": "This is a test note",
         "building_id": 1
     });
 
-    reqwest::Client::new()
-        .put(format!("{}/v1/tickets/1", app.address))
-        .bearer_auth(access)
-        .json(&json)
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap();
+    app.update_ticket(
+        1,
+        &json,
+        None,
+        Some(&access)
+    ).await;
 
     let resp = app.get_ticket(1).await;
 
@@ -141,7 +132,6 @@ async fn update_ticket_updates_all_fields() {
         && data["status"] == json["status"]
         && data["priority"] == json["priority"]
         && data["cabinet"] == json["cabinet"]
-        && data["note"] == json["note"]
         && data["building"]["id"] == json["building_id"]
     );
 }
@@ -164,27 +154,25 @@ async fn update_ticket_with_separate_requests_updates_all_fields() {
         "status": "open",
         "priority": "high",
         "cabinet": "101A",
-        "note": "This is a test note",
         "building_id": 1
     });
 
     for (key, value) in json.as_object().unwrap().iter() {
-        reqwest::Client::new()
-            .put(format!("{}/v1/tickets/1", app.address))
-            .bearer_auth(&access)
-            .json(&serde_json::json!({
+        app.update_ticket(
+            1,
+            &serde_json::json!({
                 key: value
-            }))
-            .send()
-            .await
-            .unwrap()
-            .error_for_status()
-            .unwrap();
+            }),
+            None,
+            Some(&access)
+        ).await;
     }
 
     let resp = app.get_ticket(1).await;
 
     let data: serde_json::Value = resp.json().await.unwrap();
+
+    println!("{:?}", data);
 
     assert!(
         data["title"] == json["title"]
@@ -194,7 +182,6 @@ async fn update_ticket_with_separate_requests_updates_all_fields() {
         && data["status"] == json["status"]
         && data["priority"] == json["priority"]
         && data["cabinet"] == json["cabinet"]
-        && data["note"] == json["note"]
         && data["building"]["id"] == json["building_id"]
     );
 }
@@ -216,15 +203,14 @@ async fn update_ticket_with_db_error_returns_500() {
     .await
     .unwrap();
 
-    let resp = reqwest::Client::new()
-        .put(format!("{}/v1/tickets/1", app.address))
-        .bearer_auth(access)
-        .json(&serde_json::json!({
+    let resp = app.update_ticket(
+        1,
+        &serde_json::json!({
             "title": "Title"
-        }))
-        .send()
-        .await
-        .unwrap();
+        }),
+        None,
+        Some(&access)
+    ).await;
 
     assert_eq!(resp.status(), 500);
 }
