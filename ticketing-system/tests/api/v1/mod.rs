@@ -3,5 +3,6 @@ mod auth;
 mod tickets;
 mod pages;
 mod tags;
+mod buildings;
 
 mod attachments;
