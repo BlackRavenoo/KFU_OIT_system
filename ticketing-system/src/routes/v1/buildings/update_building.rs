@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, ResponseError, web};
+use actix_web::{HttpResponse, ResponseError, http::StatusCode, web};
 use anyhow::Context;
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -15,6 +15,8 @@ pub struct UpdateBuildingSchema {
 pub enum UpdateBuildingError {
     #[error("All fields are empty")]
     AllFieldsEmpty,
+    #[error("Building not found")]
+    BuildingNotFound,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
 }
@@ -25,7 +27,15 @@ impl std::fmt::Debug for UpdateBuildingError {
     }
 }
 
-impl ResponseError for UpdateBuildingError {}
+impl ResponseError for UpdateBuildingError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            UpdateBuildingError::AllFieldsEmpty => StatusCode::BAD_REQUEST,
+            UpdateBuildingError::BuildingNotFound => StatusCode::NOT_FOUND,
+            UpdateBuildingError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
 
 pub async fn update_building(
     pool: web::Data<PgPool>,
@@ -34,7 +44,7 @@ pub async fn update_building(
 ) -> Result<HttpResponse, UpdateBuildingError> {
     update(&pool, schema, *id).await?;
 
-    Ok(HttpResponse::Created().finish())
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[tracing::instrument(
@@ -64,8 +74,12 @@ async fn update(
 
     let query = builder.build();
 
-    query.execute(pool).await
+    let res = query.execute(pool).await
         .context("Failed to update building.")?;
+
+    if res.rows_affected() == 0 {
+        return Err(UpdateBuildingError::BuildingNotFound);
+    }
 
     Ok(())
 }
