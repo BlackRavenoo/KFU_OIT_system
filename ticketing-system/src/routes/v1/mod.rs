@@ -126,7 +126,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                     .wrap(JwtMiddleware::min_role(UserRole::Admin))
                     .route("/", web::post().to(create_building))
                     .route("/{id}", web::put().to(update_building))
-                    .route("/{id}/toggle_active", web::post().to(toggle_building_active))
+                    .route("/{id}/set_active", web::post().to(set_building_active))
             )
             .service(
                 web::scope("/system_notifications")
