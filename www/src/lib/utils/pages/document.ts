@@ -1,6 +1,7 @@
 import { api } from '$lib/utils/api';
 import { serialize } from '$lib/utils/texteditor/serialize';
 import { deserialize } from '$lib/utils/texteditor/serialize';
+import type { PageData } from '../../../routes/page/[id]/$types';
 
 export interface SavePageRequest {
     html: string;
@@ -65,30 +66,23 @@ export async function savePageAndGetId(req: SavePageRequest): Promise<string> {
 
 /**
  * Функция для получения контента страницы по её ключу.
- * @param isPublic Флаг публичности страницы
- * @param key Ключ/путь контента как от сервера
+ * @param data Объект с данными страницы
  * @returns HTML-строка для вставки в документ
  * @throws Error если формат ответа некорректный или сервер вернул ошибку
  */
-export async function fetchPageContentByKey(isPublic: boolean, key: string): Promise<string> {
-    const prefix = isPublic ? 'public' : 'private';
-    const cleanedKey = (key ?? '').replace(/^\/?pages\//i, '');
-
-    const resp = await api.get<unknown>(`/api/v1/page/${prefix}/${cleanedKey}`);
-
-    const ok = resp.status === 200 || resp.status === 201 || resp.status === 204 || resp.status === 304;
-    if (!ok) throw new Error(resp.error || `HTTP ${resp.status}`);
-
-    let data: unknown = resp.data;
-
-    if (typeof data === 'string') {
-        try { data = JSON.parse(data); } catch {
+export async function fetchPageContentByKey(data: PageData): Promise<string> {
+    // @ts-ignore
+    if (typeof data.text === 'string') {
+        // @ts-ignore
+        try { data = JSON.parse(data.text); } catch {
             console.warn('Response data is not valid JSON, using raw string');
         }
     }
 
-    if (Array.isArray(data)) return deserialize(data as any);
-    if (typeof data === 'string') return data;
+    // @ts-ignore
+    if (Array.isArray(data.text)) return deserialize(data.text as any);
+    // @ts-ignore
+    if (typeof data.text === 'string') return data.text as any;
 
     throw new Error('Некорректный формат контента');
 }

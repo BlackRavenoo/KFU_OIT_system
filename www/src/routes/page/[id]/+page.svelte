@@ -21,6 +21,7 @@
         key: string;
         tags: Tag[];
         authors?: Author[];
+        text: string;
     };
 
     let loading = true;
@@ -80,7 +81,7 @@
             contentLoading = true;
             contentError = null;
             try {
-                contentHtml = await fetchPageContentByKey(!!doc.is_public, doc.key);
+                contentHtml = await fetchPageContentByKey(doc);
             } catch (e: any) {
                 contentError = e?.message || 'Ошибка загрузки контента';
                 contentHtml = '<p>Контент недоступен.</p>';
