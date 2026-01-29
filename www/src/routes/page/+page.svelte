@@ -9,10 +9,12 @@
     import Pagination from '$lib/components/Search/Pagination.svelte';
 
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
-    import { api, handleAuthError } from '$lib/utils/api';
+    import { api } from '$lib/utils/api';
 
-    import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
+    import { currentUser } from '$lib/utils/auth/storage/initial';
     import { UserRole } from '$lib/utils/auth/types';
+
+    import { fetchTags } from '$lib/utils/pages/tags';
 
     type Tag = { id: number; name: string };
     type PageItem = { id: number; is_public: boolean; title: string; key: string; tags: Tag[] };
@@ -50,11 +52,10 @@
         goto(url.toString(), { replaceState: true, keepFocus: true, noScroll: true });
     }
 
-    let tagSearchQuery = '';
-    let tagSearchResults: Tag[] = [];
-    let showTagDropdown = false;
-    let searchingTags = false;
-    let tagSearchTimer: any = null;
+    let tagSearch = '';
+    let tagSuggestions: Tag[] = [];
+    let tagDropdownOpen = false;
+    let tagSearchLoading = false;
 
     let selectedTagIds: number[] = [];
     let selectedTags: Tag[] = [];
@@ -67,37 +68,28 @@
         loading = true;
         error = null;
         try {
-            const params: Record<string, any> = {
+            const params: any = {
+                q: search.trim() || undefined,
                 page,
                 page_size: pageSize
             };
-            if (search.trim()) params.search = search.trim();
-            if (selectedTagIds.length > 0) params.tags = selectedTagIds.join(',');
-
-            const resp = await api.get<PagesResponse>('/api/v1/pages/', params);
-            if (!resp.success) {
-                if (resp.status === 404) {
-                    pages = [];
-                    totalItems = 0;
-                    loading = false;
-                    return;
-                }
-                throw new Error(resp.error || `HTTP ${resp.status}`);
+            if (selectedTagIds.length > 0) {
+                params.tags = selectedTagIds.map(id => String(id));
             }
-
-            const payload = resp.data || {};
-            const items = (payload.items ?? payload.data ?? []) as PageItem[];
-            pages = items;
-            totalItems = (payload.total ?? payload.total_items ?? items.length) as number;
-
-            const maxPage = Math.max(1, Math.ceil(totalItems / pageSize));
-            if (page > maxPage) {
-                page = 1;
-                updatePageUrl();
-                await fetchPages();
+            const resp = await api.get<PagesResponse>('/api/v1/pages/', params);
+            if (resp.success) {
+                const data = resp.data;
+                pages = data?.items || data?.data || [];
+                totalItems = data?.total_items ?? data?.total ?? pages.length;
+            } else {
+                error = resp.error || 'Ошибка загрузки';
+                pages = [];
+                totalItems = 0;
             }
         } catch (e: any) {
             error = e?.message || 'Ошибка загрузки';
+            pages = [];
+            totalItems = 0;
         } finally {
             loading = false;
         }
@@ -127,43 +119,29 @@
         }
     }
 
-    async function searchTagsNow() {
-        const q = tagSearchQuery.trim();
-        if (!q) {
-            tagSearchResults = [];
-            showTagDropdown = false;
+    async function handleTagSearch(q: string) {
+        tagSearch = q;
+        if (!q.trim()) {
+            tagSuggestions = [];
+            tagDropdownOpen = false;
             return;
         }
-        searchingTags = true;
-        try {
-            const resp = await api.get<Tag[]>('/api/v1/tags/', { q });
-            if (resp.success) {
-                tagSearchResults = resp.data ?? [];
-                showTagDropdown = tagSearchResults.length > 0;
-            } else {
-                tagSearchResults = [];
-                showTagDropdown = false;
-            }
-        } finally {
-            searchingTags = false;
-        }
+        tagSearchLoading = true;
+        tagSuggestions = await fetchTags(q);
+        tagDropdownOpen = tagSuggestions.length > 0;
+        tagSearchLoading = false;
     }
 
-    function onTagSearchInput() {
-        if (tagSearchTimer) clearTimeout(tagSearchTimer);
-        tagSearchTimer = setTimeout(searchTagsNow, 250);
-    }
-
-    function addTagToSelected(tag: Tag) {
+    function selectTagFromSuggestion(tag: Tag) {
         if (!haveSelected(tag.id)) {
             selectedTagIds = [...selectedTagIds, tag.id];
             selectedTags = [...selectedTags, tag];
             page = 1;
             fetchPages();
         }
-        tagSearchQuery = '';
-        tagSearchResults = [];
-        showTagDropdown = false;
+        tagSearch = '';
+        tagSuggestions = [];
+        tagDropdownOpen = false;
     }
 
     function removeSelectedTag(id: number) {
@@ -173,73 +151,42 @@
         fetchPages();
     }
 
-    async function handleApplyFilters() {
-        page = 1;
-        await fetchPages();
-    }
-
-    async function handleClearFilters() {
-        selectedTagIds = [];
-        selectedTags = [];
-        tagSearchQuery = '';
-        tagSearchResults = [];
-        showTagDropdown = false;
-        page = 1;
-        await fetchPages();
-    }
-
     function openPage(id: number) {
         goto(`/page/${id}`);
     }
 
-    $: canManageTags = true;//$currentUser?.role === UserRole.Administrator || $currentUser?.role === UserRole.Moderator;
+    $: canManageTags = $currentUser?.role === UserRole.Administrator || $currentUser?.role === UserRole.Moderator;
     $: canDeleteTag = $currentUser?.role === UserRole.Administrator;
 
     let showTagsModal = false;
-    let tagsList: Tag[] = [];
-    let tagsLoading = false;
-    let newTagName = '';
-    let newTagSynonyms = '';
-    let creatingTag = false;
+    let tagManageSearch = '';
+    let tagManageSuggestions: Tag[] = [];
+    let tagManageLoading = false;
     let manageTag: Tag | null = null;
     let synonymsInput = '';
     let addingSynonyms = false;
     let deletingTag = false;
+    let newTagName = '';
+    let newTagSynonyms = '';
+    let creatingTag = false;
 
     async function openTagsModal() {
         showTagsModal = true;
-        tagsLoading = true;
-        try {
-            const resp = await api.get<Tag[]>('/api/v1/tags/', {});
-            if (resp.success) tagsList = resp.data ?? [];
-        } finally {
-            tagsLoading = false;
-        }
-        newTagName = '';
-        newTagSynonyms = '';
+        tagManageSearch = '';
+        tagManageSuggestions = [];
         manageTag = null;
         synonymsInput = '';
     }
 
-    async function createTagWithSynonyms() {
-        if (!canManageTags) return;
-        const name = newTagName.trim();
-        if (!name) return;
-        creatingTag = true;
-        try {
-            const synonyms = newTagSynonyms
-                .split(',')
-                .map(s => s.trim())
-                .filter(Boolean);
-            const resp = await api.post('/api/v1/tags/', { name, synonyms });
-            if (resp.success) {
-                newTagName = '';
-                newTagSynonyms = '';
-                await openTagsModal();
-            }
-        } finally {
-            creatingTag = false;
+    async function handleTagManageSearch(q: string) {
+        tagManageSearch = q;
+        if (!q.trim()) {
+            tagManageSuggestions = [];
+            return;
         }
+        tagManageLoading = true;
+        tagManageSuggestions = await fetchTags(q);
+        tagManageLoading = false;
     }
 
     function selectManageTag(tag: Tag) {
@@ -256,7 +203,6 @@
         try {
             await api.put(`/api/v1/tags/${tag_id}`, { synonyms_to_add: parts });
             synonymsInput = '';
-            await openTagsModal();
         } finally {
             addingSynonyms = false;
         }
@@ -268,25 +214,35 @@
         try {
             await api.delete(`/api/v1/tags/${manageTag.id}`);
             manageTag = null;
-            await openTagsModal();
+            tagManageSearch = '';
+            tagManageSuggestions = [];
         } finally {
             deletingTag = false;
         }
     }
 
-    // Новый SearchBar для поиска по тегам
-    let tagSearch = '';
-    function handleTagSearch(q: string) {
-        tagSearchQuery = q;
-        onTagSearchInput();
+    async function createTagWithSynonyms() {
+        if (!canManageTags) return;
+        const name = newTagName.trim();
+        if (!name) return;
+        creatingTag = true;
+        try {
+            const synonyms = newTagSynonyms
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean);
+            await api.post('/api/v1/tags/', { name, synonyms });
+            newTagName = '';
+            newTagSynonyms = '';
+        } finally {
+            creatingTag = false;
+        }
     }
 
     onMount(async () => {
         pageTitle.set('Страницы | Система управления заявками ЕИ КФУ');
         pageDescription.set('Просматривайте справочные страницы и инструкции. Фильтруйте по тэгам и находите нужные материалы быстрее.');
-        // if (!$isAuthenticated || $currentUser === null)
-        //     handleAuthError(get(pageStore).url.pathname);
-        // else await fetchPages();
+        await fetchPages();
     });
 
     onDestroy(() => {
@@ -299,24 +255,29 @@
     <div class="search-controls-wrapper">
         <SearchBar
             bind:searchQuery={ search }
-            placeholder="Поиск по страницам..."
+            placeholder="Поиск по страницам"
             onSearch={ handleSearch }
         />
         <div class="search-controls">
-            <div class="tags-row">
+            <div class="tags-row tag-search-wrapper">
                 <SearchBar
                     bind:searchQuery={ tagSearch }
                     placeholder="Поиск по тэгам"
-                    onSearch={ handleTagSearch }
+                    onSearch={ () => handleTagSearch(tagSearch) }
                 />
-                {#if selectedTags.length > 0}
-                    <div class="selected-tags">
-                        {#each selectedTags as t}
-                            <button type="button" class="tag-chip active" title="Убрать тэг" on:click={ () => removeSelectedTag(t.id) }>
-                                { t.name }
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                        {/each}
+                {#if tagDropdownOpen}
+                    <div class="tag-dropdown">
+                        {#if tagSearchLoading}
+                            <div class="tag-option muted">Загрузка...</div>
+                        {:else if tagSuggestions.length === 0}
+                            <div class="tag-option muted">Нет совпадений</div>
+                        {:else}
+                            {#each tagSuggestions as t}
+                                <div class="tag-option" on:click={ () => selectTagFromSuggestion(t) }>
+                                    { t.name }
+                                </div>
+                            {/each}
+                        {/if}
                     </div>
                 {/if}
                 {#if canManageTags}
@@ -338,6 +299,17 @@
         </div>
     </div>
 
+    {#if selectedTags.length > 0}
+        <div class="selected-tags">
+            {#each selectedTags as t}
+                <button type="button" class="tag-chip active" title="Убрать тэг" on:click={ () => removeSelectedTag(t.id) }>
+                    { t.name }
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            {/each}
+        </div>
+    {/if}
+
     <div class="tickets-list list-view">
         {#if loading}
             <div class="ticket-item" style="align-items:center;">
@@ -345,7 +317,7 @@
             </div>
         {:else if error}
             <div class="ticket-item" style="align-items:center;">
-                {error}
+                { error }
             </div>
         {:else if pages.length === 0}
             Нет страниц
@@ -387,6 +359,14 @@
     {#if totalPages > 1}
         <Pagination currentPage={ page } { totalPages } onPageChange={ handlePageChange } />
     {/if}
+
+    {#if $currentUser && ($currentUser.role === UserRole.Administrator || $currentUser.role === UserRole.Moderator || $currentUser.role === UserRole.Programmer)}
+        <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+            <button class="filter-btn primary add-page" on:click={ () => goto('/texteditor') }>
+                + Создать новую страницу
+            </button>
+        </div>
+    {/if}
 </div>
 
 {#if showTagsModal}
@@ -396,34 +376,32 @@
                 <button class="filter-btn close-btn secondary" on:click={ () => showTagsModal = false }>x</button>
             </div>
             <h2>Управление тэгами</h2>
-            <div class="tag-manage-create">
-                <input
-                    type="text"
-                    placeholder="Название нового тэга"
-                    bind:value={ newTagName }
+            <div class="tag-manage-search">
+                <SearchBar
+                    bind:searchQuery={ tagManageSearch }
+                    placeholder="Поиск тега для управления"
+                    onSearch={ () => handleTagManageSearch(tagManageSearch) }
                 />
-                <input
-                    type="text"
-                    placeholder="Синонимы через запятую (опционально)"
-                    bind:value={ newTagSynonyms}
-                />
-                <button class="filter-btn primary" on:click={ createTagWithSynonyms } disabled={ creatingTag || !newTagName.trim() }>
-                    { creatingTag ? 'Создание...' : 'Создать' }
-                </button>
-            </div>
-            <div class="tag-manage-list">
-                <div class="tag-list-header">Существующие тэги</div>
-                {#if tagsLoading}
+                {#if tagManageLoading}
                     <div class="tag-list-loading">Загрузка...</div>
-                {:else if tagsList.length === 0}
+                {:else if tagManageSearch && tagManageSuggestions.length === 0}
                     <div class="tag-list-empty">Нет тегов</div>
-                {:else}
-                    <ul class="tag-list">
-                        {#each tagsList as tag}
+                {:else if tagManageSuggestions.length > 0}
+                    <ul class="tag-list tag-manage-list">
+                        {#each tagManageSuggestions as tag}
                             <li class:active={ manageTag && manageTag.id === tag.id }>
                                 <span>{ tag.name }</span>
-                                <button class="tag-syn-btn" on:click={() => selectManageTag(tag)} title="Добавить синонимы/удалить">
-                                    <svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2"/></svg>
+                                <button class="tag-syn-btn" on:click={ () => selectManageTag(tag) } title="Добавить синонимы">
+                                    <svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#075cef" stroke-width="2" fill="none"/><path d="M8 12h8M12 8v8" stroke="#075cef" stroke-width="2"/></svg>
+                                </button>
+                                <button class="danger_btn" style="margin-left:8px;" on:click={ async () => { manageTag = tag; await deleteTagCompletely(); }} title="Удалить">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                        <rect x="5" y="7" width="14" height="12" rx="2" stroke="#d32f2f" stroke-width="2" fill="none"/>
+                                        <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" stroke="#d32f2f" stroke-width="2"/>
+                                        <line x1="10" y1="11" x2="10" y2="17" stroke="#d32f2f" stroke-width="2"/>
+                                        <line x1="14" y1="11" x2="14" y2="17" stroke="#d32f2f" stroke-width="2"/>
+                                        <line x1="3" y1="7" x2="21" y2="7" stroke="#d32f2f" stroke-width="2"/>
+                                    </svg>
                                 </button>
                             </li>
                         {/each}
@@ -442,12 +420,24 @@
                         <button class="filter-btn" on:click={ addSynonymsToTag } disabled={ addingSynonyms || !synonymsInput.trim() }>
                             { addingSynonyms ? 'Добавление...' : 'Добавить' }
                         </button>
-                        <button class="danger_btn" on:click={ deleteTagCompletely } disabled={ deletingTag }>
-                            { deletingTag ? 'Удаление...' : 'Удалить тэг' }
-                        </button>
                     </div>
                 </div>
             {/if}
+            <div class="tag-manage-create">
+                <input
+                    type="text"
+                    placeholder="Название нового тэга"
+                    bind:value={ newTagName }
+                />
+                <input
+                    type="text"
+                    placeholder="Синонимы через запятую (опционально)"
+                    bind:value={ newTagSynonyms}
+                />
+                <button class="filter-btn primary" on:click={ createTagWithSynonyms } disabled={ creatingTag || !newTagName.trim() }>
+                    { creatingTag ? 'Создание...' : 'Создать' }
+                </button>
+            </div>
         </div>
     </div>
 {/if}

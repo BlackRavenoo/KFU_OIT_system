@@ -49,7 +49,7 @@
 .tag-dropdown {
     position: absolute;
     display: flex;
-    top: calc(100% + 6px);
+    top: calc(100% - 25px);
     left: 0;
     right: 0;
     z-index: 20;
@@ -69,12 +69,13 @@
     flex: auto;
     text-align: left;
     padding: 6px 8px;
-    border-radius: 6px;
+    border-radius: 9px;
     border: 1px solid transparent;
     background: var(--light-blue);
     color: var(--text);
     cursor: pointer;
     font-size: .85rem;
+    gap: .5rem;
 }
 
 .tag-option:hover {
@@ -226,6 +227,8 @@ select {
     margin: 0;
     padding: 0 2vw;
     box-sizing: border-box;
+    border-top: 1px solid var(--gray);
+    padding-top: 1.5rem;
 }
 
 .search-controls-wrapper {
@@ -245,10 +248,14 @@ select {
 }
 
 .selected-tags {
+    position: relative;
+    top: -70px;
     display: flex;
+    width: fit-content;
+    max-width: calc(100% - 6rem);
     flex-wrap: wrap;
     gap: 6px;
-    margin-top: 0;
+    margin: 0 3rem -3rem 3rem;
     align-items: center;
 }
 
@@ -364,6 +371,28 @@ select {
     border-radius: 6px;
 }
 
+.tag-manage-list {
+    border: 1px solid var(--gray);
+    border-radius: 9px;
+    padding: 5px 20px;
+}
+
+.tag-manage-list li.active {
+    background: transparent;
+    border-radius: 9px;
+}
+
+.tag-manage-list li button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 2px 4px;
+    box-shadow: none !important;
+    top: -.5rem;
+}
+
 .tag-syn-btn {
     background: none;
     border: none;
@@ -406,6 +435,17 @@ select {
     cursor: pointer;
     flex: auto;
     box-shadow: none !important;
+}
+
+.search-controls, 
+.search-controls-wrapper {
+    margin-left: 2rem;;
+    padding: 0 1rem;
+    width: calc(100% - 5rem);
+}
+
+.add-page {
+    left: -45px;
 }
 
 @media (max-width: 900px) {
@@ -478,6 +518,15 @@ select {
     .tag-manage-create {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .add-page {
+        display: none;
+    }
+
+    .search-module {
+        width: calc(100% - 3rem);
+        margin-left: 1.5rem;
     }
 
     @keyframes fadeSlide {
