@@ -1,7 +1,7 @@
-use actix_web::{HttpResponse, ResponseError, web};
+use actix_web::{HttpResponse, ResponseError, http::StatusCode, web};
 use anyhow::Context;
 use serde::Deserialize;
-use sqlx::PgPool;
+use sqlx::{PgPool, postgres::PgQueryResult};
 
 use crate::{domain::{building_code::BuildingCode, bulding_name::BuildingName}, utils::error_chain_fmt};
 
@@ -13,6 +13,8 @@ pub struct CreateBuildingSchema {
 
 #[derive(thiserror::Error)]
 pub enum CreateBuildingError {
+    #[error("Building with this code already exists")]
+    BuildingCodeExists,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
 }
@@ -23,16 +25,27 @@ impl std::fmt::Debug for CreateBuildingError {
     }
 }
 
-impl ResponseError for CreateBuildingError {}
+impl ResponseError for CreateBuildingError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            CreateBuildingError::BuildingCodeExists => StatusCode::CONFLICT,
+            CreateBuildingError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
 
 pub async fn create_building(
     pool: web::Data<PgPool>,
     web::Json(schema): web::Json<CreateBuildingSchema>,
 ) -> Result<HttpResponse, CreateBuildingError> {
-    insert_building(&pool, schema).await
+    let res = insert_building(&pool, schema).await
         .context("Failed to insert building")?;
 
-    Ok(HttpResponse::Created().finish())
+    if res.rows_affected() == 0 {
+        Err(CreateBuildingError::BuildingCodeExists)
+    } else {   
+        Ok(HttpResponse::Created().finish())
+    }
 }
 
 #[tracing::instrument(
@@ -42,17 +55,16 @@ pub async fn create_building(
 async fn insert_building(
     pool: &PgPool,
     schema: CreateBuildingSchema,
-) -> Result<(), sqlx::Error> {
+) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query!(
         "
             INSERT INTO buildings(code, name)
             VALUES($1, $2)
+            ON CONFLICT DO NOTHING
         ",
         schema.code.as_ref(),
         schema.name.as_ref()
     )
     .execute(pool)
-    .await?;
-
-    Ok(())
+    .await
 }
