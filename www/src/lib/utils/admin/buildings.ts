@@ -35,8 +35,8 @@ export async function updateBuilding(id: string | number, code: string, name: st
  * Перезапрашивает список констант после обновления.
  * @param id ID здания
  */
-export async function toggleBuildingActive(id: string | number): Promise<void> {
-    const response = await api.post(`/api/v1/buildings/${id}/toggle_active`, {});
+export async function toggleBuildingActive(id: string | number, status: boolean): Promise<void> {
+    const response = await api.post(`/api/v1/buildings/${id}/set_active`, {"is_active": status});
 
     if (!response.success || (response.status !== 200 && response.status !== 201))
         throw new Error(response.error || 'Ошибка при деактивации здания');

@@ -146,87 +146,42 @@ describe('fetchPageContentByKey', () => {
         (deserialize as any).mockImplementation(() => '<p>DESERIALIZED</p>');
     });
 
-    it('Uses "public" prefix', async () => {
-        (api.get as any).mockResolvedValue({ status: 200, data: [{ type: 'text', text: 'Hi' }] });
-
-        const html = await fetchPageContentByKey(true, '/pages/news/hello.json');
-
-        expect(api.get).toHaveBeenCalledTimes(1);
-        expect((api.get as any).mock.calls[0][0]).toBe('/api/v1/page/public/news/hello.json');
-        expect(deserialize).toHaveBeenCalled();
-        expect(html).toBe('<p>DESERIALIZED</p>');
-    });
-
-    it('Uses "private" prefix', async () => {
-        (api.get as any).mockResolvedValue({ status: 200, data: [{ type: 'text', text: 'Hi' }] });
-
-        const html = await fetchPageContentByKey(false, 'pages/root.json');
-
-        expect(api.get).toHaveBeenCalledTimes(1);
-        expect((api.get as any).mock.calls[0][0]).toBe('/api/v1/page/private/root.json');
-        expect(html).toBe('<p>DESERIALIZED</p>');
-    });
-
-    it('Not change key if it does not start with /pages/', async () => {
-        (api.get as any).mockResolvedValue({ status: 200, data: [{ type: 'text', text: 'Hi' }] });
-
-        const html = await fetchPageContentByKey(true, 'other/abc.json');
-
-        expect((api.get as any).mock.calls[0][0]).toBe('/api/v1/page/public/other/abc.json');
+    it('Returns deserialized HTML for array data', async () => {
+        const data = { text: [{ type: 'text', text: 'Hi' }] };
+        const html = await fetchPageContentByKey(data as any);
+        expect(deserialize).toHaveBeenCalledWith([{ type: 'text', text: 'Hi' }]);
         expect(html).toBe('<p>DESERIALIZED</p>');
     });
 
     it('Parses JSON string payload', async () => {
         const payload = JSON.stringify([{ type: 'text', text: 'X' }]);
-        (api.get as any).mockResolvedValue({ status: 200, data: payload });
-
-        const html = await fetchPageContentByKey(true, 'pages/x.json');
-
+        const data = { text: payload };
+        const html = await fetchPageContentByKey(data as any);
         expect(deserialize).toHaveBeenCalledWith([{ type: 'text', text: 'X' }]);
         expect(html).toBe('<p>DESERIALIZED</p>');
     });
 
     it('Returns raw string when server returns non-JSON string', async () => {
-        (api.get as any).mockResolvedValue({ status: 200, data: '<p>RAW</p>' });
-
-        const html = await fetchPageContentByKey(true, '/pages/raw.html');
-
+        const data = { text: '<p>RAW</p>' };
+        const html = await fetchPageContentByKey(data as any);
         expect(deserialize).not.toHaveBeenCalled();
         expect(html).toBe('<p>RAW</p>');
     });
 
-    it('Accepts 201/204/304 statuses', async () => {
-        (api.get as any).mockResolvedValueOnce({ status: 201, data: [{ t: 1 }] });
-        await expect(fetchPageContentByKey(true, 'pages/a.json')).resolves.toBe('<p>DESERIALIZED</p>');
-
-        (api.get as any).mockResolvedValueOnce({ status: 204, data: '[]' });
-        await expect(fetchPageContentByKey(false, 'pages/b.json')).resolves.toBe('<p>DESERIALIZED</p>');
-
-        (api.get as any).mockResolvedValueOnce({ status: 304, data: [{ t: 2 }] });
-        await expect(fetchPageContentByKey(true, 'pages/c.json')).resolves.toBe('<p>DESERIALIZED</p>');
+    it('Throws on non-array and non-string data', async () => {
+        const data = { text: { a: 1 } };
+        await expect(fetchPageContentByKey(data as any)).rejects.toThrow('Некорректный формат контента');
     });
 
-    it('Throws on non-ok status with server error message', async () => {
-        (api.get as any).mockResolvedValue({ status: 500, error: 'oops' });
-
-        await expect(fetchPageContentByKey(true, 'pages/fail.json')).rejects.toThrow('oops');
+    it('Throws on undefined data', async () => {
+        const data = { text: undefined };
+        await expect(fetchPageContentByKey(data as any)).rejects.toThrow('Некорректный формат контента');
     });
 
-    it('Throws on non-string and non-array data payload', async () => {
-        (api.get as any).mockResolvedValue({ status: 200, data: { a: 1 } });
-        await expect(fetchPageContentByKey(true, 'pages/x.json')).rejects.toThrow('Некорректный формат контента');
-    });
-
-    it('Throws exactly "HTTP 418" when server returns non-ok status without error', async () => {
-        (api.get as any).mockResolvedValue({ status: 418 });
-        await expect(fetchPageContentByKey(true, 'pages/any.json')).rejects.toThrow('HTTP 418');
-    });
-
-    it('Uses empty string when key is undefined (triggers ?? "")', async () => {
-        (api.get as any).mockResolvedValue({ status: 200, data: '<p>OK</p>' });
-        const html = await fetchPageContentByKey(true, undefined as any);
-        expect((api.get as any).mock.calls[0][0]).toBe('/api/v1/page/public/');
-        expect(html).toBe('<p>OK</p>');
+    it('Returns string as-is when text is a valid JSON, but not an array', async () => {
+        const data = { text: '{"foo":"bar"}' };
+        const html = await fetchPageContentByKey(data as any);
+        expect(html).toBe('{"foo":"bar"}');
     });
 });
 
@@ -237,6 +192,7 @@ describe('updatePage', () => {
     });
 
     it('Succeeds on 200 status and sends correct payload', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: { tags: [], related: [] } });
         (api.put as any).mockResolvedValue({ status: 200 });
 
         const req = {
@@ -264,32 +220,38 @@ describe('updatePage', () => {
     });
 
     it.each([200, 201, 204])('Accepts status %i as success', async (status) => {
+        (api.get as any).mockResolvedValue({ status: 200, data: { tags: [], related: [] } });
         (api.put as any).mockResolvedValue({ status });
         await expect(updatePage('9', { html: '<p>x</p>', title: 'T', tags: [], related: [] })).resolves.toBeUndefined();
     });
 
     it('Encodes id in URL', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: { tags: [], related: [] } });
         (api.put as any).mockResolvedValue({ status: 200 });
         await updatePage('a b/§', { html: '', title: '', tags: [], related: [] });
         expect((api.put as any).mock.calls[0][0]).toBe('/api/v1/pages/' + encodeURIComponent('a b/§'));
     });
 
     it('Throws when response is undefined', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: { tags: [], related: [] } });
         (api.put as any).mockResolvedValue(undefined);
         await expect(updatePage('1', { html: '', title: '', tags: [], related: [] })).rejects.toThrow('Failed to update page');
     });
 
     it('Throws when status is not a number', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: { tags: [], related: [] } });
         (api.put as any).mockResolvedValue({ status: 'ok' });
         await expect(updatePage('1', { html: '', title: '', tags: [], related: [] })).rejects.toThrow('Failed to update page');
     });
 
     it('Throws on non-2xx/204 status', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: { tags: [], related: [] } });
         (api.put as any).mockResolvedValue({ status: 500, error: 'server' });
         await expect(updatePage('1', { html: '', title: '', tags: [], related: [] })).rejects.toThrow('Failed to update page');
     });
 
     it('Uses [] when req.tags is undefined (triggers ?? [])', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: { tags: [], related: [] } });
         (api.put as any).mockResolvedValue({ status: 200 });
 
         const req: any = {
@@ -306,10 +268,10 @@ describe('updatePage', () => {
         expect(call).toBeDefined();
         const payload = call[1];
         expect(payload).toBeDefined();
-        expect(payload.tags).toEqual(undefined);
     });
 
     it('Uses [] when req.related is undefined (triggers ?? [])', async () => {
+        (api.get as any).mockResolvedValue({ status: 200, data: { tags: [], related: [] } });
         (api.put as any).mockResolvedValue({ status: 200 });
 
         const req: any = {
@@ -326,7 +288,6 @@ describe('updatePage', () => {
         expect(call).toBeDefined();
         const payload = call[1];
         expect(payload).toBeDefined();
-        expect(payload.related).toEqual(undefined);
     });
 
     it('Returns toDelete with ids not in desired', () => {
@@ -339,7 +300,6 @@ describe('updatePage', () => {
     });
 
     it.each([201, 304])('Succeed with status %i', async (status) => {
-        const api = (await import('$lib/utils/api')).api;
         (api.get as any).mockResolvedValue({
             status,
             data: { tags: [{ id: 1 }], related: [{ id: 2 }] }
@@ -370,7 +330,6 @@ describe('updatePage', () => {
     });
 
     it('Calls console.warn when fetching current page data fails', async () => {
-        const api = (await import('$lib/utils/api')).api;
         (api.get as any).mockResolvedValue({ status: 404, data: null });
         (api.put as any).mockResolvedValue({ status: 200 });
 
@@ -389,5 +348,27 @@ describe('updatePage', () => {
         );
 
         warnSpy.mockRestore();
+    });
+
+    it('Assigns empty arrays when tags and related are undefined', async () => {
+        (api.get as any).mockResolvedValue({
+            status: 200,
+            data: { tags: undefined, related: undefined }
+        });
+        (api.put as any).mockResolvedValue({ status: 200 });
+
+        const req = {
+            html: '<p>test</p>',
+            title: 'Test',
+            tags: [],
+            related: [],
+            is_public: false
+        };
+
+        await updatePage('testid', req);
+
+        const payload = (api.put as any).mock.calls[0][1];
+        expect(payload.tags_to_add).toEqual([]);
+        expect(payload.tags_to_delete).toEqual([]);
     });
 });

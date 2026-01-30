@@ -258,7 +258,7 @@
                 ? data.related.map((r) => ({ id: String(r.id), title: r.title ?? String(r.id) }))
                 : [];
 
-            const html = await fetchPageContentByKey(isPublic, data.key);
+            const html = await fetchPageContentByKey(data);
             content = html;
             if (editorDiv) editorDiv.innerHTML = html;
         } catch (e) {

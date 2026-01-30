@@ -179,39 +179,6 @@ select {
     border-color: #f3c9bd;
 }
 
-.tag-manage-toggle {
-    display: none;
-    width: 100%;
-    background: transparent;
-    color: var(--blue);
-    padding: 10px 14px;
-    font-size: .85rem;
-    font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    transition: background .2s, color .2s;
-    border: none;
-    box-shadow: none;
-    margin: -1.2rem 0;
-}
-
-.tag-manage-toggle:hover {
-    background: var(--blue);
-    color: #fff;
-}
-
-.tag-manage-toggle .arrow {
-    display: inline-flex;
-    transition: transform .25s;
-}
-
-.tag-manage-toggle .arrow.open {
-    transform: rotate(180deg);
-}
-
 .secondary-btn {
     background: transparent !important;
     color: var(--blue);
@@ -308,6 +275,8 @@ select {
     flex-direction: column;
     gap: 1.2rem;
     color: var(--text);
+    max-height: 90%;
+    overflow-x: hidden;
 }
 
 .filter-btn {
@@ -423,7 +392,6 @@ select {
     display: flex;
     gap: 1rem;
     justify-content: flex-end;
-    margin-top: 1rem;
 }
 
 .danger_btn {
@@ -457,13 +425,9 @@ select {
         display: inline-flex;
     }
 
-    .tag-manage-block, .tags-row {
+    .tags-row {
         display: none;
         animation: fadeSlide .28s ease;
-    }
-
-    .tag-manage-block.open {
-        display: block;
     }
 
     .doc-heading {

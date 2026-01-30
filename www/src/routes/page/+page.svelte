@@ -273,7 +273,15 @@
                             <div class="tag-option muted">Нет совпадений</div>
                         {:else}
                             {#each tagSuggestions as t}
-                                <div class="tag-option" on:click={ () => selectTagFromSuggestion(t) }>
+                                <div
+                                    class="tag-option"
+                                    role="option"
+                                    aria-selected="false"
+                                    tabindex="0"
+                                    on:click={ () => selectTagFromSuggestion(t) }
+                                    on:keydown={ (e) => (e.key === 'Enter' || e.key === ' ') && selectTagFromSuggestion(t) }
+                                    aria-label={ `Выбрать тэг ${ t.name }` }
+                                >
                                     { t.name }
                                 </div>
                             {/each}
@@ -281,7 +289,7 @@
                     </div>
                 {/if}
                 {#if canManageTags}
-                    <button class="tag-manage-btn" on:click={ openTagsModal } title="Управление тэгами">
+                    <button class="tag-manage-btn" on:click={ openTagsModal } title="Управление тэгами" aria-label="Управление тэгами">
                         <svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#075cef" stroke-width="2" fill="none"/><path d="M8 12h8M12 8v8" stroke="#075cef" stroke-width="2"/></svg>
                     </button>
                 {/if}
@@ -375,7 +383,7 @@
             <div class="close-button-container" style="position: relative;">
                 <button class="filter-btn close-btn secondary" on:click={ () => showTagsModal = false }>x</button>
             </div>
-            <h2>Управление тэгами</h2>
+            <h2 style="margin: 0">Управление тэгами</h2>
             <div class="tag-manage-search">
                 <SearchBar
                     bind:searchQuery={ tagManageSearch }
@@ -391,10 +399,10 @@
                         {#each tagManageSuggestions as tag}
                             <li class:active={ manageTag && manageTag.id === tag.id }>
                                 <span>{ tag.name }</span>
-                                <button class="tag-syn-btn" on:click={ () => selectManageTag(tag) } title="Добавить синонимы">
+                                <button class="tag-syn-btn" on:click={ () => selectManageTag(tag) } title="Добавить синонимы" aria-label="Добавить синонимы">
                                     <svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#075cef" stroke-width="2" fill="none"/><path d="M8 12h8M12 8v8" stroke="#075cef" stroke-width="2"/></svg>
                                 </button>
-                                <button class="danger_btn" style="margin-left:8px;" on:click={ async () => { manageTag = tag; await deleteTagCompletely(); }} title="Удалить">
+                                <button class="danger_btn" style="margin-left:8px;" on:click={ async () => { manageTag = tag; await deleteTagCompletely(); }} title="Удалить" aria-label="Удалить">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                                         <rect x="5" y="7" width="14" height="12" rx="2" stroke="#d32f2f" stroke-width="2" fill="none"/>
                                         <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" stroke="#d32f2f" stroke-width="2"/>

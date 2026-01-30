@@ -113,10 +113,10 @@
         if (!deletingBuilding) return;
         const id = deletingBuilding.id;
         const prevArr = Array.isArray(buildingsList) ? [...buildingsList] : [];
-        buildings.update(arr => (Array.isArray(arr) ? arr : []).filter(b => String(b.id) !== String(id)));
         closeDelete();
         try {
-            await toggleBuildingActive(id);
+            await toggleBuildingActive(id, false);
+            buildings.update(arr => (Array.isArray(arr) ? arr : []).filter(b => String(b.id) !== String(id)));
             notification('Здание удалено', NotificationType.Success);
         } catch (err) {
             buildings.set(prevArr);

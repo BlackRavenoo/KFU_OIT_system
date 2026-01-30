@@ -107,9 +107,9 @@ describe('Update building', () => {
 describe('Toggle building active', () => {
     it('Calls api and fetch consts successfully (200)', async () => {
         mockApi.post.mockResolvedValue({ success: true, status: 200 });
-        await toggleBuildingActive(9);
+        await toggleBuildingActive(9, false);
         
-        expect(mockApi.post).toHaveBeenCalledWith('/api/v1/buildings/9/toggle_active', {});
+        expect(mockApi.post).toHaveBeenCalledWith('/api/v1/buildings/9/set_active', {"is_active": false});
         expect(mockFetchConsts).toHaveBeenCalledTimes(1);
         expect(mockFetchConsts).toHaveBeenCalledWith(true);
     });
@@ -117,21 +117,21 @@ describe('Toggle building active', () => {
     it('Throws when server returns failure', async () => {
         mockApi.post.mockResolvedValue({ success: false, status: 400, error: 'cannot toggle' });
     
-        await expect(toggleBuildingActive(10)).rejects.toThrow(/cannot toggle/);
+        await expect(toggleBuildingActive(10, false)).rejects.toThrow(/cannot toggle/);
         expect(mockFetchConsts).not.toHaveBeenCalled();
     });
 
     it('Throws when success true but non-200/201 status', async () => {
         mockApi.post.mockResolvedValue({ success: true, status: 202 });
     
-        await expect(toggleBuildingActive(11)).rejects.toThrow(/Ошибка при деактивации здания/);
+        await expect(toggleBuildingActive(11, false)).rejects.toThrow(/Ошибка при деактивации здания/);
         expect(mockFetchConsts).not.toHaveBeenCalled();
     });
 
     it('Propagates api rejection', async () => {
         mockApi.post.mockRejectedValue(new Error('conn refused'));
     
-        await expect(toggleBuildingActive(12)).rejects.toThrow(/conn refused/);
+        await expect(toggleBuildingActive(12, false)).rejects.toThrow(/conn refused/);
         expect(mockFetchConsts).not.toHaveBeenCalled();
     });
 });

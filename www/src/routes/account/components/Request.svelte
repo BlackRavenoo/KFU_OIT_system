@@ -16,8 +16,8 @@
     let Description = '';
     let Name = '';
     let Contact = '';
-    let Building: number = 1;
-    let Department: number | null = null;
+    let Building: number | '' = 1;
+    let Department: number | '' = '';
     let Cabinet = '';
     let DateVal = '';
     let fileName: string[] = [];
@@ -32,7 +32,9 @@
         Description: false,
         Name: false,
         Contact: false,
-        Building: false
+        Building: false,
+        Department: false,
+        Cabinet: false
     };
 
     let errors = {
@@ -40,7 +42,9 @@
         Description: '',
         Name: '',
         Contact: '',
-        Building: ''
+        Building: '',
+        Department: '',
+        Cabinet: ''
     };
 
     $: nameValid = validateName(Name);
@@ -51,13 +55,31 @@
     let systemNotifications: SystemNotification[] = [];
     let loadingNotifications = true;
 
+    $: formValid = (
+        Title.trim() !== '' &&
+        Description.trim() !== '' &&
+        Name.trim() !== '' &&
+        nameValid &&
+        Contact.trim() !== '' &&
+        phoneValid &&
+        Building !== '' &&
+        Department !== '' &&
+        Cabinet.trim() !== ''
+    );
+
     function validateForm() {
         errors.Title = Title.trim() === '' ? 'Заполните заголовок' : '';
         errors.Description = Description.trim() === '' ? 'Заполните описание' : '';
         errors.Name = Name.trim() === '' ? 'Введите ФИО' : (!nameValid ? 'Имя должно содержать минимум 3 буквы кириллицей' : '');
         errors.Contact = Contact.trim() === '' ? 'Введите телефон' : (!phoneValid ? 'Некорректный телефон' : '');
         errors.Building = !Building ? 'Выберите здание' : '';
+        errors.Department = Department === '' ? 'Выберите отдел' : '';
+        errors.Cabinet = Cabinet.trim() === '' ? 'Укажите кабинет' : '';
         return Object.values(errors).every(e => e === '');
+    }
+
+    function onAnyInput() {
+        validateForm();
     }
 
     function onFileChange(event: Event) {
@@ -69,12 +91,14 @@
         });
         File = result.files;
         fileName = result.fileNames;
+        onAnyInput();
     }
 
     function onRemoveFile(index: number) {
         const result = removeFile(index, File, fileName);
         File = result.files;
         fileName = result.fileNames;
+        onAnyInput();
     }
 
     function resetForm() {
@@ -83,19 +107,40 @@
         Contact = '';
         Cabinet = '';
         DateVal = '';
-        Department = null;
+        Department = '';
         File = [];
         fileName = [];
+        Building = 1;
         Object.keys(touched).forEach(k => (touched as any)[k] = false);
+        validateForm();
+    }
+
+    function focusFirstError() {
+        setTimeout(() => {
+            const firstError = Object.entries(errors).find(([_, v]) => v);
+            if (firstError) {
+                const [field] = firstError;
+                const el = document.getElementById(field);
+                if (el) {
+                    el.focus();
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }, 0);
     }
 
     async function onSubmitForm() {
-        if (isSubmitting) return;
         Object.keys(touched).forEach(k => (touched as any)[k] = true);
-        if (!validateForm() || !validateFiles(File)) return;
+        const valid = validateForm();
+        const filesValid = validateFiles(File);
+        if (!valid || !filesValid) {
+            focusFirstError();
+            return;
+        }
+        if (isSubmitting) return;
         try {
             isSubmitting = true;
-            await createTicket(Title, Description, Name, Contact, Building, Cabinet, DateVal, Department || -1, File);
+            await createTicket(Title, Description, Name, Contact, Building || 1, Cabinet, DateVal, Department === '' ? -1 : Number(Department), File);
             notification('Заявка отправлена!', NotificationType.Success);
             resetForm();
             dispatchEvent(new CustomEvent('ticket-sent'));
@@ -118,7 +163,6 @@
         loadingNotifications = false;
 
         const sp = $page?.url?.searchParams;
-        /** !!! TDD !!! */
         if (!sp && $currentUser && $currentUser.role !== UserRole.Client) {
             if ($currentUser?.name) Name = $currentUser.name;
             return;
@@ -151,14 +195,12 @@
         }
 
         const nameParam = maybe('name');
-        if (nameParam !== null) {
-            Name = nameParam;
-        } else if ($currentUser?.name) {
-            Name = $currentUser.name;
-        }
+        if (nameParam !== null) Name = nameParam;
+        else if ($currentUser?.name) Name = $currentUser.name;
 
         const contactParam = maybe('contact');
         if (contactParam !== null) Contact = contactParam;
+        validateForm();
     });
 </script>
 
@@ -219,7 +261,7 @@
     </div>
 
     <div class="form-container">
-        <form on:submit|preventDefault={ onSubmitForm } class="form_container account_request_form">
+        <form on:submit|preventDefault={ onSubmitForm } class="form_container account_request_form" autocomplete="off">
             <h3>Форма заявки</h3>
 
             <div class="form-field">
@@ -230,9 +272,10 @@
                     placeholder=" "
                     required
                     bind:value={ Title }
-                    class:red-border={ touched.Title && errors.Title }
-                    on:input={() => { if (touched.Title) validateForm(); }}
-                    on:blur={() => { touched.Title = true; validateForm(); }}
+                    class:red-border={ touched.Title && !!errors.Title }
+                    on:input={ () => { touched.Title = true; onAnyInput(); } }
+                    on:blur={ () => { touched.Title = true; onAnyInput(); } }
+                    aria-invalid={ touched.Title && !!errors.Title }
                 >
                 <label for="Title">Заголовок заявки</label>
                 {#if touched.Title && errors.Title}
@@ -247,9 +290,10 @@
                     placeholder=" "
                     required
                     bind:value={ Description }
-                    class:red-border={ touched.Description && errors.Description }
-                    on:input={() => { if (touched.Description) validateForm(); }}
-                    on:blur={() => { touched.Description = true; validateForm(); }}
+                    class:red-border={ touched.Description && !!errors.Description }
+                    on:input={ () => { touched.Description = true; onAnyInput(); } }
+                    on:blur={ () => { touched.Description = true; onAnyInput(); } }
+                    aria-invalid={ touched.Description && !!errors.Description }
                 ></textarea>
                 <label for="Description">Описание проблемы</label>
                 {#if touched.Description && errors.Description}
@@ -261,15 +305,21 @@
                 <select
                     id="Department"
                     name="Department"
-                    class="{ Department ? 'selected' : '' }"
+                    class="{ Department !== '' ? 'selected' : '' } { touched.Department && errors.Department ? 'red-border' : '' }"
                     bind:value={ Department }
+                    on:change={ () => { touched.Department = true; onAnyInput(); }}
+                    on:blur={ () => { touched.Department = true; onAnyInput(); }}
+                    aria-invalid={ touched.Department && !!errors.Department }
                 >
-                    <option value={null}>Не выбран</option>
+                    <option value="">Не выбран</option>
                     {#each $departments as dept}
                         <option value={ dept.id }>{ dept.name }</option>
                     {/each}
                 </select>
                 <label for="Department">Отдел</label>
+                {#if touched.Department && errors.Department}
+                    <div class="input-error">{ errors.Department }</div>
+                {/if}
             </div>
 
             <div class="form-row">
@@ -281,9 +331,10 @@
                         placeholder=" "
                         required
                         bind:value={ Name }
-                        class:red-border={ touched.Name && errors.Name }
-                        on:input={() => { if (touched.Name) validateForm(); }}
-                        on:blur={() => { touched.Name = true; validateForm(); }}
+                        class:red-border={ touched.Name && !!errors.Name }
+                        on:input={ () => { touched.Name = true; onAnyInput(); } }
+                        on:blur={ () => { touched.Name = true; onAnyInput(); } }
+                        aria-invalid={ touched.Name && !!errors.Name }
                     >
                     <label for="Name">ФИО</label>
                     {#if touched.Name && errors.Name}
@@ -299,9 +350,10 @@
                         placeholder=" "
                         required
                         bind:value={ Contact }
-                        class:red-border={ touched.Contact && errors.Contact }
-                        on:input={() => { if (touched.Contact) validateForm(); }}
-                        on:blur={() => { touched.Contact = true; validateForm(); }}
+                        class:red-border={ touched.Contact && !!errors.Contact }
+                        on:input={ () => { touched.Contact = true; onAnyInput(); } }
+                        on:blur={ () => { touched.Contact = true; onAnyInput(); } }
+                        aria-invalid={ touched.Contact && !!errors.Contact }
                     >
                     <label for="Contact">Контактный телефон</label>
                     {#if touched.Contact && errors.Contact}
@@ -319,8 +371,9 @@
                         placeholder=" "
                         required
                         bind:value={ Building }
-                        on:change={() => { if (touched.Building) validateForm(); }}
-                        on:blur={() => { touched.Building = true; validateForm(); }}
+                        on:change={ () => { touched.Building = true; onAnyInput(); } }
+                        on:blur={ () => { touched.Building = true; onAnyInput(); } }
+                        aria-invalid={ touched.Building && !!errors.Building }
                     >
                         <option value="" disabled selected>Выберите здание</option>
                         {#each $buildings as building}
@@ -334,8 +387,22 @@
                 </div>
 
                 <div class="form-field">
-                    <input type="text" id="Cabinet" name="Cabinet" placeholder=" " bind:value={ Cabinet }>
+                    <input
+                        type="text"
+                        id="Cabinet"
+                        name="Cabinet"
+                        placeholder=" "
+                        required
+                        bind:value={ Cabinet }
+                        class:red-border={ touched.Cabinet && !!errors.Cabinet }
+                        on:input={ () => { touched.Cabinet = true; onAnyInput(); } }
+                        on:blur={ () => { touched.Cabinet = true; onAnyInput(); } }
+                        aria-invalid={ touched.Cabinet && !!errors.Cabinet }
+                    >
                     <label for="Cabinet">Кабинет</label>
+                    {#if touched.Cabinet && errors.Cabinet}
+                        <div class="input-error">{ errors.Cabinet }</div>
+                    {/if}
                 </div>
             </div>
 
@@ -353,7 +420,7 @@
                         id="Date" name="Date"
                         min="2025-06-07T00:00"
                         max="2045-06-14T00:00"
-                        bind:value={ DateVal } />
+                        bind:value={ DateVal } on:input={ onAnyInput } on:blur={ onAnyInput } />
                     <label for="Date" class="date-label">Желаемые дата и время</label>
                 </div>
 
@@ -387,7 +454,7 @@
                 Отправляя данные, вы подтверждаете корректность введённой информации. Контактный телефон используется только для связи по вашей заявке.
             </div>
 
-            <button class="promo submit-btn" type="submit" disabled={ isSubmitting } aria-disabled={ isSubmitting }>
+            <button class="promo submit-btn" type="submit" disabled={!formValid || isSubmitting} aria-disabled={!formValid || isSubmitting}>
                 Оставить заявку
                 <span class="btn-arrow">→</span>
             </button>

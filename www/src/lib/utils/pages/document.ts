@@ -72,18 +72,18 @@ export async function savePageAndGetId(req: SavePageRequest): Promise<string> {
  */
 export async function fetchPageContentByKey(data: PageData): Promise<string> {
     // @ts-ignore
-    if (typeof data.text === 'string') {
-        // @ts-ignore
-        try { data = JSON.parse(data.text); } catch {
-            console.warn('Response data is not valid JSON, using raw string');
+    let arr: unknown = data.text;
+    if (Array.isArray(arr))
+        return deserialize(arr as any);
+    if (typeof arr === 'string') {
+        try {
+            const parsed = JSON.parse(arr);
+            if (Array.isArray(parsed)) return deserialize(parsed as any);
+            else return arr as any;
+        } catch {
+            return arr as any;
         }
     }
-
-    // @ts-ignore
-    if (Array.isArray(data.text)) return deserialize(data.text as any);
-    // @ts-ignore
-    if (typeof data.text === 'string') return data.text as any;
-
     throw new Error('Некорректный формат контента');
 }
 
