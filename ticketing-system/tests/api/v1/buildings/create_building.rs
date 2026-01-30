@@ -92,6 +92,8 @@ async fn create_building_without_token_returns_401() {
 async fn create_building_with_db_error_returns_500() {
     let app = spawn_app().await;
 
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
     sqlx::query!("DROP TABLE buildings CASCADE")
         .execute(&app.db_pool)
         .await
@@ -102,7 +104,7 @@ async fn create_building_with_db_error_returns_500() {
         "name": "Тестовое здание"
     });
 
-    let resp = create_building(&app.address, &body, None).await;
+    let resp = create_building(&app.address, &body, Some(&access)).await;
 
     assert_eq!(resp.status(), 500);
 }
