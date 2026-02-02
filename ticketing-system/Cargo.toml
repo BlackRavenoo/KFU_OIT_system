@@ -60,6 +60,9 @@ webp = "0.3.1"
 lettre = { version = "0.11.19", features = ["tokio1", "tokio1-native-tls"] }
 sailfish = "0.10.1"
 
+garde = { version = "0.22", features = ["regex", "unicode"] }
+garde-actix-web = { version = "0.12", features = ["serde_qs"] }
+
 [dev-dependencies]
 claims = "0.8"
 fake = "4.4"

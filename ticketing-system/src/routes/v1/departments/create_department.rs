@@ -1,12 +1,15 @@
 use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
+use garde::Validate;
+use garde_actix_web::web::Json;
 use serde::Deserialize;
 use sqlx::PgPool;
 
 use crate::{domain::department_name::DepartmentName, utils::error_chain_fmt};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateDepartmentSchema {
+    #[garde(dive)]
     name: DepartmentName,
 }
 
@@ -26,7 +29,7 @@ impl ResponseError for CreateDepartmentError {}
 
 pub async fn create_department(
     pool: web::Data<PgPool>,
-    web::Json(schema): web::Json<CreateDepartmentSchema>,
+    Json(schema): Json<CreateDepartmentSchema>,
 ) -> Result<HttpResponse, CreateDepartmentError> {
     insert_department(&pool, schema).await
         .context("Failed to insert department")?;
