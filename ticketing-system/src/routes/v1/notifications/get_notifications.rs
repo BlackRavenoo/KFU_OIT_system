@@ -1,6 +1,8 @@
 use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
 use chrono::{DateTime, Utc};
+use garde::Validate;
+use garde_actix_web::web::QsQuery;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{PgPool, prelude::FromRow, types::Json};
@@ -9,10 +11,12 @@ use crate::{auth::extractor::UserIdExtractor, schema::{common::UserId, notificat
 
 fn default_limit() -> i8 { 50 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Validate)]
+#[garde(allow_unvalidated)]
 pub struct GetNotificationsSchema {
     pub before: Option<NotificationId>,
     pub after: Option<NotificationId>,
+    #[garde(range(min = 10, max = 100))]
     #[serde(default = "default_limit")]
     pub limit: i8,
 }
@@ -42,7 +46,7 @@ impl std::fmt::Debug for GetNotificationsError {
 
 pub async fn get_notifications(
     pool: web::Data<PgPool>,
-    web::Json(schema): web::Json<GetNotificationsSchema>,
+    QsQuery(schema): QsQuery<GetNotificationsSchema>,
     user_id: UserIdExtractor,
 ) -> Result<HttpResponse, GetNotificationsError> {
     let notifications = select_notifications(&pool, schema, user_id.0)
@@ -80,7 +84,7 @@ async fn select_notifications(
         builder.push(" AND id < ").push_bind(before);
     }
 
-    builder.push(" LIMIT ").push_bind(schema.limit)
+    builder.push(" LIMIT ").push_bind(schema.limit as i64)
         .build_query_as::<NotificationSchema>()
         .fetch_all(pool)
         .await
