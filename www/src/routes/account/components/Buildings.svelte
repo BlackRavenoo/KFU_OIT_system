@@ -8,7 +8,8 @@
     import { buildings } from '$lib/utils/setup/stores';
     import type { Building } from '$lib/utils/tickets/types';
     import { createBuilding, updateBuilding, toggleBuildingActive } from '$lib/utils/admin/buildings';
-    import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { notification } from '$lib/utils/notifications/notification';
+    import { NotificationType } from '$lib/utils/notifications/types';
 
     let buildingsList: Building[] = [];
     let loading: boolean = true;

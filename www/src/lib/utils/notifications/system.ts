@@ -1,29 +1,6 @@
 import { api } from '$lib/utils/api';
 import type { ApiResponse } from '$lib/utils/api';
-
-export interface SystemNotification {
-    id: number;
-    text: string;
-    category: number;
-    active_until: string | null;
-}
-
-export interface CreateSystemNotificationParams {
-    text: string;
-    category: number;
-    active_until?: string | null;
-}
-
-export interface UpdateSystemNotificationParams {
-    text?: string;
-    category?: number;
-    active_until?: string | null;
-}
-
-export enum SystemNotificationCategory {
-    INFO = 0,
-    WARNING = 1
-}
+import type { SystemNotification, CreateSystemNotificationParams, UpdateSystemNotificationParams } from './types';
 
 /**
  * Получить системные уведомления

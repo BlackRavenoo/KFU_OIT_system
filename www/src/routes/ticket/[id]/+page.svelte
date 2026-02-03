@@ -6,7 +6,8 @@
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription, buildings, departments } from '$lib/utils/setup/stores';
     import { formatDate, formatDescription } from '$lib/utils/validation/validate';
-    import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { notification } from '$lib/utils/notifications/notification';
+    import { NotificationType } from '$lib/utils/notifications/types';
     import { getById, fetchImages } from '$lib/utils/tickets/api/get';
     import { unassign, assign, assignUserToTicket as assignUserToTicketApi, unassignUserFromTicket as unassignUserFromTicketApi } from '$lib/utils/tickets/api/assign';
     import { updateTicket, deleteTicket } from '$lib/utils/tickets/api/set';

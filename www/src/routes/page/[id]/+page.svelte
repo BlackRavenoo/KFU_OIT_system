@@ -8,7 +8,8 @@
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { UserRole } from '$lib/utils/auth/types';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
-    import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { notification } from '$lib/utils/notifications/notification';
+    import { NotificationType } from '$lib/utils/notifications/types';
     import { fetchPageContentByKey } from '$lib/utils/pages/document';
 
     type Tag = { id: number; name: string };

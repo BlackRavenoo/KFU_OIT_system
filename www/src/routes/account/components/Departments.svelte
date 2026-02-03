@@ -7,7 +7,8 @@
     import { UserRole } from '$lib/utils/auth/types';
     import { departments } from '$lib/utils/setup/stores';
     import type { Department } from '$lib/utils/tickets/types';
-    import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { notification } from '$lib/utils/notifications/notification';
+    import { NotificationType } from '$lib/utils/notifications/types';
     import { createDepartment, updateDepartment, toggleDepartmentActive } from '$lib/utils/admin/departments';
 
     let loading: boolean = true;

@@ -4,7 +4,8 @@ import type { AxiosInstance, AxiosResponse, AxiosRequestConfig, AxiosError } fro
 
 import { refreshAuthTokens, logout } from '$lib/utils/auth/api/api';
 import { getAuthTokens } from '$lib/utils/auth/tokens/tokens';
-import { notification, NotificationType } from '$lib/utils/notifications/notification';
+import { notification } from '$lib/utils/notifications/notification';
+import { NotificationType } from '$lib/utils/notifications/types';
 import { navigateToError } from './error';
 
 export interface ApiResponse<T = any> {

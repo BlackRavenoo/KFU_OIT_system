@@ -1,6 +1,7 @@
 import { api } from '$lib/utils/api';
 import { getById } from '$lib/utils/tickets/api/get';
-import { notification, NotificationType } from '$lib/utils/notifications/notification';
+import { notification } from '$lib/utils/notifications/notification';
+import { NotificationType } from '$lib/utils/notifications/types';
 import { TICKETS_API_ENDPOINTS } from './endpoints';
 import type { Ticket } from '$lib/utils/tickets/types';
 

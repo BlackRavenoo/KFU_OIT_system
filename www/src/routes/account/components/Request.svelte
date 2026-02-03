@@ -3,14 +3,15 @@
     import { createTicket } from '$lib/utils/tickets/api/set';
     import { handleFileChange, removeFile } from '$lib/utils/files/inputs';
     import { showModalWithFocus } from '$lib/components/Modal/Modal';
-    import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { notification } from '$lib/utils/notifications/notification';
+    import { getSystemNotifications } from '$lib/utils/notifications/system';
+    import { NotificationType, type SystemNotification, SystemNotificationCategory } from '$lib/utils/notifications/types';
     import { buildings, departments } from '$lib/utils/setup/stores';
     import { validateFiles, validateName, validatePhone } from '$lib/utils/validation/validate';
     import Modal from '$lib/components/Modal/Modal.svelte';
     import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import { currentUser } from '$lib/utils/auth/storage/initial';
-    import { getSystemNotifications, SystemNotificationCategory, type SystemNotification } from '$lib/utils/notifications/system';
 
     let Title = '';
     let Description = '';

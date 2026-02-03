@@ -1,5 +1,6 @@
 import { loadItems, createItem, deleteItem } from '$lib/utils/admin/api-handlers';
-import { notification, NotificationType } from '$lib/utils/notifications/notification';
+import { notification } from '$lib/utils/notifications/notification';
+import { NotificationType } from '$lib/utils/notifications/types';
 
 const BOTS_ENDPOINT = '/api/v1/bots';
 

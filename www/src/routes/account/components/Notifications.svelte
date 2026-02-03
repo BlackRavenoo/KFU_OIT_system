@@ -5,15 +5,14 @@
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { UserRole } from '$lib/utils/auth/types';
-    import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { notification } from '$lib/utils/notifications/notification';
     import { normalizeDate } from '$lib/utils/tickets/support';
+    import { NotificationType, SystemNotificationCategory, type SystemNotification } from '$lib/utils/notifications/types';
     import {
         getSystemNotifications,
         createSystemNotification,
         updateSystemNotification,
-        deleteSystemNotification,
-        SystemNotificationCategory,
-        type SystemNotification
+        deleteSystemNotification
     } from '$lib/utils/notifications/system';
 
     let loading: boolean = true;

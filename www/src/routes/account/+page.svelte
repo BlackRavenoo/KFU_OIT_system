@@ -7,7 +7,8 @@
     
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
-    import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { notification } from '$lib/utils/notifications/notification';
+    import { NotificationType } from '$lib/utils/notifications/types';
     import { logout } from '$lib/utils/auth/api/api';
     import { Tab, type TabType, updateUrlParam, isValidTab } from '$lib/utils/account/tab-manager';
     import { UserRole } from '$lib/utils/auth/types';

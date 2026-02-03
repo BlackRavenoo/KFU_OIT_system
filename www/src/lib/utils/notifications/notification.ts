@@ -1,9 +1,4 @@
-export enum NotificationType {
-    Success = 'success',
-    Error = 'error',
-    Warning = 'warning',
-    Info = 'info'
-}
+import { NotificationType } from './types';
 
 /**
  * Показывает всплывающее уведомление.

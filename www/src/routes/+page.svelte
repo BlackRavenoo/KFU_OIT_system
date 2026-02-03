@@ -8,7 +8,8 @@
     import { getPublicStats } from '$lib/utils/account/stats';
     import { isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { goto } from '$app/navigation';
-    import { getSystemNotifications, SystemNotificationCategory, type SystemNotification } from '$lib/utils/notifications/system';
+    import { getSystemNotifications } from '$lib/utils/notifications/system';
+    import { SystemNotificationCategory, type SystemNotification } from '$lib/utils/notifications/types';
 
     import Modal from '$lib/components/Modal/Modal.svelte';
     import pageCSS from './page.css?inline';

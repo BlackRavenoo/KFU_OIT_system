@@ -6,7 +6,8 @@
     import { goto } from '$app/navigation';
     import { execCommand, applyColor, applyBgColor, insertList, insertBlock, setAlign } from '$lib/utils/texteditor/text';
     import { insertTable } from '$lib/utils/texteditor/table';
-    import { notification, NotificationType } from '$lib/utils/notifications/notification';
+    import { notification } from '$lib/utils/notifications/notification';
+    import { NotificationType } from '$lib/utils/notifications/types';
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { getAvatar } from '$lib/utils/account/avatar';
     import { savePageAndGetId, updatePage, type SavePageRequest } from '$lib/utils/pages/document';

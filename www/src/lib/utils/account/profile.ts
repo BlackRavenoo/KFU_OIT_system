@@ -1,5 +1,6 @@
 import { api } from '$lib/utils/api';
-import { notification, NotificationType } from '$lib/utils/notifications/notification';
+import { notification } from '$lib/utils/notifications/notification';
+import { NotificationType } from '$lib/utils/notifications/types';
 import { currentUser } from '$lib/utils/auth/storage/initial';
 import { get } from 'svelte/store';
 import { validateEmail } from '$lib/utils/validation/validate';

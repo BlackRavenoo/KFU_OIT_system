@@ -1,5 +1,6 @@
 import { loadItems, createItem } from '$lib/utils/admin/api-handlers';
-import { notification, NotificationType } from '$lib/utils/notifications/notification';
+import { notification } from '$lib/utils/notifications/notification';
+import { NotificationType } from '$lib/utils/notifications/types';
 import { api } from '$lib/utils/api';
 import { validateEmail } from '$lib/utils/validation/validate'
 import { UserStatus } from '$lib/utils/auth/types';

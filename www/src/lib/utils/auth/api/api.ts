@@ -12,7 +12,8 @@ import { setTokenStore } from '../tokens/storage';
 import { currentUser, isAuthenticated } from '../storage/initial';
 import { AUTH_API_ENDPOINTS as Endpoints } from './endpoints';
 import { isTokenValid } from '$lib/utils/auth/tokens/tokens';
-import { NotificationType, notification } from '$lib/utils/notifications/notification';
+import { notification } from '$lib/utils/notifications/notification';
+import { NotificationType } from '$lib/utils/notifications/types';
 
 import type { ILoginRequest, IUserData } from '$lib/utils/auth/types';
 

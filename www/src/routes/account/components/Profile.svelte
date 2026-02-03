@@ -26,8 +26,9 @@
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { goto } from '$app/navigation';
 
-    import { getSystemNotifications, SystemNotificationCategory, type SystemNotification } from '$lib/utils/notifications/system';
-    
+    import { getSystemNotifications } from '$lib/utils/notifications/system';
+    import { type SystemNotification, SystemNotificationCategory } from '$lib/utils/notifications/types';
+
     export let userData: { id: string, name: string, email: string, login: string, role: string, status?: UserStatus };
     export let stats: { assignedToMe: number, completedTickets: number, cancelledTickets: number };
     export let activeTickets: any[] = [];
