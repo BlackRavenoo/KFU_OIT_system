@@ -1,12 +1,15 @@
 use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
+use garde::Validate;
+use garde_actix_web::web::Json;
 use serde::Deserialize;
 use sqlx::PgPool;
 
 use crate::{domain::department_name::DepartmentName, utils::error_chain_fmt};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateDepartmentSchema {
+    #[garde(dive)]
     name: DepartmentName,
 }
 
@@ -27,12 +30,12 @@ impl ResponseError for UpdateDepartmentError {}
 pub async fn update_department(
     pool: web::Data<PgPool>,
     id: web::Path<i16>,
-    web::Json(schema): web::Json<UpdateDepartmentSchema>,
+    Json(schema): Json<UpdateDepartmentSchema>,
 ) -> Result<HttpResponse, UpdateDepartmentError> {
     update(&pool, schema, *id).await
         .context("Failed to update department")?;
 
-    Ok(HttpResponse::Created().finish())
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[tracing::instrument(
