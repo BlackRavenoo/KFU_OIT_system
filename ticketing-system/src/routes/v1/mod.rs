@@ -108,7 +108,7 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                 web::scope("/tags")
                     .route("/", web::post().to(create_tag)
                         .wrap(JwtMiddleware::min_role(UserRole::Moderator)))
-                    .route("/", web::get().to(search_tags))
+                    .route("/", web::get().to(get_tags))
                     .route("/{id}", web::put().to(update_tag)
                         .wrap(JwtMiddleware::min_role(UserRole::Moderator)))
                     .route("/{id}", web::delete().to(delete_tag)
