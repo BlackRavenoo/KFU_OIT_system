@@ -19,6 +19,11 @@ export async function getUserNotifications(params?: GetUserNotificationsParams) 
     return (await api.get<UserNotification[]>('/api/v1/notifications', { params: body })).data;
 }
 
-export async function markUserNotificationsAsRead(ticket_id: Array<number>) {
-    return (await api.post('/api/v1/notifications/read', { ticket_ids: ticket_id })).data;
+/**
+ * Функция для отметки уведомлений пользователя как прочитанных
+ * @param notification_ids - массив id тикетов для отметки прочитанными
+ * @returns {Promise<void>}
+ */
+export async function markUserNotificationsAsRead(notification_ids: Array<number>) {
+    return (await api.post('/api/v1/notifications/read', { notification_ids })).data;
 }

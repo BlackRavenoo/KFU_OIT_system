@@ -1,9 +1,3 @@
-<!--
---- @file Nav.svelte
---- Компонент навигационной панели
---- Встраивается в +layout.svelte
--->
-
 <script lang="ts">
     import KFU_large from '../../../assets/temp_logo.png';
     import KFU from '../../../assets/temp_logo(1).webp';
@@ -20,7 +14,7 @@
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
 
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import { fade } from 'svelte/transition';
     import { getUserNotificationsCount, getUserNotifications, markUserNotificationsAsRead } from '$lib/utils/notifications/api';
     import { type UserNotification, UserNotificationTypeText } from '$lib/utils/notifications/types';
@@ -46,6 +40,11 @@
 
     let markingAll: boolean = false;
     let markingOne: Record<string, boolean> = {};
+
+    let isFetchingNewer = false;
+    let isFetchingOlder = false;
+    let allNewerLoaded = false;
+    let allOlderLoaded = false;
 
     function normalizeRouteParam(val: string | null): string | null {
         if (!val) return null;
@@ -146,8 +145,10 @@
         isNotificationsOpen = true;
         notificationsLoading = true;
         notificationsError = '';
+        allNewerLoaded = false;
+        allOlderLoaded = false;
         try {
-            notifications = await getUserNotifications();
+            notifications = await getUserNotifications({ limit: 20 });
         } catch (e) {
             notificationsError = 'Ошибка загрузки уведомлений';
             notifications = [];
@@ -199,13 +200,67 @@
         markingOne[id] = false;
     }
 
-    function handleNotificationClick(n: UserNotification, event: MouseEvent | KeyboardEvent) {
+    async function handleNotificationClick(n: UserNotification, event: MouseEvent | KeyboardEvent) {
         if ((event.target as HTMLElement).closest('.mark-one-btn')) return;
         event.preventDefault?.();
+        !n.read && await markOneAsRead(n.id);
         closeNotifications();
         goto(`/ticket/${n.ticket_id}`).catch(() => {
             window.location.href = `/ticket/${n.ticket_id}`;
         });
+    }
+
+    function scrollableList(node: HTMLUListElement) {
+        async function onScroll() {
+            if (notificationsLoading || notifications.length === 0) return;
+
+            const scrollTop = node.scrollTop;
+            const scrollHeight = node.scrollHeight;
+            const clientHeight = node.clientHeight;
+            const epsilon = 10;
+
+            if (scrollTop <= epsilon && !isFetchingOlder && !allOlderLoaded) {
+                isFetchingOlder = true;
+                const minId = Math.min(...notifications.map(n => n.id));
+                const prevScrollHeight = scrollHeight;
+                try {
+                    const oldNotifications = await getUserNotifications({ before: minId, limit: 10 });
+                    if (oldNotifications.length > 0) {
+                        notifications = [
+                            ...oldNotifications,
+                            ...notifications.slice(0, Math.max(0, notifications.length - 10))
+                        ];
+                        await tick();
+                        node.scrollTop = node.scrollHeight - prevScrollHeight;
+                    } else allOlderLoaded = true;
+                } catch (e) { }
+                isFetchingOlder = false;
+            }
+
+            if (scrollTop + clientHeight >= scrollHeight - epsilon && !isFetchingNewer && !allNewerLoaded) {
+                isFetchingNewer = true;
+                const maxId = Math.max(...notifications.map(n => n.id));
+                try {
+                    const newNotifications = await getUserNotifications({ after: maxId, limit: 10 });
+                    if (newNotifications.length > 0) {
+                        notifications = [
+                            ...notifications.slice(10),
+                            ...newNotifications
+                        ];
+                        await tick();
+                    } else allNewerLoaded = true;
+                } catch (e) { }
+                isFetchingNewer = false;
+            }
+        }
+
+        node.addEventListener('scroll', onScroll, { passive: true });
+
+        return {
+            destroy() {
+                node.removeEventListener('scroll', onScroll);
+            }
+        };
     }
 
     onMount(() => {
@@ -269,7 +324,10 @@
                     {/if}
                 </button>
                 {#if isNotificationsOpen}
-                    <div class="notifications-dropdown-anim notifications-dropdown" transition:fade={{ duration: 180 }}>
+                    <div
+                        class="notifications-dropdown-anim notifications-dropdown"
+                        transition:fade={{ duration: 180 }}
+                    >
                         <div class="dropdown-header">
                             <button
                                 class="mark-all-btn"
@@ -291,11 +349,12 @@
                         {:else if notifications.length === 0}
                             <div class="dropdown-empty">Нет уведомлений</div>
                         {:else}
-                            <ul class="dropdown-list">
+                            <ul class="dropdown-list" use:scrollableList>
                                 {#each notifications as n (n.id)}
                                     <li>
                                         <div
-                                            class="dropdown-item { n.read ? '' : 'unread' }"
+                                            class="dropdown-item { n.read ? 'read' : 'unread' }"
+                                            data-notification-id={n.id}
                                             on:click={ e => handleNotificationClick(n, e) }
                                             on:keydown={(e) => {
                                                 if (e.key === 'Enter' || e.key === ' ') {

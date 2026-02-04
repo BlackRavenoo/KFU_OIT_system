@@ -46,8 +46,8 @@ export interface UserNotification {
 }
 
 export interface GetUserNotificationsParams {
-    before?: string;
-    after?: string;
+    before?: number;
+    after?: number;
     limit?: number;
 }
 
