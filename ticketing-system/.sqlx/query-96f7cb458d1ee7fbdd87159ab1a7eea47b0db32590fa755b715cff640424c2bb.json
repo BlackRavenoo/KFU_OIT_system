@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) AS \"count!\"\n        FROM notifications\n        WHERE user_id = $1",
+  "query": "SELECT COUNT(*) AS \"count!\"\n        FROM notifications\n        WHERE user_id = $1 AND not read",
   "describe": {
     "columns": [
       {
@@ -18,5 +18,5 @@
       null
     ]
   },
-  "hash": "dfd459bb3f55ce2dff6aebeb395166590def0d01f6a95679793e1b7b174c2cd3"
+  "hash": "96f7cb458d1ee7fbdd87159ab1a7eea47b0db32590fa755b715cff640424c2bb"
 }

@@ -51,7 +51,7 @@ async fn select_notification_count(
     sqlx::query!(
         r#"SELECT COUNT(*) AS "count!"
         FROM notifications
-        WHERE user_id = $1"#,
+        WHERE user_id = $1 AND not read"#,
         user_id
     )
     .fetch_one(pool)

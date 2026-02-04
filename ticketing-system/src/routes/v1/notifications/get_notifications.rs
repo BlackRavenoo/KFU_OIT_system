@@ -84,7 +84,8 @@ async fn select_notifications(
         builder.push(" AND id < ").push_bind(before);
     }
 
-    builder.push(" LIMIT ").push_bind(schema.limit as i64)
+    builder.push(" ORDER BY id DESC ")
+        .push(" LIMIT ").push_bind(schema.limit as i64)
         .build_query_as::<NotificationSchema>()
         .fetch_all(pool)
         .await
