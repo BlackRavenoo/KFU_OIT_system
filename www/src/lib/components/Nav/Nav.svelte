@@ -46,6 +46,8 @@
     let allNewerLoaded = false;
     let allOlderLoaded = false;
 
+    let notificationsListEl: HTMLUListElement | null = null;
+
     function normalizeRouteParam(val: string | null): string | null {
         if (!val) return null;
         try {
@@ -149,11 +151,17 @@
         allOlderLoaded = false;
         try {
             notifications = await getUserNotifications({ limit: 20 });
+            notifications = notifications.sort((a, b) => a.id - b.id);
+            notificationsLoading = false;
+            await tick();
+            scrollToBottomNotifications();
         } catch (e) {
             notificationsError = 'Ошибка загрузки уведомлений';
             notifications = [];
+            notificationsLoading = false;
+            await tick();
+            scrollToBottomNotifications();
         }
-        notificationsLoading = false;
     }
 
     function closeNotifications() {
@@ -211,6 +219,7 @@
     }
 
     function scrollableList(node: HTMLUListElement) {
+        notificationsListEl = node;
         async function onScroll() {
             if (notificationsLoading || notifications.length === 0) return;
 
@@ -228,8 +237,8 @@
                     if (oldNotifications.length > 0) {
                         notifications = [
                             ...oldNotifications,
-                            ...notifications.slice(0, Math.max(0, notifications.length - 10))
-                        ];
+                            ...notifications
+                        ].sort((a, b) => a.id - b.id);
                         await tick();
                         node.scrollTop = node.scrollHeight - prevScrollHeight;
                     } else allOlderLoaded = true;
@@ -244,9 +253,9 @@
                     const newNotifications = await getUserNotifications({ after: maxId, limit: 10 });
                     if (newNotifications.length > 0) {
                         notifications = [
-                            ...notifications.slice(10),
+                            ...notifications,
                             ...newNotifications
-                        ];
+                        ].sort((a, b) => a.id - b.id);
                         await tick();
                     } else allNewerLoaded = true;
                 } catch (e) { }
@@ -259,8 +268,26 @@
         return {
             destroy() {
                 node.removeEventListener('scroll', onScroll);
+                notificationsListEl = null;
             }
         };
+    }
+
+    async function scrollToBottomNotifications() {
+        await tick();
+        if (notificationsListEl) {
+            notificationsListEl.scrollTop = notificationsListEl.scrollHeight;
+        } else {
+            setTimeout(() => {
+                if (notificationsListEl) {
+                    notificationsListEl.scrollTop = notificationsListEl.scrollHeight;
+                }
+            }, 0);
+        }
+    }
+
+    $: if (isNotificationsOpen) {
+        scrollToBottomNotifications();
     }
 
     onMount(() => {
@@ -349,7 +376,7 @@
                         {:else if notifications.length === 0}
                             <div class="dropdown-empty">Нет уведомлений</div>
                         {:else}
-                            <ul class="dropdown-list" use:scrollableList>
+                            <ul class="dropdown-list" use:scrollableList bind:this={notificationsListEl}>
                                 {#each notifications as n (n.id)}
                                     <li>
                                         <div

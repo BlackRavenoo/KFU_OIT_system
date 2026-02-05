@@ -54,11 +54,10 @@ describe('Base API client', () => {
     const loadModule = async (axiosFactory: any, navigateMock?: any, notificationMock?: any, authApiMock?: any, tokensMock?: any) => {
         vi.doMock('axios', axiosFactory);
         vi.doMock('$lib/utils/error', () => ({ navigateToError: navigateMock ?? vi.fn() }));
-        vi.doMock('$lib/utils/notifications/notification', () => notificationMock ?? ({ notification: vi.fn(), NotificationType: { Error: 'err', Warning: 'warn' } }));
+        vi.doMock('$lib/utils/notifications/notification', () => notificationMock ?? ({ notification: vi.fn() }));
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Error: 'err', Warning: 'warn' } }));
         vi.doMock('$lib/utils/auth/api/api', () => authApiMock ?? ({ refreshAuthTokens: vi.fn(), logout: vi.fn() }));
         vi.doMock('$lib/utils/auth/tokens/tokens', () => tokensMock ?? ({ getAuthTokens: vi.fn(() => null) }));
-        
-        // @ts-ignore
         global.FormData = global.FormData ?? class FormDataMock {};
         return import('$lib/utils/api');
     };
@@ -74,7 +73,6 @@ describe('Base API client', () => {
         await loadModule(makeAxiosFactory('ok'), undefined, undefined, undefined, tokensMock);
 
         expect(savedReqHandler).toBeInstanceOf(Function);
-        // @ts-ignore
         const cfg: any = { headers: { 'Content-Type': 'application/json' }, data: new (global as any).FormData() };
         const res = await savedReqHandler(cfg);
         expect(res.headers.Authorization).toBe('Bearer ATOKEN');
@@ -104,8 +102,9 @@ describe('Base API client', () => {
 
     it('Interceptor logout for refresh/login/logout requests', async () => {
         const logoutMock = vi.fn();
-        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const notificationMock = { notification: vi.fn() };
         const authMock = { refreshAuthTokens: vi.fn(), logout: logoutMock };
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Warning: 'warn' } }));
         await loadModule(makeAxiosFactory('ok'), undefined, notificationMock, authMock);
 
         expect(savedResErrorHandler).toBeInstanceOf(Function);
@@ -113,7 +112,7 @@ describe('Base API client', () => {
         const axiosError: any = { response: { status: 401 }, config: { url: '/api/token/refresh', headers: {}, _retry: false } };
         await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
         expect(logoutMock).toHaveBeenCalled();
-        expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', notificationMock.NotificationType.Warning);
+        expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', 'warn');
     });
 
     it('Interceptor initializes _retryCount and retries (resolves) on first 5xx', async () => {
@@ -141,7 +140,9 @@ describe('Base API client', () => {
         const refreshMock = vi.fn(async () => true);
         const logoutMock = vi.fn();
         const getTokensMock = vi.fn(() => ({ accessToken: 'TOK403' }));
-        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const notificationMock = { notification: vi.fn() };
+
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Warning: 'warn' } }));
 
         await loadModule(
             makeAxiosFactory('ok'),
@@ -162,15 +163,17 @@ describe('Base API client', () => {
         expect(logoutMock).toHaveBeenCalled();
         expect(notificationMock.notification).toHaveBeenCalledWith(
             'Сессия истекла. Пожалуйста, войдите снова',
-            notificationMock.NotificationType.Warning
+            'warn'
         );
     });
 
     it('Throws no token fetch, logout and warning', async () => {
         const logoutMock = vi.fn();
-        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const notificationMock = { notification: vi.fn() };
         const authMock = { refreshAuthTokens: vi.fn(async () => { throw new Error('boom'); }), logout: logoutMock };
         const tokensMock = { getAuthTokens: vi.fn() };
+
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Warning: 'warn' } }));
 
         await loadModule(makeAxiosFactory('ok'), undefined, notificationMock, authMock, tokensMock);
 
@@ -185,15 +188,17 @@ describe('Base API client', () => {
         expect(logoutMock).toHaveBeenCalledTimes(1);
         expect(notificationMock.notification).toHaveBeenCalledWith(
             'Сессия истекла. Пожалуйста, войдите снова',
-            notificationMock.NotificationType.Warning
+            'warn'
         );
     });
 
     it('Creates a new headers object through when headers are undefined', async () => {
         const refreshMock = vi.fn(async () => true);
         const logoutMock = vi.fn();
-        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const notificationMock = { notification: vi.fn() };
         const tokensMock = { getAuthTokens: vi.fn(() => ({ accessToken: 'NC-TOKEN' })) };
+
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Warning: 'warn' } }));
 
         await loadModule(makeAxiosFactory('ok'), undefined, notificationMock, { refreshAuthTokens: refreshMock, logout: logoutMock }, tokensMock);
 
@@ -212,7 +217,9 @@ describe('Base API client', () => {
         const refreshMock = vi.fn(async () => true);
         const tokensMock = { getAuthTokens: vi.fn(() => null) };
         const logoutMock = vi.fn();
-        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const notificationMock = { notification: vi.fn() };
+
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Warning: 'warn' } }));
 
         await loadModule(
             makeAxiosFactory('ok'),
@@ -237,7 +244,9 @@ describe('Base API client', () => {
 
     it('Calls the appropriate error handling functions on 403 errors', async () => {
         const authMock = { refreshAuthTokens: vi.fn(), logout: vi.fn() };
-        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn', Error: 'err' } };
+        const notificationMock = { notification: vi.fn() };
+
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Warning: 'warn', Error: 'err' } }));
 
         await loadModule(makeAxiosFactory('ok'), undefined, notificationMock, authMock);
 
@@ -285,13 +294,15 @@ describe('Base API client', () => {
         };
 
         const axiosFactory = () => ({ create: () => axiosInstance, default: { create: () => axiosInstance } });
-        const notificationMock = { notification: vi.fn(), NotificationType: { Error: 'err' } };
+        const notificationMock = { notification: vi.fn() };
+
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Error: 'err' } }));
 
         await loadModule(axiosFactory, undefined, notificationMock);
         const error: any = { response: { status: 400 }, config: { url: '/test', headers: {} } };
 
         await expect(savedResErrorHandler(error)).rejects.toBeDefined();
-        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', notificationMock.NotificationType.Error);
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', 'err');
     });
 
     it('Delete Authorization when no token', async () => {
@@ -339,22 +350,25 @@ describe('Base API client', () => {
 
     it('401 handling: logout when refresh fails (for /api/*)', async () => {
         const logoutMock = vi.fn();
-        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const notificationMock = { notification: vi.fn() };
         const authMock = { refreshAuthTokens: vi.fn(async () => false), logout: logoutMock };
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Warning: 'warn' } }));
         await loadModule(makeAxiosFactory('ok'), undefined, notificationMock, authMock);
 
         const axiosError: any = { response: { status: 401 }, config: { url: '/api/some', headers: {}, _retry: false, _retryCount: 0 } };
         await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
         expect(authMock.refreshAuthTokens).toHaveBeenCalled();
         expect(logoutMock).toHaveBeenCalled();
-        expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', notificationMock.NotificationType.Warning);
+        expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', 'warn');
     });
 
     it('401 refresh success attempts retry but rejects with logout due to current implementation (for /api/*)', async () => {
         const refreshMock = vi.fn(async () => true);
         const getTokensMock = vi.fn(() => ({ accessToken: 'NEWTOKEN' }));
         const logoutMock = vi.fn();
-        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const notificationMock = { notification: vi.fn() };
+
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Warning: 'warn' } }));
 
         await loadModule(
             makeAxiosFactory('ok'),
@@ -371,12 +385,13 @@ describe('Base API client', () => {
         expect(logoutMock).toHaveBeenCalled();
         expect(notificationMock.notification).toHaveBeenCalledWith(
             'Сессия истекла. Пожалуйста, войдите снова',
-            notificationMock.NotificationType.Warning
+            'warn'
         );
     });
 
     it('Retries on 5xx and stops after 3 attempts with notification', async () => {
-        const notification = { notification: vi.fn(), NotificationType: { Error: 'err' } };
+        const notification = { notification: vi.fn() };
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Error: 'err' } }));
         await loadModule(makeAxiosFactory('ok'), undefined, notification);
 
         vi.useFakeTimers();
@@ -389,16 +404,17 @@ describe('Base API client', () => {
 
         const tooMany: any = { response: { status: 500 }, config: { url: '/server', headers: {}, _retryCount: 3 } };
         await expect(savedResErrorHandler(tooMany)).rejects.toBeDefined();
-        expect(notification.notification).toHaveBeenCalledWith('Ошибка запроса', notification.NotificationType.Error);
+        expect(notification.notification).toHaveBeenCalledWith('Ошибка запроса', 'err');
 
         vi.useRealTimers();
     });
 
     it('Notifies on request error', async () => {
-        const notification = { notification: vi.fn(), NotificationType: { Error: 'err' } };
+        const notification = { notification: vi.fn() };
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Error: 'err' } }));
         await loadModule(makeAxiosFactory('ok'), undefined, notification);
         await expect(savedResErrorHandler({ request: {}, config: { url: '/network', headers: {} } } as any)).rejects.toBeDefined();
-        expect(notification.notification).toHaveBeenCalledWith('Ошибка соединения с сервером', notification.NotificationType.Error);
+        expect(notification.notification).toHaveBeenCalledWith('Ошибка соединения с сервером', 'err');
     });
 
     it('formatError produces expected messages for 404, 5xx and network', async () => {
@@ -476,8 +492,9 @@ describe('extractPath', () => {
         vi.doMock('axios', axiosFactory);
         vi.doMock('$lib/utils/error', () => ({ navigateToError: vi.fn() }));
         vi.doMock('$lib/utils/notifications/notification', () =>
-            deps?.notification ?? ({ notification: vi.fn(), NotificationType: { Error: 'err', Warning: 'warn' } })
+            deps?.notification ?? ({ notification: vi.fn() })
         );
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Error: 'err', Warning: 'warn' } }));
         vi.doMock('$lib/utils/auth/api/api', () =>
             deps?.auth ?? ({ refreshAuthTokens: vi.fn(async () => false), logout: vi.fn() })
         );
@@ -492,34 +509,35 @@ describe('extractPath', () => {
     });
 
     it('Returns "" when url is undefined', async () => {
-        const notificationMock = { notification: vi.fn(), NotificationType: { Error: 'err' } };
+        const notificationMock = { notification: vi.fn() };
         await loadModule(makeAxiosFactory(), { notification: notificationMock });
 
         const axiosError: any = { response: { status: 400 }, config: { url: undefined, headers: {} } };
         await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
-        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', notificationMock.NotificationType.Error);
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', 'err');
     });
 
     it('Absolute http with /api path', async () => {
         const logout = vi.fn();
-        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const notificationMock = { notification: vi.fn() };
         const auth = { refreshAuthTokens: vi.fn(async () => false), logout };
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Warning: 'warn' } }));
         await loadModule(makeAxiosFactory(), { notification: notificationMock, auth });
 
         const axiosError: any = { response: { status: 401 }, config: { url: 'https://example.com/api/x', headers: {} } };
         await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
         expect(auth.refreshAuthTokens).toHaveBeenCalled();
         expect(logout).toHaveBeenCalled();
-        expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', notificationMock.NotificationType.Warning);
+        expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', 'warn');
     });
 
     it('Absolute http without path', async () => {
-        const notificationMock = { notification: vi.fn(), NotificationType: { Error: 'err' } };
+        const notificationMock = { notification: vi.fn() };
         await loadModule(makeAxiosFactory(), { notification: notificationMock });
 
         const axiosError: any = { response: { status: 400 }, config: { url: 'https://example.com', headers: {} } };
         await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
-        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', notificationMock.NotificationType.Error);
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', 'err');
     });
 
     it('Relative starting with "/"', async () => {
@@ -531,33 +549,34 @@ describe('extractPath', () => {
 
     it('Relative without leading "/"', async () => {
         const logout = vi.fn();
-        const notificationMock = { notification: vi.fn(), NotificationType: { Warning: 'warn' } };
+        const notificationMock = { notification: vi.fn() };
         const auth = { refreshAuthTokens: vi.fn(async () => false), logout };
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Warning: 'warn' } }));
         await loadModule(makeAxiosFactory(), { notification: notificationMock, auth });
 
         const axiosError: any = { response: { status: 401 }, config: { url: 'api/x', headers: {} } };
         await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
         expect(auth.refreshAuthTokens).toHaveBeenCalled();
         expect(logout).toHaveBeenCalled();
-        expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', notificationMock.NotificationType.Warning);
+        expect(notificationMock.notification).toHaveBeenCalledWith('Сессия истекла. Пожалуйста, войдите снова', 'warn');
     });
 
     it('Bad absolute http url', async () => {
-        const notificationMock = { notification: vi.fn(), NotificationType: { Error: 'err' } };
+        const notificationMock = { notification: vi.fn() };
         await loadModule(makeAxiosFactory(), { notification: notificationMock });
 
         const axiosError: any = { response: { status: 400 }, config: { url: 'http://[bad', headers: {} } };
         await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
-        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', notificationMock.NotificationType.Error);
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', 'err');
     });
 
     it('Non-http scheme (ftp://)', async () => {
-        const notificationMock = { notification: vi.fn(), NotificationType: { Error: 'err' } };
+        const notificationMock = { notification: vi.fn() };
         await loadModule(makeAxiosFactory(), { notification: notificationMock });
 
         const axiosError: any = { response: { status: 400 }, config: { url: 'ftp://api/x', headers: {} } };
         await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
-        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', notificationMock.NotificationType.Error);
+        expect(notificationMock.notification).toHaveBeenCalledWith('Ошибка запроса', 'err');
     });
 
     it('Uses fallback "" when URL pathname is empty)', async () => {
@@ -570,7 +589,6 @@ describe('extractPath', () => {
                 this.pathname = '';
             }
         }
-        // @ts-ignore
         global.URL = FakeURL as any;
 
         let localSavedResErrorHandler: any = null;
@@ -592,17 +610,20 @@ describe('extractPath', () => {
         vi.doMock('$lib/utils/error', () => ({ navigateToError: vi.fn() }));
         vi.doMock('$lib/utils/auth/api/api', () => ({ refreshAuthTokens: vi.fn(), logout: vi.fn() }));
         vi.doMock('$lib/utils/auth/tokens/tokens', () => ({ getAuthTokens: vi.fn(() => null) }));
+        vi.doMock('$lib/utils/notifications/notification', () => ({ notification: vi.fn() }));
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Error: 'err' } }));
         await import('$lib/utils/api');
 
         expect(typeof localSavedResErrorHandler).toBe('function');
 
         const notifMod = await import('$lib/utils/notifications/notification');
+        const notifTypeMod = await import('$lib/utils/notifications/types');
         const notifSpy = vi.spyOn(notifMod, 'notification');
 
         const axiosError: any = { response: { status: 400 }, config: { url: 'https://example.com', headers: {} } };
         await expect(localSavedResErrorHandler(axiosError)).rejects.toBeDefined();
 
-        expect(notifSpy).toHaveBeenCalledWith('Ошибка запроса', notifMod.NotificationType.Error);
+        expect(notifSpy).toHaveBeenCalledWith('Ошибка запроса', notifTypeMod.NotificationType.Error);
 
         global.URL = OriginalURL;
     });
@@ -628,7 +649,8 @@ describe('handleAuthError', () => {
         vi.doMock('axios', makeAxiosFactory());
         vi.doMock('$app/navigation', () => ({ goto: gotoSpy ?? vi.fn() }));
         vi.doMock('$lib/utils/error', () => ({ navigateToError: vi.fn() }));
-        vi.doMock('$lib/utils/notifications/notification', () => ({ notification: vi.fn(), NotificationType: { Error: 'err', Warning: 'warn' } }));
+        vi.doMock('$lib/utils/notifications/notification', () => ({ notification: vi.fn() }));
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Error: 'err', Warning: 'warn' } }));
         vi.doMock('$lib/utils/auth/api/api', () => ({ refreshAuthTokens: vi.fn(), logout: vi.fn() }));
         vi.doMock('$lib/utils/auth/tokens/tokens', () => ({ getAuthTokens: vi.fn(() => null) }));
         return import('$lib/utils/api');

@@ -17,11 +17,6 @@ describe('System notifications API', () => {
         vi.clearAllMocks();
     });
 
-    it('Export SystemNotificationCategory enum', () => {
-        expect(system.SystemNotificationCategory.INFO).toBe(0);
-        expect(system.SystemNotificationCategory.WARNING).toBe(1);
-    });
-
     it('Get system notifications with correct url', async () => {
         (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true, data: [] });
         const res = await system.getSystemNotifications();
