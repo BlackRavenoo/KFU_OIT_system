@@ -1,1 +1,2 @@
+mod get_notifications;
 mod get_notifications_count;
