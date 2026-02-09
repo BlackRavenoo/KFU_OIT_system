@@ -27,6 +27,7 @@ services:
       - APP_EVENT_PUBLISHER__BASE_URL=https://api.telegram.org
       - APP_EVENT_PUBLISHER__BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - APP_EVENT_PUBLISHER__CHAT_ID=${TELEGRAM_CHAT_ID}
+      - APP_EVENT_PUBLISHER__MESSAGE_THREAD_ID=${TELEGRAM_THREAD_ID}
 
       - TZ=Europe/Moscow
     restart: unless-stopped

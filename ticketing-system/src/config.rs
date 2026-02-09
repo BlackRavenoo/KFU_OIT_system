@@ -186,6 +186,7 @@ pub struct EventPublisherSettings {
     pub base_url: String,
     pub bot_token: SecretString,
     pub chat_id: String,
+    pub message_thread_id: Option<String>,
     timeout_milliseconds: u64,
 }
 

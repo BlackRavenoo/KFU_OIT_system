@@ -12,10 +12,11 @@ pub struct EventPublisher {
     bot_token: SecretString,
     base_url: String,
     chat_id: String,
+    thread_id: Option<String>,
 }
 
 impl EventPublisher {
-    pub fn new(base_url: String, bot_token: SecretString, chat_id: String, timeout: Duration) -> Self {
+    pub fn new(base_url: String, bot_token: SecretString, chat_id: String, timeout: Duration, thread_id: Option<String>) -> Self {
         let http_client = Client::builder()
             .timeout(timeout)
             .build()
@@ -26,6 +27,7 @@ impl EventPublisher {
             bot_token,
             base_url: base_url.trim_end_matches('/').to_owned(),
             chat_id,
+            thread_id
         }
     }
 
@@ -40,6 +42,7 @@ impl EventPublisher {
             .post(format!("{}/bot{}/sendMessage", self.base_url, self.bot_token.expose_secret()))
             .json(&serde_json::json!({
                 "chat_id": self.chat_id,
+                "message_thread_id": self.thread_id,
                 "text": text,
                 "parse_mode": "HTML"
             }))

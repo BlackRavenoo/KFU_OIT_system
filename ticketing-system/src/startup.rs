@@ -51,6 +51,7 @@ impl Application {
             config.event_publisher.bot_token,
             config.event_publisher.chat_id,
             timeout,
+            config.event_publisher.message_thread_id
         );
 
         let port = listener.local_addr().unwrap().port();
