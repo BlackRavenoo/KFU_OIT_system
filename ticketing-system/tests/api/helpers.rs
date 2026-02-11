@@ -377,6 +377,34 @@ impl TestApp {
     
         self.create_page(&body, Some(&access)).await;
     }
+
+    pub async fn create_system_notification(&self, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {
+        let mut builder = reqwest::Client::new()
+            .post(format!("{}/v1/system_notifications", self.address))
+            .json(body);
+        
+        if let Some(token) = token {
+            builder = builder.bearer_auth(token);
+        }
+    
+        builder
+            .send()
+            .await
+            .unwrap()
+    }
+    
+    pub async fn create_test_notification(&self) {
+        let (access, _) = self.get_admin_jwt_tokens().await;
+    
+        let body = serde_json::json!({
+            "text": "Тестовое уведомление",
+            "category": 0,
+        });
+    
+        self.create_system_notification(&body, Some(&access)).await
+            .error_for_status()
+            .unwrap();
+    }
 }
 
 pub async fn spawn_app() -> TestApp {
