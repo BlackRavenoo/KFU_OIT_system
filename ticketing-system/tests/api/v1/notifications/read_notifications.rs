@@ -59,3 +59,25 @@ async fn read_notifications_changes_notification_status() {
 
     assert_eq!(is_read, true);
 }
+
+#[tokio::test]
+async fn read_notifications_with_db_err_returns_500() {
+    let app = spawn_app().await;
+
+    create_test_notifications(&app).await;
+
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
+    let json = serde_json::json!({
+        "notification_ids": vec![1]
+    });
+
+    sqlx::query!("DROP TABLE notifications CASCADE")
+        .execute(&app.db_pool)
+        .await
+        .unwrap();
+
+    let resp = read_notifications(&app, &json, Some(&access)).await;
+
+    assert_eq!(resp.status(), 500);
+}
