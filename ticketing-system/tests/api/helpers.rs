@@ -205,12 +205,21 @@ impl TestApp {
             .unwrap()
     }
 
-    pub async fn get_ticket(&self, ticket_id: TicketId) -> reqwest::Response {
+    pub async fn get_ticket_using_admin_token(&self, ticket_id: TicketId) -> reqwest::Response {
         let (access, _) = self.get_admin_jwt_tokens().await;
 
-        reqwest::Client::new()
-            .get(format!("{}/v1/tickets/{}", self.address, ticket_id))
-            .bearer_auth(access)
+        self.get_ticket(ticket_id, Some(&access)).await
+    }
+
+    pub async fn get_ticket(&self, ticket_id: TicketId, token: Option<&str>) -> reqwest::Response {
+        let mut builder = reqwest::Client::new()
+            .get(format!("{}/v1/tickets/{}", self.address, ticket_id));
+
+        if let Some(token) = token {
+            builder = builder.bearer_auth(token);
+        }
+
+        builder
             .send()
             .await
             .unwrap()

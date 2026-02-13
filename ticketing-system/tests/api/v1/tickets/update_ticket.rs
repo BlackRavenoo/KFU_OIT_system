@@ -43,7 +43,7 @@ async fn update_ticket_changes_field_value() {
         Some(&access)
     ).await;
 
-    let ticket = app.get_ticket(1).await
+    let ticket = app.get_ticket_using_admin_token(1).await
         .error_for_status()
         .unwrap();
 
@@ -120,7 +120,7 @@ async fn update_ticket_updates_all_fields() {
         Some(&access)
     ).await;
 
-    let resp = app.get_ticket(1).await;
+    let resp = app.get_ticket_using_admin_token(1).await;
 
     let data: serde_json::Value = resp.json().await.unwrap();
 
@@ -168,7 +168,7 @@ async fn update_ticket_with_separate_requests_updates_all_fields() {
         ).await;
     }
 
-    let resp = app.get_ticket(1).await;
+    let resp = app.get_ticket_using_admin_token(1).await;
 
     let data: serde_json::Value = resp.json().await.unwrap();
 
