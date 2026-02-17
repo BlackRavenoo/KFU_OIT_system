@@ -1,6 +1,6 @@
 use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use anyhow::Context;
-use rand::{distr::Alphanumeric, rng, Rng as _};
+use rand::{RngExt as _, distr::Alphanumeric, rng};
 use sailfish::Template;
 use serde::Deserialize;
 use sqlx::PgPool;
