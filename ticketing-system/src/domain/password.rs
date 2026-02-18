@@ -50,9 +50,8 @@ impl TryFrom<String> for Password {
 mod tests {
     use super::Password;
     use claims::assert_err;
-    use fake::{faker::internet::en, Fake as _};
+    use fake::{faker::internet::en, Fake as _, rand::{rngs::StdRng, SeedableRng as _}};
     use proptest::{prelude::{any, Strategy}, prop_assert, proptest};
-    use rand::{rngs::StdRng, SeedableRng as _};
 
     #[test]
     fn short_password_is_rejected() {
