@@ -85,3 +85,28 @@ async fn get_pages_returns_only_public_pages_for_user_without_token() {
 
     assert_eq!(items_count, 5);
 }
+
+#[tokio::test]
+async fn get_pages_returns_only_public_pages_for_client() {
+    let app = spawn_app().await;
+
+    let login = app.create_user(ticketing_system::auth::types::UserRole::Client).await;
+
+    for _ in 0..5 {
+        app.create_test_page().await;
+    }
+
+    for _ in 0..5 {
+        app.create_private_page().await;
+    }
+
+    let (access, _) = app.get_jwt_tokens(&login, "admin").await;
+
+    let resp = app.get_pages(&serde_json::json!({}), Some(&access)).await;
+
+    let json: serde_json::Value = resp.json().await.unwrap();
+
+    let items_count = json["items"].as_array().unwrap().len();
+
+    assert_eq!(items_count, 5);
+}

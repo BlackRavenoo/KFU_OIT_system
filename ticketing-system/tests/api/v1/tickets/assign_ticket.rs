@@ -1,6 +1,6 @@
-use ticketing_system::schema::tickets::TicketId;
+use ticketing_system::schema::{common::UserId, tickets::TicketId};
 
-use crate::helpers::{spawn_app, TestApp};
+use crate::helpers::{NEXT_USER_ID, TestApp, spawn_app};
 
 async fn assign_ticket(app: &TestApp, id: TicketId, token: Option<&str>) -> reqwest::Response {
     let mut builder = reqwest::Client::new()
@@ -14,7 +14,21 @@ async fn assign_ticket(app: &TestApp, id: TicketId, token: Option<&str>) -> reqw
         .send()
         .await
         .unwrap()
-} 
+}
+
+async fn assign_ticket_for_user(app: &TestApp, id: TicketId, user_id: UserId, token: Option<&str>) -> reqwest::Response {
+    let mut builder = reqwest::Client::new()
+        .post(format!("{}/v1/tickets/{}/assign/{}", app.address, id, user_id));
+
+    if let Some(token) = token {
+        builder = builder.bearer_auth(token);
+    }
+
+    builder
+        .send()
+        .await
+        .unwrap()
+}
 
 #[tokio::test]
 async fn assign_ticket_returns_200() {
@@ -67,4 +81,19 @@ async fn assign_ticket_with_db_error_returns_500() {
     let resp = assign_ticket(&app, 1, Some(&access)).await;
 
     assert_eq!(resp.status(), 500);
+}
+
+#[tokio::test]
+async fn assign_ticket_for_user_returns_200() {
+    let app = spawn_app().await;
+
+    app.create_test_ticket().await;
+
+    app.create_user(ticketing_system::auth::types::UserRole::Employee).await;
+
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
+    let resp = assign_ticket_for_user(&app, 1, NEXT_USER_ID, Some(&access)).await;
+
+    assert_eq!(resp.status(), 200);
 }
