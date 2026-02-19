@@ -20,7 +20,7 @@ async fn delete_system_notifications(app: &TestApp, id: SystemNotificationId, to
 async fn delete_system_notifications_returns_200() {
     let app = spawn_app().await;
 
-    app.create_test_notification().await;
+    app.create_test_system_notification().await;
 
     let (access, _) = app.get_admin_jwt_tokens().await;
 
@@ -34,7 +34,7 @@ async fn delete_system_notifications_returns_200() {
 async fn delete_system_notifications_without_token_returns_401() {
     let app = spawn_app().await;
 
-    app.create_test_notification().await;
+    app.create_test_system_notification().await;
 
     let resp = delete_system_notifications(&app, 1, None)
         .await;
@@ -46,7 +46,7 @@ async fn delete_system_notifications_without_token_returns_401() {
 async fn delete_system_notifications_with_db_err_returns_500() {
     let app = spawn_app().await;
 
-    app.create_test_notification().await;
+    app.create_test_system_notification().await;
 
     let (access, _) = app.get_admin_jwt_tokens().await;
 

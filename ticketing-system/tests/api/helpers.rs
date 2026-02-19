@@ -420,7 +420,7 @@ impl TestApp {
             .unwrap()
     }
     
-    pub async fn create_test_notification(&self) {
+    pub async fn create_test_system_notification(&self) {
         let (access, _) = self.get_admin_jwt_tokens().await;
     
         let body = serde_json::json!({
