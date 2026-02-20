@@ -432,6 +432,24 @@ impl TestApp {
             .error_for_status()
             .unwrap();
     }
+
+    pub async fn get_system_notifications(&self, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {        
+        let mut builder = reqwest::Client::new()
+            .get(format!(
+                "{}/v1/system_notifications?{}",
+                self.address,
+                serde_qs::to_string(body).unwrap()
+            ));
+        
+        if let Some(token) = token {
+            builder = builder.bearer_auth(token);
+        }
+    
+        builder
+            .send()
+            .await
+            .unwrap()
+    }
 }
 
 pub async fn spawn_app() -> TestApp {

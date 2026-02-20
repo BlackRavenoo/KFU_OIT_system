@@ -1,22 +1,4 @@
-use crate::helpers::{TestApp, spawn_app};
-
-async fn get_system_notifications(app: &TestApp, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {        
-    let mut builder = reqwest::Client::new()
-        .get(format!(
-            "{}/v1/system_notifications?{}",
-            app.address,
-            serde_qs::to_string(body).unwrap()
-        ));
-    
-    if let Some(token) = token {
-        builder = builder.bearer_auth(token);
-    }
-
-    builder
-        .send()
-        .await
-        .unwrap()
-}
+use crate::helpers::spawn_app;
 
 #[tokio::test]
 async fn get_system_notifications_returns_200() {
@@ -28,7 +10,7 @@ async fn get_system_notifications_returns_200() {
 
     let body = serde_json::json!({});
 
-    let resp = get_system_notifications(&app, &body, Some(&access))
+    let resp = app.get_system_notifications(&body, Some(&access))
         .await;
 
     assert_eq!(resp.status(), 200);
@@ -64,7 +46,7 @@ async fn get_system_notifications_returns_only_active_notifications() {
 
     let body = serde_json::json!({});
 
-    let resp = get_system_notifications(&app, &body, Some(&access))
+    let resp = app.get_system_notifications(&body, Some(&access))
         .await;
 
     let json: serde_json::Value = resp.json().await.unwrap();
@@ -106,7 +88,7 @@ async fn get_all_system_notifications_returns_all_notifications_for_admin() {
         "all": true
     });
 
-    let resp = get_system_notifications(&app, &body, Some(&access))
+    let resp = app.get_system_notifications(&body, Some(&access))
         .await;
 
     let json: serde_json::Value = resp.json().await.unwrap();
@@ -148,7 +130,7 @@ async fn get_all_system_notifications_returns_only_active_notifications_for_user
         "all": true
     });
 
-    let resp = get_system_notifications(&app, &body, None)
+    let resp = app.get_system_notifications(&body, None)
         .await;
 
     let json: serde_json::Value = resp.json().await.unwrap();
@@ -156,4 +138,25 @@ async fn get_all_system_notifications_returns_only_active_notifications_for_user
     let arr = json.as_array().unwrap();
 
     assert_eq!(arr.len(), 5);
+}
+
+#[tokio::test]
+async fn get_system_notifications_with_db_err_returns_500() {
+    let app = spawn_app().await;
+
+    app.create_test_system_notification().await;
+
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
+    let body = serde_json::json!({});
+
+    sqlx::query!("DROP TABLE system_notifications CASCADE")
+        .execute(&app.db_pool)
+        .await
+        .unwrap();
+
+    let resp = app.get_system_notifications(&body, Some(&access))
+        .await;
+
+    assert_eq!(resp.status(), 500);
 }
