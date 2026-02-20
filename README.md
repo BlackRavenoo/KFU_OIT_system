@@ -1,5 +1,5 @@
 # Service Desk ЕИ КФУ
-Frontend v0.1.17 | Backend v0.3.0 | API v1
+Frontend v0.1.19 | Backend v0.3.0 | API v1
 
 [![Build and Test](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/rust_test.yaml/badge.svg)](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/build_and_test.yaml) 
 [![Test frontend](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml/badge.svg)](https://github.com/BlackRavenoo/KFU_OIT_system/actions/workflows/test.yaml)

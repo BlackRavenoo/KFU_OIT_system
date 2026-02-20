@@ -447,6 +447,23 @@ describe('serialize', () => {
         const result = serialize(html);
         expect(result).toEqual([]);
     });
+
+	it('Serializes <a> calls getAttribute for href', () => {
+        const html = '<a href="https://example.com">Link</a>';
+        const spy = vi.spyOn(HTMLElement.prototype, 'getAttribute');
+        const result = serialize(html);
+        expect(spy).toHaveBeenCalledWith('href');
+        expect(result[0].type).toBe('link');
+        expect(result[0].href).toBe('https://example.com');
+        spy.mockRestore();
+    });
+
+    it('Serializes <a> without href defaults to #', () => {
+        const html = '<a>Link</a>';
+        const result = serialize(html);
+        expect(result[0].type).toBe('link');
+        expect(result[0].href).toBe('#');
+    });
 });
 
 describe('getNodeStyles', () => {
@@ -1094,5 +1111,31 @@ describe('deserialize', () => {
         expect(out[0].align).toBe('right');
 
         spy.mockRestore();
-    });    
+    });  
+
+    it('Deserialize table cell with color renders color style', () => {
+        const input: any = {
+            type: 'table',
+            rows: [
+                [
+                    { type: 'cell', text: 'A', color: 'red' },
+                    { type: 'cell', text: 'B' }
+                ]
+            ]
+        };
+        const out = deserialize([input]);
+        expect(out).toContain('color:red;');
+    });
+
+	it('Deserializes link node into <a> with href and text', () => {
+        const input: any = [{ type: 'link', href: 'https://example.com', text: 'Click' }];
+        const out = deserialize(input);
+        expect(out).toBe('<a href="https://example.com">Click</a>');
+    });
+
+	it('Deserializes link node without href defaults', () => {
+        const input: any = [{ type: 'link', text: 'Click' }];
+        const out = deserialize(input);
+        expect(out).toBe('<a href="#">Click</a>');
+    });
 });

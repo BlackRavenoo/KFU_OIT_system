@@ -4,6 +4,7 @@ type SerializedNode = {
     align?: 'left' | 'center' | 'right' | 'justify';
     color?: string;
     bgColor?: string;
+    href?: string;
     [key: string]: any;
 };
 
@@ -13,7 +14,7 @@ type SerializedNode = {
  * @param {string} dir - Направление текста (ltr или rtl)
  * @returns {'left' | 'center' | 'right' | 'justify'} - Нормализованное значение text-align
  */
-function normalizeTextAlign(raw: string, dir: string = 'ltr'): 'left' | 'center' | 'right' | 'justify' {
+function normalizeTextAlign(raw: string, dir: string): 'left' | 'center' | 'right' | 'justify' {
     const v = (raw || '').toLowerCase().trim();
 
     if (v === 'justify') return 'justify';
@@ -238,6 +239,17 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
                 rows: rows
             };
         }
+        case 'a': {
+            const href = node.getAttribute('href') || '#';
+            return {
+                type: 'link',
+                href,
+                align: styles.align,
+                color: styles.color,
+                bgColor: styles.bgColor,
+                text: serializeChildren(node)
+            };
+        }
         case 'br':
             return { type: 'br' };
         default: {
@@ -295,6 +307,26 @@ function mergeStyles(parent: SerializedNode, child: SerializedNode): SerializedN
 }
 
 /**
+ * Преобразует markdown-ссылки вида [text](href) в HTML <a href="href">text</a>
+ * @param text - Текстовая строка
+ * @param styleAttr - Атрибут style для тега <a> (например: ' style="color: red"')
+ */
+function processLinks(text: string, styleAttr: string): string {
+    return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, `<a href="$2"${styleAttr}>$1</a>`);
+}
+
+/**
+ * Вычисляет атрибут style для инлайн-ссылки на основе стилей родительского узла.
+ * Используются только нас­ледуемые инлайн-свойства (цвет, фон), text-align игнорируется.
+ */
+function linkStyleAttrFrom(styles: Partial<SerializedNode>): string {
+    const parts: string[] = [];
+    if (styles.color) parts.push(`color: ${styles.color}`);
+    if (styles.bgColor && styles.bgColor !== 'transparent') parts.push(`background-color: ${styles.bgColor}`);
+    return parts.length > 0 ? ` style="${parts.join('; ')}"` : '';
+}
+
+/**
  * Десериализует узел в HTML
  * @param node - Сериализованный узел
  * @param insideParagraph - Находится ли текущий узел внутри параграфа
@@ -323,12 +355,12 @@ function deserializeNode(
         case 'title_2':
         case 'title_3': {
             const level = type.split('_')[1];
-            return `<h${level}${styleAttr}>${typeof text === 'string' ? text : deserializeText(text, false, node, false)}</h${level}>`;
+            return `<h${level}${styleAttr}>${deserializeText(text, false, node, false)}</h${level}>`;
         }
         case 'text': {
             let inner = '';
             if (typeof text === 'string') {
-                inner = text;
+                inner = processLinks(text, linkStyleAttrFrom(node));
             } else if (Array.isArray(text)) {
                 inner = text.map(child => {
                     if (typeof child === 'string') return child;
@@ -341,15 +373,15 @@ function deserializeNode(
             return isRoot ? `<p${styleAttr}>${inner}</p>` : styleAttr ? `<span${styleAttr}>${inner}</span>` : inner;
         }
         case 'bold':
-            return `<strong${styleAttr}>${typeof text === 'string' ? text : deserializeText(text, true, node, false)}</strong>`;
+            return `<strong${styleAttr}>${deserializeText(text, true, node, false)}</strong>`;
         case 'italic':
-            return `<em${styleAttr}>${typeof text === 'string' ? text : deserializeText(text, true, node, false)}</em>`;
+            return `<em${styleAttr}>${deserializeText(text, true, node, false)}</em>`;
         case 'underline':
-            return `<u${styleAttr}>${typeof text === 'string' ? text : deserializeText(text, true, node, false)}</u>`;
+            return `<u${styleAttr}>${deserializeText(text, true, node, false)}</u>`;
         case 'blockquote':
-            return `<blockquote${styleAttr}>${typeof text === 'string' ? text : deserializeText(text, false, node, false)}</blockquote>`;
+            return `<blockquote${styleAttr}>${deserializeText(text, false, node, false)}</blockquote>`;
         case 'code':
-            return `<code${styleAttr}>${typeof text === 'string' ? text : deserializeText(text, false, node, false)}</code>`;
+            return `<code${styleAttr}>${deserializeText(text, false, node, false)}</code>`;
         case 'ul':
         case 'ol': {
             const items = (rest as any).items || [];
@@ -370,11 +402,15 @@ function deserializeNode(
             }).join('');
             return `<table style="border-collapse:collapse;table-layout:auto;">${tableRows}</table>`;
         }
+        case 'link': {
+            const href = (rest as any).href || '#';
+            return `<a href="${href}"${styleAttr}>${deserializeText(text, true, node, false)}</a>`;
+        }
         case 'cell':
-            return `<td${styleAttr}>${typeof text === 'string' ? text : deserializeText(text, true, node, false)}</td>`;
+            return `<td${styleAttr}>${deserializeText(text, true, node, false)}</td>`;
         default:
-            if (styleAttr) return `<span${styleAttr}>${typeof text === 'string' ? text : deserializeText(text, true, node, false)}</span>`;
-            return typeof text === 'string' ? text : deserializeText(text, true, node, false);
+            if (styleAttr) return `<span${styleAttr}>${deserializeText(text, true, node, false)}</span>`;
+            return deserializeText(text, true, node, false);
     }
 }
 
@@ -393,7 +429,7 @@ export function deserializeText(
     isRoot: boolean
 ): string {
     if (!text) return '';
-    else if (typeof text === 'string') return text;
+    else if (typeof text === 'string') return processLinks(text, linkStyleAttrFrom(parentStyles));
     else if (!Array.isArray(text)) return deserializeNode(text, insideParagraph, parentStyles, false);
     else return text.map(item => {
         if (typeof item === 'string') return item;
