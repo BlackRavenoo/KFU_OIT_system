@@ -15,6 +15,7 @@ pub enum GetNotificationsError {
 
 #[derive(Deserialize, Debug)]
 pub struct GetNotificationsSchema {
+    #[serde(default)]
     pub all: bool,
 }
 

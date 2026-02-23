@@ -1,13 +1,17 @@
 use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
+use garde::Validate;
+use garde_actix_web::web::Json;
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};
 
 use crate::{domain::tag_name::TagName, schema::page::TagId, utils::error_chain_fmt};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct CreateTagSchema {
+    #[garde(dive)]
     pub name: TagName,
+    #[garde(dive)]
     pub synonyms: Vec<TagName>,
 }
 
@@ -27,7 +31,7 @@ impl ResponseError for CreateTagError {}
 
 pub async fn create_tag(
     pool: web::Data<PgPool>,
-    web::Json(schema): web::Json<CreateTagSchema>,
+    Json(schema): Json<CreateTagSchema>,
 ) -> Result<HttpResponse, CreateTagError> {
     let mut transaction = pool.begin().await
         .context("Failed to begin transaction")?;
