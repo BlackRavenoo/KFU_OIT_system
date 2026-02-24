@@ -1,13 +1,17 @@
 use actix_web::{HttpResponse, ResponseError, http::StatusCode, web};
 use anyhow::Context;
+use garde::Validate;
+use garde_actix_web::web::Json;
 use serde::Deserialize;
 use sqlx::{PgPool, postgres::PgQueryResult};
 
 use crate::{domain::{building_code::BuildingCode, bulding_name::BuildingName}, utils::error_chain_fmt};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateBuildingSchema {
+    #[garde(dive)]
     code: BuildingCode,
+    #[garde(dive)]
     name: BuildingName,
 }
 
@@ -36,7 +40,7 @@ impl ResponseError for CreateBuildingError {
 
 pub async fn create_building(
     pool: web::Data<PgPool>,
-    web::Json(schema): web::Json<CreateBuildingSchema>,
+    Json(schema): Json<CreateBuildingSchema>,
 ) -> Result<HttpResponse, CreateBuildingError> {
     let res = insert_building(&pool, schema).await
         .context("Failed to insert building")?;

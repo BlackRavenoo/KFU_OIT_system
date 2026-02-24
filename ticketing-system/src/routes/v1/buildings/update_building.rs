@@ -1,13 +1,17 @@
 use actix_web::{HttpResponse, ResponseError, http::StatusCode, web};
 use anyhow::Context;
+use garde::Validate;
+use garde_actix_web::web::Json;
 use serde::Deserialize;
 use sqlx::PgPool;
 
 use crate::{build_update_query, domain::{building_code::BuildingCode, bulding_name::BuildingName}, utils::error_chain_fmt};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateBuildingSchema {
+    #[garde(dive)]
     code: Option<BuildingCode>,
+    #[garde(dive)]
     name: Option<BuildingName>,
 }
 
@@ -40,7 +44,7 @@ impl ResponseError for UpdateBuildingError {
 pub async fn update_building(
     pool: web::Data<PgPool>,
     id: web::Path<i16>,
-    web::Json(schema): web::Json<UpdateBuildingSchema>,
+    Json(schema): Json<UpdateBuildingSchema>,
 ) -> Result<HttpResponse, UpdateBuildingError> {
     update(&pool, schema, *id).await?;
 
