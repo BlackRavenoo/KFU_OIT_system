@@ -1,39 +1,26 @@
+use garde::Validate;
 use serde::Deserialize;
-use unicode_segmentation::UnicodeSegmentation;
 
-#[derive(Debug, Deserialize)]
-#[serde(try_from = "String")]
-pub struct Name(String);
+#[derive(Debug, Deserialize, Validate)]
+pub struct Name(
+    #[garde(
+        length(graphemes, min = 1, max = 128),
+        custom(validate_cyrillic)
+    )]
+    String
+);
 
-impl Name {
-    pub fn parse(s: String) -> Result<Self, String> {
-        if s.graphemes(true).count() > 128 {
-            return Err("Name cannot be longer than 128 characters".to_string());
-        }
-        
-        if !s.chars().all(|c| matches!(c, 'А'..='Я' | 'а'..='я' | ' ')) {
-            return Err("Name must contain only Cyrillic characters".to_string());
-        }
-        
-        if s.trim().is_empty() {
-            return Err("Name cannot be empty".to_string());
-        }
-        
-        Ok(Name(s))
+fn validate_cyrillic(value: &str, _context: &()) -> garde::Result {
+    if value.chars().all(|c| matches!(c, 'А'..='Я' | 'а'..='я' | ' ')) {
+        Ok(())
+    } else {
+        Err(garde::Error::new("Name must contain only Cyrillic characters"))
     }
 }
 
 impl AsRef<str> for Name {
     fn as_ref(&self) -> &str {
         &self.0
-    }
-}
-
-impl TryFrom<String> for Name {
-    type Error = String;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::parse(value)
     }
 }
 
@@ -48,24 +35,25 @@ mod tests {
     use super::Name;
     use claims::{assert_err, assert_ok};
     use fake::{faker::name::en, rand::{rngs::StdRng, SeedableRng as _}, Fake as _};
+    use garde::Validate;
     use proptest::{prelude::{any, Strategy}, prop_assert, proptest};
 
     #[test]
     fn empty_string_is_rejected() {
         let name = "".to_string();
-        assert_err!(Name::parse(name));
+        assert_err!(Name(name).validate());
     }
 
     #[test]
     fn a_128_grapheme_long_name_is_valid() {
         let name = "а".repeat(128);
-        assert_ok!(Name::parse(name));
+        assert_ok!(Name(name).validate());
     }
 
     #[test]
     fn a_129_grapheme_long_name_is_rejected() {
         let name = "а".repeat(129);
-        assert_err!(Name::parse(name));
+        assert_err!(Name(name).validate());
     }
 
     fn invalid_name_strategy() -> impl Strategy<Value = String> {
@@ -78,7 +66,7 @@ mod tests {
     proptest! {
         #[test]
         fn invalid_names_are_rejected(name in invalid_name_strategy()) {
-            prop_assert!(Name::parse(name).is_err());
+            prop_assert!(Name(name).validate().is_err());
         }
     }
 }

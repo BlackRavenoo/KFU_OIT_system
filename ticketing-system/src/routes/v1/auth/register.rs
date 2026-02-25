@@ -1,5 +1,7 @@
 use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use anyhow::Context;
+use garde::Validate;
+use garde_actix_web::web::Json;
 use serde::Deserialize;
 use sqlx::PgPool;
 
@@ -33,11 +35,15 @@ impl ResponseError for RegisterError {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct RegisterForm {
+    #[garde(dive)]
     pub name: Name,
+    #[garde(dive)]
     pub login: Login,
+    #[garde(dive)]
     pub password: Password,
+    #[garde(skip)]
     pub token: String,
 }
 
@@ -47,7 +53,7 @@ pub struct RegisterForm {
     fields(name = %data.name, token = %data.token)
 )]
 pub async fn register(
-    web::Json(data): web::Json<RegisterForm>,
+    Json(data): Json<RegisterForm>,
     pool: web::Data<PgPool>,
     store: web::Data<RegistrationTokenStore>,
 ) -> Result<HttpResponse, RegisterError> {

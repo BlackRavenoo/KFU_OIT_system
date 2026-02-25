@@ -1,15 +1,20 @@
 use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use anyhow::Context;
+use garde::Validate;
+use garde_actix_web::web::Json;
 use serde::Deserialize;
 use sqlx::{Execute, PgPool};
 
 use crate::{auth::extractor::UserIdExtractor, build_update_query, domain::{email::Email, login::Login, name::Name}, schema::common::UserId, utils::error_chain_fmt};
 
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateProfileSchema {
+    #[garde(dive)]
     pub email: Option<Email>,
+    #[garde(dive)]
     pub name: Option<Name>,
+    #[garde(dive)]
     pub login: Option<Login>,
 }
 
@@ -38,7 +43,7 @@ impl ResponseError for UpdateProfileError {
 
 pub async fn update_user_profile(
     user_id: UserIdExtractor,
-    web::Json(schema): web::Json<UpdateProfileSchema>,
+    Json(schema): Json<UpdateProfileSchema>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, UpdateProfileError> {
     update_profile(user_id.0, &schema, &pool).await?;

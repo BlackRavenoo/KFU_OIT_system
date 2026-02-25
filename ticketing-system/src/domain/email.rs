@@ -1,31 +1,20 @@
+use garde::Validate;
 use serde::Deserialize;
-use validator::ValidateEmail;
 
-#[derive(Debug, Deserialize)]
-#[serde(try_from = "String")]
-pub struct Email(String);
+#[derive(Debug, Deserialize, Validate)]
+pub struct Email(#[garde(email)] String);
 
 impl Email {
-    pub fn parse(s: String) -> Result<Self, String> {
-        if s.validate_email() {
-            Ok(Self(s))
-        } else {
-            Err(format!("{} is not a valid email", s))
-        }
+    pub fn parse(value: impl Into<String>) -> Result<Self, garde::Report> {
+        let email = Email(value.into());
+        email.validate()?;
+        Ok(email)
     }
 }
 
 impl AsRef<str> for Email {
     fn as_ref(&self) -> &str {
         &self.0
-    }
-}
-
-impl TryFrom<String> for Email {
-    type Error = String;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Self::parse(value)
     }
 }
 
@@ -39,6 +28,7 @@ impl std::fmt::Display for Email {
 mod tests {
     use super::Email;
     use fake::{faker::internet::en::SafeEmail, rand::{rngs::StdRng, SeedableRng as _}, Fake as _};
+    use garde::Validate;
     use proptest::{prelude::{any, Strategy}, prop_assert, proptest};
     
     fn valid_email_strategy() -> impl Strategy<Value = String> {
@@ -51,7 +41,7 @@ mod tests {
     proptest! {
         #[test]
         fn valid_emails_are_parsed_successfully(email in valid_email_strategy()) {
-            prop_assert!(Email::parse(email).is_ok());
+            prop_assert!(Email(email).validate().is_ok());
         }
     }
 }

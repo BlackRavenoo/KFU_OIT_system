@@ -1,5 +1,7 @@
 use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use anyhow::Context;
+use garde::Validate;
+use garde_actix_web::web::Json;
 use rand::{RngExt as _, distr::Alphanumeric, rng};
 use sailfish::Template;
 use serde::Deserialize;
@@ -7,8 +9,9 @@ use sqlx::PgPool;
 
 use crate::{domain::email::Email, email_client::EmailClient, services::registration_token::RegistrationTokenStore, startup::ApplicationBaseUrl, templates::InviteTemplate, utils::error_chain_fmt};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct InviteUserSchema {
+    #[garde(dive)]
     pub email: Email
 }
 
@@ -40,7 +43,7 @@ impl ResponseError for InviteUserError {
     skip(email_client, base_url, reg_store)
 )]
 pub async fn invite_user(
-    web::Json(schema): web::Json<InviteUserSchema>,
+    Json(schema): Json<InviteUserSchema>,
     reg_store: web::Data<RegistrationTokenStore>,
     base_url: web::Data<ApplicationBaseUrl>,
     email_client: web::Data<dyn EmailClient>,
