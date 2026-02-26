@@ -291,8 +291,10 @@
     }
 
     onMount(() => {
-        fetchNotificationsCount();
-        intervalId = setInterval(fetchNotificationsCount, 60000);
+        $currentUser && $currentUser.role !== UserRole.Anonymous && fetchNotificationsCount();
+        intervalId = setInterval(() => {
+            $currentUser && $currentUser.role !== UserRole.Anonymous && fetchNotificationsCount();
+        }, 60000);
         document.addEventListener('click', handleDocumentClick);
     });
 
@@ -335,21 +337,23 @@
         {/if}
         <li><a href="/contact" class="big nav-link">Контакты</a></li>
         {#if $isAuthenticated}
-            <li style="position:relative;">
-                <button
-                    id="notifications-button"
-                    aria-label="Уведомления"
-                    class="notifications-btn"
-                    on:click={ handleNotificationsButtonClick }
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" width="24" height="24">
-                        <path d="M18 16v-5a6 6 0 1 0-12 0v5a2 2 0 0 1-2 2h16a2 2 0 0 1-2-2z"/>
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                    </svg>
-                    {#if notificationsCount > 0}
-                        <span class="notifications-dot">{ notificationsCount }</span>
-                    {/if}
-                </button>
+        <li style="position:relative;">
+                {#if $currentUser && $currentUser.role !== UserRole.Anonymous}
+                    <button
+                        id="notifications-button"
+                        aria-label="Уведомления"
+                        class="notifications-btn"
+                        on:click={ handleNotificationsButtonClick }
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" width="24" height="24">
+                            <path d="M18 16v-5a6 6 0 1 0-12 0v5a2 2 0 0 1-2 2h16a2 2 0 0 1-2-2z"/>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                        {#if notificationsCount > 0}
+                            <span class="notifications-dot">{ notificationsCount }</span>
+                        {/if}
+                    </button>
+                {/if}
                 {#if isNotificationsOpen}
                     <div
                         class="notifications-dropdown-anim notifications-dropdown"
