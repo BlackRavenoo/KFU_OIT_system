@@ -7,6 +7,7 @@ import { getAuthTokens } from '$lib/utils/auth/tokens/tokens';
 import { notification } from '$lib/utils/notifications/notification';
 import { NotificationType } from '$lib/utils/notifications/types';
 import { navigateToError } from './error';
+import { isGateOpen, waitForGate, isAuthBypassUrl } from '$lib/utils/auth/api/requestGate';
 
 export interface ApiResponse<T = any> {
     success: boolean;
@@ -26,7 +27,13 @@ const apiClient: AxiosInstance = axios.create({
 });
 
 apiClient.interceptors.request.use(
-    (config) => {
+    async (config) => {
+        if (!isAuthBypassUrl(config.url) && !isGateOpen()) {
+            const gateSuccess = await waitForGate();
+            if (!gateSuccess)
+                throw new axios.Cancel('Валидация токена не удалась');
+        }
+
         const tokens = getAuthTokens();
         if (tokens?.accessToken) config.headers['Authorization'] = `Bearer ${tokens.accessToken}`;
         else delete config.headers['Authorization'];
@@ -43,9 +50,12 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
     (response) => response,
-    async (error: AxiosError) => {
-        const status = error.response?.status ?? 0;
-        const originalRequest = error.config as AxiosRequestConfig & {
+    async (error: any) => {
+        if (axios.isCancel(error)) return Promise.reject(error);
+
+        const axiosError = error as AxiosError;
+        const status = axiosError.response?.status ?? 0;
+        const originalRequest = axiosError.config as AxiosRequestConfig & {
             _refreshAttempted?: boolean;
             _retryCount?: number;
         };
@@ -62,7 +72,7 @@ apiClient.interceptors.response.use(
             if (isAuthEndpoint) {
                 logout();
                 notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
-                return Promise.reject(error);
+                return Promise.reject(axiosError);
             }
 
             if (!originalRequest._refreshAttempted) {
@@ -86,20 +96,20 @@ apiClient.interceptors.response.use(
 
                 logout();
                 notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
-                return Promise.reject(error);
+                return Promise.reject(axiosError);
             }
 
             if (status === 401) {
                 logout();
                 notification('Сессия истекла. Пожалуйста, войдите снова', NotificationType.Warning);
-                return Promise.reject(error);
+                return Promise.reject(axiosError);
             } else {
                 navigateToError(403);
-                return Promise.reject(error);
+                return Promise.reject(axiosError);
             }
         }
 
-        if (error.response) {
+        if (axiosError.response) {
             if (
                 status === 403 ||
                 status === 406 ||
@@ -129,7 +139,7 @@ apiClient.interceptors.response.use(
             notification('Ошибка соединения с сервером', NotificationType.Error);
         }
 
-        return Promise.reject(error);
+        return Promise.reject(axiosError);
     }
 );
 
@@ -220,6 +230,7 @@ export const api = {
             const response = await apiClient.get<T>(route, config);
             return formatResponse<T>(response);
         } catch (error) {
+            if (axios.isCancel(error)) return { success: false, error: 'cancelled', status: 0 };
             return formatError(error as AxiosError);
         }
     },
@@ -238,6 +249,7 @@ export const api = {
             const response = await apiClient.post<T>(route, data, config);
             return formatResponse<T>(response);
         } catch (error) {
+            if (axios.isCancel(error)) return { success: false, error: 'cancelled', status: 0 };
             return formatError(error as AxiosError);
         }
     },
@@ -256,6 +268,7 @@ export const api = {
             const response = await apiClient.put<T>(route, data, config);
             return formatResponse<T>(response);
         } catch (error) {
+            if (axios.isCancel(error)) return { success: false, error: 'cancelled', status: 0 };
             return formatError(error as AxiosError);
         }
     },
@@ -274,6 +287,7 @@ export const api = {
             const response = await apiClient.patch<T>(route, data, config);
             return formatResponse<T>(response);
         } catch (error) {
+            if (axios.isCancel(error)) return { success: false, error: 'cancelled', status: 0 };
             return formatError(error as AxiosError);
         }
     },
@@ -293,6 +307,7 @@ export const api = {
             const response = await apiClient.delete<T>(route, config);
             return formatResponse<T>(response);
         } catch (error) {
+            if (axios.isCancel(error)) return { success: false, error: 'cancelled', status: 0 };
             return formatError(error as AxiosError);
         }
     }

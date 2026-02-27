@@ -35,7 +35,7 @@ describe('Base API client', () => {
                 instance.get = instance.post = instance.put = instance.patch = instance.delete = () => Promise.reject({ request: {}, config: { url: '/network', headers: {} } });
             }
 
-            return { default: { create: () => instance } };
+            return { default: { create: () => instance, isCancel: () => false, Cancel: class {} } };
         };
     };
 
@@ -47,12 +47,13 @@ describe('Base API client', () => {
                 response: { use: (h: any, e: any) => { savedResHandler = h; savedResErrorHandler = e; } }
             };
             instance.get = instance.post = instance.put = instance.patch = instance.delete = () => Promise.reject(new Error('boom'));
-            return { default: { create: () => instance } };
+            return { default: { create: () => instance, isCancel: () => false, Cancel: class {} } };
         };
     };
 
     const loadModule = async (axiosFactory: any, navigateMock?: any, notificationMock?: any, authApiMock?: any, tokensMock?: any) => {
         vi.doMock('axios', axiosFactory);
+        vi.doMock('$lib/utils/auth/api/requestGate', () => ({ isGateOpen: vi.fn(() => true), waitForGate: vi.fn(async () => true), isAuthBypassUrl: vi.fn(() => false) }));
         vi.doMock('$lib/utils/error', () => ({ navigateToError: navigateMock ?? vi.fn() }));
         vi.doMock('$lib/utils/notifications/notification', () => notificationMock ?? ({ notification: vi.fn() }));
         vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Error: 'err', Warning: 'warn' } }));
@@ -293,7 +294,7 @@ describe('Base API client', () => {
             response: { use: (h: any, e: any) => { savedResHandler = h; savedResErrorHandler = e; } }
         };
 
-        const axiosFactory = () => ({ create: () => axiosInstance, default: { create: () => axiosInstance } });
+        const axiosFactory = () => ({ create: () => axiosInstance, default: { create: () => axiosInstance, isCancel: () => false, Cancel: class {} } });
         const notificationMock = { notification: vi.fn() };
 
         vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Error: 'err' } }));
@@ -481,7 +482,7 @@ describe('extractPath', () => {
             };
             instance.get = instance.post = instance.put = instance.patch = instance.delete =
                 () => Promise.resolve({ data: {}, status: 200 });
-            return { default: { create: () => instance } };
+            return { default: { create: () => instance, isCancel: () => false, Cancel: class {} } };
         };
     };
 
@@ -490,6 +491,7 @@ describe('extractPath', () => {
         auth?: any;
     }) => {
         vi.doMock('axios', axiosFactory);
+        vi.doMock('$lib/utils/auth/api/requestGate', () => ({ isGateOpen: vi.fn(() => true), waitForGate: vi.fn(async () => true), isAuthBypassUrl: vi.fn(() => false) }));
         vi.doMock('$lib/utils/error', () => ({ navigateToError: vi.fn() }));
         vi.doMock('$lib/utils/notifications/notification', () =>
             deps?.notification ?? ({ notification: vi.fn() })
@@ -602,11 +604,14 @@ describe('extractPath', () => {
                     };
                     inst.get = inst.post = inst.put = inst.patch = inst.delete = () => Promise.resolve({ data: {}, status: 200 });
                     return inst;
-                }
+                },
+                isCancel: () => false,
+                Cancel: class {}
             }
         });
 
         vi.doMock('axios', axiosFactory);
+        vi.doMock('$lib/utils/auth/api/requestGate', () => ({ isGateOpen: vi.fn(() => true), waitForGate: vi.fn(async () => true), isAuthBypassUrl: vi.fn(() => false) }));
         vi.doMock('$lib/utils/error', () => ({ navigateToError: vi.fn() }));
         vi.doMock('$lib/utils/auth/api/api', () => ({ refreshAuthTokens: vi.fn(), logout: vi.fn() }));
         vi.doMock('$lib/utils/auth/tokens/tokens', () => ({ getAuthTokens: vi.fn(() => null) }));
@@ -641,12 +646,13 @@ describe('handleAuthError', () => {
             };
             instance.get = instance.post = instance.put = instance.patch = instance.delete =
                 () => Promise.resolve({ data: {}, status: 200 });
-            return { default: { create: () => instance } };
+            return { default: { create: () => instance, isCancel: () => false, Cancel: class {} } };
         };
     };
 
     const mockAndImport = async (gotoSpy?: any) => {
         vi.doMock('axios', makeAxiosFactory());
+        vi.doMock('$lib/utils/auth/api/requestGate', () => ({ isGateOpen: vi.fn(() => true), waitForGate: vi.fn(async () => true), isAuthBypassUrl: vi.fn(() => false) }));
         vi.doMock('$app/navigation', () => ({ goto: gotoSpy ?? vi.fn() }));
         vi.doMock('$lib/utils/error', () => ({ navigateToError: vi.fn() }));
         vi.doMock('$lib/utils/notifications/notification', () => ({ notification: vi.fn() }));

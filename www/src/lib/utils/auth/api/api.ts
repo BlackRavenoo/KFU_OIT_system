@@ -14,6 +14,7 @@ import { AUTH_API_ENDPOINTS as Endpoints } from './endpoints';
 import { isTokenValid } from '$lib/utils/auth/tokens/tokens';
 import { notification } from '$lib/utils/notifications/notification';
 import { NotificationType } from '$lib/utils/notifications/types';
+import { waitForGate } from '$lib/utils/auth/api/requestGate';
 
 import type { ILoginRequest, IUserData } from '$lib/utils/auth/types';
 
@@ -264,6 +265,9 @@ export async function checkAuthentication() {
         authChecking = true;
         
         try {
+            const gateSuccess = await waitForGate();
+            if (!gateSuccess) return;
+
             const tokenData = localStorage.getItem('auth_tokens');
         
             if (tokenData) {
