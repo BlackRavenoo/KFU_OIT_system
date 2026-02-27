@@ -3,3 +3,4 @@ pub mod auth;
 pub mod common;
 pub mod page;
 pub mod notification;
+pub mod assets;
