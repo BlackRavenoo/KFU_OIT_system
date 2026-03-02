@@ -1,15 +1,25 @@
-use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
+use actix_web::{web, HttpResponse, ResponseError};
 use anyhow::Context;
+use garde::Validate;
+use garde_actix_web::web::QsQuery;
 use serde::{Deserialize, Serialize};
-use serde_qs::actix::QsQuery;
 use sqlx::{prelude::FromRow, PgPool};
 
 use crate::{auth::extractor::user_role::OptionalUserRoleExtractor, build_where_condition, schema::{common::{PaginationResult, SortOrder, UserId}, page::{PageId, Tag, TagId}}, utils::error_chain_fmt};
 
-#[derive(Debug, Deserialize)]
+fn default_page_size() -> i8 { 10 }
+
+fn default_page() -> PageId { 1 }
+
+#[derive(Debug, Deserialize, Validate)]
+#[garde(allow_unvalidated)]
 pub struct GetPagesSchema {
-    pub page: Option<PageId>,
-    pub page_size: Option<i8>,
+    #[garde(range(min = 1))]
+    #[serde(default = "default_page")]
+    pub page: PageId,
+    #[garde(range(min = 10, max = 50))]
+    #[serde(default = "default_page_size")]
+    pub page_size: i8,
     pub tags: Option<Vec<TagId>>,
     pub author: Option<UserId>,
     pub sort_order: Option<SortOrder>,
@@ -35,8 +45,6 @@ struct PageWithMeta {
 
 #[derive(thiserror::Error)]
 pub enum GetPagesError {
-    #[error("Page number must be greater than 0")]
-    InvalidPage,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error)
 }
@@ -47,14 +55,7 @@ impl std::fmt::Debug for GetPagesError {
     }
 }
 
-impl ResponseError for GetPagesError {
-    fn status_code(&self) -> StatusCode {
-        match self {
-            GetPagesError::InvalidPage => StatusCode::BAD_REQUEST,
-            GetPagesError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-}
+impl ResponseError for GetPagesError {}
 
 pub async fn get_pages(
     pool: web::Data<PgPool>,
@@ -62,16 +63,6 @@ pub async fn get_pages(
     role: OptionalUserRoleExtractor,
 ) -> Result<HttpResponse, GetPagesError> {
     let schema = schema.into_inner();
-    
-    let page_size = schema.page_size
-        .map(|size| size.clamp(10, 50))
-        .unwrap_or(10);
-
-    let page = schema.page.unwrap_or(1) - 1;
-
-    if page < 0 {
-        return Err(GetPagesError::InvalidPage)
-    }
 
     let only_public = if let Some(role) = role.0 {
         !role.has_access(crate::auth::types::UserRole::Employee)
@@ -79,8 +70,13 @@ pub async fn get_pages(
         true
     };
 
-    let pages = fetch_pages(&pool, page, page_size, only_public, schema).await
-        .context("Failed to fetch pages")?;
+    let pages = fetch_pages(
+        &pool,
+        only_public,
+        &schema
+    )
+    .await
+    .context("Failed to fetch pages")?;
 
     let total_items = pages.first()
         .map(|meta| meta.total_items)
@@ -96,7 +92,7 @@ pub async fn get_pages(
 
     Ok(HttpResponse::Ok().json(PaginationResult::new_with_pagination(
         total_items as u64,
-        page_size,
+        schema.page_size,
         pages
     )))
 }
@@ -107,10 +103,8 @@ pub async fn get_pages(
 )]
 async fn fetch_pages(
     pool: &PgPool,
-    page: i32,
-    page_size: i8,
     only_public: bool,
-    schema: GetPagesSchema
+    schema: &GetPagesSchema
 ) -> Result<Vec<PageWithMeta>, sqlx::Error> {
     let mut builder = sqlx::QueryBuilder::new("
         SELECT
@@ -155,9 +149,9 @@ async fn fetch_pages(
     builder.push("GROUP BY p.id ORDER BY p.id ")
         .push(schema.sort_order.unwrap_or_default().as_str())
         .push(" LIMIT ")
-        .push_bind(page_size as i64)
+        .push_bind(schema.page_size as i64)
         .push(" OFFSET ")
-        .push_bind(page_size as i64 * page as i64)
+        .push_bind(schema.page_size as i64 * (schema.page - 1) as i64)
         .build_query_as::<PageWithMeta>()
         .fetch_all(pool)
         .await

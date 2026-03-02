@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 pub type UserId = i32;
 
-#[derive(Deserialize, Default, Clone, Debug)]
+#[derive(Deserialize, Default, Clone, Copy, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum SortOrder {
     #[default]
