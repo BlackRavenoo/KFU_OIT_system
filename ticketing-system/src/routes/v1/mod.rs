@@ -11,6 +11,7 @@ pub mod tags;
 pub mod departments;
 pub mod buildings;
 pub mod notifications;
+pub mod assets;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
