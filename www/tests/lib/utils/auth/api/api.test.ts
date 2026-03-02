@@ -930,6 +930,39 @@ describe("Auth API", () => {
         resolveGetUserData!({ success: true, data: { id: 1 } });
         await firstCall;
     });
+
+    it('Returns early when gate fails', async () => {
+        vi.resetModules();
+
+        vi.doMock('$lib/utils/auth/api/requestGate', () => ({
+            waitForGate: vi.fn().mockResolvedValue(false),
+            isAuthBypassUrl: vi.fn().mockReturnValue(false),
+        }));
+
+        vi.doMock('$lib/utils/auth/tokens/tokens', () => ({
+            getAuthTokens: vi.fn(),
+            clearAuthTokens: vi.fn(),
+            isTokenValid: vi.fn(),
+        }));
+
+        vi.doMock('$lib/utils/auth/storage/initial', () => ({
+            currentUser: { subscribe: (run: (v: any) => void) => { run(null); return () => {}; }, set: vi.fn() },
+            isAuthenticated: { subscribe: (run: (v: any) => void) => { run(false); return () => {}; }, set: vi.fn() },
+        }));
+
+        vi.doMock('$lib/utils/auth/tokens/storage', () => ({ setTokenStore: vi.fn() }));
+        vi.doMock('$lib/utils/api', () => ({ api: { post: vi.fn(), get: vi.fn() } }));
+        vi.doMock('@fingerprintjs/fingerprintjs', () => ({ default: { load: vi.fn() } }));
+
+        const freshAuthApi = await import('$lib/utils/auth/api/api');
+        const freshInitialStore = await import('$lib/utils/auth/storage/initial');
+        const authSetSpy = vi.spyOn((freshInitialStore as any).isAuthenticated, 'set');
+
+        await freshAuthApi.checkAuthentication();
+
+        expect(authSetSpy).not.toHaveBeenCalledWith(true);
+        expect(localStorageMock.getItem).not.toHaveBeenCalledWith('auth_tokens');
+    });
 });
 
 describe('Finish registration function', () => {

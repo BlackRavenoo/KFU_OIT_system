@@ -137,6 +137,116 @@ describe('Base API client', () => {
         vi.useRealTimers();
     });
 
+    it('Cancels request when gate returns false', async () => {
+        let savedReqHandler: any = null;
+        vi.resetModules();
+
+        const waitForGateMock = vi.fn(async () => false);
+        const isGateOpenMock = vi.fn(() => false);
+        const isAuthBypassUrlMock = vi.fn(() => false);
+
+        const CancelClass = class { message: string; constructor(msg: string) { this.message = msg; } };
+
+        const axiosFactory = () => ({
+            default: {
+                create: () => {
+                    const inst: any = (req?: any) => Promise.resolve({ data: req, status: 200 });
+                    inst.interceptors = {
+                        request: { use: (h: any) => { savedReqHandler = h; } },
+                        response: { use: () => {} }
+                    };
+                    inst.get = inst.post = inst.put = inst.patch = inst.delete = () => Promise.resolve({ data: {}, status: 200 });
+                    return inst;
+                },
+                isCancel: (e: any) => e instanceof CancelClass,
+                Cancel: CancelClass
+            }
+        });
+
+        vi.doMock('axios', axiosFactory);
+        vi.doMock('$lib/utils/auth/api/requestGate', () => ({ isGateOpen: isGateOpenMock, waitForGate: waitForGateMock, isAuthBypassUrl: isAuthBypassUrlMock }));
+        vi.doMock('$lib/utils/error', () => ({ navigateToError: vi.fn() }));
+        vi.doMock('$lib/utils/notifications/notification', () => ({ notification: vi.fn() }));
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Error: 'err', Warning: 'warn' } }));
+        vi.doMock('$lib/utils/auth/api/api', () => ({ refreshAuthTokens: vi.fn(), logout: vi.fn() }));
+        vi.doMock('$lib/utils/auth/tokens/tokens', () => ({ getAuthTokens: vi.fn(() => null) }));
+        vi.doMock('$app/navigation', () => ({ goto: vi.fn() }));
+
+        await import('$lib/utils/api');
+
+        expect(savedReqHandler).toBeInstanceOf(Function);
+
+        const cfg: any = { url: '/api/protected', headers: {} };
+        await expect(savedReqHandler(cfg)).rejects.toBeInstanceOf(CancelClass);
+        expect(waitForGateMock).toHaveBeenCalledTimes(1);
+        expect(isGateOpenMock).toHaveBeenCalled();
+        expect(isAuthBypassUrlMock).toHaveBeenCalledWith('/api/protected');
+    });
+
+    it('Logs debug message when gate opens successfully', async () => {
+        vi.resetModules();
+
+        const waitForGateMock = vi.fn(async () => true);
+        const isGateOpenMock = vi.fn(() => false);
+        const isAuthBypassUrlMock = vi.fn(() => false);
+        const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+
+        const CancelClass = class { message: string; constructor(msg: string) { this.message = msg; } };
+        let savedReqHandler: any = null;
+
+        const axiosFactory = () => ({
+            default: {
+                create: () => {
+                    const inst: any = (req?: any) => Promise.resolve({ data: req, status: 200 });
+                    inst.interceptors = {
+                        request: { use: (h: any) => { savedReqHandler = h; } },
+                        response: { use: () => {} }
+                    };
+                    inst.get = inst.post = inst.put = inst.patch = inst.delete = () => Promise.resolve({ data: {}, status: 200 });
+                    return inst;
+                },
+                isCancel: (e: any) => e instanceof CancelClass,
+                Cancel: CancelClass
+            }
+        });
+
+        vi.doMock('axios', axiosFactory);
+        vi.doMock('$lib/utils/auth/api/requestGate', () => ({ isGateOpen: isGateOpenMock, waitForGate: waitForGateMock, isAuthBypassUrl: isAuthBypassUrlMock }));
+        vi.doMock('$lib/utils/error', () => ({ navigateToError: vi.fn() }));
+        vi.doMock('$lib/utils/notifications/notification', () => ({ notification: vi.fn() }));
+        vi.doMock('$lib/utils/notifications/types', () => ({ NotificationType: { Error: 'err', Warning: 'warn' } }));
+        vi.doMock('$lib/utils/auth/api/api', () => ({ refreshAuthTokens: vi.fn(), logout: vi.fn() }));
+        vi.doMock('$lib/utils/auth/tokens/tokens', () => ({ getAuthTokens: vi.fn(() => null) }));
+        vi.doMock('$app/navigation', () => ({ goto: vi.fn() }));
+
+        await import('$lib/utils/api');
+
+        const cfg: any = { url: '/api/protected', headers: {} };
+        await savedReqHandler(cfg);
+
+        expect(waitForGateMock).toHaveBeenCalledTimes(1);
+        expect(debugSpy).toHaveBeenCalledWith('Request gate opened, proceeding with request');
+        debugSpy.mockRestore();
+    });
+
+    it('Rejects immediately when error is a cancelled request', async () => {
+        const cancelError = { message: 'cancelled', __isCancel: true };
+        const axiosFactory = () => {
+            const instance: any = function () { return Promise.resolve({ data: null, status: 200 }); };
+            instance.interceptors = {
+                request: { use: (h: any, e: any) => { savedReqHandler = h; savedReqErrorHandler = e; } },
+                response: { use: (h: any, e: any) => { savedResHandler = h; savedResErrorHandler = e; } }
+            };
+            instance.get = instance.post = instance.put = instance.patch = instance.delete = () => Promise.resolve({ data: {}, status: 200 });
+            return { default: { create: () => instance, isCancel: (e: any) => e === cancelError, Cancel: class {} } };
+        };
+
+        await loadModule(axiosFactory);
+
+        const result = savedResErrorHandler(cancelError);
+        await expect(result).rejects.toBe(cancelError);
+    });
+
     it('Handler via status 403 on /api/* attempts refresh but rejects with logout due to current implementation', async () => {
         const refreshMock = vi.fn(async () => true);
         const logoutMock = vi.fn();
@@ -465,6 +575,101 @@ describe('Base API client', () => {
 
         await expect(savedResErrorHandler(axiosError)).rejects.toBeDefined();
         expect(refreshMock).not.toHaveBeenCalled();
+    });
+
+    it('Returns cancelled response when get request is cancelled', async () => {
+        const cancelError = { __isCancel: true, message: 'cancelled' };
+        const axiosFactory = () => {
+            const instance: any = function () { return Promise.resolve({ data: null, status: 200 }); };
+            instance.interceptors = {
+                request: { use: (h: any, e: any) => { savedReqHandler = h; savedReqErrorHandler = e; } },
+                response: { use: (h: any, e: any) => { savedResHandler = h; savedResErrorHandler = e; } }
+            };
+            instance.get = vi.fn().mockRejectedValue(cancelError);
+            instance.post = instance.put = instance.patch = instance.delete = () => Promise.resolve({ data: {}, status: 200 });
+            return { default: { create: () => instance, isCancel: (e: any) => e === cancelError, Cancel: class {} } };
+        };
+
+        const mod = await loadModule(axiosFactory);
+        const result = await (await mod).api.get('/any');
+
+        expect(result).toEqual({ success: false, error: 'cancelled', status: 0 });
+    });
+
+    it('Returns cancelled response when post request is cancelled', async () => {
+        const cancelError = { __isCancel: true, message: 'cancelled' };
+        const axiosFactory = () => {
+            const instance: any = function () { return Promise.resolve({ data: null, status: 200 }); };
+            instance.interceptors = {
+                request: { use: (h: any, e: any) => { savedReqHandler = h; savedReqErrorHandler = e; } },
+                response: { use: (h: any, e: any) => { savedResHandler = h; savedResErrorHandler = e; } }
+            };
+            instance.post = vi.fn().mockRejectedValue(cancelError);
+            instance.get = instance.put = instance.patch = instance.delete = () => Promise.resolve({ data: {}, status: 200 });
+            return { default: { create: () => instance, isCancel: (e: any) => e === cancelError, Cancel: class {} } };
+        };
+
+        const mod = await loadModule(axiosFactory);
+        const result = await (await mod).api.post('/any', {});
+
+        expect(result).toEqual({ success: false, error: 'cancelled', status: 0 });
+    });
+
+    it('Returns cancelled response when put request is cancelled', async () => {
+        const cancelError = { __isCancel: true, message: 'cancelled' };
+        const axiosFactory = () => {
+            const instance: any = function () { return Promise.resolve({ data: null, status: 200 }); };
+            instance.interceptors = {
+                request: { use: (h: any, e: any) => { savedReqHandler = h; savedReqErrorHandler = e; } },
+                response: { use: (h: any, e: any) => { savedResHandler = h; savedResErrorHandler = e; } }
+            };
+            instance.put = vi.fn().mockRejectedValue(cancelError);
+            instance.get = instance.post = instance.patch = instance.delete = () => Promise.resolve({ data: {}, status: 200 });
+            return { default: { create: () => instance, isCancel: (e: any) => e === cancelError, Cancel: class {} } };
+        };
+
+        const mod = await loadModule(axiosFactory);
+        const result = await (await mod).api.put('/any', {});
+
+        expect(result).toEqual({ success: false, error: 'cancelled', status: 0 });
+    });
+
+    it('Returns cancelled response when patch request is cancelled', async () => {
+        const cancelError = { __isCancel: true, message: 'cancelled' };
+        const axiosFactory = () => {
+            const instance: any = function () { return Promise.resolve({ data: null, status: 200 }); };
+            instance.interceptors = {
+                request: { use: (h: any, e: any) => { savedReqHandler = h; savedReqErrorHandler = e; } },
+                response: { use: (h: any, e: any) => { savedResHandler = h; savedResErrorHandler = e; } }
+            };
+            instance.patch = vi.fn().mockRejectedValue(cancelError);
+            instance.get = instance.post = instance.put = instance.delete = () => Promise.resolve({ data: {}, status: 200 });
+            return { default: { create: () => instance, isCancel: (e: any) => e === cancelError, Cancel: class {} } };
+        };
+
+        const mod = await loadModule(axiosFactory);
+        const result = await (await mod).api.patch('/any', {});
+
+        expect(result).toEqual({ success: false, error: 'cancelled', status: 0 });
+    });
+
+    it('Returns cancelled response when delete request is cancelled', async () => {
+        const cancelError = { __isCancel: true, message: 'cancelled' };
+        const axiosFactory = () => {
+            const instance: any = function () { return Promise.resolve({ data: null, status: 200 }); };
+            instance.interceptors = {
+                request: { use: (h: any, e: any) => { savedReqHandler = h; savedReqErrorHandler = e; } },
+                response: { use: (h: any, e: any) => { savedResHandler = h; savedResErrorHandler = e; } }
+            };
+            instance.delete = vi.fn().mockRejectedValue(cancelError);
+            instance.get = instance.post = instance.put = instance.patch = () => Promise.resolve({ data: {}, status: 200 });
+            return { default: { create: () => instance, isCancel: (e: any) => e === cancelError, Cancel: class {} } };
+        };
+
+        const mod = await loadModule(axiosFactory);
+        const result = await (await mod).api.delete('/any', {});
+
+        expect(result).toEqual({ success: false, error: 'cancelled', status: 0 });
     });
 });
 

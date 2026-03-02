@@ -30,8 +30,8 @@ apiClient.interceptors.request.use(
     async (config) => {
         if (!isAuthBypassUrl(config.url) && !isGateOpen()) {
             const gateSuccess = await waitForGate();
-            if (!gateSuccess)
-                throw new axios.Cancel('Валидация токена не удалась');
+            if (!gateSuccess) throw new axios.Cancel('Валидация токена не удалась');
+            else console.debug('Request gate opened, proceeding with request');
         }
 
         const tokens = getAuthTokens();

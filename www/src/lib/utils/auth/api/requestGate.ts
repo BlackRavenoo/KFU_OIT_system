@@ -41,7 +41,7 @@ function openGate(): void {
     if (resolveGate) {
         resolveGate(true);
         resolveGate = null;
-    }
+    } else console.warn('Request gate opened without pending promise');
     gatePromise = null;
 }
 
@@ -69,9 +69,8 @@ export function isGateOpen(): boolean {
  * @returns true — если гейт открылся успешно, false — если валидация провалилась
  */
 export async function waitForGate(): Promise<boolean> {
-    if (gateOpen) return true;
-    if (gatePromise) return gatePromise;
-    return true;
+    if (gateOpen || !gatePromise) return true;
+    return gatePromise;
 }
 
 /**
@@ -142,7 +141,7 @@ async function refreshTokensRaw(
                     accessToken: data.access_token,
                     refreshToken: data.refresh_token
                 };
-            }
+            } else console.warn('Refresh response missing tokens');
         }
 
         return null;
@@ -181,7 +180,7 @@ async function attemptValidation(): Promise<boolean> {
             });
             return true;
         }
-    }
+    } else console.warn('No refresh token available for validation attempt');
 
     return false;
 }
