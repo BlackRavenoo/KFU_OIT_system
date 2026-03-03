@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import { page as pageStore } from '$app/stores';
     import { get } from 'svelte/store';
     import { pageDescription, pageTitle } from '$lib/utils/setup/stores';
@@ -34,6 +34,8 @@
     let contentHtml = '';
     let deleting = false;
     let showDeleteConfirm = false;
+
+    let copyStates = new WeakMap<HTMLElement, { copied: boolean; timeout?: any }>();
 
     let pageId: number | null = null;
     function getPageIdFromUrl(): number | null {
@@ -115,6 +117,62 @@
         } finally {
             deleting = false;
         }
+    }
+
+    const copySvg = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="6" y="6" width="9" height="9" rx="2" stroke="#888" stroke-width="1.5"/><rect x="3" y="3" width="9" height="9" rx="2" stroke="#888" stroke-width="1.5"/></svg>`;
+    const checkSvg = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 11.5L9 15L15 7.5" stroke="#2ecc40" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+    $: if (contentHtml) { tick().then(addCopyHandlers); }
+
+    function addCopyHandlers() {
+        const selector = 'code, blockquote';
+        const blocks = document.querySelectorAll<HTMLElement>(selector);
+        blocks.forEach(block => {
+            if (block.dataset.copyable) return;
+            block.dataset.copyable = 'true';
+            block.style.position = 'relative';
+
+            const icon = document.createElement('span');
+            icon.className = 'copy-icon';
+            icon.title = 'Скопировать';
+            icon.innerHTML = copySvg;
+            icon.style.display = 'none';
+            icon.style.position = 'absolute';
+            icon.style.top = '2px';
+            icon.style.right = '8px';
+            icon.style.cursor = 'pointer';
+            icon.style.zIndex = '2';
+            icon.style.transition = 'opacity 0.2s';
+            block.appendChild(icon);
+
+            block.addEventListener('mouseenter', () => {
+                icon.style.display = 'inline-block';
+                icon.style.opacity = '1';
+            });
+            block.addEventListener('mouseleave', () => {
+                icon.style.display = 'none';
+                icon.style.opacity = '0';
+            });
+
+            icon.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                let text = block.innerText;
+                try {
+                    await navigator.clipboard.writeText(text);
+                    icon.innerHTML = checkSvg;
+                    icon.classList.add('copied');
+                    let state = copyStates.get(block) || { copied: false };
+                    state.copied = true;
+                    if (state.timeout) clearTimeout(state.timeout);
+                    state.timeout = setTimeout(() => {
+                        icon.innerHTML = copySvg;
+                        icon.classList.remove('copied');
+                        state.copied = false;
+                    }, 1200);
+                    copyStates.set(block, state);
+                } catch { }
+            });
+        });
     }
 
     onMount(() => {
@@ -236,4 +294,23 @@
 <style scoped>
     @import '../../texteditor/page.css';
     @import './page.css';
+
+    .copy-icon {
+        background: rgba(255,255,255,0.85);
+        border-radius: 4px;
+        padding: 2px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        opacity: 0;
+        transition: opacity 0.2s, transform 0.2s;
+        pointer-events: auto;
+    }
+    code:hover .copy-icon,
+    quote:hover .copy-icon {
+        opacity: 1;
+    }
+    .copy-icon.copied {
+        background: #eafbe7;
+        transform: scale(1.1) rotate(-8deg);
+        transition: background 0.2s, transform 0.2s;
+    }
 </style>

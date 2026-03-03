@@ -175,21 +175,19 @@ main {
 
 :global(blockquote) {
     margin: 1em 0;
-    padding: 0.8em 1.2em;
-    border-left: 4px solid #4a90e2;
-    background: #f7faff;
-    color: #333;
+    border-left: 4px solid #4a90e2 !important;
+    background: #f7faff !important;
+    color: #333 !important;
     font-style: italic;
     font-size: 1.08em;
     border-radius: 6px;
 }
 :global(code) {
     display: block;
-    background: #232629;
-    color: #e6db74;
+    background: #232629 !important;
+    color: #e6db74 !important;
     font-family: 'Fira Mono', 'Consolas', 'Menlo', 'Monaco', monospace;
     font-size: 1em;
-    padding: 0.7em 1em;
     margin: 1em 0;
     border-radius: 6px;
     border: 1px solid #444;

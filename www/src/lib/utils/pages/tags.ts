@@ -21,8 +21,8 @@ export async function fetchTags(query: string): Promise<ServerTagDto[]> {
     const res: any = await api.get(`${TagsRoute}?q=${encodeURIComponent(q)}`);
     const data: unknown = res?.data;
 
-    if (!Array.isArray(data)) return [];
-    return (data as any[])
+    if (data && !Array.isArray((data as any).items)) return [];
+    return ((data as any).items as any[])
         .map((t) => ({
             id: Number(t?.id ?? -1),
             name: String(t?.name ?? '')

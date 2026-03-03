@@ -43,16 +43,17 @@ describe('Tags for pages', () => {
 
         it('Filters items from server array', async () => {
             (api.get as any).mockResolvedValue({
-                data: [
-                    { id: 1, name: 'A' },
-                    { id: '2', name: 'B' },
-                    { id: null, name: 'C' },
-                    { name: 'NoId' },
-                    { id: 3, name: '' },
-                    { id: 4 },
-                    null,
-                    undefined
-                ]
+                data: 
+                    {"items": [
+                        { id: 1, name: 'A' },
+                        { id: '2', name: 'B' },
+                        { id: null, name: 'C' },
+                        { name: 'NoId' },
+                        { id: 3, name: '' },
+                        { id: 4 },
+                        null,
+                        undefined
+                    ]}
             });
 
             const res = await fetchTags(' Hello+World ');

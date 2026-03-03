@@ -327,7 +327,6 @@
         </button>
     </div>
     <ul>
-        <li><a href="/" class="big nav-link">Главная</a></li>
         {#if $isAuthenticated && $currentUser && $currentUser.role !== UserRole.Client && $currentUser.role !== UserRole.Anonymous}
             <li><a href="/ticket" class="big nav-link">Заявки</a></li>
         {:else if !$currentUser}
@@ -335,6 +334,7 @@
         {:else}
             <li><a href="/account?tab=request" class="nav-link">Заявка</a></li>
         {/if}
+        <li><a href="/page" class="big nav-link">Инструкции</a></li>
         <li><a href="/contact" class="big nav-link">Контакты</a></li>
         {#if $isAuthenticated}
         <li style="position:relative;">
