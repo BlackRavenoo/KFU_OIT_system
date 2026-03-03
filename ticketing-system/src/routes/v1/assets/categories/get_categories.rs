@@ -3,9 +3,9 @@ use anyhow::Context;
 use garde::Validate;
 use garde_actix_web::web::QsQuery;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, QueryBuilder, prelude::FromRow};
 
-use crate::{schema::{assets::CategoryId, common::PaginationResult}, utils::error_chain_fmt};
+use crate::{schema::{assets::CategoryId, common::{PaginationResult, SortOrder}}, utils::error_chain_fmt};
 
 fn default_page_size() -> i8 { 50 }
 
@@ -19,6 +19,11 @@ pub struct GetCategoriesSchema {
     #[garde(range(min = 10, max = 100))]
     #[serde(default = "default_page_size")]
     pub page_size: i8,
+    #[garde(length(min = 1))]
+    pub name: Option<String>,
+    #[garde(skip)]
+    #[serde(default)]
+    pub sort_order: SortOrder,
 }
 
 #[derive(thiserror::Error)]
@@ -27,16 +32,7 @@ pub enum GetCategoriesError {
     Unexpected(#[from] anyhow::Error)
 }
 
-#[derive(Debug)]
-struct CategoryWithMeta {
-    id: CategoryId,
-    name: String,
-    color: String,
-    notes: Option<String>,
-    total_items: i64
-}
-
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, FromRow)]
 struct Category {
     id: CategoryId,
     name: String,
@@ -63,22 +59,17 @@ pub async fn get_categories(
     .await
     .context("Failed to fetch categories")?;
 
-    let total_items = categories.first()
-        .map(|meta| meta.total_items)
-        .unwrap_or(0);
-
-    let items = categories.into_iter().map(|cat| Category {
-        id: cat.id,
-        name: cat.name,
-        color: cat.color,
-        notes: cat.notes
-    })
-    .collect();
+    let total_items = get_categories_count(
+        &pool,
+        &schema
+    )
+    .await
+    .context("Failed to get categories count")?;
 
     Ok(HttpResponse::Ok().json(PaginationResult::new_with_pagination(
-        total_items as u64,
+        total_items,
         schema.page_size,
-        items
+        categories
     )))
 }
 
@@ -89,20 +80,56 @@ pub async fn get_categories(
 async fn fetch_categories(
     pool: &PgPool,
     schema: &GetCategoriesSchema,
-) -> Result<Vec<CategoryWithMeta>, sqlx::Error> {
-    sqlx::query_as!(
-        CategoryWithMeta,
-        r#"SELECT
+) -> Result<Vec<Category>, sqlx::Error> {
+    let mut builder = sqlx::QueryBuilder::new(
+        "SELECT
             id,
             name,
             color,
-            notes,
-            COUNT(*) OVER() as "total_items!"
-        FROM asset_categories
-        LIMIT $1 OFFSET $2"#,
-        schema.page_size as i64,
-        schema.page_size as i64 * (schema.page - 1) as i64
-    )
-    .fetch_all(pool)
-    .await
+            notes
+        FROM asset_categories "
+    );
+
+    apply_filters(&mut builder, schema);
+
+    builder.push("ORDER BY id ")
+        .push(schema.sort_order.as_str())
+        .push(" LIMIT ")
+        .push_bind(schema.page_size as i64)
+        .push(" OFFSET ")
+        .push_bind(schema.page_size as i64 * (schema.page - 1) as i64)
+        .build_query_as::<Category>()
+        .fetch_all(pool)
+        .await
+}
+
+#[tracing::instrument(
+    name = "Get categories count from database",
+    skip(pool)
+)]
+async fn get_categories_count(
+    pool: &PgPool,
+    schema: &GetCategoriesSchema
+) -> Result<u64, sqlx::Error> {
+    let mut builder = sqlx::QueryBuilder::new(
+        "SELECT COUNT(*) as count
+        FROM asset_categories "
+    );
+
+    apply_filters(&mut builder, schema);
+
+    builder.build_query_scalar()
+        .fetch_one(pool)
+        .await
+        .map(|count: i64| count as u64)
+}
+
+fn apply_filters<'a>(
+    builder: &mut QueryBuilder<'a, Postgres>,
+    schema: &'a GetCategoriesSchema
+) {
+    if let Some(name) = &schema.name {
+        let name = format!("%{}%", name);
+        builder.push("WHERE name ILIKE ").push_bind(name).push(" ");
+    }
 }
