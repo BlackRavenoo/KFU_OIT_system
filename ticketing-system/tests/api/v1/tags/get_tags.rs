@@ -39,7 +39,7 @@ async fn get_tags_returns_tags() {
 
     let json: serde_json::Value = resp.json().await.unwrap();
 
-    let json = json.as_array()
+    let json = json["items"].as_array()
         .unwrap()
         .first()
         .unwrap();
