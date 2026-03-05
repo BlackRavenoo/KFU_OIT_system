@@ -5,7 +5,7 @@ use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use futures_util::{stream, StreamExt as _};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, Transaction};
 
 use crate::{auth::extractor::UserIdExtractor, domain::description::Description, events::{event_publisher::EventPublisher, Event}, schema::{common::UserId, tickets::TicketId}, services::attachment::{Attachment, AttachmentService, AttachmentServiceError, AttachmentType}, startup::ApplicationBaseUrl, utils::{cleanup_images, error_chain_fmt}};
@@ -26,6 +26,11 @@ pub struct CreateTicketSchema {
 pub struct CreateTicketForm {
     pub fields: Json<CreateTicketSchema>,
     pub attachments: Vec<Bytes>,
+}
+
+#[derive(Serialize)]
+pub struct CreateTicketRequest {
+    pub id: TicketId
 }
 
 #[derive(thiserror::Error)]
@@ -127,7 +132,9 @@ pub async fn create_ticket(
         Err(e) => tracing::error!("Failed to fetch building name: {:?}", e),
     };
 
-    Ok(HttpResponse::Created().finish())
+    Ok(HttpResponse::Created().json(CreateTicketRequest{
+        id: ticket_id
+    }))
 }
 
 #[tracing::instrument(
