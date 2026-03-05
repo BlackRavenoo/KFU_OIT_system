@@ -52,6 +52,7 @@
     $: phoneValid = validatePhone(Contact);
 
     let isSubmitting = false;
+    let createdTicket: { ticketId: number; buildingCode: string } | null = null;
 
     let systemNotifications: SystemNotification[] = [];
     let loadingNotifications = true;
@@ -141,7 +142,10 @@
         if (isSubmitting) return;
         try {
             isSubmitting = true;
-            await createTicket(Title, Description, Name, Contact, Building || 1, Cabinet, DateVal, Department === '' ? -1 : Number(Department), File);
+            const buildingId = Building || 1;
+            const ticketId = await createTicket(Title, Description, Name, Contact, buildingId, Cabinet, DateVal, Department === '' ? -1 : Number(Department), File);
+            const buildingCode = $buildings.find(b => b.id === buildingId)?.code ?? String(buildingId);
+            createdTicket = { ticketId, buildingCode };
             notification('Заявка отправлена!', NotificationType.Success);
             resetForm();
             dispatchEvent(new CustomEvent('ticket-sent'));
@@ -449,6 +453,25 @@
                         <li>Чем больше контекст — тем быстрее диагностика.</li>
                     </ul>
                 </div>
+            </div>
+
+            <div class="form-answer" id="form-answer">
+                {#if createdTicket}
+                    {#if $currentUser && $currentUser.role !== UserRole.Anonymous}
+                        <a
+                            href="/ticket/{createdTicket.ticketId}"
+                            class="form-answer-success"
+                        >
+                            <span class="form-answer-icon">✓</span>
+                            Заявка {createdTicket.buildingCode}-{createdTicket.ticketId} успешно создана! Нажмите, чтобы открыть.
+                        </a>
+                    {:else}
+                        <div class="form-answer-success" role="alert">
+                            <span class="form-answer-icon">✓</span>
+                            Заявка {createdTicket.buildingCode}-{createdTicket.ticketId} успешно создана!
+                        </div>
+                    {/if}
+                {/if}
             </div>
 
             <div class="disclaimer">

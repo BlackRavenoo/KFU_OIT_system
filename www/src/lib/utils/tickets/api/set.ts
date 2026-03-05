@@ -47,6 +47,8 @@ export async function createTicket(
 
     if (!response.success)
         throw new Error(response.error || 'Ошибка создания заявки');
+
+    return (response.data as { id: number }).id;
 }
 
 /**
