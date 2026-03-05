@@ -1,6 +1,7 @@
 use garde::Validate;
+use serde::Deserialize;
 
-#[derive(Debug, Validate)]
+#[derive(Debug, Validate, Deserialize)]
 #[garde(transparent)]
 pub struct AssetCategoryName(#[garde(length(max = 32))] String);
 

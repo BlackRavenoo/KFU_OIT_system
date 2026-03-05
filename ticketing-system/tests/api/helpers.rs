@@ -4,7 +4,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
 use std::{borrow::Cow, path::Path, sync::LazyLock};
 use uuid::Uuid;
 use ticketing_system::{
-    auth::types::UserRole, config::{DatabaseSettings, get_config}, schema::{common::UserId, page::PageId, tickets::TicketId}, startup::Application, telemetry::{get_subscriber, init_subscriber}
+    auth::types::UserRole, config::{DatabaseSettings, get_config}, schema::{assets::CategoryId, common::UserId, page::PageId, tickets::TicketId}, startup::Application, telemetry::{get_subscriber, init_subscriber}
 };
 
 static TRACING: LazyLock<()> = LazyLock::new(|| {
@@ -449,6 +449,46 @@ impl TestApp {
             .send()
             .await
             .unwrap()
+    }
+
+    pub async fn create_category(&self, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {
+        let mut builder = reqwest::Client::new()
+            .post(format!(
+                "{}/v1/assets/categories",
+                self.address
+            ))
+            .json(body);
+    
+        if let Some(token) = token {
+            builder = builder.bearer_auth(token);
+        }
+    
+        builder
+            .send()
+            .await
+            .unwrap()
+    }
+
+    pub async fn create_test_category(&self) -> CategoryId {
+        let (access, _) = self.get_admin_jwt_tokens().await;
+        
+        let body = serde_json::json!({
+            "name": "Test category",
+            "color": "#FFFFFF",
+            "notes": "Test"
+        });
+
+        let resp = self.create_category(
+            &body,
+            Some(&access)
+        )
+        .await;
+
+        let json: serde_json::Value = resp.json()
+            .await
+            .unwrap();
+
+        json["id"].as_i64().unwrap() as CategoryId
     }
 }
 

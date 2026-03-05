@@ -1,6 +1,7 @@
 use garde::Validate;
+use serde::Deserialize;
 
-#[derive(Debug, Validate)]
+#[derive(Debug, Validate, Deserialize)]
 pub struct Color(
     #[garde(pattern(r"^#[0-9A-Fa-f]{6}$"))]
     String

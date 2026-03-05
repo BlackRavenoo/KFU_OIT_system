@@ -1,6 +1,7 @@
 use garde::Validate;
+use serde::Deserialize;
 
-#[derive(Debug, Validate)]
+#[derive(Debug, Validate, Deserialize)]
 pub struct Notes(#[garde(length(graphemes, max = 512))] String);
 
 impl AsRef<str> for Notes {

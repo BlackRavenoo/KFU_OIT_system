@@ -1,22 +1,4 @@
-use crate::helpers::{TestApp, spawn_app};
-
-async fn create_category(app: &TestApp, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {
-    let mut builder = reqwest::Client::new()
-        .post(format!(
-            "{}/v1/assets/categories",
-            app.address
-        ))
-        .json(body);
-
-    if let Some(token) = token {
-        builder = builder.bearer_auth(token);
-    }
-
-    builder
-        .send()
-        .await
-        .unwrap()
-}
+use crate::helpers::spawn_app;
 
 #[tokio::test]
 async fn create_category_returns_201() {
@@ -30,14 +12,38 @@ async fn create_category_returns_201() {
         "notes": "Test"
     });
 
-    let resp = create_category(
-        &app,
+    let resp = app.create_category(
         &body,
         Some(&access)
     )
     .await;
 
     assert_eq!(resp.status(), 201);
+}
+
+#[tokio::test]
+async fn create_category_returns_id() {
+    let app = spawn_app().await;
+
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
+    let body = serde_json::json!({
+        "name": "Test category",
+        "color": "#FFFFFF",
+        "notes": "Test"
+    });
+
+    let resp = app.create_category(
+        &body,
+        Some(&access)
+    )
+    .await;
+
+    let json: serde_json::Value = resp.json()
+        .await
+        .unwrap();
+
+    assert!(json["id"].is_number())
 }
 
 #[tokio::test]
@@ -52,8 +58,7 @@ async fn create_category_with_invalid_name_returns_400() {
         "notes": "Test"
     });
 
-    let resp = create_category(
-        &app,
+    let resp = app.create_category(
         &body,
         Some(&access)
     )
@@ -79,8 +84,7 @@ async fn create_category_with_db_err_returns_500() {
         .await
         .unwrap();
 
-    let resp = create_category(
-        &app,
+    let resp = app.create_category(
         &body,
         Some(&access)
     )
