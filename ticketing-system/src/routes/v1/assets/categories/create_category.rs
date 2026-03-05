@@ -1,12 +1,13 @@
-use actix_web::{HttpResponse, web};
+use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
 use garde::Validate;
 use garde_actix_web::web::Json;
+use serde::Deserialize;
 use sqlx::PgPool;
 
 use crate::{domain::{asset_category_name::AssetCategoryName, color::Color, notes::Notes}, schema::assets::CategoryId, utils::error_chain_fmt};
 
-#[derive(Debug, Validate)]
+#[derive(Debug, Validate, Deserialize)]
 pub struct CreateCategorySchema {
     #[garde(dive)]
     pub name: AssetCategoryName,
@@ -27,6 +28,8 @@ impl std::fmt::Debug for CreateCategoryError {
         error_chain_fmt(self, f)
     }
 }
+
+impl ResponseError for CreateCategoryError {}
 
 pub async fn create_category(
     pool: web::Data<PgPool>,
