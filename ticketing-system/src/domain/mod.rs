@@ -8,3 +8,6 @@ pub mod tag_name;
 pub mod department_name;
 pub mod bulding_name;
 pub mod building_code;
+pub mod color;
+pub mod asset_category_name;
+pub mod notes;
