@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, web};
+use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
 use sqlx::PgPool;
 
@@ -15,6 +15,8 @@ impl std::fmt::Debug for DeleteCategoryError {
         error_chain_fmt(self, f)
     }
 }
+
+impl ResponseError for DeleteCategoryError {}
 
 pub async fn delete_category(
     pool: web::Data<PgPool>,
