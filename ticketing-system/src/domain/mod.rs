@@ -11,3 +11,4 @@ pub mod building_code;
 pub mod color;
 pub mod asset_category_name;
 pub mod notes;
+pub mod model_name;
