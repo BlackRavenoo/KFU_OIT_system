@@ -42,3 +42,21 @@ macro_rules! build_where_condition {
         }
     };
 }
+
+#[macro_export]
+macro_rules! string_newtype {
+    ($type:ident) => {
+        impl std::ops::Deref for $type {
+            type Target = str;
+            fn deref(&self) -> &str {
+                &self.0
+            }
+        }
+
+        impl AsRef<str> for $type {
+            fn as_ref(&self) -> &str {
+                &self.0
+            }
+        }
+    };
+}

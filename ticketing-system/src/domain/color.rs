@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use garde::Validate;
 use serde::Deserialize;
 
@@ -9,6 +11,14 @@ pub struct Color(
 
 impl AsRef<str> for Color {
     fn as_ref(&self) -> &str {
+        &self.0[1..]
+    }
+}
+
+impl Deref for Color {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
         &self.0[1..]
     }
 }
