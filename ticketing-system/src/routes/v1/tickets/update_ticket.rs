@@ -151,7 +151,7 @@ async fn update(
     let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new("UPDATE tickets SET ");
     let mut has_fields = false;
 
-    let description = schema.description.as_ref().map(|desc| desc.as_ref());
+    let description = schema.description.as_deref();
 
     build_update_query!(builder, has_fields, schema.title, "title");
     build_update_query!(builder, has_fields, description, "description");

@@ -79,8 +79,8 @@ async fn update(
     let mut builder = sqlx::QueryBuilder::new("UPDATE pages SET ");
     let mut has_fields = false;
 
-    let title = schema.title.as_ref().map(|desc| desc.as_ref());
-    let data = schema.data.as_ref().map(|data| data.to_string());
+    let title = schema.title.as_deref();
+    let data = schema.data.as_ref().map(ToString::to_string);
 
     build_update_query!(builder, has_fields, title, "title");
     build_update_query!(builder, has_fields, schema.is_public, "is_public");

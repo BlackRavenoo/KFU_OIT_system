@@ -1,6 +1,8 @@
 use garde::Validate;
 use serde::Deserialize;
 
+use crate::string_newtype;
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct Email(#[garde(email)] String);
 
@@ -12,17 +14,7 @@ impl Email {
     }
 }
 
-impl AsRef<str> for Email {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Display for Email {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
+string_newtype!(Email);
 
 #[cfg(test)]
 mod tests {

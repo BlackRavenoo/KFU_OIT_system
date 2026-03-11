@@ -1,20 +1,12 @@
 use garde::Validate;
 use serde::Deserialize;
 
+use crate::string_newtype;
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct BuildingName(#[garde(length(max = 255))] String);
 
-impl AsRef<str> for BuildingName {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Display for BuildingName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
+string_newtype!(BuildingName);
 
 #[cfg(test)]
 mod tests {

@@ -1,6 +1,8 @@
 use garde::Validate;
 use serde::Deserialize;
 
+use crate::string_newtype;
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct Login(
     #[garde(
@@ -10,17 +12,7 @@ pub struct Login(
     String
 );
 
-impl AsRef<str> for Login {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Display for Login {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
+string_newtype!(Login);
 
 #[cfg(test)]
 mod tests {

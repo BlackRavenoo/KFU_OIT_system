@@ -1,14 +1,12 @@
 use garde::Validate;
 use serde::Deserialize;
 
+use crate::string_newtype;
+
 #[derive(Debug, Validate, Deserialize)]
 pub struct Notes(#[garde(length(graphemes, max = 512))] String);
 
-impl AsRef<str> for Notes {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
+string_newtype!(Notes);
 
 #[cfg(test)]
 mod tests {

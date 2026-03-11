@@ -1,6 +1,8 @@
 use garde::Validate;
 use serde::Deserialize;
 
+use crate::string_newtype;
+
 #[derive(Debug, Deserialize, Validate)]
 pub struct Name(
     #[garde(
@@ -18,17 +20,7 @@ fn validate_cyrillic(value: &str, _context: &()) -> garde::Result {
     }
 }
 
-impl AsRef<str> for Name {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Display for Name {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
+string_newtype!(Name);
 
 #[cfg(test)]
 mod tests {

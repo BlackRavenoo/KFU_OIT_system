@@ -58,5 +58,11 @@ macro_rules! string_newtype {
                 &self.0
             }
         }
+
+        impl std::fmt::Display for $type {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                self.0.fmt(f)
+            }
+        }
     };
 }

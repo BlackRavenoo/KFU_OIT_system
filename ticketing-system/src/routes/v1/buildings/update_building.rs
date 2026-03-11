@@ -63,8 +63,8 @@ async fn update(
     let mut builder = sqlx::QueryBuilder::new("UPDATE buildings SET ");
     let mut has_fields = false;
 
-    let code = schema.code.as_ref().map(|code| code.as_ref());
-    let name = schema.name.as_ref().map(|name| name.as_ref());
+    let code = schema.code.as_deref();
+    let name = schema.name.as_deref();
 
     build_update_query!(builder, has_fields, code, "code");
     build_update_query!(builder, has_fields, name, "name");

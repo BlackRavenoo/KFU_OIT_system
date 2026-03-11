@@ -1,15 +1,13 @@
 use garde::Validate;
 use serde::Deserialize;
 
+use crate::string_newtype;
+
 #[derive(Debug, Validate, Deserialize)]
 #[garde(transparent)]
 pub struct AssetCategoryName(#[garde(length(max = 32))] String);
 
-impl AsRef<str> for AssetCategoryName {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
+string_newtype!(AssetCategoryName);
 
 #[cfg(test)]
 mod tests {

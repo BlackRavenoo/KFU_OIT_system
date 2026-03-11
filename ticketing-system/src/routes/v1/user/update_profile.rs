@@ -63,9 +63,9 @@ async fn update_profile(
     let mut builder = sqlx::QueryBuilder::<sqlx::Postgres>::new("UPDATE users SET ");
     let mut has_fields = false;
 
-    let name = schema.name.as_ref().map(|name| name.as_ref());
-    let email = schema.email.as_ref().map(|email| email.as_ref());
-    let login = schema.login.as_ref().map(|login| login.as_ref());
+    let name = schema.name.as_deref();
+    let email = schema.email.as_deref();
+    let login = schema.login.as_deref();
 
     build_update_query!(builder, has_fields, name, "name");
     build_update_query!(builder, has_fields, email, "email");

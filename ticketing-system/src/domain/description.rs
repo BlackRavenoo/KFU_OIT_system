@@ -1,6 +1,8 @@
 use serde::Deserialize;
 use unicode_segmentation::UnicodeSegmentation;
 
+use crate::string_newtype;
+
 #[derive(Debug, Deserialize)]
 #[serde(try_from = "String")]
 pub struct Description(String);
@@ -19,11 +21,7 @@ impl Description {
     }
 }
 
-impl AsRef<str> for Description {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
+string_newtype!(Description);
 
 impl TryFrom<String> for Description {
     type Error = String;

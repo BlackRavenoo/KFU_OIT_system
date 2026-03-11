@@ -61,9 +61,9 @@ async fn update(
     let mut builder = sqlx::QueryBuilder::new("UPDATE asset_categories SET ");
     let mut has_fields = false;
 
-    let name = schema.name.as_ref().map(|name| name.as_ref());
-    let color = schema.color.as_ref().map(|color| color.as_ref());
-    let notes = schema.notes.as_ref().map(|notes| notes.as_ref());
+    let name = schema.name.as_deref();
+    let color = schema.color.as_deref();
+    let notes = schema.notes.as_deref();
 
     build_update_query!(builder, has_fields, name, "name");
     build_update_query!(builder, has_fields, color, "color");

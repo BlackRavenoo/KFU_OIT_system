@@ -10,7 +10,7 @@ pub mod utils;
 pub mod storage;
 pub mod services;
 pub mod image;
-pub mod sqlx_macro;
+pub mod macros;
 pub mod domain;
 pub mod email_client;
 pub mod cache_expiry;

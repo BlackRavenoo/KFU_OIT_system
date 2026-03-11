@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use crate::string_newtype;
+
 #[derive(Debug, Deserialize)]
 #[serde(try_from = "String")]
 pub struct Title(String);
@@ -18,23 +20,13 @@ impl Title {
     }
 }
 
-impl AsRef<str> for Title {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
+string_newtype!(Title);
 
 impl TryFrom<String> for Title {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::parse(value)
-    }
-}
-
-impl std::fmt::Display for Title {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
     }
 }
 

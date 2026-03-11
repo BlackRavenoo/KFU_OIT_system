@@ -1,13 +1,11 @@
 use garde::Validate;
 
+use crate::string_newtype;
+
 #[derive(Debug, Validate)]
 pub struct ModelName(#[garde(length(graphemes, max = 128))] String);
 
-impl AsRef<str> for ModelName {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
+string_newtype!(ModelName);
 
 #[cfg(test)]
 mod tests {
