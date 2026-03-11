@@ -1,7 +1,7 @@
-use std::ops::Deref;
-
 use garde::Validate;
 use serde::Deserialize;
+
+use crate::string_newtype;
 
 #[derive(Debug, Validate, Deserialize)]
 pub struct Color(
@@ -9,19 +9,7 @@ pub struct Color(
     String
 );
 
-impl AsRef<str> for Color {
-    fn as_ref(&self) -> &str {
-        &self.0[1..]
-    }
-}
-
-impl Deref for Color {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0[1..]
-    }
-}
+string_newtype!(Color);
 
 #[cfg(test)]
 mod tests {
