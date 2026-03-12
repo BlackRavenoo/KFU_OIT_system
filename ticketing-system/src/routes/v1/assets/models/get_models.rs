@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, web};
+use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
 use garde::Validate;
 use garde_actix_web::web::QsQuery;
@@ -30,9 +30,9 @@ pub struct GetModelsSchema {
 
 #[derive(Debug, Serialize, FromRow)]
 struct Model {
-    id: i32,
+    id: ModelId,
     name: String,
-    category: i16,
+    category: CategoryId,
 }
 
 #[derive(thiserror::Error)]
@@ -46,6 +46,8 @@ impl std::fmt::Debug for GetModelsError {
         error_chain_fmt(self, f)
     }
 }
+
+impl ResponseError for GetModelsError {}
 
 pub async fn get_models(
     pool: web::Data<PgPool>,
@@ -134,7 +136,9 @@ fn apply_filters<'a>(
         build_where_condition!(@add_where_and builder, has_filters);
         let name = format!("%{}%", name);
 
-        builder.push("name ILIKE ").push_bind(name);
+        builder.push("name ILIKE ")
+            .push_bind(name)
+            .push(" ");
     }
 
     let _ = has_filters;
