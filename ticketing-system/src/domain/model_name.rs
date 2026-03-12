@@ -1,8 +1,9 @@
 use garde::Validate;
+use serde::Deserialize;
 
 use crate::string_newtype;
 
-#[derive(Debug, Validate)]
+#[derive(Debug, Validate, Deserialize)]
 pub struct ModelName(#[garde(length(graphemes, max = 128))] String);
 
 string_newtype!(ModelName);
