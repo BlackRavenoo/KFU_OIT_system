@@ -334,8 +334,13 @@
         {:else}
             <li><a href="/account?tab=request" class="nav-link">Заявка</a></li>
         {/if}
+        {#if $isAuthenticated && $currentUser && $currentUser.role !== UserRole.Anonymous && $currentUser.role !== UserRole.Client}
+            <li><a href="/assets" class="big nav-link">Активы</a></li>
+        {/if}
         <li><a href="/page" class="big nav-link">Инструкции</a></li>
-        <li><a href="/contact" class="big nav-link">Контакты</a></li>
+        {#if !$isAuthenticated || ($currentUser && ($currentUser.role === UserRole.Anonymous || $currentUser.role === UserRole.Client))}
+            <li><a href="/contact" class="big nav-link">Контакты</a></li>
+        {/if}
         {#if $isAuthenticated}
         <li style="position:relative;">
                 {#if $currentUser && $currentUser.role !== UserRole.Anonymous}

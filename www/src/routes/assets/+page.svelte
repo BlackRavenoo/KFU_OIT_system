@@ -1,12 +1,31 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
-    import { browser } from '$app/environment';
 
     import SearchBar from '$lib/components/Search/Searchfield.svelte';
     import Pagination from '$lib/components/Search/Pagination.svelte';
 
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
-    import { api } from '$lib/utils/api';
+    import {
+        createCategoryMap,
+        createModelMap,
+        createStatusMap,
+        getPaginatedItems,
+        getCategoryColorForAsset,
+        getCategoryForAsset,
+        getModelForAsset,
+        getStatusForAsset,
+    } from '$lib/utils/assets/helpers';
+    import {
+        getCategories,
+        getModels,
+        getStatuses,
+    } from '$lib/utils/assets/api';
+    import type {
+        Asset as AssetItem,
+        AssetCategory,
+        AssetModel,
+        AssetStatus,
+    } from '$lib/utils/assets/types';
 
     import { currentUser } from '$lib/utils/auth/storage/initial';
     import { UserRole } from '$lib/utils/auth/types';
@@ -15,47 +34,16 @@
     import Model from './Model.svelte';
     import Category from './Category.svelte';
 
-    type Category = { id: number; name: string; color: string; notes?: string };
-    type AssetModel = { id: number; name: string; category: number };
-    type Status = { id: number; name: string; color: string };
-    type Asset = {
-        id: number;
-        model_id: number;
-        status: number;
-        name: string;
-        description?: string;
-        serial_number?: string;
-        inventory_number?: string;
-        location?: string;
-        assigned_to?: string;
-        ip?: string;
-        mac?: string;
-    };
-    type PaginatedResponse = {
-        items?: any[];
-        data?: any[];
-        total?: number;
-        total_items?: number;
-    };
-
     // --- TEST DATA ---
-    let categories: Category[] = [
-        { id: 1, name: 'Компьютеры', color: '#3B82F6', notes: 'ПК и рабочие станции' },
-        { id: 2, name: 'Принтеры', color: '#8B5CF6', notes: 'Лазерные и струйные' },
-        { id: 3, name: 'Сетевое оборудование', color: '#10B981', notes: 'Маршрутизаторы, коммутаторы' },
-    ];
-    let models: AssetModel[] = [
-        { id: 1, name: 'HP ProDesk 400', category: 1 },
-        { id: 2, name: 'Canon LBP2900', category: 2 },
-        { id: 3, name: 'TP-Link TL-SG108', category: 3 },
-    ];
-    let statuses: Status[] = [
+    let categories: AssetCategory[] = [];
+    let models: AssetModel[] = [];
+    let statuses: AssetStatus[] = [
         { id: 1, name: 'Используется', color: '#3B82F6' },
         { id: 2, name: 'В наличии', color: '#10B981' },
         { id: 3, name: 'В ремонте', color: '#F59E0B' },
         { id: 4, name: 'Утеряно', color: '#EF4444' },
     ];
-    let assets: Asset[] = [
+    let assets: AssetItem[] = [
         {
             id: 1,
             model_id: 1,
@@ -107,30 +95,9 @@
 
     $: totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
-    $: categoryMap = new Map(categories.map(c => [c.id, c]));
-    $: modelMap = new Map(models.map(m => [m.id, m]));
-    $: statusMap = new Map(statuses.map(s => [s.id, s]));
-
-    function getCategoryColorForAsset(asset: Asset): string {
-        const model = modelMap.get(asset.model_id);
-        if (!model) return '#6B7280';
-        const cat = categoryMap.get(model.category);
-        return cat?.color || '#6B7280';
-    }
-
-    function getStatusForAsset(asset: Asset): Status | undefined {
-        return statusMap.get(asset.status);
-    }
-
-    function getModelForAsset(asset: Asset): AssetModel | undefined {
-        return modelMap.get(asset.model_id);
-    }
-
-    function getCategoryForAsset(asset: Asset): Category | undefined {
-        const model = modelMap.get(asset.model_id);
-        if (!model) return undefined;
-        return categoryMap.get(model.category);
-    }
+    $: categoryMap = createCategoryMap(categories);
+    $: modelMap = createModelMap(models);
+    $: statusMap = createStatusMap(statuses);
 
     function handleSearch() {
         page = 1;
@@ -154,7 +121,7 @@
     }
 
     let showAssetModal = false;
-    let editingAsset: Asset | null = null;
+    let editingAsset: AssetItem | null = null;
 
     let showModelModal = false;
     let editingModel: AssetModel | null = null;
@@ -162,17 +129,46 @@
 
     let showCategoryModal = false;
 
-    function openCreateAsset() {
+    async function fetchModelsList() {
+        const resp = await getModels({ page: 1, page_size: 100 });
+        if (!resp.success) return false;
+
+        const items = getPaginatedItems(resp.data);
+        if (items.length > 0) models = items;
+        return true;
+    }
+
+    async function fetchCategoriesList() {
+        const resp = await getCategories({ page: 1, page_size: 100 });
+        if (!resp.success) return false;
+
+        const items = getPaginatedItems(resp.data);
+        if (items.length > 0) categories = items;
+        return true;
+    }
+
+    async function fetchStatuses() {
+        const resp = await getStatuses({ page: 1, page_size: 100 });
+        if (!resp.success) return false;
+
+        const items = getPaginatedItems(resp.data);
+        if (items.length > 0) statuses = items;
+        return true;
+    }
+
+    async function openCreateAsset() {
+        await fetchModelsList();
         editingAsset = null;
         showAssetModal = true;
     }
 
-    function openViewAsset(asset: Asset) {
+    function openViewAsset(asset: AssetItem) {
         editingAsset = asset;
         showAssetModal = true;
     }
 
-    function openCreateModel() {
+    async function openCreateModel() {
+        await fetchCategoriesList();
         editingModel = null;
         modelModalMode = 'create';
         showModelModal = true;
@@ -185,7 +181,6 @@
     async function handleAssetSaved() {
         showAssetModal = false;
         editingAsset = null;
-        await Promise.all([fetchAssets(), fetchModels(), fetchCategories()]);
     }
 
     function handleAssetClose() {
@@ -196,7 +191,7 @@
     async function handleModelSaved() {
         showModelModal = false;
         editingModel = null;
-        await Promise.all([fetchModels(), fetchCategories()]);
+        await fetchModelsList();
     }
 
     function handleModelClose() {
@@ -206,7 +201,7 @@
 
     async function handleCategorySaved() {
         showCategoryModal = false;
-        await fetchCategories();
+        await fetchCategoriesList();
     }
 
     function handleCategoryClose() {
@@ -221,7 +216,7 @@
     onMount(() => {
         pageTitle.set('Активы | Система управления заявками ЕИ КФУ');
         pageDescription.set('Управление активами и оборудованием организации.');
-        // await Promise.all([fetchCategories(), fetchModels(), fetchStatuses()]);
+        Promise.all([fetchCategoriesList(), fetchModelsList(), fetchStatuses()]);
         // await fetchAssets();
     });
 
@@ -265,10 +260,10 @@
             <div class="empty-state">Нет активов</div>
         {:else}
             {#each assets as asset (asset.id)}
-                {@const catColor = getCategoryColorForAsset(asset)}
-                {@const status = getStatusForAsset(asset)}
-                {@const model = getModelForAsset(asset)}
-                {@const category = getCategoryForAsset(asset)}
+                {@const catColor = getCategoryColorForAsset(asset, modelMap, categoryMap)}
+                {@const status = getStatusForAsset(asset, statusMap)}
+                {@const model = getModelForAsset(asset, modelMap)}
+                {@const category = getCategoryForAsset(asset, modelMap, categoryMap)}
                 <div
                     class="ticket-item asset-item"
                     style="border-left: 4px solid { catColor };"

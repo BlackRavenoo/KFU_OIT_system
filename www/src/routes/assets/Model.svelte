@@ -2,15 +2,13 @@
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { fade, fly } from 'svelte/transition';
     import { quintOut } from 'svelte/easing';
-    import { api } from '$lib/utils/api';
+    import { createModel, updateModel } from '$lib/utils/assets/api';
     import { setupKeydownListener, removeKeydownListener } from '$lib/components/Modal/Modal';
-
-    type Category = { id: number; name: string; color: string; notes?: string };
-    type AssetModel = { id: number; name: string; category: number };
+    import type { AssetCategory, AssetModel } from '$lib/utils/assets/types';
 
     export let model: AssetModel | null = null;
     export let mode: 'create' | 'edit' | 'view' = 'create';
-    export let categories: Category[] = [];
+    export let categories: AssetCategory[] = [];
 
     const dispatch = createEventDispatcher();
 
@@ -45,9 +43,9 @@
                 category: Number(category),
             };
 
-            let resp = model && mode === 'edit' ? 
-                await api.put(`/api/v1/assets/models/${model.id}`, payload) :
-                await api.post('/api/v1/assets/models', payload);
+            const resp = model && mode === 'edit'
+                ? await updateModel(model.id, payload)
+                : await createModel(payload);
 
             if (resp.success) dispatch('save');
             else errorMsg = resp.error || 'Ошибка сохранения';

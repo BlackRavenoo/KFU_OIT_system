@@ -3,28 +3,18 @@
     import { fade, fly } from 'svelte/transition';
     import { quintOut } from 'svelte/easing';
     import { setupKeydownListener, removeKeydownListener } from '$lib/components/Modal/Modal';
-
-    type Category = { id: number; name: string; color: string; notes?: string };
-    type AssetModel = { id: number; name: string; category: number };
-    type Status = { id: number; name: string; color: string };
-    type Asset = {
-        id: number;
-        model_id: number;
-        status: number;
-        name: string;
-        description?: string;
-        serial_number?: string;
-        inventory_number?: string;
-        location?: string;
-        assigned_to?: string;
-        ip?: string;
-        mac?: string;
-    };
+    import { createCategoryMap, getCategoryForModel } from '$lib/utils/assets/helpers';
+    import type {
+        Asset,
+        AssetCategory,
+        AssetModel,
+        AssetStatus,
+    } from '$lib/utils/assets/types';
 
     export let asset: Asset | null = null;
     export let models: AssetModel[] = [];
-    export let statuses: Status[] = [];
-    export let categories: Category[] = [];
+    export let statuses: AssetStatus[] = [];
+    export let categories: AssetCategory[] = [];
 
     const dispatch = createEventDispatcher();
 
@@ -43,11 +33,7 @@
     let saving = false;
     let errorMsg = '';
 
-    $: categoryMap = new Map(categories.map(c => [c.id, c]));
-
-    function getCategoryForModel(m: AssetModel): Category | undefined {
-        return categoryMap.get(m.category);
-    }
+    $: categoryMap = createCategoryMap(categories);
 
     async function handleSave() {
         if (!name.trim()) {
@@ -136,7 +122,7 @@
                         <select bind:value={ model_id } required>
                             <option value="">— Не выбрана —</option>
                             {#each models as m}
-                                {@const cat = getCategoryForModel(m)}
+                                {@const cat = getCategoryForModel(m, categoryMap)}
                                 <option value={ m.id }>
                                     { m.name }{ cat ? ` (${ cat.name })` : '' }
                                 </option>
@@ -171,7 +157,7 @@
             {#if model_id}
                 {@const selectedModel = models.find(m => m.id === Number(model_id))}
                 {#if selectedModel}
-                    {@const cat = getCategoryForModel(selectedModel)}
+                    {@const cat = getCategoryForModel(selectedModel, categoryMap)}
                     {#if cat}
                         <div class="category-preview" style="border-left: 4px solid { cat.color };">
                             <div class="cat-preview-color" style="background: { cat.color };"></div>

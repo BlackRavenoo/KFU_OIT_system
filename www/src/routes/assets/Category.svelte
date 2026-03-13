@@ -2,7 +2,7 @@
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { fade, fly } from 'svelte/transition';
     import { quintOut } from 'svelte/easing';
-    import { api } from '$lib/utils/api';
+    import { createCategory } from '$lib/utils/assets/api';
     import { setupKeydownListener, removeKeydownListener } from '$lib/components/Modal/Modal';
 
     const dispatch = createEventDispatcher();
@@ -30,7 +30,7 @@
                 notes: notes.trim() || undefined,
             };
 
-            const resp = await api.post('/api/v1/assets/categories', payload);
+            const resp = await createCategory(payload);
 
             if (resp.success) dispatch('save');
             else errorMsg = resp.error || 'Ошибка сохранения';
