@@ -12,3 +12,4 @@ pub mod color;
 pub mod asset_category_name;
 pub mod notes;
 pub mod model_name;
+pub mod status_name;
