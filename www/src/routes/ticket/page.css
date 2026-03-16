@@ -333,6 +333,24 @@ main * * {
     margin-top: -.6rem;
 }
 
+.ticket-created {
+    position: relative;
+    top: -.25rem;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    color: var(--low);
+    opacity: 0.85;
+}
+
+.ticket-created svg {
+    width: 0.95rem;
+    height: 0.95rem;
+    flex: 0 0 0.95rem;
+}
+
 .ticket-desc {
     font-size: 1rem;
     color: var(--text);

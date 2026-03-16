@@ -3,12 +3,10 @@ import { toApiColor } from '$lib/utils/assets/helpers';
 import type {
     AssetCategory,
     AssetModel,
-    AssetStatus,
     CreateCategoryPayload,
     CreateModelPayload,
     GetCategoriesParams,
     GetModelsParams,
-    GetStatusesParams,
     PaginatedResponse,
     UpdateCategoryPayload,
     UpdateModelPayload,
@@ -41,10 +39,6 @@ export function deleteCategory(categoryId: number) {
 
 export function getModels(params?: GetModelsParams) {
     return api.get<PaginatedResponse<AssetModel>>(`${BASE}/models`, params ?? {});
-}
-
-export function getStatuses(params?: GetStatusesParams) {
-    return api.get<PaginatedResponse<AssetStatus>>(`${BASE}/statuses`, params ?? {});
 }
 
 export function createModel(payload: CreateModelPayload) {

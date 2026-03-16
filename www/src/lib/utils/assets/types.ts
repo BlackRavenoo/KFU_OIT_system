@@ -88,3 +88,13 @@ export type UpdateModelPayload = {
     name?: string;
     category?: number;
 };
+
+export type CreateStatusPayload = {
+    name: string;
+    color: string;
+};
+
+export type UpdateStatusPayload = {
+    name?: string;
+    color?: string;
+};

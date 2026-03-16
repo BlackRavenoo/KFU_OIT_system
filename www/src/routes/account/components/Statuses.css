@@ -1,0 +1,257 @@
+.users-section {
+    width: 100%;
+    max-width: 1200px;
+    border-radius: 8px;
+    padding: 1.5rem;
+    color: var(--text);
+}
+
+h3 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: var(--text);
+}
+
+.add-user-section,
+.users-list-section {
+    background-color: var(--white);
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px #626f8654;
+}
+
+.add-user-section {
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.input-group {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.form-input {
+    flex: 1;
+    padding: 0.75rem;
+    border: 1px solid var(--light-blue);
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(7, 92, 239, 0.15);
+}
+
+.users-table-container {
+    overflow-x: auto;
+    margin-bottom: 1.5rem;
+}
+
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.users-table tbody td {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f3f4;
+    vertical-align: middle;
+}
+
+.users-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.user-info-cell {
+    width: 40%;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.user-name {
+    font-weight: 500;
+}
+
+.actions-cell {
+    width: 100px;
+}
+
+.actions-container {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none;
+}
+
+.promote-btn {
+    color: #4caf50;
+}
+
+.promote-btn:hover {
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.demote-btn {
+    color: var(--orange);
+}
+
+.demote-btn:hover {
+    background-color: rgba(255, 152, 0, 0.1);
+}
+
+.delete-btn {
+    color: var(--red);
+}
+
+.delete-btn:hover {
+    background-color: rgba(244, 67, 54, 0.1);
+}
+
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    text-align: center;
+}
+
+.loader {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #BAD2E6;
+    border-radius: 50%;
+    border-top-color: var(--blue);
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+.btn {
+    position: relative;
+    top: -0.5rem;
+    padding: 0.75rem 1.25rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background-color: var(--blue);
+    color: var(--white);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: #064cd0;
+}
+
+table, tr, td {
+    border: none;
+}
+
+.color-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 220px;
+}
+
+.edit-color-wrapper {
+    justify-content: flex-start;
+}
+
+.color-input {
+    width: 44px;
+    min-width: 44px;
+    height: 42px;
+    border: 1px solid var(--light-blue);
+    border-radius: 6px;
+    background: var(--white);
+    padding: 0.2rem;
+    cursor: pointer;
+}
+
+.color-code-input {
+    min-width: 110px;
+}
+
+.status-color-dot {
+    width: 12px;
+    min-width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.color-value {
+    display: inline-block;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+}
+
+@media (max-width: 900px) {
+    .input-group {
+        flex-wrap: wrap;
+    }
+
+    .color-input-wrapper {
+        min-width: 100%;
+    }
+}
+
+@media (max-width: 576px) {
+    .users-table {
+        font-size: 0.9rem;
+    }
+
+    .users-table td {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .actions-container {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .color-code-input {
+        min-width: 92px;
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

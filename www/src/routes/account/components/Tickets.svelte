@@ -316,6 +316,13 @@
                         <div class="ticket-meta">
                             { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building?.name ?? 'Не указано' }
                         </div>
+                        <div class="ticket-created" aria-label="Дата и время создания заявки">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
+                                <path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                            </svg>
+                            <span>Создано: { formatDate(ticket.created_at) }</span>
+                        </div>
                         <div class="ticket-desc">
                             { formatDescription(ticket.description) }
                         </div>
@@ -383,6 +390,13 @@
                         <div class="ticket-title">{ formatTitle(ticket.title) }</div>
                         <div class="ticket-meta">
                             { formatName(ticket.author) ?? 'Без автора' } • { formatDate(ticket.planned_at) ?? 'Без даты' } • { ticket.building?.name ?? 'Не указано' }
+                        </div>
+                        <div class="ticket-created" aria-label="Дата и время создания заявки">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
+                                <path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                            </svg>
+                            <span>Создано: { formatDate(ticket.created_at) }</span>
                         </div>
                         <div class="ticket-desc">
                             { formatDescription(ticket.description) }

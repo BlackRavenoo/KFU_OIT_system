@@ -12,7 +12,8 @@ export const Tab = {
     PAGES: 'pages',
     BUILDINGS: 'buildings',
     DEPARTMENTS: 'departments',
-    NOTIFICATIONS: 'notifications' 
+    NOTIFICATIONS: 'notifications',
+    STATUSES: 'statuses',
 } as const;
 
 export type TabType = typeof Tab[keyof typeof Tab];

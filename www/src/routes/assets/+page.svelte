@@ -18,8 +18,8 @@
     import {
         getCategories,
         getModels,
-        getStatuses,
     } from '$lib/utils/assets/api';
+    import { getStatuses } from '$lib/utils/assets/statuses-api';
     import type {
         Asset as AssetItem,
         AssetCategory,
