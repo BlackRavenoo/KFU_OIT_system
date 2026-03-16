@@ -2,10 +2,10 @@ use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
 use garde::Validate;
 use garde_actix_web::web::QsQuery;
-use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Postgres, QueryBuilder, prelude::FromRow};
+use serde::Deserialize;
+use sqlx::{PgPool, Postgres, QueryBuilder};
 
-use crate::{schema::{assets::CategoryId, common::{PaginationResult, SortOrder}}, utils::error_chain_fmt};
+use crate::{schema::{assets::{Category, CategoryId}, common::{PaginationResult, SortOrder}}, utils::error_chain_fmt};
 
 fn default_page_size() -> i8 { 50 }
 
@@ -30,14 +30,6 @@ pub struct GetCategoriesSchema {
 pub enum GetCategoriesError {
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error)
-}
-
-#[derive(Serialize, Debug, FromRow)]
-struct Category {
-    id: CategoryId,
-    name: String,
-    color: String,
-    notes: Option<String>,
 }
 
 impl std::fmt::Debug for GetCategoriesError {
