@@ -1,22 +1,4 @@
-use crate::helpers::{TestApp, spawn_app};
-
-async fn create_model(app: &TestApp, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {
-    let mut builder = reqwest::Client::new()
-        .post(format!(
-            "{}/v1/assets/models",
-            app.address
-        ))
-        .json(body);
-
-    if let Some(token) = token {
-        builder = builder.bearer_auth(token);
-    }
-
-    builder
-        .send()
-        .await
-        .unwrap()
-}
+use crate::helpers::spawn_app;
 
 #[tokio::test]
 async fn create_model_returns_201() {
@@ -29,8 +11,7 @@ async fn create_model_returns_201() {
         "category": 3
     });
 
-    let resp = create_model(
-        &app,
+    let resp = app.create_model(
         &body,
         Some(&access)
     )
@@ -50,8 +31,7 @@ async fn create_model_with_wrong_name_returns_400() {
         "category": 3
     });
 
-    let resp = create_model(
-        &app,
+    let resp = app.create_model(
         &body,
         Some(&access)
     )
@@ -68,8 +48,7 @@ async fn create_model_with_empty_body_returns_400() {
 
     let body = serde_json::json!({});
 
-    let resp = create_model(
-        &app,
+    let resp = app.create_model(
         &body,
         Some(&access)
     )
@@ -89,8 +68,7 @@ async fn create_model_with_wrong_category_returns_409() {
         "category": 999
     });
 
-    let resp = create_model(
-        &app,
+    let resp = app.create_model(
         &body,
         Some(&access)
     )
@@ -117,8 +95,7 @@ async fn create_model_with_db_err_returns_500() {
     .await
     .unwrap();
 
-    let resp = create_model(
-        &app,
+    let resp = app.create_model(
         &body,
         Some(&access)
     )
