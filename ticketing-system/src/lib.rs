@@ -16,3 +16,4 @@ pub mod email_client;
 pub mod cache_expiry;
 pub mod events;
 pub mod templates;
+pub mod filters;
