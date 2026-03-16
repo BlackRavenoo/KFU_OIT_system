@@ -4,7 +4,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate, matchers::{method, path}};
 use std::{borrow::Cow, path::Path, sync::LazyLock};
 use uuid::Uuid;
 use ticketing_system::{
-    auth::types::UserRole, config::{DatabaseSettings, get_config}, schema::{assets::CategoryId, common::UserId, page::PageId, tickets::TicketId}, startup::Application, telemetry::{get_subscriber, init_subscriber}
+    auth::types::UserRole, config::{DatabaseSettings, get_config}, schema::{assets::{AssetId, CategoryId, ModelId}, common::UserId, page::PageId, tickets::TicketId}, startup::Application, telemetry::{get_subscriber, init_subscriber}
 };
 
 static TRACING: LazyLock<()> = LazyLock::new(|| {
@@ -489,6 +489,85 @@ impl TestApp {
             .unwrap();
 
         json["id"].as_i64().unwrap() as CategoryId
+    }
+
+    pub async fn create_model(&self, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {
+        let mut builder = reqwest::Client::new()
+            .post(format!(
+                "{}/v1/assets/models",
+                self.address
+            ))
+            .json(body);
+    
+        if let Some(token) = token {
+            builder = builder.bearer_auth(token);
+        }
+    
+        builder
+            .send()
+            .await
+            .unwrap()
+    }
+
+    pub async fn create_test_model(&self) -> ModelId {
+        let (access, _) = self.get_admin_jwt_tokens().await;
+        
+        let body = serde_json::json!({
+            "name": "Test model",
+            "category": 1,
+        });
+
+        let resp = self.create_model(
+            &body,
+            Some(&access)
+        )
+        .await;
+
+        let json: serde_json::Value = resp.json()
+            .await
+            .unwrap();
+
+        json["id"].as_i64().unwrap() as ModelId
+    }
+
+    pub async fn create_asset(&self, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {
+        let mut builder = reqwest::Client::new()
+            .post(format!(
+                "{}/v1/assets",
+                self.address
+            ))
+            .json(body);
+    
+        if let Some(token) = token {
+            builder = builder.bearer_auth(token);
+        }
+    
+        builder
+            .send()
+            .await
+            .unwrap()
+    }
+
+    pub async fn create_test_asset(&self, model_id: ModelId) -> AssetId {
+        let (access, _) = self.get_admin_jwt_tokens().await;
+        
+        let body = serde_json::json!({
+            "name": "Test asset",
+            "status": 1,
+            "model_id": model_id
+        });
+
+        let resp = self.create_asset(
+            &body,
+            Some(&access)
+        )
+        .await;
+
+        let json: serde_json::Value = resp.json()
+            .await
+            .unwrap();
+
+        json["id"].as_i64().unwrap() as AssetId
     }
 }
 
