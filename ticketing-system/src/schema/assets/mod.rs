@@ -8,7 +8,7 @@ pub struct Status {
     color: String,
 }
 
-#[derive(Debug, Serialize, FromRow, Deserialize)]
+#[derive(Debug, Serialize, FromRow, Deserialize, sqlx::Type)]
 pub struct Category {
     id: CategoryId,
     name: String,
@@ -16,7 +16,7 @@ pub struct Category {
     notes: Option<String>,
 }
 
-#[derive(Debug, Serialize, FromRow, Deserialize)]
+#[derive(Debug, Serialize, FromRow, Deserialize, sqlx::Decode)]
 pub struct Model {
     id: ModelId,
     name: String,

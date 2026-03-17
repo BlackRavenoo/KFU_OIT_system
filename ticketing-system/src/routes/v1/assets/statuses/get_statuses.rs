@@ -2,10 +2,10 @@ use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
 use garde::Validate;
 use garde_actix_web::web::QsQuery;
-use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Postgres, QueryBuilder, prelude::FromRow};
+use serde::Deserialize;
+use sqlx::{PgPool, Postgres, QueryBuilder};
 
-use crate::{schema::{assets::StatusId, common::{PaginationResult, SortOrder}}, utils::error_chain_fmt};
+use crate::{schema::{assets::{Status, StatusId}, common::{PaginationResult, SortOrder}}, utils::error_chain_fmt};
 
 fn default_page_size() -> i8 { 50 }
 
@@ -24,13 +24,6 @@ pub struct GetStatusesSchema {
     #[garde(skip)]
     #[serde(default)]
     pub sort_order: SortOrder,
-}
-
-#[derive(Debug, Serialize, FromRow)]
-struct Status {
-    id: StatusId,
-    name: String,
-    color: String,
 }
 
 #[derive(thiserror::Error)]

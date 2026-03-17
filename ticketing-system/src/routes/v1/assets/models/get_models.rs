@@ -2,10 +2,10 @@ use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
 use garde::Validate;
 use garde_actix_web::web::QsQuery;
-use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Postgres, QueryBuilder, prelude::FromRow};
+use serde::Deserialize;
+use sqlx::{PgPool, Postgres, QueryBuilder};
 
-use crate::{build_where_condition, schema::{assets::{CategoryId, ModelId}, common::{PaginationResult, SortOrder}}, utils::error_chain_fmt};
+use crate::{build_where_condition, schema::{assets::{CategoryId, Model, ModelId}, common::{PaginationResult, SortOrder}}, utils::error_chain_fmt};
 
 fn default_page_size() -> i8 { 50 }
 
@@ -26,13 +26,6 @@ pub struct GetModelsSchema {
     pub sort_order: SortOrder,
     #[garde(range(min = 1))]
     pub category: Option<CategoryId>,
-}
-
-#[derive(Debug, Serialize, FromRow)]
-struct Model {
-    id: ModelId,
-    name: String,
-    category: CategoryId,
 }
 
 #[derive(thiserror::Error)]
@@ -84,10 +77,16 @@ async fn fetch_models(
 ) -> Result<Vec<Model>, sqlx::Error> {
     let mut builder = sqlx::QueryBuilder::new(
         "SELECT
-            id,
-            name,
-            category
-        FROM asset_models "
+            am.id,
+            am.name,
+            json_build_object(
+                'id', ac.id,
+                'name', ac.name,
+                'color', ac.color,
+                'notes', ac.notes
+            ) AS category
+        FROM asset_models am
+        JOIN asset_categories ac ON am.category = ac.id "
     );
 
     apply_filters(&mut builder, schema);
@@ -113,7 +112,7 @@ async fn get_models_count(
 ) -> Result<u64, sqlx::Error> {
     let mut builder = sqlx::QueryBuilder::new(
         "SELECT COUNT(*) as count
-        FROM asset_models "
+        FROM asset_models am "
     );
 
     apply_filters(&mut builder, schema);
@@ -130,13 +129,13 @@ fn apply_filters<'a>(
 ) {
     let mut has_filters = false;
 
-    build_where_condition!(builder, has_filters, schema.category, "category", "=");
+    build_where_condition!(builder, has_filters, schema.category, "am.category", "=");
 
     if let Some(name) = &schema.name {
         build_where_condition!(@add_where_and builder, has_filters);
         let name = format!("%{}%", name);
 
-        builder.push("name ILIKE ")
+        builder.push("am.name ILIKE ")
             .push_bind(name)
             .push(" ");
     }
