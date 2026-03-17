@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::{FromRow, types::Json};
 
 #[derive(Debug, Serialize, FromRow, Deserialize)]
 pub struct Status {
@@ -20,7 +20,7 @@ pub struct Category {
 pub struct Model {
     id: ModelId,
     name: String,
-    category: Category,
+    category: Json<Category>,
 }
 
 pub type AssetId = i64;
