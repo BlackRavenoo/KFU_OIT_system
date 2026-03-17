@@ -187,6 +187,19 @@
                 Мои страницы
             </button>
 
+            {#if $currentUser?.role === UserRole.Programmer || $currentUser?.role === UserRole.Moderator || $currentUser?.role === UserRole.Administrator}
+                <button
+                    on:click={ () => goto('/assets') }
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="12" rx="2"></rect>
+                        <line x1="8" y1="20" x2="16" y2="20"></line>
+                        <line x1="12" y1="16" x2="12" y2="20"></line>
+                    </svg>
+                    Активы
+                </button>
+            {/if}
+
             {#if $currentUser?.role === UserRole.Administrator || $currentUser?.role === UserRole.Moderator}
                 <button 
                     class={ activeTab === Tab.STATS? 'active' : '' } 

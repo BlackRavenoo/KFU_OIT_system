@@ -15,7 +15,7 @@ export type AssetCategory = {
 export type AssetModel = {
     id: AssetModelId;
     name: string;
-    category: AssetCategoryId;
+    category: AssetCategory | AssetCategoryId;
 };
 
 export type AssetStatus = {
@@ -72,6 +72,21 @@ export type GetModelsParams = {
     category?: number;
 };
 
+export type GetAssetsParams = {
+    page?: number;
+    page_size?: number;
+    sort_order?: SortOrder;
+    model_id?: number;
+    status?: number;
+    name?: string;
+    serial_number?: string;
+    inventory_number?: string;
+    location?: string;
+    assigned_to?: string;
+    ip?: string;
+    mac?: string;
+};
+
 export type GetStatusesParams = {
     page?: number;
     page_size?: number;
@@ -97,4 +112,21 @@ export type CreateStatusPayload = {
 export type UpdateStatusPayload = {
     name?: string;
     color?: string;
+};
+
+export type CreateAssetPayload = {
+    name: string;
+    model_id: number;
+    status: number;
+    description?: string;
+    serial_number?: string;
+    inventory_number?: string;
+    location?: string;
+    assigned_to?: string;
+    ip?: string;
+    mac?: string;
+};
+
+export type CreateAssetResponse = {
+    id: number;
 };

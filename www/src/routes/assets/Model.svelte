@@ -13,7 +13,9 @@
     const dispatch = createEventDispatcher();
 
     let name = model?.name || '';
-    let category: number | string = model?.category ?? '';
+    let category: number | string = model
+        ? (typeof model.category === 'number' ? model.category : model.category.id)
+        : '';
 
     let saving = false;
     let errorMsg = '';

@@ -1,9 +1,13 @@
 import { api } from '$lib/utils/api';
 import { toApiColor } from '$lib/utils/assets/helpers';
 import type {
+    Asset,
     AssetCategory,
     AssetModel,
+    CreateAssetPayload,
+    CreateAssetResponse,
     CreateCategoryPayload,
+    GetAssetsParams,
     CreateModelPayload,
     GetCategoriesParams,
     GetModelsParams,
@@ -41,6 +45,10 @@ export function getModels(params?: GetModelsParams) {
     return api.get<PaginatedResponse<AssetModel>>(`${BASE}/models`, params ?? {});
 }
 
+export function getAssets(params?: GetAssetsParams) {
+    return api.get<PaginatedResponse<Asset>>(`${BASE}`, params ?? {});
+}
+
 export function createModel(payload: CreateModelPayload) {
     return api.post<{ id: number }>(`${BASE}/models`, payload);
 }
@@ -51,4 +59,8 @@ export function updateModel(modelId: number, payload: UpdateModelPayload) {
 
 export function deleteModel(modelId: number) {
     return api.delete(`${BASE}/models/${modelId}`);
+}
+
+export function createAsset(payload: CreateAssetPayload) {
+    return api.post<CreateAssetResponse>(`${BASE}`, payload);
 }

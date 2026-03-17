@@ -2,6 +2,7 @@
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { fade, fly } from 'svelte/transition';
     import { quintOut } from 'svelte/easing';
+    import { createAsset } from '$lib/utils/assets/api';
     import { setupKeydownListener, removeKeydownListener } from '$lib/components/Modal/Modal';
     import { createCategoryMap, getCategoryForModel } from '$lib/utils/assets/helpers';
     import type {
@@ -16,7 +17,11 @@
     export let statuses: AssetStatus[] = [];
     export let categories: AssetCategory[] = [];
 
-    const dispatch = createEventDispatcher();
+    const dispatch = createEventDispatcher<{
+        save: { asset: Asset };
+        close: void;
+        openModel: void;
+    }>();
 
     let name = asset?.name || '';
     let model_id: number | string = asset?.model_id ?? '';
@@ -35,6 +40,11 @@
 
     $: categoryMap = createCategoryMap(categories);
 
+    function toOptional(value: string): string | undefined {
+        const normalized = value.trim();
+        return normalized.length > 0 ? normalized : undefined;
+    }
+
     async function handleSave() {
         if (!name.trim()) {
             errorMsg = 'Имя — обязательное поле';
@@ -52,10 +62,52 @@
         saving = true;
         errorMsg = '';
 
-        setTimeout(() => {
-            dispatch('save');
+        const normalizedAsset: Asset = {
+            id: asset?.id ?? 0,
+            name: name.trim(),
+            model_id: Number(model_id),
+            status: Number(statusId),
+            description,
+            serial_number,
+            inventory_number,
+            location,
+            assigned_to,
+            ip,
+            mac,
+        };
+
+        if (asset) {
+            dispatch('save', { asset: normalizedAsset });
             saving = false;
-        }, 600);
+            return;
+        }
+
+        const response = await createAsset({
+            name: name.trim(),
+            model_id: Number(model_id),
+            status: Number(statusId),
+            description: toOptional(description),
+            serial_number: toOptional(serial_number),
+            inventory_number: toOptional(inventory_number),
+            location: toOptional(location),
+            assigned_to: toOptional(assigned_to),
+            ip: toOptional(ip),
+            mac: toOptional(mac),
+        });
+
+        if (!response.success) {
+            errorMsg = response.error || 'Не удалось создать актив';
+            saving = false;
+            return;
+        }
+
+        dispatch('save', {
+            asset: {
+                ...normalizedAsset,
+                id: response.data?.id ?? Date.now(),
+            },
+        });
+        saving = false;
     }
 
     function close() {

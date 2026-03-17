@@ -10,12 +10,14 @@
         createModelMap,
         createStatusMap,
         getPaginatedItems,
+        getPaginatedTotal,
         getCategoryColorForAsset,
         getCategoryForAsset,
         getModelForAsset,
         getStatusForAsset,
     } from '$lib/utils/assets/helpers';
     import {
+        getAssets,
         getCategories,
         getModels,
     } from '$lib/utils/assets/api';
@@ -34,56 +36,10 @@
     import Model from './Model.svelte';
     import Category from './Category.svelte';
 
-    // --- TEST DATA ---
     let categories: AssetCategory[] = [];
     let models: AssetModel[] = [];
-    let statuses: AssetStatus[] = [
-        { id: 1, name: 'Используется', color: '#3B82F6' },
-        { id: 2, name: 'В наличии', color: '#10B981' },
-        { id: 3, name: 'В ремонте', color: '#F59E0B' },
-        { id: 4, name: 'Утеряно', color: '#EF4444' },
-    ];
-    let assets: AssetItem[] = [
-        {
-            id: 1,
-            model_id: 1,
-            status: 1,
-            name: 'ПК Иванова',
-            description: 'Основной рабочий компьютер',
-            serial_number: 'SN123456',
-            inventory_number: 'INV-001',
-            location: 'Каб. 101',
-            assigned_to: 'Иванов И.И.',
-            ip: '192.168.1.10',
-            mac: 'AA:BB:CC:DD:EE:01',
-        },
-        {
-            id: 2,
-            model_id: 2,
-            status: 2,
-            name: 'Принтер бухгалтерии',
-            description: 'Принтер для печати документов',
-            serial_number: 'SN987654',
-            inventory_number: 'INV-002',
-            location: 'Каб. 102',
-            assigned_to: 'Петрова А.А.',
-            ip: '192.168.1.20',
-            mac: 'AA:BB:CC:DD:EE:02',
-        },
-        {
-            id: 3,
-            model_id: 3,
-            status: 3,
-            name: 'Свич серверной',
-            description: '8-портовый гигабитный свич',
-            serial_number: 'SN555555',
-            inventory_number: 'INV-003',
-            location: 'Серверная',
-            assigned_to: 'Сидоров В.В.',
-            ip: '192.168.1.30',
-            mac: 'AA:BB:CC:DD:EE:03',
-        },
-    ];
+    let statuses: AssetStatus[] = [];
+    let assets: AssetItem[] = [];
 
     let loading = false;
     let error: string | null = null;
@@ -99,24 +55,24 @@
     $: modelMap = createModelMap(models);
     $: statusMap = createStatusMap(statuses);
 
-    function handleSearch() {
+    async function handleSearch() {
         page = 1;
-        // await fetchAssets();
+        await fetchAssets();
     }
 
-    function handlePageChange(newPage: number) {
+    async function handlePageChange(newPage: number) {
         if (newPage >= 1 && newPage <= totalPages) {
             page = newPage;
-            // await fetchAssets();
+            await fetchAssets();
         }
     }
 
-    function handlePageSizeChange(e: Event) {
+    async function handlePageSizeChange(e: Event) {
         const val = Number((e.currentTarget as HTMLInputElement).value);
         if (!Number.isNaN(val) && val > 0) {
             pageSize = val;
             page = 1;
-            // await fetchAssets();
+            await fetchAssets();
         }
     }
 
@@ -128,6 +84,43 @@
     let modelModalMode: 'create' | 'edit' | 'view' = 'create';
 
     let showCategoryModal = false;
+
+    async function fetchAssets() {
+        loading = true;
+        error = null;
+
+        const resp = await getAssets({
+            page,
+            page_size: pageSize,
+            ...(search.trim() ? { name: search.trim() } : {}),
+        });
+
+        if (!resp.success) {
+            error = resp.error || 'Не удалось загрузить активы';
+            loading = false;
+            return false;
+        }
+
+        const items = getPaginatedItems(resp.data) as any[];
+
+        assets = items.map((item) => ({
+            id: item.id,
+            model_id: item.model?.id ?? item.model_id,
+            status: item.status?.id ?? item.status,
+            name: item.name,
+            description: item.description,
+            serial_number: item.serial_number,
+            inventory_number: item.inventory_number,
+            location: item.location,
+            assigned_to: item.assigned_to,
+            ip: item.ip,
+            mac: item.mac,
+        }));
+
+        totalItems = getPaginatedTotal(resp.data);
+        loading = false;
+        return true;
+    }
 
     async function fetchModelsList() {
         const resp = await getModels({ page: 1, page_size: 100 });
@@ -178,7 +171,18 @@
         showCategoryModal = true;
     }
 
-    async function handleAssetSaved() {
+    async function handleAssetSaved(event: CustomEvent<{ asset: AssetItem }>) {
+        const savedAsset = event.detail.asset;
+        const index = assets.findIndex((item) => item.id === savedAsset.id);
+
+        if (index >= 0) {
+            assets[index] = savedAsset;
+            assets = [...assets];
+        } else {
+            assets = [savedAsset, ...assets];
+        }
+
+        await fetchAssets();
         showAssetModal = false;
         editingAsset = null;
     }
@@ -213,11 +217,11 @@
         $currentUser?.role === UserRole.Moderator ||
         $currentUser?.role === UserRole.Programmer;
 
-    onMount(() => {
+    onMount(async () => {
         pageTitle.set('Активы | Система управления заявками ЕИ КФУ');
         pageDescription.set('Управление активами и оборудованием организации.');
-        Promise.all([fetchCategoriesList(), fetchModelsList(), fetchStatuses()]);
-        // await fetchAssets();
+        await Promise.all([fetchCategoriesList(), fetchModelsList(), fetchStatuses()]);
+        await fetchAssets();
     });
 
     onDestroy(() => {

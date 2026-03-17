@@ -11,7 +11,14 @@ import type {
 const BASE = '/api/v1/assets/statuses';
 
 export function getStatuses(params?: GetStatusesParams) {
-    return api.get<PaginatedResponse<AssetStatus>>(BASE, params ?? {});
+    const pageSize = params?.page_size;
+
+    return api.get<PaginatedResponse<AssetStatus>>(BASE, {
+        ...(params ?? {}),
+        ...(typeof pageSize === 'number'
+            ? { page_size: Math.max(10, Math.min(100, pageSize)) }
+            : {}),
+    });
 }
 
 export function createStatus(payload: CreateStatusPayload) {

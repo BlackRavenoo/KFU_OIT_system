@@ -47,7 +47,7 @@
     async function loadStatuses() {
         loading = true;
 
-        const response = await getStatuses({ page: 1, page_size: 200, sort_order: 'asc' });
+        const response = await getStatuses({ page: 1, page_size: 100, sort_order: 'asc' });
         if (!response.success) {
             notification('Не удалось загрузить статусы', NotificationType.Error);
             loading = false;

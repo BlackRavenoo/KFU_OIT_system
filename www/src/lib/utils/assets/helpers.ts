@@ -38,8 +38,14 @@ export function createStatusMap(statuses: AssetStatus[]): Map<number, AssetStatu
     return new Map(statuses.map(status => [status.id, { ...status, color: toUiColor(status.color) }]));
 }
 
+function getModelCategoryId(model: AssetModel): number {
+    return typeof model.category === 'number'
+        ? model.category
+        : model.category.id;
+}
+
 export function getCategoryForModel(model: AssetModel, categoryMap: Map<number, AssetCategory>): AssetCategory | undefined {
-    return categoryMap.get(model.category);
+    return categoryMap.get(getModelCategoryId(model));
 }
 
 export function getModelForAsset(asset: Asset, modelMap: Map<number, AssetModel>): AssetModel | undefined {
