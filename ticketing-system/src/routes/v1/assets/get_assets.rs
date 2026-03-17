@@ -6,7 +6,7 @@ use garde::Validate;
 use garde_actix_web::web::QsQuery;
 use mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
-use sqlx::{Execute, PgPool, Postgres, QueryBuilder, prelude::FromRow, types::Json};
+use sqlx::{PgPool, Postgres, QueryBuilder, prelude::FromRow, types::Json};
 
 use crate::{build_where_condition, filters::IpFilter, schema::{assets::{AssetId, Model, ModelId, Status, StatusId}, common::{PaginationResult, SortOrder}}, utils::error_chain_fmt};
 
@@ -123,28 +123,31 @@ async fn fetch_assets(
         jsonb_build_object(
             'id', am.id,
             'name', am.name,
-            'category', am.category
+            'category', jsonb_build_object(
+                'id', ac.id,
+                'name', ac.name,
+                'color', ac.color,
+                'notes', ac.notes
+            )
         ) AS model,
         a.ip,
         a.mac
     FROM assets a
     JOIN asset_statuses ast ON a.status = ast.id
     JOIN asset_models am ON a.model_id = am.id
+    JOIN asset_categories ac ON am.category = ac.id
     "#);
     
     apply_filters(&mut builder, schema);
 
-    let a = builder.push(" ORDER BY a.id ")
+    builder.push(" ORDER BY a.id ")
         .push(schema.sort_order.as_str())
         .push(" LIMIT ")
         .push_bind(schema.page_size as i64)
         .push(" OFFSET ")
         .push_bind(schema.page_size as i64 * (schema.page - 1) as i64)
-        .build_query_as::<Asset>();
-
-    println!("{:?}", a.sql());
-
-    a.fetch_all(pool)
+        .build_query_as::<Asset>()
+        .fetch_all(pool)
         .await
 }
 
