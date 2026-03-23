@@ -2,15 +2,23 @@
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { fade, fly } from 'svelte/transition';
     import { quintOut } from 'svelte/easing';
-    import { createModel, updateModel } from '$lib/utils/assets/api';
+    import Confirmation from '$lib/components/Modal/Confirmation.svelte';
+    import { createModel, deleteCategory, deleteModel, updateModel } from '$lib/utils/assets/api';
     import { setupKeydownListener, removeKeydownListener } from '$lib/components/Modal/Modal';
     import type { AssetCategory, AssetModel } from '$lib/utils/assets/types';
 
     export let model: AssetModel | null = null;
     export let mode: 'create' | 'edit' | 'view' = 'create';
     export let categories: AssetCategory[] = [];
+    export let canDelete = false;
 
-    const dispatch = createEventDispatcher();
+    const dispatch = createEventDispatcher<{
+        save: void;
+        close: void;
+        openCategory: void;
+        deleteModel: { id: number };
+        deleteCategory: { id: number };
+    }>();
 
     let name = model?.name || '';
     let category: number | string = model
@@ -19,8 +27,16 @@
 
     let saving = false;
     let errorMsg = '';
+    let deletingModel = false;
+    let deletingCategory = false;
+    let showDeleteModelModal = false;
+    let showDeleteCategoryModal = false;
 
     $: isReadonly = mode === 'view';
+    $: selectedCategoryId = category ? Number(category) : null;
+    $: selectedCategory = selectedCategoryId
+        ? categories.find((c) => c.id === selectedCategoryId) ?? null
+        : null;
 
     function switchToEdit() {
         mode = 'edit';
@@ -64,6 +80,62 @@
 
     function openCategoryModal() {
         dispatch('openCategory');
+    }
+
+    function openDeleteModelModal() {
+        showDeleteModelModal = true;
+    }
+
+    function closeDeleteModelModal() {
+        if (deletingModel) return;
+        showDeleteModelModal = false;
+    }
+
+    async function handleDeleteModel() {
+        if (!model || deletingModel) return;
+
+        deletingModel = true;
+        const resp = await deleteModel(model.id);
+
+        if (!resp.success) {
+            errorMsg = resp.error || 'Не удалось удалить модель';
+            deletingModel = false;
+            showDeleteModelModal = false;
+            return;
+        }
+
+        showDeleteModelModal = false;
+        deletingModel = false;
+        dispatch('deleteModel', { id: model.id });
+    }
+
+    function openDeleteCategoryModal() {
+        if (!selectedCategoryId) return;
+        showDeleteCategoryModal = true;
+    }
+
+    function closeDeleteCategoryModal() {
+        if (deletingCategory) return;
+        showDeleteCategoryModal = false;
+    }
+
+    async function handleDeleteCategory() {
+        if (!selectedCategoryId || deletingCategory) return;
+
+        deletingCategory = true;
+        const categoryId = selectedCategoryId;
+        const resp = await deleteCategory(categoryId);
+
+        if (!resp.success) {
+            errorMsg = resp.error || 'Не удалось удалить категорию';
+            deletingCategory = false;
+            showDeleteCategoryModal = false;
+            return;
+        }
+
+        showDeleteCategoryModal = false;
+        deletingCategory = false;
+        dispatch('deleteCategory', { id: categoryId });
     }
 
     function keydownHandler(e: KeyboardEvent) {
@@ -171,6 +243,16 @@
                 <button class="btn btn-secondary" on:click={ close }>Закрыть</button>
             {:else}
                 <button class="btn btn-secondary" on:click={ close }>Отмена</button>
+                {#if canDelete && model}
+                    <button class="btn btn-secondary" on:click={ openDeleteModelModal } disabled={ saving || deletingModel || deletingCategory }>
+                        Удалить модель
+                    </button>
+                {/if}
+                {#if canDelete && selectedCategoryId}
+                    <button class="btn btn-secondary" on:click={ openDeleteCategoryModal } disabled={ saving || deletingModel || deletingCategory }>
+                        Удалить категорию
+                    </button>
+                {/if}
                 <button
                     class="btn btn-primary"
                     on:click={ handleSave }
@@ -182,6 +264,28 @@
         </div>
     </div>
 </div>
+
+{#if showDeleteModelModal && model}
+    <Confirmation
+        title="Удаление модели"
+        message={`Вы уверены, что хотите удалить модель ${ model.name }?`}
+        confirmText="Удалить"
+        cancelText="Отмена"
+        onConfirm={ handleDeleteModel }
+        onCancel={ closeDeleteModelModal }
+    />
+{/if}
+
+{#if showDeleteCategoryModal && selectedCategory}
+    <Confirmation
+        title="Удаление категории"
+        message={`Вы уверены, что хотите удалить категорию ${ selectedCategory.name }?`}
+        confirmText="Удалить"
+        cancelText="Отмена"
+        onConfirm={ handleDeleteCategory }
+        onCancel={ closeDeleteCategoryModal }
+    />
+{/if}
 
 <style scoped>
     @import './page.css';

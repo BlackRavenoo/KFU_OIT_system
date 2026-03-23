@@ -118,6 +118,7 @@ export type CreateAssetPayload = {
     name: string;
     model_id: number;
     status: number;
+    photo?: string;
     description?: string;
     serial_number?: string;
     inventory_number?: string;
@@ -125,6 +126,20 @@ export type CreateAssetPayload = {
     assigned_to?: string;
     ip?: string;
     mac?: string;
+};
+
+export type UpdateAssetPayload = {
+    name?: string;
+    model_id?: number;
+    status?: number;
+    photo?: string | null;
+    description?: string | null;
+    serial_number?: string | null;
+    inventory_number?: string | null;
+    location?: string | null;
+    assigned_to?: string | null;
+    ip?: string | null;
+    mac?: string | null;
 };
 
 export type CreateAssetResponse = {

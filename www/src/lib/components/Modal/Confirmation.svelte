@@ -42,7 +42,7 @@
 <style scoped>
     .modal-backdrop {
         position: fixed;
-        z-index: 1000;
+        z-index: 3000;
         inset: 0;
         background: rgba(0,0,0,0.7);
         display: flex;

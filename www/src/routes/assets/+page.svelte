@@ -160,10 +160,19 @@
         showAssetModal = true;
     }
 
-    async function openCreateModel() {
+    async function openModelModal(event?: CustomEvent<{ mode?: 'create' | 'edit'; modelId?: number }>) {
+        const detail = event?.detail;
         await fetchCategoriesList();
-        editingModel = null;
-        modelModalMode = 'create';
+
+        if (detail?.mode === 'edit' && detail.modelId) {
+            const existingModel = models.find((m) => m.id === detail.modelId) ?? null;
+            editingModel = existingModel;
+            modelModalMode = 'edit';
+        } else {
+            editingModel = null;
+            modelModalMode = 'create';
+        }
+
         showModelModal = true;
     }
 
@@ -192,10 +201,47 @@
         editingAsset = null;
     }
 
+    async function handleAssetDeleted(event: CustomEvent<{ id: number }>) {
+        const { id } = event.detail;
+
+        assets = assets.filter((item) => item.id !== id);
+        showAssetModal = false;
+        editingAsset = null;
+
+        await fetchAssets();
+    }
+
     async function handleModelSaved() {
         showModelModal = false;
         editingModel = null;
         await fetchModelsList();
+    }
+
+    async function handleModelDeleted(event: CustomEvent<{ id: number }>) {
+        const { id } = event.detail;
+
+        models = models.filter((item) => item.id !== id);
+        assets = assets.filter((item) => item.model_id !== id);
+
+        showModelModal = false;
+        editingModel = null;
+
+        await Promise.all([fetchModelsList(), fetchAssets()]);
+    }
+
+    async function handleCategoryDeleted(event: CustomEvent<{ id: number }>) {
+        const { id } = event.detail;
+
+        categories = categories.filter((item) => item.id !== id);
+        models = models.filter((item) => {
+            if (typeof item.category === 'number') return item.category !== id;
+            return item.category.id !== id;
+        });
+
+        showModelModal = false;
+        editingModel = null;
+
+        await Promise.all([fetchCategoriesList(), fetchModelsList(), fetchAssets()]);
     }
 
     function handleModelClose() {
@@ -216,6 +262,10 @@
         $currentUser?.role === UserRole.Administrator ||
         $currentUser?.role === UserRole.Moderator ||
         $currentUser?.role === UserRole.Programmer;
+
+    $: canDeleteEntities =
+        $currentUser?.role === UserRole.Administrator ||
+        $currentUser?.role === UserRole.Moderator;
 
     onMount(async () => {
         pageTitle.set('Активы | Система управления заявками ЕИ КФУ');
@@ -354,9 +404,11 @@
         { models }
         { statuses }
         { categories }
+        canDelete={ canDeleteEntities }
         on:save={ handleAssetSaved }
+        on:delete={ handleAssetDeleted }
         on:close={ handleAssetClose }
-        on:openModel={ openCreateModel }
+        on:openModel={ openModelModal }
     />
 {/if}
 
@@ -365,7 +417,10 @@
         model={ editingModel }
         mode={ modelModalMode }
         { categories }
+        canDelete={ canDeleteEntities }
         on:save={ handleModelSaved }
+        on:deleteModel={ handleModelDeleted }
+        on:deleteCategory={ handleCategoryDeleted }
         on:close={ handleModelClose }
         on:openCategory={ openCreateCategory }
     />

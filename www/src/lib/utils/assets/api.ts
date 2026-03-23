@@ -12,6 +12,7 @@ import type {
     GetCategoriesParams,
     GetModelsParams,
     PaginatedResponse,
+    UpdateAssetPayload,
     UpdateCategoryPayload,
     UpdateModelPayload,
 } from '$lib/utils/assets/types';
@@ -63,4 +64,12 @@ export function deleteModel(modelId: number) {
 
 export function createAsset(payload: CreateAssetPayload) {
     return api.post<CreateAssetResponse>(`${BASE}`, payload);
+}
+
+export function updateAsset(assetId: number, payload: UpdateAssetPayload) {
+    return api.put(`${BASE}/${assetId}`, payload);
+}
+
+export function deleteAsset(assetId: number) {
+    return api.delete(`${BASE}/${assetId}`);
 }

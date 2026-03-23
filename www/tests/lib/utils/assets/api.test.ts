@@ -43,6 +43,29 @@ describe('Assets API utils', () => {
         expect(apiMock.post).toHaveBeenCalledWith('/api/v1/assets', payload);
     });
 
+    it('`updateAsset()` puts payload to asset endpoint', async () => {
+        apiMock.put.mockResolvedValue({ success: true, status: 200 });
+
+        const { updateAsset } = await import('$lib/utils/assets/api');
+        const payload = {
+            name: 'ПК отдела кадров (обновлён)',
+            location: 'Каб. 207',
+        };
+
+        await updateAsset(11, payload);
+
+        expect(apiMock.put).toHaveBeenCalledWith('/api/v1/assets/11', payload);
+    });
+
+    it('`deleteAsset()` calls delete endpoint', async () => {
+        apiMock.delete.mockResolvedValue({ success: true, status: 200 });
+
+        const { deleteAsset } = await import('$lib/utils/assets/api');
+        await deleteAsset(11);
+
+        expect(apiMock.delete).toHaveBeenCalledWith('/api/v1/assets/11');
+    });
+
     it('`createCategory()` converts color to API format', async () => {
         apiMock.post.mockResolvedValue({ success: true, data: { id: 1 }, status: 201 });
 

@@ -2,7 +2,8 @@
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { fade, fly } from 'svelte/transition';
     import { quintOut } from 'svelte/easing';
-    import { createAsset } from '$lib/utils/assets/api';
+    import Confirmation from '$lib/components/Modal/Confirmation.svelte';
+    import { createAsset, deleteAsset, updateAsset } from '$lib/utils/assets/api';
     import { setupKeydownListener, removeKeydownListener } from '$lib/components/Modal/Modal';
     import { createCategoryMap, getCategoryForModel } from '$lib/utils/assets/helpers';
     import type {
@@ -16,11 +17,13 @@
     export let models: AssetModel[] = [];
     export let statuses: AssetStatus[] = [];
     export let categories: AssetCategory[] = [];
+    export let canDelete = false;
 
     const dispatch = createEventDispatcher<{
         save: { asset: Asset };
+        delete: { id: number };
         close: void;
-        openModel: void;
+        openModel: { mode?: 'create' | 'edit'; modelId?: number };
     }>();
 
     let name = asset?.name || '';
@@ -37,6 +40,8 @@
 
     let saving = false;
     let errorMsg = '';
+    let deleting = false;
+    let showDeleteModal = false;
 
     $: categoryMap = createCategoryMap(categories);
 
@@ -44,6 +49,23 @@
         const normalized = value.trim();
         return normalized.length > 0 ? normalized : undefined;
     }
+
+    function toNullable(value: string): string | null {
+        const normalized = value.trim();
+        return normalized.length > 0 ? normalized : null;
+    }
+
+    // Временно отключено: отправка фото в payload создания/обновления ассета.
+    // function fileToDataUrl(file: File): Promise<string> {
+    //     return new Promise((resolve, reject) => {
+    //         const reader = new FileReader();
+
+    //         reader.onload = () => resolve(String(reader.result ?? ''));
+    //         reader.onerror = () => reject(new Error('Не удалось прочитать изображение'));
+
+    //         reader.readAsDataURL(file);
+    //     });
+    // }
 
     async function handleSave() {
         if (!name.trim()) {
@@ -62,6 +84,18 @@
         saving = true;
         errorMsg = '';
 
+        // Временно отключено: отправка фото в payload создания/обновления ассета.
+        // let photoPayload: string | undefined;
+        // if (photo) {
+        //     try {
+        //         photoPayload = await fileToDataUrl(photo);
+        //     } catch (e: any) {
+        //         errorMsg = e?.message || 'Не удалось прочитать изображение';
+        //         saving = false;
+        //         return;
+        //     }
+        // }
+
         const normalizedAsset: Asset = {
             id: asset?.id ?? 0,
             name: name.trim(),
@@ -77,6 +111,26 @@
         };
 
         if (asset) {
+            const response = await updateAsset(asset.id, {
+                name: name.trim(),
+                model_id: Number(model_id),
+                status: Number(statusId),
+                // ...(photoPayload ? { photo: photoPayload } : {}),
+                description: toNullable(description),
+                serial_number: toNullable(serial_number),
+                inventory_number: toNullable(inventory_number),
+                location: toNullable(location),
+                assigned_to: toNullable(assigned_to),
+                ip: toNullable(ip),
+                mac: toNullable(mac),
+            });
+
+            if (!response.success) {
+                errorMsg = response.error || 'Не удалось обновить актив';
+                saving = false;
+                return;
+            }
+
             dispatch('save', { asset: normalizedAsset });
             saving = false;
             return;
@@ -86,6 +140,7 @@
             name: name.trim(),
             model_id: Number(model_id),
             status: Number(statusId),
+            // ...(photoPayload ? { photo: photoPayload } : {}),
             description: toOptional(description),
             serial_number: toOptional(serial_number),
             inventory_number: toOptional(inventory_number),
@@ -115,7 +170,43 @@
     }
 
     function openModelModal() {
-        dispatch('openModel');
+        dispatch('openModel', { mode: 'create' });
+    }
+
+    function openEditModelModal() {
+        if (!model_id) return;
+
+        dispatch('openModel', {
+            mode: 'edit',
+            modelId: Number(model_id),
+        });
+    }
+
+    function openDeleteModal() {
+        showDeleteModal = true;
+    }
+
+    function closeDeleteModal() {
+        if (deleting) return;
+        showDeleteModal = false;
+    }
+
+    async function handleDelete() {
+        if (!asset || deleting) return;
+
+        deleting = true;
+        const resp = await deleteAsset(asset.id);
+
+        if (!resp.success) {
+            errorMsg = resp.error || 'Не удалось удалить актив';
+            deleting = false;
+            showDeleteModal = false;
+            return;
+        }
+
+        showDeleteModal = false;
+        deleting = false;
+        dispatch('delete', { id: asset.id });
     }
 
     function keydownHandler(e: KeyboardEvent) {
@@ -192,6 +283,20 @@
                                 <path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2"/>
                             </svg>
                         </button>
+                        {#if model_id && canDelete}
+                            <button
+                                class="inline-add-btn"
+                                type="button"
+                                on:click={ openEditModelModal }
+                                title="Редактировать/удалить модель"
+                                aria-label="Редактировать/удалить модель"
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24">
+                                    <path d="M12 20h9" stroke="currentColor" stroke-width="2" fill="none"/>
+                                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" stroke-width="2" fill="none"/>
+                                </svg>
+                            </button>
+                        {/if}
                     </div>
                 </label>
 
@@ -264,6 +369,15 @@
 
         <div class="modal-footer">
             <button class="btn btn-secondary" on:click={ close }>Отмена</button>
+            {#if asset && canDelete}
+                <button
+                    class="btn btn-secondary"
+                    on:click={ openDeleteModal }
+                    disabled={ saving || deleting }
+                >
+                    Удалить
+                </button>
+            {/if}
             <button
                 class="btn btn-primary"
                 on:click={ handleSave }
@@ -274,6 +388,17 @@
         </div>
     </div>
 </div>
+
+{#if showDeleteModal && asset}
+    <Confirmation
+        title="Удаление актива"
+        message={`Вы уверены, что хотите удалить актив ${ asset.name }?`}
+        confirmText="Удалить"
+        cancelText="Отмена"
+        onConfirm={ handleDelete }
+        onCancel={ closeDeleteModal }
+    />
+{/if}
 
 <style scoped>
     @import './page.css';
