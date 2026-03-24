@@ -75,4 +75,11 @@ describe('Statuses API utils', () => {
 
         expect(apiMock.delete).toHaveBeenCalledWith('/api/v1/assets/statuses/42');
     });
+
+    it('Handles missing params with empty object fallback', async () => {
+        apiMock.get.mockResolvedValue({ success: true, data: { items: [] }, status: 200 });
+        const { getStatuses } = await import('$lib/utils/assets/statuses-api');
+        await getStatuses();
+        expect(apiMock.get).toHaveBeenCalledWith('/api/v1/assets/statuses', {});
+    });
 });

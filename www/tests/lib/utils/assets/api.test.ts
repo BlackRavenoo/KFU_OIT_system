@@ -77,4 +77,94 @@ describe('Assets API utils', () => {
             color: '#AABBCC',
         });
     });
+
+    it('Returns response from categories request', async () => {
+        const response = { success: true, data: { items: [] }, status: 200 };
+        apiMock.get.mockResolvedValue(response);
+        const { getCategories } = await import('$lib/utils/assets/api');
+        const result = await getCategories();
+        expect(apiMock.get).toHaveBeenCalledWith('/api/v1/assets/categories', {});
+        expect(result).toEqual(response);
+    });
+
+    it('Returns api response with normalized category payload', async () => {
+        const response = { success: true, status: 200 };
+        apiMock.put.mockResolvedValue(response);
+        const { updateCategory } = await import('$lib/utils/assets/api');
+        const payload = { name: 'Мониторы', color: 'AABBCC' };
+        const result = await updateCategory(7, payload);
+        expect(apiMock.put).toHaveBeenCalledWith('/api/v1/assets/categories/7', {
+            name: 'Мониторы',
+            color: '#AABBCC',
+        });
+        expect(result).toEqual(response);
+    });
+
+    it('Sets fallback color when color is missing', async () => {
+        const response = { success: true, status: 200 };
+        apiMock.put.mockResolvedValue(response);
+        const { updateCategory } = await import('$lib/utils/assets/api');
+        const result = await updateCategory(7, { name: 'Мониторы' });
+        expect(apiMock.put).toHaveBeenCalledWith('/api/v1/assets/categories/7', {
+            name: 'Мониторы',
+            color: '#',
+        });
+        expect(result).toEqual(response);
+    });
+
+    it('Returns response from delete request', async () => {
+        const response = { success: true, status: 200 };
+        apiMock.delete.mockResolvedValue(response);
+        const { deleteCategory } = await import('$lib/utils/assets/api');
+        const result = await deleteCategory(7);
+        expect(apiMock.delete).toHaveBeenCalledWith('/api/v1/assets/categories/7');
+        expect(result).toEqual(response);
+    });
+
+    it('Returns response from models request', async () => {
+        const response = { success: true, data: { items: [] }, status: 200 };
+        apiMock.get.mockResolvedValue(response);
+        const { getModels } = await import('$lib/utils/assets/api');
+        const result = await getModels();
+        expect(apiMock.get).toHaveBeenCalledWith('/api/v1/assets/models', {});
+        expect(result).toEqual(response);
+    });
+
+    it('Returns response from model create request', async () => {
+        const response = { success: true, data: { id: 15 }, status: 201 };
+        apiMock.post.mockResolvedValue(response);
+        const { createModel } = await import('$lib/utils/assets/api');
+        const payload = { name: 'Office PC', category: 1 } as any;
+        const result = await createModel(payload);
+        expect(apiMock.post).toHaveBeenCalledWith('/api/v1/assets/models', payload);
+        expect(result).toEqual(response);
+    });
+
+    it('Returns response from model update request', async () => {
+        const response = { success: true, status: 200 };
+        apiMock.put.mockResolvedValue(response);
+        const { updateModel } = await import('$lib/utils/assets/api');
+        const payload = { name: 'Office PC Gen 2', category: 2 } as any;
+        const result = await updateModel(15, payload);
+        expect(apiMock.put).toHaveBeenCalledWith('/api/v1/assets/models/15', payload);
+        expect(result).toEqual(response);
+    });
+
+    it('Returns response from model remove request', async () => {
+        const response = { success: true, status: 200 };
+        apiMock.delete.mockResolvedValue(response);
+        const { deleteModel } = await import('$lib/utils/assets/api');
+        const result = await deleteModel(15);
+        expect(apiMock.delete).toHaveBeenCalledWith('/api/v1/assets/models/15');
+        expect(result).toEqual(response);
+    });
+
+    it('Handles missing params with empty object fallback', async () => {
+        const response = { success: true, data: { items: [] }, status: 200 };
+        apiMock.get.mockResolvedValue(response);
+        const { getAssets } = await import('$lib/utils/assets/api');
+        const result = await getAssets();
+        expect(apiMock.get).toHaveBeenCalledWith('/api/v1/assets', {});
+        expect(result).toEqual(response);
+    });
 });

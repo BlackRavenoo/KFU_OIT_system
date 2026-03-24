@@ -32,9 +32,8 @@ export function createCategory(payload: CreateCategoryPayload) {
 
 export function updateCategory(categoryId: number, payload: UpdateCategoryPayload) {
     const preparedPayload: UpdateCategoryPayload = { ...payload };
-
     if (preparedPayload.color) preparedPayload.color = toApiColor(preparedPayload.color);
-
+    else preparedPayload.color = toApiColor('');
     return api.put(`${BASE}/categories/${categoryId}`, preparedPayload);
 }
 
