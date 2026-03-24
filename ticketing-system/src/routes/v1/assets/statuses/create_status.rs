@@ -5,7 +5,7 @@ use garde_actix_web::web::Json;
 use serde::Deserialize;
 use sqlx::PgPool;
 
-use crate::{domain::{color::Color, status_name::StatusName}, utils::error_chain_fmt};
+use crate::{domain::{color::Color, status_name::StatusName}, schema::assets::StatusId, utils::error_chain_fmt};
 
 #[derive(Debug, Validate, Deserialize)]
 pub struct CreateStatusSchema {
@@ -33,14 +33,16 @@ pub async fn create_status(
     pool: web::Data<PgPool>,
     Json(schema): Json<CreateStatusSchema>,
 ) -> Result<HttpResponse, CreateStatusError> {
-    insert_status(
+    let id = insert_status(
         &pool,
         schema
     )
     .await
     .context("Failed to create status")?;
 
-    Ok(HttpResponse::Created().finish())
+    Ok(HttpResponse::Created().json(serde_json::json!({
+        "id": id
+    })))
 }
 
 
@@ -51,15 +53,15 @@ pub async fn create_status(
 async fn insert_status(
     pool: &PgPool,
     schema: CreateStatusSchema,
-) -> Result<(), sqlx::Error> {
+) -> Result<StatusId, sqlx::Error> {
     sqlx::query!(
         "INSERT INTO asset_statuses(name, color)
-        VALUES ($1, $2)",
+        VALUES ($1, $2)
+        RETURNING id",
         schema.name.as_ref(),
         schema.color.as_ref()
     )
-    .execute(pool)
-    .await?;
-
-    Ok(())
+    .fetch_one(pool)
+    .await
+    .map(|r| r.id)
 }
