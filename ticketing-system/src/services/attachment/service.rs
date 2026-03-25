@@ -54,6 +54,8 @@ impl<P: ImageProcessor> Service<P> {
                     .context("Failed to process attachment")??,
                 AttachmentType::Avatars => actix_web::web::block(move ||  AvatarProcessor::process(&attachment.data)).await
                     .context("Failed to process avatar")??,
+                AttachmentType::AssetPhoto => actix_web::web::block(move ||  P::process(&attachment.data)).await
+                    .context("Failed to process asset photo")??,
             };
 
             (data.into(), ext.to_string())

@@ -1,12 +1,16 @@
+use actix_multipart::form::{MultipartForm, bytes::Bytes, json::Json};
 use actix_web::{HttpResponse, ResponseError, http::StatusCode, web};
+use anyhow::Context as _;
 use mac_address::MacAddress;
 use serde::Deserialize;
 use sqlx::{PgPool, types::ipnetwork::IpNetwork};
 
-use crate::{schema::assets::{AssetId, ModelId, StatusId}, utils::error_chain_fmt};
+use crate::{schema::assets::{AssetId, ModelId, StatusId}, services::attachment::{Attachment, AttachmentService, AttachmentType}, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum CreateAssetError {
+    #[error("Unsupported photo format")]
+    UnsupportedPhotoFormat,
     #[error("Model not exists")]
     ModelNotExists,
     #[error(transparent)]
@@ -22,6 +26,7 @@ impl std::fmt::Debug for CreateAssetError {
 impl ResponseError for CreateAssetError {
     fn status_code(&self) -> StatusCode {
         match self {
+            CreateAssetError::UnsupportedPhotoFormat => StatusCode::UNSUPPORTED_MEDIA_TYPE,
             CreateAssetError::ModelNotExists => StatusCode::CONFLICT,
             CreateAssetError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -45,11 +50,38 @@ pub struct CreateAssetSchema {
     pub mac: Option<MacAddress>,
 }
 
+#[derive(MultipartForm)]
+pub struct CreateAssetForm {
+    pub fields: Json<CreateAssetSchema>,
+    pub photo: Option<Bytes>,
+}
+
 pub async fn create_asset(
     pool: web::Data<PgPool>,
-    web::Json(schema): web::Json<CreateAssetSchema>,
+    service: web::Data<AttachmentService>,
+    MultipartForm(form): MultipartForm<CreateAssetForm>,
 ) -> Result<HttpResponse, CreateAssetError> {
-    let id = insert_asset(&pool, schema)
+    let key = if let Some(bytes) = form.photo {
+        let attachment = Attachment::try_from(bytes)
+            .map_err(|_| CreateAssetError::UnsupportedPhotoFormat)?;
+
+        if !attachment.is_image() {
+            return Err(CreateAssetError::UnsupportedPhotoFormat);
+        }
+
+        let key = service.upload(
+            AttachmentType::AssetPhoto,
+            attachment,
+            None
+        ).await
+        .context("Failed to upload asset photo")?;
+
+        Some(key)
+    } else {
+        None
+    };
+
+    let id = insert_asset(&pool, form.fields.0, key)
         .await
         .map_err(|e| match e {
             sqlx::Error::Database(db_err) => match db_err.constraint() {
@@ -71,10 +103,11 @@ pub async fn create_asset(
 async fn insert_asset(
     pool: &PgPool,
     schema: CreateAssetSchema,
+    photo_key: Option<String>,
 ) -> Result<AssetId, sqlx::Error> {
     sqlx::query!(
-        "INSERT INTO assets(model_id, status, name, description, serial_number, inventory_number, location, assigned_to, ip, mac)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        "INSERT INTO assets(model_id, status, name, description, serial_number, inventory_number, location, assigned_to, ip, mac, photo_key)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING id",
         schema.model_id,
         schema.status as i16,
@@ -86,6 +119,7 @@ async fn insert_asset(
         schema.assigned_to,
         schema.ip,
         schema.mac,
+        photo_key,
     )
     .fetch_one(pool)
     .await

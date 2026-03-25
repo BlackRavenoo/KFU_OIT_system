@@ -530,13 +530,30 @@ impl TestApp {
         json["id"].as_i64().unwrap() as ModelId
     }
 
-    pub async fn create_asset(&self, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {
+    pub async fn create_asset(&self, body: &serde_json::Value, photo: Option<Attachment>, token: Option<&str>) -> reqwest::Response {
+        let json_string = serde_json::to_string(body).unwrap();
+
+        let mut form = reqwest::multipart::Form::new();
+
+        form = form.part("fields",
+            reqwest::multipart::Part::text(json_string)
+                .mime_str("application/json")
+                .unwrap()
+        );
+
+        if let Some(photo) = photo {
+            form = form.part(
+                "photo",
+                reqwest::multipart::Part::bytes(photo.data)
+                    .file_name(photo.filename)
+                    .mime_str(&photo.mime_type)
+                    .unwrap()
+            );
+        }
+
         let mut builder = reqwest::Client::new()
-            .post(format!(
-                "{}/v1/assets",
-                self.address
-            ))
-            .json(body);
+            .post(format!("{}/v1/assets", self.address))
+            .multipart(form);
 
         if let Some(token) = token {
             builder = builder.bearer_auth(token);
@@ -550,7 +567,7 @@ impl TestApp {
 
     pub async fn create_test_asset(&self, model_id: ModelId) -> AssetId {
         let (access, _) = self.get_admin_jwt_tokens().await;
-        
+
         let body = serde_json::json!({
             "name": "Test asset",
             "status": 1,
@@ -559,6 +576,7 @@ impl TestApp {
 
         let resp = self.create_asset(
             &body,
+            None,
             Some(&access)
         )
         .await;

@@ -6,6 +6,7 @@ use crate::services::attachment::service::AttachmentServiceError;
 pub enum AttachmentType {
     TicketAttachments,
     Avatars,
+    AssetPhoto,
 }
 
 impl AttachmentType {
@@ -13,6 +14,7 @@ impl AttachmentType {
         match self {
             AttachmentType::TicketAttachments => "attachments",
             AttachmentType::Avatars => "avatars",
+            AttachmentType::AssetPhoto => "assets",
         }
     }
 }
@@ -21,11 +23,7 @@ impl TryFrom<String> for AttachmentType {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.as_str() {
-            "attachments" => Ok(AttachmentType::TicketAttachments),
-            "avatars" => Ok(AttachmentType::Avatars),
-            _ => Err(format!("Unknown image type: {}", value)),
-        }
+        Self::try_from(value.as_str())
     }
 }
 
@@ -36,6 +34,7 @@ impl TryFrom<&str> for AttachmentType {
         match value {
             "attachments" => Ok(AttachmentType::TicketAttachments),
             "avatars" => Ok(AttachmentType::Avatars),
+            "assets" => Ok(AttachmentType::AssetPhoto),
             _ => Err(format!("Unknown image type: {}", value)),
         }
     }
