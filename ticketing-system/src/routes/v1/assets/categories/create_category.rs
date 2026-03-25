@@ -13,6 +13,7 @@ pub struct CreateCategorySchema {
     pub name: AssetCategoryName,
     #[garde(dive)]
     pub color: Color,
+    #[serde(default)]
     #[garde(dive)]
     pub notes: Notes,
 }

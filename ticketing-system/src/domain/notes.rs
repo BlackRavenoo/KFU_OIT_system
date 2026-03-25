@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 use crate::string_newtype;
 
-#[derive(Debug, Validate, Deserialize)]
+#[derive(Debug, Validate, Deserialize, Default)]
 pub struct Notes(#[garde(length(graphemes, max = 512))] String);
 
 string_newtype!(Notes);
