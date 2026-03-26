@@ -72,6 +72,7 @@ struct Asset {
     pub model: Json<Model>,
     pub ip: Option<IpAddr>,
     pub mac: Option<MacAddress>,
+    pub photo_key: Option<String>,
 }
 
 pub async fn get_assets(
@@ -131,7 +132,8 @@ async fn fetch_assets(
             )
         ) AS model,
         a.ip,
-        a.mac
+        a.mac,
+        a.photo_key
     FROM assets a
     JOIN asset_statuses ast ON a.status = ast.id
     JOIN asset_models am ON a.model_id = am.id
