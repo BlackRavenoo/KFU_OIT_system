@@ -14,9 +14,21 @@
     let saving = false;
     let errorMsg = '';
 
+    const CATEGORY_NAME_MAX = 32;
+    const NOTES_MAX = 512;
+
+    $: validationErrors = {
+        name: !name.trim()
+            ? 'Имя категории — обязательное поле'
+            : (name.trim().length > CATEGORY_NAME_MAX ? `Максимум ${ CATEGORY_NAME_MAX } символа` : ''),
+        color: /^#[0-9A-Fa-f]{6}$/.test(color) ? '' : 'Цвет должен быть в формате #RRGGBB',
+        notes: notes.trim().length > NOTES_MAX ? `Максимум ${ NOTES_MAX } символов` : '',
+    };
+    $: isFormInvalid = Object.values(validationErrors).some((msg) => Boolean(msg));
+
     async function handleSave() {
-        if (!name.trim()) {
-            errorMsg = 'Имя — обязательное поле';
+        if (isFormInvalid) {
+            errorMsg = 'Проверьте корректность заполнения полей';
             return;
         }
 
@@ -84,21 +96,30 @@
         <div class="modal-body">
             <label class="field">
                 <span class="field-label">Имя категории <span class="required">*</span></span>
-                <input type="text" bind:value={ name } placeholder="Название категории" />
+                <input type="text" bind:value={ name } maxlength={ CATEGORY_NAME_MAX } placeholder="Название категории" />
+                {#if validationErrors.name}
+                    <span class="field-error">{ validationErrors.name }</span>
+                {/if}
             </label>
 
             <label class="field">
-                <span class="field-label">Цвет</span>
+                <span class="field-label">Цвет <span class="required">*</span></span>
                 <div class="color-picker-row">
                     <input type="color" bind:value={ color } class="color-input" />
                     <span class="color-hex">{ color }</span>
                     <span class="color-preview" style="background: { color };"></span>
                 </div>
+                {#if validationErrors.color}
+                    <span class="field-error">{ validationErrors.color }</span>
+                {/if}
             </label>
 
             <label class="field">
                 <span class="field-label">Заметки</span>
-                <textarea bind:value={ notes } placeholder="Заметки о категории (необязательно)" rows="3"></textarea>
+                <textarea bind:value={ notes } maxlength={ NOTES_MAX } placeholder="Заметки о категории (необязательно)" rows="3"></textarea>
+                {#if validationErrors.notes}
+                    <span class="field-error">{ validationErrors.notes }</span>
+                {/if}
             </label>
         </div>
 
@@ -107,7 +128,7 @@
             <button
                 class="btn btn-primary"
                 on:click={ handleSave }
-                disabled={ saving || !name.trim() }
+                disabled={ saving || isFormInvalid }
             >
                 { saving ? 'Создание...' : 'Создать' }
             </button>

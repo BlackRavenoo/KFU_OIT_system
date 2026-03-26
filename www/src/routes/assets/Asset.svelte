@@ -43,7 +43,63 @@
     let deleting = false;
     let showDeleteModal = false;
 
+    const NAME_MAX = 256;
+    const SERIAL_MAX = 64;
+    const INVENTORY_MAX = 64;
+    const LOCATION_MAX = 128;
+    const ASSIGNED_TO_MAX = 128;
+
+    const macPattern = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;
+
+    function normalizeMac(value: string): string {
+        const hex = value.replace(/[^0-9a-fA-F]/g, '').toUpperCase().slice(0, 12);
+        return hex.match(/.{1,2}/g)?.join(':') ?? '';
+    }
+
+    function isValidIp(value: string): boolean {
+        const input = value.trim();
+        if (!input) return true;
+
+        const ipv4Segment = '(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)';
+        const ipv4 = new RegExp(`^${ipv4Segment}(?:\\.${ipv4Segment}){3}(?:\\/(?:[0-9]|[1-2][0-9]|3[0-2]))?$`);
+        if (ipv4.test(input)) return true;
+
+        const ipv6WithCidr = /^([0-9A-Fa-f:]+)(?:\/(?:[0-9]|[1-9][0-9]|1[01][0-9]|12[0-8]))?$/;
+        return input.includes(':') && ipv6WithCidr.test(input);
+    }
+
+    function isValidMac(value: string): boolean {
+        const input = value.trim();
+        if (!input) return true;
+        return macPattern.test(input);
+    }
+
+    function handleMacInput(e: Event) {
+        const input = e.currentTarget as HTMLInputElement;
+        mac = normalizeMac(input.value);
+    }
+
     $: categoryMap = createCategoryMap(categories);
+
+    $: validationErrors = {
+        name: !name.trim()
+            ? 'Имя — обязательное поле'
+            : (name.trim().length > NAME_MAX ? `Максимум ${ NAME_MAX } символов` : ''),
+        model_id: !model_id ? 'Модель — обязательное поле' : '',
+        statusId: !statusId ? 'Статус — обязательное поле' : '',
+        serial_number: serial_number.trim().length > SERIAL_MAX ? `Максимум ${ SERIAL_MAX } символа` : '',
+        inventory_number: inventory_number.trim().length > INVENTORY_MAX ? `Максимум ${ INVENTORY_MAX } символа` : '',
+        location: location.trim().length > LOCATION_MAX ? `Максимум ${ LOCATION_MAX } символов` : '',
+        assigned_to: assigned_to.trim().length > ASSIGNED_TO_MAX ? `Максимум ${ ASSIGNED_TO_MAX } символов` : '',
+        ip: isValidIp(ip) ? '' : 'Некорректный IP-адрес',
+        mac: isValidMac(mac) ? '' : 'MAC должен быть в формате AA:BB:CC:DD:EE:FF',
+        photo: photo
+            ? (!photo.type.startsWith('image/') ? 'Можно загрузить только изображение'
+                : (photo.size === 0 ? 'Файл изображения пустой' : ''))
+            : '',
+    };
+
+    $: isFormInvalid = Object.values(validationErrors).some((msg) => Boolean(msg));
 
     function toOptional(value: string): string | undefined {
         const normalized = value.trim();
@@ -55,59 +111,32 @@
         return normalized.length > 0 ? normalized : null;
     }
 
-    // Временно отключено: отправка фото в payload создания/обновления ассета.
-    // function fileToDataUrl(file: File): Promise<string> {
-    //     return new Promise((resolve, reject) => {
-    //         const reader = new FileReader();
-
-    //         reader.onload = () => resolve(String(reader.result ?? ''));
-    //         reader.onerror = () => reject(new Error('Не удалось прочитать изображение'));
-
-    //         reader.readAsDataURL(file);
-    //     });
-    // }
-
     async function handleSave() {
-        if (!name.trim()) {
-            errorMsg = 'Имя — обязательное поле';
+        if (isFormInvalid) {
+            errorMsg = 'Проверьте корректность заполнения полей';
             return;
         }
-        if (!model_id) {
-            errorMsg = 'Модель — обязательное поле';
-            return;
-        }
-        if (!statusId) {
-            errorMsg = 'Статус — обязательное поле';
+
+        if (asset && photo) {
+            errorMsg = 'Обновление фото для существующего актива пока не поддерживается API';
             return;
         }
 
         saving = true;
         errorMsg = '';
 
-        // Временно отключено: отправка фото в payload создания/обновления ассета.
-        // let photoPayload: string | undefined;
-        // if (photo) {
-        //     try {
-        //         photoPayload = await fileToDataUrl(photo);
-        //     } catch (e: any) {
-        //         errorMsg = e?.message || 'Не удалось прочитать изображение';
-        //         saving = false;
-        //         return;
-        //     }
-        // }
-
         const normalizedAsset: Asset = {
             id: asset?.id ?? 0,
             name: name.trim(),
             model_id: Number(model_id),
             status: Number(statusId),
-            description,
-            serial_number,
-            inventory_number,
-            location,
-            assigned_to,
-            ip,
-            mac,
+            description: toOptional(description),
+            serial_number: toOptional(serial_number),
+            inventory_number: toOptional(inventory_number),
+            location: toOptional(location),
+            assigned_to: toOptional(assigned_to),
+            ip: toOptional(ip),
+            mac: toOptional(mac),
         };
 
         if (asset) {
@@ -115,7 +144,6 @@
                 name: name.trim(),
                 model_id: Number(model_id),
                 status: Number(statusId),
-                // ...(photoPayload ? { photo: photoPayload } : {}),
                 description: toNullable(description),
                 serial_number: toNullable(serial_number),
                 inventory_number: toNullable(inventory_number),
@@ -140,7 +168,7 @@
             name: name.trim(),
             model_id: Number(model_id),
             status: Number(statusId),
-            // ...(photoPayload ? { photo: photoPayload } : {}),
+            ...(photo ? { photo } : {}),
             description: toOptional(description),
             serial_number: toOptional(serial_number),
             inventory_number: toOptional(inventory_number),
@@ -247,7 +275,10 @@
         <div class="modal-body">
             <label class="field">
                 <span class="field-label">Имя <span class="required">*</span></span>
-                <input type="text" bind:value={ name } placeholder="Название актива" />
+                <input type="text" bind:value={ name } maxlength={ NAME_MAX } placeholder="Название актива" />
+                {#if validationErrors.name}
+                    <span class="field-error">{ validationErrors.name }</span>
+                {/if}
             </label>
 
             <label class="field">
@@ -256,11 +287,14 @@
                 {#if photo}
                     <img src={ URL.createObjectURL(photo) } alt="Фото актива" style="max-width: 120px; margin-top: 8px; border-radius: 8px;" />
                 {/if}
+                {#if validationErrors.photo}
+                    <span class="field-error">{ validationErrors.photo }</span>
+                {/if}
             </label>
 
             <div class="field-row">
                 <label class="field flex-1">
-                    <span class="field-label">Модель</span>
+                    <span class="field-label">Модель <span class="required">*</span></span>
                     <div class="field-with-action">
                         <select bind:value={ model_id } required>
                             <option value="">— Не выбрана —</option>
@@ -298,16 +332,22 @@
                             </button>
                         {/if}
                     </div>
+                    {#if validationErrors.model_id}
+                        <span class="field-error">{ validationErrors.model_id }</span>
+                    {/if}
                 </label>
 
                 <label class="field flex-1">
-                    <span class="field-label">Статус</span>
+                    <span class="field-label">Статус <span class="required">*</span></span>
                     <select bind:value={ statusId } required>
                         <option value="">— Не выбран —</option>
                         {#each statuses as s}
                             <option value={ s.id }>{ s.name }</option>
                         {/each}
                     </select>
+                    {#if validationErrors.statusId}
+                        <span class="field-error">{ validationErrors.statusId }</span>
+                    {/if}
                 </label>
             </div>
 
@@ -337,33 +377,51 @@
             <div class="field-row">
                 <label class="field flex-1">
                     <span class="field-label">Серийный номер</span>
-                    <input type="text" bind:value={ serial_number } placeholder="S/N" />
+                    <input type="text" bind:value={ serial_number } maxlength={ SERIAL_MAX } placeholder="S/N" />
+                    {#if validationErrors.serial_number}
+                        <span class="field-error">{ validationErrors.serial_number }</span>
+                    {/if}
                 </label>
                 <label class="field flex-1">
                     <span class="field-label">Инвентарный номер</span>
-                    <input type="text" bind:value={ inventory_number } placeholder="Инв. номер" />
+                    <input type="text" bind:value={ inventory_number } maxlength={ INVENTORY_MAX } placeholder="Инв. номер" />
+                    {#if validationErrors.inventory_number}
+                        <span class="field-error">{ validationErrors.inventory_number }</span>
+                    {/if}
                 </label>
             </div>
 
             <label class="field">
                 <span class="field-label">Локация</span>
-                <input type="text" bind:value={ location } placeholder="Корпус, кабинет" />
+                <input type="text" bind:value={ location } maxlength={ LOCATION_MAX } placeholder="Корпус, кабинет" />
+                {#if validationErrors.location}
+                    <span class="field-error">{ validationErrors.location }</span>
+                {/if}
             </label>
 
             <div class="field-row">
                 <label class="field flex-1">
                     <span class="field-label">IP-адрес</span>
                     <input type="text" bind:value={ ip } placeholder="192.168.1.1" />
+                    {#if validationErrors.ip}
+                        <span class="field-error">{ validationErrors.ip }</span>
+                    {/if}
                 </label>
                 <label class="field flex-1">
                     <span class="field-label">MAC-адрес</span>
-                    <input type="text" bind:value={ mac } placeholder="AA:BB:CC:DD:EE:FF" />
+                    <input type="text" bind:value={ mac } maxlength="17" placeholder="AA:BB:CC:DD:EE:FF" on:input={ handleMacInput } />
+                    {#if validationErrors.mac}
+                        <span class="field-error">{ validationErrors.mac }</span>
+                    {/if}
                 </label>
             </div>
 
             <label class="field">
                 <span class="field-label">Ответственный сотрудник</span>
-                <input type="text" bind:value={ assigned_to } placeholder="ФИО сотрудника" />
+                <input type="text" bind:value={ assigned_to } maxlength={ ASSIGNED_TO_MAX } placeholder="ФИО сотрудника" />
+                {#if validationErrors.assigned_to}
+                    <span class="field-error">{ validationErrors.assigned_to }</span>
+                {/if}
             </label>
         </div>
 
@@ -381,7 +439,7 @@
             <button
                 class="btn btn-primary"
                 on:click={ handleSave }
-                disabled={ saving || !name.trim() || !model_id || !statusId }
+                disabled={ saving || isFormInvalid }
             >
                 { saving ? 'Сохранение...' : (asset ? 'Сохранить' : 'Создать') }
             </button>

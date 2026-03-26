@@ -61,8 +61,22 @@ export function deleteModel(modelId: number) {
     return api.delete(`${BASE}/models/${modelId}`);
 }
 
+function toAssetCreateFormData(payload: CreateAssetPayload): FormData {
+    const { photo, ...fields } = payload;
+
+    const formData = new FormData();
+    formData.append(
+        'fields',
+        new Blob([JSON.stringify(fields)], { type: 'application/json' })
+    );
+
+    if (photo) formData.append('photo', photo, photo.name);
+
+    return formData;
+}
+
 export function createAsset(payload: CreateAssetPayload) {
-    return api.post<CreateAssetResponse>(`${BASE}`, payload);
+    return api.post<CreateAssetResponse>(`${BASE}`, toAssetCreateFormData(payload));
 }
 
 export function updateAsset(assetId: number, payload: UpdateAssetPayload) {

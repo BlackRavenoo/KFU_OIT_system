@@ -32,23 +32,28 @@
     let showDeleteModelModal = false;
     let showDeleteCategoryModal = false;
 
+    const MODEL_NAME_MAX = 128;
+
     $: isReadonly = mode === 'view';
     $: selectedCategoryId = category ? Number(category) : null;
     $: selectedCategory = selectedCategoryId
         ? categories.find((c) => c.id === selectedCategoryId) ?? null
         : null;
+    $: validationErrors = {
+        name: !name.trim()
+            ? 'Имя модели — обязательное поле'
+            : (name.trim().length > MODEL_NAME_MAX ? `Максимум ${ MODEL_NAME_MAX } символов` : ''),
+        category: !category ? 'Категория — обязательное поле' : '',
+    };
+    $: isFormInvalid = Object.values(validationErrors).some((msg) => Boolean(msg));
 
     function switchToEdit() {
         mode = 'edit';
     }
 
     async function handleSave() {
-        if (!name.trim()) {
-            errorMsg = 'Имя — обязательное поле';
-            return;
-        }
-        if (!category) {
-            errorMsg = 'Категория — обязательное поле';
+        if (isFormInvalid) {
+            errorMsg = 'Проверьте корректность заполнения полей';
             return;
         }
 
@@ -189,8 +194,12 @@
                     type="text"
                     bind:value={ name }
                     placeholder="Название модели"
+                    maxlength={ MODEL_NAME_MAX }
                     disabled={ isReadonly }
                 />
+                {#if validationErrors.name}
+                    <span class="field-error">{ validationErrors.name }</span>
+                {/if}
             </label>
 
             <label class="field">
@@ -219,6 +228,9 @@
                         </button>
                     {/if}
                 </div>
+                {#if validationErrors.category}
+                    <span class="field-error">{ validationErrors.category }</span>
+                {/if}
             </label>
 
             {#if category}
@@ -256,7 +268,7 @@
                 <button
                     class="btn btn-primary"
                     on:click={ handleSave }
-                    disabled={ saving || !name.trim() || !category }
+                    disabled={ saving || isFormInvalid }
                 >
                     { saving ? 'Сохранение...' : (mode === 'edit' ? 'Сохранить' : 'Создать') }
                 </button>

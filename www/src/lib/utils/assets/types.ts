@@ -5,6 +5,27 @@ export type AssetId = number;
 
 export type SortOrder = 'asc' | 'desc';
 
+export type AssetsFilters = {
+    search: string;
+    page: number;
+    page_size: number;
+    sort_order: SortOrder;
+    model_id: number | '';
+    status: number | '';
+    serial_number: string;
+    inventory_number: string;
+    location: string;
+    assigned_to: string;
+    ip: string;
+    mac: string;
+};
+
+export interface IAssetsFiltersStorage {
+    get(): AssetsFilters;
+    set(filters: AssetsFilters): void;
+    clear(): void;
+}
+
 export type AssetCategory = {
     id: AssetCategoryId;
     name: string;
@@ -118,7 +139,7 @@ export type CreateAssetPayload = {
     name: string;
     model_id: number;
     status: number;
-    photo?: string;
+    photo?: File;
     description?: string;
     serial_number?: string;
     inventory_number?: string;
@@ -132,7 +153,6 @@ export type UpdateAssetPayload = {
     name?: string;
     model_id?: number;
     status?: number;
-    photo?: string | null;
     description?: string | null;
     serial_number?: string | null;
     inventory_number?: string | null;

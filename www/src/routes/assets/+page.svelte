@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
+    import { fade, slide } from 'svelte/transition';
 
     import SearchBar from '$lib/components/Search/Searchfield.svelte';
     import Pagination from '$lib/components/Search/Pagination.svelte';
@@ -22,6 +23,7 @@
         getModels,
     } from '$lib/utils/assets/api';
     import { getStatuses } from '$lib/utils/assets/statuses-api';
+    import { clearAssetsFilters, getAssetsFilters, setAssetsFilters } from '$lib/utils/assets/stores';
     import type {
         Asset as AssetItem,
         AssetCategory,
@@ -44,20 +46,125 @@
     let loading = false;
     let error: string | null = null;
 
-    let search = '';
-    let page = 1;
-    let pageSize = 10;
+    const savedFilters = getAssetsFilters();
+
+    let search = savedFilters.search;
+    let page = savedFilters.page;
+    let pageSize = savedFilters.page_size;
     let totalItems = 0;
+    let sortOrder: 'asc' | 'desc' = savedFilters.sort_order;
+
+    let filterModelId: number | string = savedFilters.model_id;
+    let filterStatusId: number | string = savedFilters.status;
+    let filterSerialNumber = savedFilters.serial_number;
+    let filterInventoryNumber = savedFilters.inventory_number;
+    let filterLocation = savedFilters.location;
+    let filterAssignedTo = savedFilters.assigned_to;
+    let filterIp = savedFilters.ip;
+    let filterMac = savedFilters.mac;
+
+    let isMobile = false;
+    let filtersCollapsed = true;
 
     $: totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+    $: setAssetsFilters({
+        search,
+        page,
+        page_size: pageSize,
+        sort_order: sortOrder,
+        model_id: filterModelId === '' ? '' : Number(filterModelId),
+        status: filterStatusId === '' ? '' : Number(filterStatusId),
+        serial_number: filterSerialNumber,
+        inventory_number: filterInventoryNumber,
+        location: filterLocation,
+        assigned_to: filterAssignedTo,
+        ip: filterIp,
+        mac: filterMac,
+    });
 
     $: categoryMap = createCategoryMap(categories);
     $: modelMap = createModelMap(models);
     $: statusMap = createStatusMap(statuses);
 
+    function toOptional(value: string): string | undefined {
+        const normalized = value.trim();
+        return normalized.length > 0 ? normalized : undefined;
+    }
+
+    function normalizeMac(value: string): string {
+        const hex = value.replace(/[^0-9a-fA-F]/g, '').toUpperCase().slice(0, 12);
+        return hex.match(/.{1,2}/g)?.join(':') ?? '';
+    }
+
+    function handleMacFilterInput(e: Event) {
+        const input = e.currentTarget as HTMLInputElement;
+        filterMac = normalizeMac(input.value);
+    }
+
+    function lockScroll() {
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function unlockScroll() {
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+    }
+
+    function checkMobile() {
+        isMobile = window.innerWidth <= 900;
+        if (!isMobile) {
+            filtersCollapsed = true;
+            unlockScroll();
+        }
+    }
+
+    function toggleFiltersCollapsed() {
+        filtersCollapsed = !filtersCollapsed;
+        if (isMobile) {
+            if (!filtersCollapsed) lockScroll();
+            else unlockScroll();
+        }
+    }
+
     async function handleSearch() {
         page = 1;
         await fetchAssets();
+    }
+
+    async function handleFilterChange() {
+        page = 1;
+        await fetchAssets();
+
+        if (isMobile) {
+            filtersCollapsed = true;
+            unlockScroll();
+        }
+    }
+
+    async function handleClearFilters() {
+        clearAssetsFilters();
+
+        const defaults = getAssetsFilters();
+        search = defaults.search;
+        sortOrder = defaults.sort_order;
+        filterModelId = defaults.model_id;
+        filterStatusId = defaults.status;
+        filterSerialNumber = defaults.serial_number;
+        filterInventoryNumber = defaults.inventory_number;
+        filterLocation = defaults.location;
+        filterAssignedTo = defaults.assigned_to;
+        filterIp = defaults.ip;
+        filterMac = defaults.mac;
+
+        page = 1;
+        await fetchAssets();
+
+        if (isMobile) {
+            filtersCollapsed = true;
+            unlockScroll();
+        }
     }
 
     async function handlePageChange(newPage: number) {
@@ -92,7 +199,16 @@
         const resp = await getAssets({
             page,
             page_size: pageSize,
+            sort_order: sortOrder,
+            ...(filterModelId ? { model_id: Number(filterModelId) } : {}),
+            ...(filterStatusId ? { status: Number(filterStatusId) } : {}),
             ...(search.trim() ? { name: search.trim() } : {}),
+            ...(toOptional(filterSerialNumber) ? { serial_number: toOptional(filterSerialNumber) } : {}),
+            ...(toOptional(filterInventoryNumber) ? { inventory_number: toOptional(filterInventoryNumber) } : {}),
+            ...(toOptional(filterLocation) ? { location: toOptional(filterLocation) } : {}),
+            ...(toOptional(filterAssignedTo) ? { assigned_to: toOptional(filterAssignedTo) } : {}),
+            ...(toOptional(filterIp) ? { ip: toOptional(filterIp) } : {}),
+            ...(toOptional(filterMac) ? { mac: toOptional(filterMac) } : {}),
         });
 
         if (!resp.success) {
@@ -270,132 +386,288 @@
     onMount(async () => {
         pageTitle.set('Активы | Система управления заявками ЕИ КФУ');
         pageDescription.set('Управление активами и оборудованием организации.');
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
         await Promise.all([fetchCategoriesList(), fetchModelsList(), fetchStatuses()]);
         await fetchAssets();
     });
 
     onDestroy(() => {
+        window.removeEventListener('resize', checkMobile);
+        unlockScroll();
         pageTitle.set('Service Desk | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Елабужского института КФУ.');
     });
 </script>
 
-<div class="content fullwidth-content-panel">
-    <div class="search-controls-wrapper">
-        <SearchBar
-            bind:searchQuery={ search }
-            placeholder="Поиск по активам"
-            onSearch={ handleSearch }
-        />
-        <div class="search-controls">
-            <input
-                type="number"
-                class="page-size-input"
-                min="10"
-                max="50"
-                step="1"
-                bind:value={ pageSize }
-                on:change={ handlePageSizeChange }
-                aria-label="Размер страницы"
-            />
+<div id="content-panel">
+    {#if isMobile}
+        <button type="button" class="filters-toggle-row" on:click={ toggleFiltersCollapsed } aria-label="Показать/скрыть фильтры">
+            <span>Фильтры</span>
+            <svg class="arrow" width="24" height="24" viewBox="0 0 24 24">
+                <path d={ filtersCollapsed ? 'M6 9l6 6 6-6' : 'M6 15l6-6 6 6' } stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+            </svg>
+        </button>
+    {/if}
+
+    {#if !isMobile}
+        <aside in:slide={{ duration: 250 }} out:fade={{ duration: 200 }}>
+            <button id="clear_filters" on:click={ handleClearFilters }>Сбросить</button>
+
+            <div class="filter">
+                <span class="filter_name">Модель</span>
+                <div class="filter_case">
+                    <select bind:value={ filterModelId }>
+                        <option value="">Все модели</option>
+                        {#each models as m}
+                            <option value={ m.id }>{ m.name }</option>
+                        {/each}
+                    </select>
+                </div>
+            </div>
+
+            <div class="filter">
+                <span class="filter_name">Статус</span>
+                <div class="filter_case">
+                    <select bind:value={ filterStatusId }>
+                        <option value="">Все статусы</option>
+                        {#each statuses as s}
+                            <option value={ s.id }>{ s.name }</option>
+                        {/each}
+                    </select>
+                </div>
+            </div>
+
+            <div class="filter">
+                <span class="filter_name">Поля</span>
+                <div class="filter_case filter_case-assets">
+                    <label for="asset-sn">Серийный номер</label>
+                    <input id="asset-sn" type="text" bind:value={ filterSerialNumber } placeholder="S/N" />
+
+                    <label for="asset-inv">Инвентарный номер</label>
+                    <input id="asset-inv" type="text" bind:value={ filterInventoryNumber } placeholder="Инв. №" />
+
+                    <label for="asset-location">Локация</label>
+                    <input id="asset-location" type="text" bind:value={ filterLocation } placeholder="Кабинет/корпус" />
+
+                    <label for="asset-assigned">Ответственный</label>
+                    <input id="asset-assigned" type="text" bind:value={ filterAssignedTo } placeholder="ФИО" />
+
+                    <label for="asset-ip">IP</label>
+                    <input id="asset-ip" type="text" bind:value={ filterIp } placeholder="192.168.1.1" />
+
+                    <label for="asset-mac">MAC</label>
+                    <input id="asset-mac" type="text" bind:value={ filterMac } on:input={ handleMacFilterInput } placeholder="AA:BB:CC:DD:EE:FF" maxlength="17" />
+                </div>
+            </div>
+
+            <div class="filter">
+                <span class="filter_name">Сортировка</span>
+                <div class="filter_case">
+                    <select bind:value={ sortOrder }>
+                        <option value="asc">Сначала старые</option>
+                        <option value="desc">Сначала новые</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="filter_access" on:click={ handleFilterChange }>Применить</button>
+        </aside>
+    {:else}
+        <div class="filters-mobile-overlay {filtersCollapsed ? '' : 'open'}" transition:fade>
+            {#if !filtersCollapsed}
+                <aside class="mobile-full" in:slide={{ duration: 250 }} out:slide={{ duration: 180 }}>
+                    <button type="button" class="filters-mobile-close" on:click={ toggleFiltersCollapsed } aria-label="Свернуть фильтры">
+                        Фильтры
+                        <svg width="24" height="24" viewBox="0 0 24 24">
+                            <path d="M6 15l6-6 6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+
+                    <button id="clear_filters" on:click={ handleClearFilters }>Сбросить</button>
+
+                    <div class="filter">
+                        <span class="filter_name">Модель</span>
+                        <div class="filter_case">
+                            <select bind:value={ filterModelId }>
+                                <option value="">Все модели</option>
+                                {#each models as m}
+                                    <option value={ m.id }>{ m.name }</option>
+                                {/each}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="filter">
+                        <span class="filter_name">Статус</span>
+                        <div class="filter_case">
+                            <select bind:value={ filterStatusId }>
+                                <option value="">Все статусы</option>
+                                {#each statuses as s}
+                                    <option value={ s.id }>{ s.name }</option>
+                                {/each}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="filter">
+                        <span class="filter_name">Поля</span>
+                        <div class="filter_case filter_case-assets">
+                            <label for="asset-sn-m">Серийный номер</label>
+                            <input id="asset-sn-m" type="text" bind:value={ filterSerialNumber } placeholder="S/N" />
+
+                            <label for="asset-inv-m">Инвентарный номер</label>
+                            <input id="asset-inv-m" type="text" bind:value={ filterInventoryNumber } placeholder="Инв. №" />
+
+                            <label for="asset-location-m">Локация</label>
+                            <input id="asset-location-m" type="text" bind:value={ filterLocation } placeholder="Кабинет/корпус" />
+
+                            <label for="asset-assigned-m">Ответственный</label>
+                            <input id="asset-assigned-m" type="text" bind:value={ filterAssignedTo } placeholder="ФИО" />
+
+                            <label for="asset-ip-m">IP</label>
+                            <input id="asset-ip-m" type="text" bind:value={ filterIp } placeholder="192.168.1.1" />
+
+                            <label for="asset-mac-m">MAC</label>
+                            <input id="asset-mac-m" type="text" bind:value={ filterMac } on:input={ handleMacFilterInput } placeholder="AA:BB:CC:DD:EE:FF" maxlength="17" />
+                        </div>
+                    </div>
+
+                    <div class="filter">
+                        <span class="filter_name">Сортировка</span>
+                        <div class="filter_case">
+                            <select bind:value={ sortOrder }>
+                                <option value="asc">Сначала старые</option>
+                                <option value="desc">Сначала новые</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="filters-mobile-apply" on:click={ handleFilterChange } aria-label="Применить фильтры">
+                        Применить
+                    </button>
+                </aside>
+            {/if}
         </div>
-    </div>
+    {/if}
 
-    <div class="tickets-list list-view">
-        {#if loading}
-            <div class="ticket-item" style="align-items:center;">
-                Загрузка...
+    <main class="assets-main">
+        <div class="search-controls-wrapper">
+            <SearchBar
+                bind:searchQuery={ search }
+                placeholder="Поиск по активам"
+                onSearch={ handleSearch }
+            />
+            <div class="search-controls">
+                <input
+                    type="number"
+                    class="page-size-input"
+                    min="10"
+                    max="50"
+                    step="1"
+                    bind:value={ pageSize }
+                    on:change={ handlePageSizeChange }
+                    aria-label="Размер страницы"
+                />
             </div>
-        {:else if error}
-            <div class="ticket-item" style="align-items:center;">
-                { error }
-            </div>
-        {:else if assets.length === 0}
-            <div class="empty-state">Нет активов</div>
-        {:else}
-            {#each assets as asset (asset.id)}
-                {@const catColor = getCategoryColorForAsset(asset, modelMap, categoryMap)}
-                {@const status = getStatusForAsset(asset, statusMap)}
-                {@const model = getModelForAsset(asset, modelMap)}
-                {@const category = getCategoryForAsset(asset, modelMap, categoryMap)}
-                <div
-                    class="ticket-item asset-item"
-                    style="border-left: 4px solid { catColor };"
-                    role="button"
-                    tabindex="0"
-                    aria-label="Открыть актив { asset.name }"
-                    on:click={ () => openViewAsset(asset) }
-                    on:keydown={ (e) => (e.key === 'Enter' || e.key === ' ') && openViewAsset(asset) }
-                >
-                    <div class="asset-heading">
-                        <span
-                            class="asset-color-dot"
-                            style="background: { catColor };"
-                            aria-hidden="true"
-                        ></span>
-                        <div class="ticket-title">{ asset.name }</div>
-                        {#if status}
-                            <span
-                                class="asset-status-chip"
-                                style="background: { status.color }20; color: { status.color }; border-color: { status.color };"
-                            >
-                                { status.name }
-                            </span>
-                        {/if}
-                    </div>
+        </div>
 
-                    <div class="ticket-meta asset-meta">
-                        {#if model}
-                            <span class="asset-tag">{ model.name }</span>
-                        {/if}
-                        {#if category}
+        <div class="tickets-list list-view">
+            {#if loading}
+                <div class="ticket-item" style="align-items:center;">
+                    Загрузка...
+                </div>
+            {:else if error}
+                <div class="ticket-item" style="align-items:center;">
+                    { error }
+                </div>
+            {:else if assets.length === 0}
+                <div class="empty-state">Нет активов</div>
+            {:else}
+                {#each assets as asset (asset.id)}
+                    {@const catColor = getCategoryColorForAsset(asset, modelMap, categoryMap)}
+                    {@const status = getStatusForAsset(asset, statusMap)}
+                    {@const model = getModelForAsset(asset, modelMap)}
+                    {@const category = getCategoryForAsset(asset, modelMap, categoryMap)}
+                    <div
+                        class="ticket-item asset-item"
+                        style="border-left: 4px solid { catColor };"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Открыть актив { asset.name }"
+                        on:click={ () => openViewAsset(asset) }
+                        on:keydown={ (e) => (e.key === 'Enter' || e.key === ' ') && openViewAsset(asset) }
+                    >
+                        <div class="asset-heading">
                             <span
-                                class="asset-tag"
-                                style="background: { catColor }18; color: { catColor };"
-                            >
-                                { category.name }
-                            </span>
-                        {/if}
-                        {#if asset.location}
-                            <span class="asset-info">📍 { asset.location }</span>
-                        {/if}
-                        {#if asset.assigned_to}
-                            <span class="asset-info">👤 { asset.assigned_to }</span>
-                        {/if}
-                    </div>
-
-                    {#if asset.serial_number || asset.inventory_number || asset.ip || asset.mac}
-                        <div class="asset-numbers">
-                            {#if asset.serial_number}
-                                <span>S/N: { asset.serial_number }</span>
-                            {/if}
-                            {#if asset.inventory_number}
-                                <span>Инв.: { asset.inventory_number }</span>
-                            {/if}
-                            {#if asset.ip}
-                                <span>IP: { asset.ip }</span>
-                            {/if}
-                            {#if asset.mac}
-                                <span>MAC: { asset.mac }</span>
+                                class="asset-color-dot"
+                                style="background: { catColor };"
+                                aria-hidden="true"
+                            ></span>
+                            <div class="ticket-title">{ asset.name }</div>
+                            {#if status}
+                                <span
+                                    class="asset-status-chip"
+                                    style="background: { status.color }20; color: { status.color }; border-color: { status.color };"
+                                >
+                                    { status.name }
+                                </span>
                             {/if}
                         </div>
-                    {/if}
-                </div>
-            {/each}
-        {/if}
-    </div>
 
-    {#if totalPages > 1}
-        <Pagination currentPage={ page } { totalPages } onPageChange={ handlePageChange } />
-    {/if}
+                        <div class="ticket-meta asset-meta">
+                            {#if model}
+                                <span class="asset-tag">{ model.name }</span>
+                            {/if}
+                            {#if category}
+                                <span
+                                    class="asset-tag"
+                                    style="background: { catColor }18; color: { catColor };"
+                                >
+                                    { category.name }
+                                </span>
+                            {/if}
+                            {#if asset.location}
+                                <span class="asset-info">📍 { asset.location }</span>
+                            {/if}
+                            {#if asset.assigned_to}
+                                <span class="asset-info">👤 { asset.assigned_to }</span>
+                            {/if}
+                        </div>
 
-    {#if canManageAssets}
-        <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
-            <button class="filter-btn primary add-asset" on:click={ openCreateAsset }>
-                + Добавить актив
-            </button>
+                        {#if asset.serial_number || asset.inventory_number || asset.ip || asset.mac}
+                            <div class="asset-numbers">
+                                {#if asset.serial_number}
+                                    <span>S/N: { asset.serial_number }</span>
+                                {/if}
+                                {#if asset.inventory_number}
+                                    <span>Инв.: { asset.inventory_number }</span>
+                                {/if}
+                                {#if asset.ip}
+                                    <span>IP: { asset.ip }</span>
+                                {/if}
+                                {#if asset.mac}
+                                    <span>MAC: { asset.mac }</span>
+                                {/if}
+                            </div>
+                        {/if}
+                    </div>
+                {/each}
+            {/if}
         </div>
-    {/if}
+
+        {#if totalPages > 1}
+            <Pagination currentPage={ page } { totalPages } onPageChange={ handlePageChange } />
+        {/if}
+
+        {#if canManageAssets}
+            <div class="create-asset-cta">
+                <button class="filter-btn primary add-asset" on:click={ openCreateAsset }>
+                    + Добавить актив
+                </button>
+            </div>
+        {/if}
+    </main>
 </div>
 
 {#if showAssetModal}

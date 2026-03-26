@@ -5,6 +5,7 @@
 
 import { setTokenStorage, LocalStorageTokenStorage } from '$lib/utils/auth/tokens/storage';
 import { setTicketsFiltersStorage, LocalStorageTicketsFiltersStorage } from '$lib/utils/tickets/stores';
+import { setAssetsFiltersStorage, LocalStorageAssetsFiltersStorage } from '$lib/utils/assets/stores';
 import { fetchConsts } from '$lib/utils/tickets/api/get';
 import { browser } from '$app/environment';
 import { currentUser, isAuthenticated, initializeAuth } from '$lib/utils/auth/storage/initial';
@@ -14,6 +15,7 @@ const tokenStorage = new LocalStorageTokenStorage();
 setTokenStorage(tokenStorage);
 
 setTicketsFiltersStorage(new LocalStorageTicketsFiltersStorage());
+setAssetsFiltersStorage(new LocalStorageAssetsFiltersStorage());
 
 if (browser) {
     const { initialAuthState, initialUserData } = initializeAuth();

@@ -237,7 +237,7 @@ export const api = {
 
     post: async <T>(
         route: string,
-        data?: Record<string, any>,
+        data?: Record<string, any> | FormData,
         responseType: 'json' | 'blob' = 'json',
         withCredentials?: boolean
     ): Promise<ApiResponse<T>> => {
@@ -256,7 +256,7 @@ export const api = {
 
     put: async <T>(
         route: string,
-        data?: Record<string, any>,
+        data?: Record<string, any> | FormData,
         responseType: 'json' | 'blob' = 'json',
         withCredentials?: boolean
     ): Promise<ApiResponse<T>> => {
@@ -275,7 +275,7 @@ export const api = {
 
     patch: async <T>(
         route: string,
-        data?: Record<string, any>,
+        data?: Record<string, any> | FormData,
         responseType: 'json' | 'blob' = 'json',
         withCredentials?: boolean
     ): Promise<ApiResponse<T>> => {

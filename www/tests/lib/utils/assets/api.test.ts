@@ -27,7 +27,7 @@ describe('Assets API utils', () => {
         });
     });
 
-    it('`createAsset()` posts payload to assets endpoint', async () => {
+    it('`createAsset()` posts multipart payload to assets endpoint', async () => {
         apiMock.post.mockResolvedValue({ success: true, data: { id: 11 }, status: 201 });
 
         const { createAsset } = await import('$lib/utils/assets/api');
@@ -40,7 +40,41 @@ describe('Assets API utils', () => {
 
         await createAsset(payload);
 
-        expect(apiMock.post).toHaveBeenCalledWith('/api/v1/assets', payload);
+        expect(apiMock.post).toHaveBeenCalledWith('/api/v1/assets', expect.any(FormData));
+
+        const sentBody = apiMock.post.mock.calls[0][1] as FormData;
+        const fields = sentBody.get('fields');
+
+        expect(typeof sentBody.has === 'function' ? sentBody.has('fields') : !!fields).toBe(true);
+        expect(sentBody.get('photo')).toBeNull();
+
+        if (typeof fields === 'string') {
+            expect(JSON.parse(fields)).toEqual(payload);
+        }
+    });
+
+    it('`createAsset()` appends photo to multipart payload when provided', async () => {
+        apiMock.post.mockResolvedValue({ success: true, data: { id: 12 }, status: 201 });
+
+        const { createAsset } = await import('$lib/utils/assets/api');
+        const photo = typeof File !== 'undefined'
+            ? new File(['fake-image'], 'asset.png', { type: 'image/png' })
+            : Object.assign(new Blob(['fake-image'], { type: 'image/png' }), { name: 'asset.png' }) as File;
+
+        const payload = {
+            name: 'Фото актив',
+            model_id: 2,
+            status: 1,
+            photo,
+        };
+
+        await createAsset(payload);
+
+        expect(apiMock.post).toHaveBeenCalledWith('/api/v1/assets', expect.any(FormData));
+
+        const sentBody = apiMock.post.mock.calls[0][1] as FormData;
+        expect(typeof sentBody.has === 'function' ? sentBody.has('photo') : !!sentBody.get('photo')).toBe(true);
+        expect(sentBody.get('photo')).toBeTruthy();
     });
 
     it('`updateAsset()` puts payload to asset endpoint', async () => {
