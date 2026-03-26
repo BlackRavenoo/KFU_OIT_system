@@ -1,13 +1,18 @@
+use actix_multipart::form::{MultipartForm, bytes::Bytes, json::Json};
 use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
 use mac_address::MacAddress;
 use serde::Deserialize;
 use sqlx::{PgPool, types::ipnetwork::IpNetwork};
 
-use crate::{build_update_query, schema::assets::{AssetId, ModelId, StatusId}, utils::error_chain_fmt};
+use crate::{build_update_query, schema::assets::{AssetId, ModelId, StatusId}, services::attachment::{Attachment, AttachmentService, AttachmentType}, utils::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum UpdateAssetError {
+    #[error("Unsupported photo format")]
+    UnsupportedPhotoFormat,
+    #[error("Model not exists")]
+    ModelNotExists,
     #[error(transparent)]
     Unexpected(#[from] anyhow::Error),
 }
@@ -20,6 +25,10 @@ impl std::fmt::Debug for UpdateAssetError {
 
 impl ResponseError for UpdateAssetError {}
 
+fn default_remove_photo() -> bool {
+    false
+}
+
 #[derive(Debug, Deserialize)]
 pub struct UpdateAssetSchema {
     pub name: Option<String>,
@@ -27,28 +36,72 @@ pub struct UpdateAssetSchema {
     pub serial_number: Option<Option<String>>,
     pub inventory_number: Option<Option<String>>,
     pub status: Option<StatusId>,
-
+    
     pub location: Option<Option<String>>,
     pub assigned_to: Option<Option<String>>,
     
     pub model_id: Option<ModelId>,
-
+    
     pub ip: Option<Option<IpNetwork>>,
     pub mac: Option<Option<MacAddress>>,
+
+    #[serde(default = "default_remove_photo")]
+    pub remove_photo: bool,
+}
+
+#[derive(MultipartForm)]
+pub struct UpdateAssetForm {
+    pub fields: Json<UpdateAssetSchema>,
+    pub photo: Option<Bytes>,
 }
 
 pub async fn update_asset(
     pool: web::Data<PgPool>,
-    web::Json(schema): web::Json<UpdateAssetSchema>,
+    service: web::Data<AttachmentService>,
+    MultipartForm(mut form): MultipartForm<UpdateAssetForm>,
     path: web::Path<AssetId>,
 ) -> Result<HttpResponse, UpdateAssetError> {
-    update(
+    if form.photo.is_some() {
+        form.fields.0.remove_photo = false;
+    }
+
+    let full_key = update(
         &pool,
-        schema,
+        form.fields.0,
         path.into_inner()
     )
     .await
-    .context("Failed to update asset")?;
+    .context("Failed to update asset")?
+    .ok_or_else(|| UpdateAssetError::ModelNotExists)?;
+
+    if let Some(bytes) = form.photo {
+        let attachment = Attachment::try_from(bytes)
+            .map_err(|_| UpdateAssetError::UnsupportedPhotoFormat)?;
+
+        if !attachment.is_image() {
+            return Err(UpdateAssetError::UnsupportedPhotoFormat);
+        }
+
+        let key = if let Some(key) = &full_key {
+            key.split("/")
+                .skip(1)
+                .next()
+                .context("Failed to get photo key")?
+                .split(".")
+                .next()
+                .map(|r| r.to_string())
+        } else {
+            None
+        };
+
+        service.upload(
+            AttachmentType::AssetPhoto,
+            attachment,
+            key
+        ).await
+        .context("Failed to upload asset photo")?;
+
+    }
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -61,7 +114,7 @@ async fn update(
     pool: &PgPool,
     schema: UpdateAssetSchema,
     id: AssetId,
-) -> Result<(), sqlx::Error> {
+) -> Result<Option<Option<String>>, sqlx::Error> {
     let mut builder = sqlx::QueryBuilder::new(
         "UPDATE assets SET "
     );
@@ -78,13 +131,20 @@ async fn update(
     build_update_query!(builder, has_fields, schema.ip, "ip");
     build_update_query!(builder, has_fields, schema.mac, "mac");
 
+    if schema.remove_photo {
+        if has_fields {
+            builder.push(", ");
+        }
+        builder.push("photo_key = ").push_bind(None::<String>);
+    }
+
     _ = has_fields;
 
-    builder.push(" WHERE id = ").push_bind(id);
+    builder.push(" WHERE id = ")
+        .push_bind(id)
+        .push(" RETURNING photo_key");
 
-    builder.build()
-        .execute(pool)
-        .await?;
-
-    Ok(())
+    builder.build_query_scalar()
+        .fetch_optional(pool)
+        .await
 }
