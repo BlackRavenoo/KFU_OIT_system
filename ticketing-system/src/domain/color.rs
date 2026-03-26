@@ -5,7 +5,7 @@ use crate::string_newtype;
 
 #[derive(Debug, Validate, Deserialize)]
 pub struct Color(
-    #[garde(pattern(r"^#[0-9A-Fa-f]{6}$"))]
+    #[garde(pattern(r"^#[0-9A-Fa-f]{3}{1,2}$"))]
     String
 );
 
