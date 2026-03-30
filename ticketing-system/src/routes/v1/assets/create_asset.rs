@@ -1,6 +1,7 @@
 use actix_multipart::form::{MultipartForm, bytes::Bytes, json::Json};
 use actix_web::{HttpResponse, ResponseError, http::StatusCode, web};
 use anyhow::Context as _;
+use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
 use serde::Deserialize;
 use sqlx::{PgPool, types::ipnetwork::IpNetwork};
@@ -48,6 +49,9 @@ pub struct CreateAssetSchema {
 
     pub ip: Option<IpNetwork>,
     pub mac: Option<MacAddress>,
+
+    pub commission_date: Option<DateTime<Utc>>,
+    pub decommission_date: Option<DateTime<Utc>>,
 }
 
 #[derive(MultipartForm)]
@@ -106,8 +110,8 @@ async fn insert_asset(
     photo_key: Option<String>,
 ) -> Result<AssetId, sqlx::Error> {
     sqlx::query!(
-        "INSERT INTO assets(model_id, status, name, description, serial_number, inventory_number, location, assigned_to, ip, mac, photo_key)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        "INSERT INTO assets(model_id, status, name, description, serial_number, inventory_number, location, assigned_to, ip, mac, photo_key, commission_date, decommission_date)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING id",
         schema.model_id,
         schema.status as i16,
@@ -120,6 +124,8 @@ async fn insert_asset(
         schema.ip,
         schema.mac,
         photo_key,
+        schema.commission_date,
+        schema.decommission_date,
     )
     .fetch_one(pool)
     .await

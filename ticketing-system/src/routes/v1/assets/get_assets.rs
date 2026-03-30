@@ -2,6 +2,7 @@ use std::net::IpAddr;
 
 use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
+use chrono::{DateTime, Utc};
 use garde::Validate;
 use garde_actix_web::web::QsQuery;
 use mac_address::MacAddress;
@@ -73,6 +74,8 @@ struct Asset {
     pub ip: Option<IpAddr>,
     pub mac: Option<MacAddress>,
     pub photo_key: Option<String>,
+    pub commission_date: Option<DateTime<Utc>>,
+    pub decommission_date: Option<DateTime<Utc>>,
 }
 
 pub async fn get_assets(
@@ -133,7 +136,9 @@ async fn fetch_assets(
         ) AS model,
         a.ip,
         a.mac,
-        a.photo_key
+        a.photo_key,
+        a.commission_date,
+        a.decommission_date
     FROM assets a
     JOIN asset_statuses ast ON a.status = ast.id
     JOIN asset_models am ON a.model_id = am.id

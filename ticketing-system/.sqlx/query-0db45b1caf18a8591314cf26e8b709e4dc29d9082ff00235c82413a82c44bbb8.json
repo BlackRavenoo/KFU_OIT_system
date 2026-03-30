@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO assets(model_id, status, name, description, serial_number, inventory_number, location, assigned_to, ip, mac, photo_key)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n        RETURNING id",
+  "query": "INSERT INTO assets(model_id, status, name, description, serial_number, inventory_number, location, assigned_to, ip, mac, photo_key, commission_date, decommission_date)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)\n        RETURNING id",
   "describe": {
     "columns": [
       {
@@ -21,12 +21,14 @@
         "Varchar",
         "Inet",
         "Macaddr",
-        "Varchar"
+        "Varchar",
+        "Timestamptz",
+        "Timestamptz"
       ]
     },
     "nullable": [
       false
     ]
   },
-  "hash": "cd495ad88a59008aff15b24b268d8159c2f9988844cd3c246353ac1fa92347b6"
+  "hash": "0db45b1caf18a8591314cf26e8b709e4dc29d9082ff00235c82413a82c44bbb8"
 }

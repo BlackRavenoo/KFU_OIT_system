@@ -1,6 +1,7 @@
 use actix_multipart::form::{MultipartForm, bytes::Bytes, json::Json};
 use actix_web::{HttpResponse, ResponseError, web};
 use anyhow::Context;
+use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
 use serde::Deserialize;
 use sqlx::{PgPool, types::ipnetwork::IpNetwork};
@@ -45,6 +46,9 @@ pub struct UpdateAssetSchema {
     pub ip: Option<Option<IpNetwork>>,
     pub mac: Option<Option<MacAddress>>,
 
+    pub commission_date: Option<Option<DateTime<Utc>>>,
+    pub decommission_date: Option<Option<DateTime<Utc>>>,
+    
     #[serde(default = "default_remove_photo")]
     pub remove_photo: bool,
 }
@@ -130,6 +134,8 @@ async fn update(
     build_update_query!(builder, has_fields, schema.assigned_to, "assigned_to");
     build_update_query!(builder, has_fields, schema.ip, "ip");
     build_update_query!(builder, has_fields, schema.mac, "mac");
+    build_update_query!(builder, has_fields, schema.commission_date, "commission_date");
+    build_update_query!(builder, has_fields, schema.decommission_date, "decommission_date");
 
     if schema.remove_photo {
         if has_fields {
