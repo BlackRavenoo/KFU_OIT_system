@@ -57,6 +57,9 @@ export type Asset = {
     assigned_to?: string;
     ip?: string;
     mac?: string;
+    photo_url?: string;
+    commission_date?: string;
+    decommission_date?: string;
 };
 
 export type PaginatedResponse<T> = {
@@ -147,12 +150,15 @@ export type CreateAssetPayload = {
     assigned_to?: string;
     ip?: string;
     mac?: string;
+    commission_date?: string;
+    decommission_date?: string;
 };
 
 export type UpdateAssetPayload = {
     name?: string;
     model_id?: number;
     status?: number;
+    photo?: File;
     description?: string | null;
     serial_number?: string | null;
     inventory_number?: string | null;
@@ -160,6 +166,9 @@ export type UpdateAssetPayload = {
     assigned_to?: string | null;
     ip?: string | null;
     mac?: string | null;
+    commission_date?: string | null;
+    decommission_date?: string | null;
+    remove_photo?: boolean;
 };
 
 export type CreateAssetResponse = {

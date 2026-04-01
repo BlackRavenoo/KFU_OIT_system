@@ -30,6 +30,7 @@
     let model_id: number | string = asset?.model_id ?? '';
     let statusId: number | string = asset?.status ?? '';
     let photo: File | null = null;
+    let photoPreviewUrl = '';
     let description = asset?.description || '';
     let serial_number = asset?.serial_number || '';
     let inventory_number = asset?.inventory_number || '';
@@ -37,6 +38,8 @@
     let assigned_to = asset?.assigned_to || '';
     let ip = asset?.ip || '';
     let mac = asset?.mac || '';
+    let commission_date = toDateTimeLocal(asset?.commission_date);
+    let decommission_date = toDateTimeLocal(asset?.decommission_date);
 
     let saving = false;
     let errorMsg = '';
@@ -74,9 +77,52 @@
         return macPattern.test(input);
     }
 
+    function toDateTimeLocal(value?: string): string {
+        if (!value) return '';
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+
+        const pad = (n: number) => String(n).padStart(2, '0');
+
+        return `${ date.getFullYear() }-${ pad(date.getMonth() + 1) }-${ pad(date.getDate()) }T${ pad(date.getHours()) }:${ pad(date.getMinutes()) }`;
+    }
+
+    function toOptionalDate(value: string): string | undefined {
+        if (!value) return undefined;
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return undefined;
+
+        return date.toISOString();
+    }
+
+    function toNullableDate(value: string): string | null {
+        if (!value) return null;
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return null;
+
+        return date.toISOString();
+    }
+
     function handleMacInput(e: Event) {
         const input = e.currentTarget as HTMLInputElement;
         mac = normalizeMac(input.value);
+    }
+
+    function handlePhotoChange(e: Event) {
+        const input = e.currentTarget as HTMLInputElement;
+        photo = input?.files?.[0] ?? null;
+
+        if (photoPreviewUrl) {
+            URL.revokeObjectURL(photoPreviewUrl);
+            photoPreviewUrl = '';
+        }
+
+        if (photo) {
+            photoPreviewUrl = URL.createObjectURL(photo);
+        }
     }
 
     $: categoryMap = createCategoryMap(categories);
@@ -93,6 +139,11 @@
         assigned_to: assigned_to.trim().length > ASSIGNED_TO_MAX ? `Максимум ${ ASSIGNED_TO_MAX } символов` : '',
         ip: isValidIp(ip) ? '' : 'Некорректный IP-адрес',
         mac: isValidMac(mac) ? '' : 'MAC должен быть в формате AA:BB:CC:DD:EE:FF',
+        decommission_date:
+            commission_date && decommission_date
+                && new Date(decommission_date).getTime() < new Date(commission_date).getTime()
+                ? 'Дата списания не может быть раньше даты ввода в эксплуатацию'
+                : '',
         photo: photo
             ? (!photo.type.startsWith('image/') ? 'Можно загрузить только изображение'
                 : (photo.size === 0 ? 'Файл изображения пустой' : ''))
@@ -117,11 +168,6 @@
             return;
         }
 
-        if (asset && photo) {
-            errorMsg = 'Обновление фото для существующего актива пока не поддерживается API';
-            return;
-        }
-
         saving = true;
         errorMsg = '';
 
@@ -137,6 +183,8 @@
             assigned_to: toOptional(assigned_to),
             ip: toOptional(ip),
             mac: toOptional(mac),
+            commission_date: toOptionalDate(commission_date),
+            decommission_date: toOptionalDate(decommission_date),
         };
 
         if (asset) {
@@ -151,6 +199,9 @@
                 assigned_to: toNullable(assigned_to),
                 ip: toNullable(ip),
                 mac: toNullable(mac),
+                commission_date: toNullableDate(commission_date),
+                decommission_date: toNullableDate(decommission_date),
+                ...(photo ? { photo } : {}),
             });
 
             if (!response.success) {
@@ -176,6 +227,8 @@
             assigned_to: toOptional(assigned_to),
             ip: toOptional(ip),
             mac: toOptional(mac),
+            commission_date: toOptionalDate(commission_date),
+            decommission_date: toOptionalDate(decommission_date),
         });
 
         if (!response.success) {
@@ -247,6 +300,10 @@
 
     onDestroy(() => {
         removeKeydownListener(keydownHandler);
+
+        if (photoPreviewUrl) {
+            URL.revokeObjectURL(photoPreviewUrl);
+        }
     });
 </script>
 
@@ -283,9 +340,13 @@
 
             <label class="field">
                 <span class="field-label">Фото</span>
-                <input type="file" accept="image/*" on:change={ e => photo = (e.target as HTMLInputElement)?.files?.[0] ?? null } />
-                {#if photo}
-                    <img src={ URL.createObjectURL(photo) } alt="Фото актива" style="max-width: 120px; margin-top: 8px; border-radius: 8px;" />
+                <input type="file" accept="image/*" on:change={ handlePhotoChange } />
+                {#if photoPreviewUrl}
+                    <img src={ photoPreviewUrl } alt="Фото актива" style="max-width: 120px; margin-top: 8px; border-radius: 8px;" />
+                {:else if asset?.photo_url}
+                    <img src={ asset.photo_url } alt="Фото актива" style="max-width: 120px; margin-top: 8px; border-radius: 8px;" />
+                {:else}
+                    <div class="asset-photo-placeholder" style="max-width: 120px; margin-top: 8px; height: 86px; border-radius: 8px;">🖼️</div>
                 {/if}
                 {#if validationErrors.photo}
                     <span class="field-error">{ validationErrors.photo }</span>
@@ -423,6 +484,20 @@
                     <span class="field-error">{ validationErrors.assigned_to }</span>
                 {/if}
             </label>
+
+            <div class="field-row">
+                <label class="field flex-1">
+                    <span class="field-label">Дата ввода в эксплуатацию</span>
+                    <input type="datetime-local" bind:value={ commission_date } />
+                </label>
+                <label class="field flex-1">
+                    <span class="field-label">Дата списания</span>
+                    <input type="datetime-local" bind:value={ decommission_date } />
+                    {#if validationErrors.decommission_date}
+                        <span class="field-error">{ validationErrors.decommission_date }</span>
+                    {/if}
+                </label>
+            </div>
         </div>
 
         <div class="modal-footer">

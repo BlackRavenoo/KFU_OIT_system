@@ -43,13 +43,13 @@ describe('Assets API utils', () => {
         expect(apiMock.post).toHaveBeenCalledWith('/api/v1/assets', expect.any(FormData));
 
         const sentBody = apiMock.post.mock.calls[0][1] as FormData;
-        const fields = sentBody.get('fields');
-
-        expect(typeof sentBody.has === 'function' ? sentBody.has('fields') : !!fields).toBe(true);
+        const fieldsPart = sentBody.get('fields');
+        expect(typeof sentBody.has === 'function' ? sentBody.has('fields') : !!fieldsPart).toBe(true);
+        expect(fieldsPart).toBeTruthy();
         expect(sentBody.get('photo')).toBeNull();
 
-        if (typeof fields === 'string') {
-            expect(JSON.parse(fields)).toEqual(payload);
+        if (fieldsPart && typeof fieldsPart !== 'string' && 'type' in (fieldsPart as any)) {
+            expect((fieldsPart as any).type).toBe('application/json');
         }
     });
 
@@ -77,18 +77,57 @@ describe('Assets API utils', () => {
         expect(sentBody.get('photo')).toBeTruthy();
     });
 
-    it('`updateAsset()` puts payload to asset endpoint', async () => {
+    it('`updateAsset()` puts multipart payload to asset endpoint', async () => {
         apiMock.put.mockResolvedValue({ success: true, status: 200 });
 
         const { updateAsset } = await import('$lib/utils/assets/api');
         const payload = {
             name: 'ПК отдела кадров (обновлён)',
             location: 'Каб. 207',
+            commission_date: '2026-04-01T10:00:00.000Z',
+            decommission_date: null,
         };
 
         await updateAsset(11, payload);
 
-        expect(apiMock.put).toHaveBeenCalledWith('/api/v1/assets/11', payload);
+        expect(apiMock.put).toHaveBeenCalledWith('/api/v1/assets/11', expect.any(FormData));
+
+        const sentBody = apiMock.put.mock.calls[0][1] as FormData;
+        const fieldsPart = sentBody.get('fields');
+        expect(typeof sentBody.has === 'function' ? sentBody.has('fields') : !!fieldsPart).toBe(true);
+        expect(fieldsPart).toBeTruthy();
+        expect(sentBody.get('photo')).toBeNull();
+
+        if (fieldsPart && typeof fieldsPart !== 'string' && 'type' in (fieldsPart as any)) {
+            expect((fieldsPart as any).type).toBe('application/json');
+        }
+    });
+
+    it('`updateAsset()` appends photo to multipart payload when provided', async () => {
+        apiMock.put.mockResolvedValue({ success: true, status: 200 });
+
+        const { updateAsset } = await import('$lib/utils/assets/api');
+        const photo = typeof File !== 'undefined'
+            ? new File(['updated-image'], 'updated.png', { type: 'image/png' })
+            : Object.assign(new Blob(['updated-image'], { type: 'image/png' }), { name: 'updated.png' }) as File;
+
+        const payload = {
+            name: 'ПК отдела кадров (фото)',
+            remove_photo: false,
+            photo,
+        };
+
+        await updateAsset(11, payload);
+
+        expect(apiMock.put).toHaveBeenCalledWith('/api/v1/assets/11', expect.any(FormData));
+
+        const sentBody = apiMock.put.mock.calls[0][1] as FormData;
+        expect(typeof sentBody.has === 'function' ? sentBody.has('photo') : !!sentBody.get('photo')).toBe(true);
+        expect(sentBody.get('photo')).toBeTruthy();
+
+        const fieldsPart = sentBody.get('fields');
+        expect(typeof sentBody.has === 'function' ? sentBody.has('fields') : !!fieldsPart).toBe(true);
+        expect(fieldsPart).toBeTruthy();
     });
 
     it('`deleteAsset()` calls delete endpoint', async () => {

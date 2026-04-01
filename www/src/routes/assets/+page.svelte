@@ -92,6 +92,16 @@
         return normalized.length > 0 ? normalized : undefined;
     }
 
+    function toAssetPhotoUrl(value?: string): string | undefined {
+        if (!value) return undefined;
+
+        if (/^https?:\/\//i.test(value)) return value;
+        if (value.startsWith('/api/v1/attachments')) return value;
+
+        const normalizedPath = value.startsWith('/') ? value : `/${ value }`;
+        return `/api/v1/attachments${ normalizedPath }`;
+    }
+
     function normalizeMac(value: string): string {
         const hex = value.replace(/[^0-9a-fA-F]/g, '').toUpperCase().slice(0, 12);
         return hex.match(/.{1,2}/g)?.join(':') ?? '';
@@ -231,6 +241,9 @@
             assigned_to: item.assigned_to,
             ip: item.ip,
             mac: item.mac,
+            photo_url: toAssetPhotoUrl(item.photo_url ?? item.photo_key),
+            commission_date: item.commission_date,
+            decommission_date: item.decommission_date,
         }));
 
         totalItems = getPaginatedTotal(resp.data);
@@ -598,59 +611,69 @@
                         on:click={ () => openViewAsset(asset) }
                         on:keydown={ (e) => (e.key === 'Enter' || e.key === ' ') && openViewAsset(asset) }
                     >
-                        <div class="asset-heading">
-                            <span
-                                class="asset-color-dot"
-                                style="background: { catColor };"
-                                aria-hidden="true"
-                            ></span>
-                            <div class="ticket-title">{ asset.name }</div>
-                            {#if status}
-                                <span
-                                    class="asset-status-chip"
-                                    style="background: { status.color }20; color: { status.color }; border-color: { status.color };"
-                                >
-                                    { status.name }
-                                </span>
+                        <div class="asset-photo-wrap" aria-hidden="true">
+                            {#if asset.photo_url}
+                                <img class="asset-photo" src={ asset.photo_url } alt="" loading="lazy" />
+                            {:else}
+                                <div class="asset-photo-placeholder">🖼️</div>
                             {/if}
                         </div>
 
-                        <div class="ticket-meta asset-meta">
-                            {#if model}
-                                <span class="asset-tag">{ model.name }</span>
-                            {/if}
-                            {#if category}
+                        <div class="asset-content">
+                            <div class="asset-heading">
                                 <span
-                                    class="asset-tag"
-                                    style="background: { catColor }18; color: { catColor };"
-                                >
-                                    { category.name }
-                                </span>
-                            {/if}
-                            {#if asset.location}
-                                <span class="asset-info">📍 { asset.location }</span>
-                            {/if}
-                            {#if asset.assigned_to}
-                                <span class="asset-info">👤 { asset.assigned_to }</span>
-                            {/if}
-                        </div>
-
-                        {#if asset.serial_number || asset.inventory_number || asset.ip || asset.mac}
-                            <div class="asset-numbers">
-                                {#if asset.serial_number}
-                                    <span>S/N: { asset.serial_number }</span>
-                                {/if}
-                                {#if asset.inventory_number}
-                                    <span>Инв.: { asset.inventory_number }</span>
-                                {/if}
-                                {#if asset.ip}
-                                    <span>IP: { asset.ip }</span>
-                                {/if}
-                                {#if asset.mac}
-                                    <span>MAC: { asset.mac }</span>
+                                    class="asset-color-dot"
+                                    style="background: { catColor };"
+                                    aria-hidden="true"
+                                ></span>
+                                <div class="ticket-title">{ asset.name }</div>
+                                {#if status}
+                                    <span
+                                        class="asset-status-chip"
+                                        style="background: { status.color }20; color: { status.color }; border-color: { status.color };"
+                                    >
+                                        { status.name }
+                                    </span>
                                 {/if}
                             </div>
-                        {/if}
+
+                            <div class="ticket-meta asset-meta">
+                                {#if model}
+                                    <span class="asset-tag">{ model.name }</span>
+                                {/if}
+                                {#if category}
+                                    <span
+                                        class="asset-tag"
+                                        style="background: { catColor }18; color: { catColor };"
+                                    >
+                                        { category.name }
+                                    </span>
+                                {/if}
+                                {#if asset.location}
+                                    <span class="asset-info">📍 { asset.location }</span>
+                                {/if}
+                                {#if asset.assigned_to}
+                                    <span class="asset-info">👤 { asset.assigned_to }</span>
+                                {/if}
+                            </div>
+
+                            {#if asset.serial_number || asset.inventory_number || asset.ip || asset.mac}
+                                <div class="asset-numbers">
+                                    {#if asset.serial_number}
+                                        <span>S/N: { asset.serial_number }</span>
+                                    {/if}
+                                    {#if asset.inventory_number}
+                                        <span>Инв.: { asset.inventory_number }</span>
+                                    {/if}
+                                    {#if asset.ip}
+                                        <span>IP: { asset.ip }</span>
+                                    {/if}
+                                    {#if asset.mac}
+                                        <span>MAC: { asset.mac }</span>
+                                    {/if}
+                                </div>
+                            {/if}
+                        </div>
                     </div>
                 {/each}
             {/if}

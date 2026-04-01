@@ -75,12 +75,26 @@ function toAssetCreateFormData(payload: CreateAssetPayload): FormData {
     return formData;
 }
 
+function toAssetUpdateFormData(payload: UpdateAssetPayload): FormData {
+    const { photo, ...fields } = payload;
+
+    const formData = new FormData();
+    formData.append(
+        'fields',
+        new Blob([JSON.stringify(fields)], { type: 'application/json' })
+    );
+
+    if (photo) formData.append('photo', photo, photo.name);
+
+    return formData;
+}
+
 export function createAsset(payload: CreateAssetPayload) {
     return api.post<CreateAssetResponse>(`${BASE}`, toAssetCreateFormData(payload));
 }
 
 export function updateAsset(assetId: number, payload: UpdateAssetPayload) {
-    return api.put(`${BASE}/${assetId}`, payload);
+    return api.put(`${BASE}/${assetId}`, toAssetUpdateFormData(payload));
 }
 
 export function deleteAsset(assetId: number) {

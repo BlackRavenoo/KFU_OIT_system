@@ -154,6 +154,39 @@
     transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
 }
 
+.asset-photo-wrap {
+    width: 100%;
+    max-width: 180px;
+    margin-bottom: 8px;
+    overflow: hidden;
+}
+
+.asset-photo {
+    width: 100%;
+    height: 110px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--light-gray);
+    display: block;
+}
+
+.asset-photo-placeholder {
+    width: 100%;
+    height: 110px;
+    border-radius: 10px;
+    border: 1px dashed var(--gray);
+    background: #f8fafc;
+    color: var(--low);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.asset-content {
+    min-width: 0;
+}
+
 .asset-item:hover {
     transform: translateX(2px);
 }
@@ -162,6 +195,47 @@
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+@media (min-width: 901px) {
+    .asset-item {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        align-items: stretch;
+        height: 160px;
+        padding: 0 !important;
+        overflow: hidden;
+        column-gap: 0;
+    }
+
+    .asset-photo-wrap {
+        max-width: none;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        border-radius: 0;
+    }
+
+    .asset-photo,
+    .asset-photo-placeholder {
+        height: 100%;
+        min-height: 100%;
+        border: none;
+        border-radius: 0;
+    }
+
+    .asset-content {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        padding: 0.85rem 1rem 0.85rem 0.95rem;
+        overflow: hidden;
+    }
+
+    .asset-meta,
+    .asset-numbers {
+        overflow: hidden;
+    }
 }
 
 .asset-color-dot {
@@ -190,7 +264,17 @@
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
-    margin-top: 2px;
+    margin-top: 0 !important;
+}
+
+input[type="datetime-local"] {
+    max-width: 90%;
+    border: 1px solid var(--gray);
+    border-radius: 10px;
+}
+
+.field:has(> input[type="datetime-local"]) {
+    max-width: calc(50% - .5rem);
 }
 
 .asset-tag {
