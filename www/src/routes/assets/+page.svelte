@@ -92,14 +92,20 @@
         return normalized.length > 0 ? normalized : undefined;
     }
 
-    function toAssetPhotoUrl(value?: string): string | undefined {
+    function toAssetPhotoUrl(value?: string, cacheVersion?: number): string | undefined {
         if (!value) return undefined;
 
-        if (/^https?:\/\//i.test(value)) return value;
-        if (value.startsWith('/api/v1/attachments')) return value;
+        const withVersion = (url: string): string => {
+            if (!cacheVersion) return url;
+            const separator = url.includes('?') ? '&' : '?';
+            return `${ url }${ separator }v=${ cacheVersion }`;
+        };
+
+        if (/^https?:\/\//i.test(value)) return withVersion(value);
+        if (value.startsWith('/api/v1/attachments')) return withVersion(value);
 
         const normalizedPath = value.startsWith('/') ? value : `/${ value }`;
-        return `/api/v1/attachments${ normalizedPath }`;
+        return withVersion(`/api/v1/attachments${ normalizedPath }`);
     }
 
     function normalizeMac(value: string): string {
@@ -229,6 +235,8 @@
 
         const items = getPaginatedItems(resp.data) as any[];
 
+        const photoCacheVersion = Date.now();
+
         assets = items.map((item) => ({
             id: item.id,
             model_id: item.model?.id ?? item.model_id,
@@ -241,7 +249,7 @@
             assigned_to: item.assigned_to,
             ip: item.ip,
             mac: item.mac,
-            photo_url: toAssetPhotoUrl(item.photo_url ?? item.photo_key),
+            photo_url: toAssetPhotoUrl(item.photo_url ?? item.photo_key, photoCacheVersion),
             commission_date: item.commission_date,
             decommission_date: item.decommission_date,
         }));
