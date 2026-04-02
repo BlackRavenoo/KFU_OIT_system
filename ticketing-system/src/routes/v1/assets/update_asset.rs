@@ -65,6 +65,8 @@ pub async fn update_asset(
     MultipartForm(mut form): MultipartForm<UpdateAssetForm>,
     path: web::Path<AssetId>,
 ) -> Result<HttpResponse, UpdateAssetError> {
+    let id = path.into_inner();
+
     if form.photo.is_some() {
         form.fields.0.remove_photo = false;
     }
@@ -72,39 +74,15 @@ pub async fn update_asset(
     let full_key = update(
         &pool,
         form.fields.0,
-        path.into_inner()
+        id
     )
     .await
     .context("Failed to update asset")?
     .ok_or_else(|| UpdateAssetError::ModelNotExists)?;
 
     if let Some(bytes) = form.photo {
-        let attachment = Attachment::try_from(bytes)
-            .map_err(|_| UpdateAssetError::UnsupportedPhotoFormat)?;
-
-        if !attachment.is_image() {
-            return Err(UpdateAssetError::UnsupportedPhotoFormat);
-        }
-
-        let key = if let Some(key) = &full_key {
-            key.split("/")
-                .skip(1)
-                .next()
-                .context("Failed to get photo key")?
-                .split(".")
-                .next()
-                .map(|r| r.to_string())
-        } else {
-            None
-        };
-
-        service.upload(
-            AttachmentType::AssetPhoto,
-            attachment,
-            key
-        ).await
-        .context("Failed to upload asset photo")?;
-
+        update_photo(&pool, &service, id, bytes, full_key)
+            .await?;
     }
 
     Ok(HttpResponse::Ok().finish())
@@ -153,4 +131,75 @@ async fn update(
     builder.build_query_scalar()
         .fetch_optional(pool)
         .await
+}
+
+#[tracing::instrument(
+    name = "Update asset photo",
+    skip(pool, service, bytes)
+)]
+async fn update_photo(
+    pool: &PgPool,
+    service: &AttachmentService,
+    id: AssetId,
+    bytes: Bytes,
+    full_key: Option<String>,
+) -> Result<(), UpdateAssetError> {
+    let attachment = Attachment::try_from(bytes)
+        .map_err(|_| UpdateAssetError::UnsupportedPhotoFormat)?;
+
+    if !attachment.is_image() {
+        return Err(UpdateAssetError::UnsupportedPhotoFormat);
+    }
+
+    let key = full_key
+        .as_ref()
+        .map(|str| extract_key(str.as_str()))
+        .transpose()
+        .context("Failed to get photo key")?;
+
+    let uploaded_key = service.upload(
+        AttachmentType::AssetPhoto,
+        attachment,
+        key,
+    ).await
+    .context("Failed to upload asset photo")?;
+
+    if full_key.is_none() {
+        update_photo_key(pool, id, Some(uploaded_key))
+            .await
+            .context("Failed to update asset photo key")?;
+    }
+
+    Ok(())
+}
+
+fn extract_key(full_key: &str) -> Result<String, anyhow::Error> {
+    full_key
+        .split('/')
+        .skip(1)
+        .next()
+        .context("Failed to parse photo key")?
+        .split('.')
+        .next()
+        .map(|value| value.to_string())
+        .context("Failed to parse photo key")
+}
+
+#[tracing::instrument(
+    name = "Update asset photo key in database",
+    skip(pool)
+)]
+async fn update_photo_key(
+    pool: &PgPool,
+    id: AssetId,
+    photo_key: Option<String>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        "UPDATE assets SET photo_key = $1 WHERE id = $2",
+        photo_key,
+        id,
+    )
+    .execute(pool)
+    .await
+    .map(|_| ())
 }
