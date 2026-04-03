@@ -62,6 +62,7 @@ export async function updateTicket(
     data: {
         title?: string;
         description?: string;
+        source?: number;
         status?: string;
         priority?: string;
         planned_at?: string | null;

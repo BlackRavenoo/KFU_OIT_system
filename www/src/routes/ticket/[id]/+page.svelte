@@ -4,18 +4,18 @@
     import { page } from '$app/stores';
     import { statusOptions, statusPriority } from '$lib/utils/tickets/types';
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
-    import { pageTitle, pageDescription, buildings, departments } from '$lib/utils/setup/stores';
+    import { pageTitle, pageDescription, buildings, departments, sources } from '$lib/utils/setup/stores';
     import { formatDate, formatDescription } from '$lib/utils/validation/validate';
     import { notification } from '$lib/utils/notifications/notification';
     import { NotificationType } from '$lib/utils/notifications/types';
-    import { getById, fetchImages } from '$lib/utils/tickets/api/get';
+    import { getById, fetchImages, fetchConsts } from '$lib/utils/tickets/api/get';
     import { unassign, assign, assignUserToTicket as assignUserToTicketApi, unassignUserFromTicket as unassignUserFromTicketApi } from '$lib/utils/tickets/api/assign';
     import { updateTicket, deleteTicket } from '$lib/utils/tickets/api/set';
     import { UserRole } from '$lib/utils/auth/types';
     import { getAvatar } from '$lib/utils/account/avatar';
     import { loadUsersData } from '$lib/utils/admin/users';
     import { handleAuthError } from '$lib/utils/api';
-    import type { Ticket, Building, UiStatus, PriorityStatus } from '$lib/utils/tickets/types';
+    import type { Ticket, Building, UiStatus, PriorityStatus, TicketSource } from '$lib/utils/tickets/types';
     import type { IUserData } from '$lib/utils/auth/types';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
     import FileCard from './File.svelte';
@@ -43,6 +43,7 @@
     let description: string = '';
     let author: string = '';
     let author_contacts: string = '';
+    let source_id: number | null = null;
     let building_id: number | null = null;
     let cabinet: string = '';
     let department_id = null as number | null;
@@ -240,6 +241,7 @@
         description = ticketData.description;
         author = ticketData.author;
         author_contacts = ticketData.author_contacts;
+        source_id = ticketData.source?.id ?? null;
         building_id = ticketData.building?.id ?? null;
         cabinet = ticketData.cabinet ?? '';
         department_id = ticketData.department?.id ?? null;
@@ -266,6 +268,7 @@
         description = ticketData.description;
         author = ticketData.author;
         author_contacts = ticketData.author_contacts;
+        source_id = ticketData.source?.id ?? null;
         building_id = ticketData.building?.id ?? null;
         cabinet = ticketData.cabinet ?? '';
         department_id = ticketData.department?.id ?? null;
@@ -283,6 +286,7 @@
         description = ticketData.description;
         author = ticketData.author;
         author_contacts = ticketData.author_contacts;
+        source_id = ticketData.source?.id ?? null;
         building_id = ticketData.building?.id ?? null;
         cabinet = ticketData.cabinet ?? '';
         department_id = ticketData.department?.id ? Number(ticketData.department.id) : null;
@@ -360,6 +364,8 @@
         if (description !== ticketData.description) updatedFields.description = description;
         if (author !== ticketData.author) updatedFields.author = author;
         if (author_contacts !== ticketData.author_contacts) updatedFields.author_contacts = author_contacts;
+        if (source_id !== (ticketData.source?.id ?? null) && source_id !== null)
+            updatedFields.source = source_id;
         if (status !== ticketData.status) updatedFields.status = status as UiStatus;
         if (priority !== ticketData.priority) updatedFields.priority = priority as PriorityStatus;
         if (building_id !== ticketData.building?.id)
@@ -392,6 +398,7 @@
                 description: description,
                 author: author,
                 author_contacts: author_contacts,
+                source: $sources.find((s: TicketSource) => Number(s.id) === Number(source_id)) || ticketData?.source,
                 status: status,
                 priority: priority,
                 cabinet: cabinet,
@@ -598,6 +605,7 @@
         if (!$isAuthenticated || $currentUser === null || $currentUser.role === UserRole.Anonymous)
             handleAuthError(`/page/${ ticketId }`);
         else {
+            await fetchConsts();
             ticketData = await getById(ticketId);
             if (ticketData && ticketData.building && ticketData.building.code)
                 pageTitle.set(`Заявка ${ticketData.building.code}-${ticketId} | Система управления заявками ЕИ КФУ`);
@@ -993,6 +1001,17 @@
                                 style="margin-bottom: 0.5em; width: 100%;"
                                 aria-label="Телефон заявителя"
                             />
+                            <select
+                                class="edit-mode"
+                                bind:value={ source_id }
+                                style="width: 100%;"
+                                aria-label="Источник заявки"
+                            >
+                                <option value={ null } disabled>Выберите источник</option>
+                                {#each $sources as src}
+                                    <option value={ src.id }>{ src.name }</option>
+                                {/each}
+                            </select>
                         {:else}
                             <p class="ticket-author">{ ticketData.author }</p>
                             <p class="contacts-tag">Телефон: <span>
@@ -1005,6 +1024,7 @@
                                     </a>
                                 </span>
                             </p>
+                            <p class="contacts-tag">Источник: <span>{ ticketData.source?.name || 'Не указан' }</span></p>
                             {/if}
                         </div>
                         <button
@@ -1419,6 +1439,17 @@
                                 style="margin-bottom: 0.5em; width: 100%;"
                                 aria-label="Телефон заявителя"
                             />
+                            <select
+                                class="edit-mode"
+                                bind:value={ source_id }
+                                style="width: 100%;"
+                                aria-label="Источник заявки"
+                            >
+                                <option value={ null } disabled>Выберите источник</option>
+                                {#each $sources as src}
+                                    <option value={ src.id }>{ src.name }</option>
+                                {/each}
+                            </select>
                         {:else}
                             <p class="ticket-author">{ ticketData.author }</p>
                             <p class="contacts-tag">Телефон: <span>
@@ -1431,6 +1462,7 @@
                                     </a>
                                 </span>
                             </p>
+                            <p class="contacts-tag">Источник: <span>{ ticketData.source?.name || 'Не указан' }</span></p>
                             {/if}
                         </div>
                         <button

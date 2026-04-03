@@ -16,6 +16,7 @@ export type Ticket = {
     description: string,
     author: string,
     author_contacts: string,
+    source?: TicketSource,
     status: UiStatus,
     priority: PriorityStatus,
     planned_at: null | string,
@@ -25,6 +26,11 @@ export type Ticket = {
     building: Building,
     department: Department,
     cabinet: string
+};
+
+export type TicketSource = {
+    id: number;
+    name: string;
 };
 
 export type Building = { 

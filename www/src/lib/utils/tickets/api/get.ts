@@ -4,10 +4,10 @@ import { api } from '$lib/utils/api';
 import { toRfc3339, buildQuery } from '$lib/utils/tickets/support';
 import { getTicketsFilters } from '$lib/utils/tickets/stores';
 import { TICKETS_API_ENDPOINTS } from './endpoints';
-import { order, buildings, departments } from '$lib/utils/setup/stores';
+import { order, buildings, departments, sources } from '$lib/utils/setup/stores';
 import { currentUser } from '$lib/utils/auth/storage/initial';
 import { validatePageSize } from '$lib/utils/validation/validate';
-import type { Building, OrderBy, Ticket, Department } from '$lib/utils/tickets/types';
+import type { Building, OrderBy, Ticket, Department, TicketSource } from '$lib/utils/tickets/types';
 import { UserRole } from '$lib/utils/auth/types';
 
 const CACHE_KEY_CONSTS = 'tickets_consts_cache';
@@ -109,17 +109,19 @@ export async function getById(id: string): Promise<Ticket> {
 /**
  * Получение констант для фильтров.
  * Если константы уже загружены, возвращает их из хранилища.
- * @returns {Promise<{ buildings: Building[], order: OrderBy[], departments: Department[] }>}
+ * @returns {Promise<{ buildings: Building[], order: OrderBy[], departments: Department[], sources: TicketSource[] }>}
  */
-export async function fetchConsts(force_update: boolean = false): Promise<{ buildings: Building[], order: OrderBy[], departments: Department[] }> {
+export async function fetchConsts(force_update: boolean = false): Promise<{ buildings: Building[], order: OrderBy[], departments: Department[], sources: TicketSource[] }> {
     try {
         const cacheRaw = localStorage.getItem(CACHE_KEY_CONSTS);
         if (cacheRaw) {
             const cache = JSON.parse(cacheRaw);
-            if (Date.now() - cache.timestamp < CACHE_TTL_CONSTS && !force_update) {
+            const hasSourcesInCache = Array.isArray(cache?.data?.sources);
+            if (Date.now() - cache.timestamp < CACHE_TTL_CONSTS && !force_update && hasSourcesInCache) {
                 buildings.set(Array.isArray(cache.data.buildings) ? cache.data.buildings : []);
                 order.set(Array.isArray(cache.data.order) ? cache.data.order : []);
                 departments.set(Array.isArray(cache.data.departments) ? cache.data.departments : []);
+                sources.set(Array.isArray(cache.data.sources) ? cache.data.sources : []);
                 return cache.data;
             }
         }
@@ -127,8 +129,8 @@ export async function fetchConsts(force_update: boolean = false): Promise<{ buil
         console.warn('Не удалось загрузить константы из кеша');
     }
 
-    if (get(order).length === 0 || get(buildings).length === 0 || get(departments).length === 0 || force_update) {
-        const response = await api.get<{ buildings: Building[]; order_by: OrderBy[], departments: Department[] }>(
+    if (get(order).length === 0 || get(buildings).length === 0 || get(departments).length === 0 || get(sources).length === 0 || force_update) {
+        const response = await api.get<{ buildings: Building[]; order_by: OrderBy[], departments: Department[], sources: TicketSource[] }>(
             TICKETS_API_ENDPOINTS.consts
         );
 
@@ -139,12 +141,14 @@ export async function fetchConsts(force_update: boolean = false): Promise<{ buil
         const result = {
             buildings: Array.isArray(data.buildings) ? data.buildings : [],
             order: Array.isArray(data.order_by) ? data.order_by : [],
-            departments: Array.isArray(data.departments) ? data.departments : []
+            departments: Array.isArray(data.departments) ? data.departments : [],
+            sources: Array.isArray(data.sources) ? data.sources : []
         };
 
         buildings.set(result.buildings);
         order.set(result.order);
         departments.set(result.departments);
+        sources.set(result.sources);
 
         try {
             localStorage.setItem(CACHE_KEY_CONSTS, JSON.stringify({
@@ -159,7 +163,8 @@ export async function fetchConsts(force_update: boolean = false): Promise<{ buil
         const result = {
             buildings: get(buildings),
             order: get(order),
-            departments: get(departments)
+            departments: get(departments),
+            sources: get(sources)
         };
 
         try {
