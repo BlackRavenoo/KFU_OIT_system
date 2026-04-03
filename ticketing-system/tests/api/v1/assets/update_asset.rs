@@ -373,3 +373,48 @@ async fn update_asset_with_s3_error_returns_500() {
 
     assert_eq!(resp.status(), 500);
 }
+
+#[tokio::test]
+async fn update_asset_with_photo_updates_asset() {
+    let app = spawn_app().await;
+
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
+    let model_id = app.create_test_model().await;
+
+    let id = app.create_test_asset(model_id).await;
+
+    Mock::given(path_regex(r"/test-bucket/assets/.*\.webp"))
+        .and(method("PUT"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.s3_server)
+        .await;
+
+    let body = serde_json::json!({
+        "name": "Updated name",
+    });
+
+    let photo = Attachment::from_filename(
+        include_bytes!("../../../../../www/static/KFU.png").into(),
+        "KFU.png"
+    );
+
+    update_asset(
+        &app,
+        &body,
+        Some(photo),
+        id,
+        Some(&access)
+    )
+    .await;
+
+    let row = sqlx::query!(
+        "SELECT photo_key FROM assets WHERE id = $1",
+        id
+    )    .fetch_one(&app.db_pool)
+    .await
+    .unwrap();
+
+    assert!(row.photo_key.is_some());
+}
