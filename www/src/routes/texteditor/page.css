@@ -196,6 +196,27 @@ main {
     overflow-x: auto;
 }
 
+:global(.te-generated-embed) {
+    display: block;
+    margin: 0.5rem 0 1rem;
+    max-width: 100%;
+}
+
+:global(.te-generated-embed-image img) {
+    display: block;
+    max-width: min(100%, 780px);
+    border-radius: 8px;
+}
+
+:global(.te-generated-embed-rutube iframe) {
+    display: block;
+    width: min(100%, 780px);
+    aspect-ratio: 16 / 9;
+    border: 0;
+    border-radius: 10px;
+    background: #000;
+}
+
 .table-dropdown {
     position: absolute;
     z-index: 10;

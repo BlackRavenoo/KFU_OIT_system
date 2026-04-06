@@ -204,3 +204,152 @@ export function setAlign(
     document.execCommand(cmd, false, undefined);
     updateActiveStates();
 }
+
+function escapeHtml(input: string): string {
+    return input
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function isImageLink(url: string): boolean {
+    return /\.(jpe?g|jpd|png|webp)(?:$|[?#])/i.test(url.trim());
+}
+
+function getRutubeVideoId(url: string): string | null {
+    try {
+        const parsed = new URL(url.trim());
+        const host = parsed.hostname.toLowerCase();
+        if (!(host === 'rutube.ru' || host.endsWith('.rutube.ru'))) return null;
+
+        const parts = parsed.pathname.split('/').filter(Boolean);
+        const videoIdx = parts.indexOf('video');
+        if (videoIdx !== -1 && parts[videoIdx + 1]) return parts[videoIdx + 1];
+        const embedIdx = parts.indexOf('embed');
+        if (embedIdx !== -1 && parts[embedIdx + 1]) return parts[embedIdx + 1];
+        return parts.length > 0 ? parts[parts.length - 1] : null;
+    } catch {
+        return null;
+    }
+}
+
+function createEmbedElement(kind: 'image' | 'rutube', href: string, linkId: string, label: string): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = `te-generated-embed te-generated-embed-${kind}`;
+    wrap.setAttribute('contenteditable', 'false');
+    wrap.dataset.mdEmbedOwner = linkId;
+
+    if (kind === 'image') {
+        const img = document.createElement('img');
+        img.src = href;
+        img.alt = label;
+        img.loading = 'lazy';
+        wrap.appendChild(img);
+    } else {
+        const rutubeId = getRutubeVideoId(href);
+        const iframe = document.createElement('iframe');
+        iframe.src = `https://rutube.ru/play/embed/${encodeURIComponent(rutubeId ?? '')}`;
+        iframe.loading = 'lazy';
+        iframe.allowFullscreen = true;
+        iframe.setAttribute('frameborder', '0');
+        iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share');
+        wrap.appendChild(iframe);
+    }
+
+    return wrap;
+}
+
+let generatedCounter = 0;
+
+/**
+ * Преобразует markdown-ссылки в редакторе:
+ * - [text](url) => обычная ссылка
+ * - [text](url)! и ![alt](url) => ссылка + автогенерируемый embed (картинка/rutube)
+ *
+ * Embed нельзя удалить напрямую: при каждом вводе он пересоздаётся из ссылки.
+ */
+export function transformMarkdownLinksInEditor(editorDiv: HTMLDivElement | null): void {
+    if (!editorDiv) return;
+
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(editorDiv, NodeFilter.SHOW_TEXT, {
+        acceptNode(node: Node) {
+            const parent = node.parentElement;
+            if (!parent) return NodeFilter.FILTER_REJECT;
+            if (parent.closest('a, code, blockquote, script, style, iframe, .te-generated-embed')) return NodeFilter.FILTER_REJECT;
+            const value = node.textContent || '';
+            return (/!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\([^)]+\)!?/).test(value)
+                ? NodeFilter.FILTER_ACCEPT
+                : NodeFilter.FILTER_REJECT;
+        }
+    } as any);
+
+    while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
+
+    const mdRegex = /!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)(!?)/g;
+
+    for (const node of textNodes) {
+        const src = node.textContent || '';
+        let last = 0;
+        let hasMatch = false;
+        const frag = document.createDocumentFragment();
+
+        mdRegex.lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = mdRegex.exec(src)) !== null) {
+            hasMatch = true;
+            const [full, imgAlt, imgUrl, linkText, linkUrl, trailingBang] = match;
+            const idx = match.index;
+            if (idx > last) frag.appendChild(document.createTextNode(src.slice(last, idx)));
+
+            const isImageSyntax = full.startsWith('![');
+            const text = (isImageSyntax ? (imgAlt || imgUrl) : linkText) || '';
+            const href = (isImageSyntax ? imgUrl : linkUrl || '').trim();
+            const wantsEmbed = isImageSyntax || trailingBang === '!';
+            const embedType: 'image' | 'rutube' | '' = wantsEmbed
+                ? (isImageLink(href) ? 'image' : (getRutubeVideoId(href) ? 'rutube' : ''))
+                : '';
+
+            const a = document.createElement('a');
+            a.href = href;
+            a.textContent = text;
+            if (embedType) {
+                const mdId = `md-${Date.now()}-${generatedCounter++}`;
+                a.dataset.mdEmbedType = embedType;
+                a.dataset.mdEmbedId = mdId;
+                frag.appendChild(a);
+                frag.appendChild(createEmbedElement(embedType, href, mdId, text));
+            } else {
+                frag.appendChild(a);
+            }
+
+            last = idx + full.length;
+        }
+
+        if (!hasMatch) continue;
+        if (last < src.length) frag.appendChild(document.createTextNode(src.slice(last)));
+        node.parentNode?.replaceChild(frag, node);
+    }
+
+    const owners = new Set<string>();
+    const anchors = Array.from(editorDiv.querySelectorAll('a[data-md-embed-type][data-md-embed-id]')) as HTMLAnchorElement[];
+    for (const a of anchors) {
+        const owner = a.dataset.mdEmbedId;
+        const type = a.dataset.mdEmbedType as 'image' | 'rutube' | undefined;
+        if (!owner || !type) continue;
+        owners.add(owner);
+        const existing = editorDiv.querySelector(`.te-generated-embed[data-md-embed-owner="${CSS.escape(owner)}"]`) as HTMLElement | null;
+        if (!existing) {
+            a.after(createEmbedElement(type, a.getAttribute('href') || '', owner, a.textContent || ''));
+        }
+    }
+
+    const embeds = Array.from(editorDiv.querySelectorAll('.te-generated-embed[data-md-embed-owner]')) as HTMLElement[];
+    for (const emb of embeds) {
+        const owner = emb.dataset.mdEmbedOwner || '';
+        if (!owners.has(owner)) emb.remove();
+    }
+
+}

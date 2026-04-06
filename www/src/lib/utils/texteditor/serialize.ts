@@ -5,6 +5,7 @@ type SerializedNode = {
     color?: string;
     bgColor?: string;
     href?: string;
+    embedType?: 'image' | 'rutube';
     [key: string]: any;
 };
 
@@ -241,9 +242,14 @@ function serializeNode(node: HTMLElement): SerializedNode | null {
         }
         case 'a': {
             const href = node.getAttribute('href') || '#';
+            const embedTypeAttr = node.getAttribute('data-md-embed-type');
+            const embedType = embedTypeAttr === 'image' || embedTypeAttr === 'rutube'
+                ? embedTypeAttr
+                : undefined;
             return {
                 type: 'link',
                 href,
+                embedType,
                 align: styles.align,
                 color: styles.color,
                 bgColor: styles.bgColor,
@@ -277,6 +283,7 @@ export function serialize(html: string): SerializedNode[] {
     
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
+    tempDiv.querySelectorAll('.te-generated-embed').forEach((el) => el.remove());
     
     const result: SerializedNode[] = [];
     tempDiv.childNodes.forEach(node => {
@@ -306,13 +313,112 @@ function mergeStyles(parent: SerializedNode, child: SerializedNode): SerializedN
     };
 }
 
+function escapeHtml(input: string): string {
+    return input
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function isImageLink(url: string): boolean {
+    return /\.(jpe?g|jpd|png|webp)(?:$|[?#])/i.test(url.trim());
+}
+
+function getRutubeVideoId(url: string): string | null {
+    try {
+        const parsed = new URL(url.trim());
+        const host = parsed.hostname.toLowerCase();
+        if (!(host === 'rutube.ru' || host.endsWith('.rutube.ru'))) return null;
+
+        const parts = parsed.pathname.split('/').filter(Boolean);
+        const videoIdx = parts.indexOf('video');
+        if (videoIdx !== -1 && parts[videoIdx + 1]) return parts[videoIdx + 1];
+        const embedIdx = parts.indexOf('embed');
+        if (embedIdx !== -1 && parts[embedIdx + 1]) return parts[embedIdx + 1];
+        return parts.length > 0 ? parts[parts.length - 1] : null;
+    } catch {
+        return null;
+    }
+}
+
+function makeEmbedId(seed: string): string {
+    return `md-${seed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'embed'}`;
+}
+
+function renderEmbedHtmlByType(href: string, label: string, embedType?: 'image' | 'rutube'): string {
+    if (!embedType) return '';
+    const safeHref = escapeHtml(href);
+    const safeLabel = escapeHtml(label);
+    const embedId = makeEmbedId(`${href}-${label}-${embedType}`);
+
+    if (embedType === 'image') {
+        return `<div class="te-generated-embed te-generated-embed-image" data-md-embed-owner="${embedId}" contenteditable="false"><img src="${safeHref}" alt="${safeLabel}" loading="lazy"></div>`;
+    }
+
+    const videoId = getRutubeVideoId(href);
+    if (!videoId) return '';
+    const safeVideoId = encodeURIComponent(videoId);
+    return `<div class="te-generated-embed te-generated-embed-rutube" data-md-embed-owner="${embedId}" contenteditable="false"><iframe src="https://rutube.ru/play/embed/${safeVideoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe></div>`;
+}
+
 /**
- * Преобразует markdown-ссылки вида [text](href) в HTML <a href="href">text</a>
+ * Преобразует markdown-ссылки:
+ * - [text](href) => HTML <a>
+ * - [text](href)! и ![alt](href) => HTML <a> + embed (img / rutube)
  * @param text - Текстовая строка
  * @param styleAttr - Атрибут style для тега <a> (например: ' style="color: red"')
  */
 function processLinks(text: string, styleAttr: string): string {
-    return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, `<a href="$2"${styleAttr}>$1</a>`);
+    const mdRegex = /!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)(!?)/g;
+    let result = '';
+    let lastIndex = 0;
+    let idx = 0;
+
+    for (const match of text.matchAll(mdRegex)) {
+        const m = match[0] || '';
+        const start = match.index ?? 0;
+        const imgAlt = match[1] || '';
+        const imgUrl = match[2] || '';
+        const linkText = match[3] || '';
+        const linkUrl = match[4] || '';
+        const trailingBang = match[5] || '';
+
+        result += text.slice(lastIndex, start);
+
+        const isImageSyntax = m.startsWith('![');
+        const label = isImageSyntax ? (imgAlt || imgUrl) : linkText;
+        const href = (isImageSyntax ? imgUrl : linkUrl).trim();
+        const safeLabel = escapeHtml(label);
+        const safeHref = escapeHtml(href);
+
+        const wantsEmbed = isImageSyntax || trailingBang === '!';
+        const embedType: 'image' | 'rutube' | '' = wantsEmbed
+            ? (isImageLink(href) ? 'image' : (getRutubeVideoId(href) ? 'rutube' : ''))
+            : '';
+
+        if (embedType) {
+            const embedId = `md-${idx++}`;
+            result += `<a href="${safeHref}"${styleAttr} data-md-embed-id="${embedId}" data-md-embed-type="${embedType}">${safeLabel}</a>`;
+            if (embedType === 'image') {
+                result += `<div class="te-generated-embed te-generated-embed-image" data-md-embed-owner="${embedId}" contenteditable="false"><img src="${safeHref}" alt="${safeLabel}" loading="lazy"></div>`;
+            } else {
+                const videoId = getRutubeVideoId(href);
+                if (videoId) {
+                    const safeVideoId = encodeURIComponent(videoId);
+                    result += `<div class="te-generated-embed te-generated-embed-rutube" data-md-embed-owner="${embedId}" contenteditable="false"><iframe src="https://rutube.ru/play/embed/${safeVideoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe></div>`;
+                } else console.warn('processLinks: Unable to extract Rutube video ID from URL', href);
+            }
+        } else {
+            result += `<a href="${safeHref}"${styleAttr}>${safeLabel}</a>`;
+        }
+
+        lastIndex = start + m.length;
+    }
+
+    result += text.slice(lastIndex);
+    return result;
 }
 
 /**
@@ -404,7 +510,12 @@ function deserializeNode(
         }
         case 'link': {
             const href = (rest as any).href || '#';
-            return `<a href="${href}"${styleAttr}>${deserializeText(text, true, node, false)}</a>`;
+            const embedType = (rest as any).embedType as ('image' | 'rutube' | undefined);
+            const labelHtml = deserializeText(text, true, node, false);
+            const embedId = embedType ? makeEmbedId(`${href}-${labelHtml}-${embedType}`) : '';
+            const linkHtml = `<a href="${href}"${styleAttr}${embedType ? ` data-md-embed-type="${embedType}" data-md-embed-id="${embedId}"` : ''}>${labelHtml}</a>`;
+            const embedHtml = renderEmbedHtmlByType(href, labelHtml, embedType);
+            return `${linkHtml}${embedHtml}`;
         }
         case 'cell':
             return `<td${styleAttr}>${deserializeText(text, true, node, false)}</td>`;

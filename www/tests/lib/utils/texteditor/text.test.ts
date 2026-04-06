@@ -6,7 +6,8 @@ import {
     insertList,
     stripTagsAndStyles,
     insertBlock,
-    setAlign
+    setAlign,
+    transformMarkdownLinksInEditor
 } from '$lib/utils/texteditor/text';
 
 let editorDiv: HTMLDivElement;
@@ -568,5 +569,112 @@ describe('Integration tests for text functions in text editor', () => {
 
         expect(document.execCommand).toHaveBeenCalledTimes(3);
         expect(updateActiveStates).toHaveBeenCalledTimes(3);
+    });
+});
+
+describe('Transform markdown links in text editor', () => {
+    const originalCss = (globalThis as any).CSS;
+
+    beforeEach(() => {
+        if (!(globalThis as any).CSS || typeof (globalThis as any).CSS.escape !== 'function') {
+            (globalThis as any).CSS = {
+                ...(originalCss || {}),
+                escape: (value: string) => value.replace(/"/g, '\\"')
+            };
+        }
+    });
+
+    afterEach(() => {
+        (globalThis as any).CSS = originalCss;
+    });
+
+    it('Transforms image markdown into link and image embed', () => {
+        editorDiv.innerHTML = '![Preview](https://example.com/img.png)';
+
+        transformMarkdownLinksInEditor(editorDiv);
+
+        const link = editorDiv.querySelector('a') as HTMLAnchorElement;
+        const img = editorDiv.querySelector('.te-generated-embed-image img') as HTMLImageElement;
+
+        expect(link).not.toBeNull();
+        expect(link.textContent).toBe('Preview');
+        expect(link.dataset.mdEmbedType).toBe('image');
+        expect(link.dataset.mdEmbedId).toBeTruthy();
+        expect(img).not.toBeNull();
+        expect(img.getAttribute('src')).toBe('https://example.com/img.png');
+    });
+
+    it('Transforms rutube markdown with trailing bang into mini player embed', () => {
+        editorDiv.innerHTML = '[Watch](https://rutube.ru/video/abcdef123456)!';
+
+        transformMarkdownLinksInEditor(editorDiv);
+
+        const link = editorDiv.querySelector('a') as HTMLAnchorElement;
+        const iframe = editorDiv.querySelector('.te-generated-embed-rutube iframe') as HTMLIFrameElement;
+
+        expect(link).not.toBeNull();
+        expect(link.dataset.mdEmbedType).toBe('rutube');
+        expect(iframe).not.toBeNull();
+        expect(iframe.getAttribute('src')).toContain('https://rutube.ru/play/embed/abcdef123456');
+    });
+
+    it('Transforms rutube embed-path markdown into mini player embed', () => {
+        editorDiv.innerHTML = '[Watch](https://rutube.ru/play/embed/emb321)!';
+
+        transformMarkdownLinksInEditor(editorDiv);
+
+        const iframe = editorDiv.querySelector('.te-generated-embed-rutube iframe') as HTMLIFrameElement;
+        expect(iframe).not.toBeNull();
+        expect(iframe.getAttribute('src')).toContain('https://rutube.ru/play/embed/emb321');
+    });
+
+    it('Transforms rutube fallback-path markdown into mini player embed', () => {
+        editorDiv.innerHTML = '[Watch](https://rutube.ru/channel/lastid)!';
+
+        transformMarkdownLinksInEditor(editorDiv);
+
+        const iframe = editorDiv.querySelector('.te-generated-embed-rutube iframe') as HTMLIFrameElement;
+        expect(iframe).not.toBeNull();
+        expect(iframe.getAttribute('src')).toContain('https://rutube.ru/play/embed/lastid');
+    });
+
+    it('Keeps ordinary markdown link without embed', () => {
+        editorDiv.innerHTML = '[Site](https://example.com)';
+
+        transformMarkdownLinksInEditor(editorDiv);
+
+        const link = editorDiv.querySelector('a') as HTMLAnchorElement;
+        const embed = editorDiv.querySelector('.te-generated-embed');
+
+        expect(link).not.toBeNull();
+        expect(link.getAttribute('href')).toBe('https://example.com');
+        expect(link.dataset.mdEmbedType).toBeUndefined();
+        expect(embed).toBeNull();
+    });
+
+    it('Regenerates missing embed from marked link on next transform', () => {
+        editorDiv.innerHTML = '![A](https://example.com/a.webp)';
+        transformMarkdownLinksInEditor(editorDiv);
+
+        const firstEmbed = editorDiv.querySelector('.te-generated-embed');
+        firstEmbed?.remove();
+
+        transformMarkdownLinksInEditor(editorDiv);
+
+        const regenerated = editorDiv.querySelector('.te-generated-embed-image img') as HTMLImageElement;
+        expect(regenerated).not.toBeNull();
+        expect(regenerated.getAttribute('src')).toBe('https://example.com/a.webp');
+    });
+
+    it('Removes orphan embed without owner link', () => {
+        editorDiv.innerHTML = '<div class="te-generated-embed te-generated-embed-image" data-md-embed-owner="orphan"></div>';
+
+        transformMarkdownLinksInEditor(editorDiv);
+
+        expect(editorDiv.querySelector('.te-generated-embed')).toBeNull();
+    });
+
+    it('Handles null editor safely', () => {
+        expect(() => transformMarkdownLinksInEditor(null)).not.toThrow();
     });
 });

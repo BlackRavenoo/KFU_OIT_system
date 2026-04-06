@@ -4,7 +4,7 @@
     import { get } from 'svelte/store';
     import { pageTitle } from '$lib/utils/setup/stores';
     import { goto } from '$app/navigation';
-    import { execCommand, applyColor, applyBgColor, insertList, insertBlock, setAlign } from '$lib/utils/texteditor/text';
+    import { execCommand, applyColor, applyBgColor, insertList, insertBlock, setAlign, transformMarkdownLinksInEditor } from '$lib/utils/texteditor/text';
     import { insertTable } from '$lib/utils/texteditor/table';
     import { notification } from '$lib/utils/notifications/notification';
     import { NotificationType } from '$lib/utils/notifications/types';
@@ -139,6 +139,7 @@
     function setShowTableMenu(show: boolean) { showTableMenu = show; }
 
     function handleEditorInput() {
+        transformMarkdownLinksInEditor(editorDiv);
         updateActiveStates();
         content = editorDiv?.innerHTML ?? '';
     }

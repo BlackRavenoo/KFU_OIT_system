@@ -109,8 +109,9 @@ vi.mock('$lib/utils/setup/stores', () => {
     const order = makeStore([{ id: 0 }]);
     const buildings = makeStore([]);
     const departments = makeStore([]);
+    const sources = makeStore([]);
 
-    return { order, buildings, departments };
+    return { order, buildings, departments, sources };
 });
 
 Object.defineProperty(globalThis, 'document', {
@@ -498,58 +499,58 @@ describe('Fetch consts with caching', () => {
     it('Fetch consts successfully from API when no cache', async () => {
         mockSvelteGet(() => []);
         localStorageMock.getItem.mockReturnValue(null);
-        helpers.mockSuccess('get', { order_by: ['test1', 'test2'], buildings: [1, 2, 3], departments: [{ id: 1, name: 'IT' }] });
+        helpers.mockSuccess('get', { order_by: ['test1', 'test2'], buildings: [1, 2, 3], departments: [{ id: 1, name: 'IT' }], sources: [] });
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         const result = await fetchConsts();
 
-        expect(result).toEqual({ order: ['test1', 'test2'], buildings: [1, 2, 3], departments: [{ id: 1, name: 'IT' }] });
+        expect(result).toEqual({ order: ['test1', 'test2'], buildings: [1, 2, 3], departments: [{ id: 1, name: 'IT' }], sources: [] });
         expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
         expect(localStorageMock.setItem).toHaveBeenCalledWith(
             'tickets_consts_cache',
-            expect.stringContaining('"data":{"buildings":[1,2,3],"order":["test1","test2"],"departments":[{"id":1,"name":"IT"}]}')
+            expect.stringContaining('"data":{"buildings":[1,2,3],"order":["test1","test2"],"departments":[{"id":1,"name":"IT"}],"sources":[]}')
         );
     });
 
     it('Uses cached data when available and not expired', async () => {
         const cachedData = {
             timestamp: Date.now() - 5 * 60 * 1000,
-            data: { buildings: [4, 5], order: ['cached1', 'cached2'], departments: [{ id: 2, name: 'HR' }] }
+            data: { buildings: [4, 5], order: ['cached1', 'cached2'], departments: [{ id: 2, name: 'HR' }], sources: [] }
         };
         localStorageMock.getItem.mockReturnValue(JSON.stringify(cachedData));
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         const result = await fetchConsts();
 
-        expect(result).toEqual({ buildings: [4, 5], order: ['cached1', 'cached2'], departments: [{ id: 2, name: 'HR' }] });
+        expect(result).toEqual({ buildings: [4, 5], order: ['cached1', 'cached2'], departments: [{ id: 2, name: 'HR' }], sources: [] });
         expect(apiMock.get).not.toHaveBeenCalled();
     });
 
     it('Fetches fresh data when cache is expired', async () => {
         const expiredCachedData = {
             timestamp: Date.now() - 20 * 60 * 1000,
-            data: { buildings: [4, 5], order: ['old1', 'old2'], departments: [] }
+            data: { buildings: [4, 5], order: ['old1', 'old2'], departments: [], sources: [] }
         };
         localStorageMock.getItem.mockReturnValue(JSON.stringify(expiredCachedData));
         mockSvelteGet(() => []);
-        helpers.mockSuccess('get', { order_by: ['fresh1', 'fresh2'], buildings: [6, 7, 8], departments: [{ id: 3, name: 'Finance' }] });
+        helpers.mockSuccess('get', { order_by: ['fresh1', 'fresh2'], buildings: [6, 7, 8], departments: [{ id: 3, name: 'Finance' }], sources: [] });
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         const result = await fetchConsts();
 
-        expect(result).toEqual({ order: ['fresh1', 'fresh2'], buildings: [6, 7, 8], departments: [{ id: 3, name: 'Finance' }] });
+        expect(result).toEqual({ order: ['fresh1', 'fresh2'], buildings: [6, 7, 8], departments: [{ id: 3, name: 'Finance' }], sources: [] });
         expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
     });
 
     it('Handles corrupted cache gracefully', async () => {
         localStorageMock.getItem.mockReturnValue('invalid-json');
         mockSvelteGet(() => []);
-        helpers.mockSuccess('get', { order_by: ['recovered1'], buildings: [9], departments: [] });
+        helpers.mockSuccess('get', { order_by: ['recovered1'], buildings: [9], departments: [], sources: [] });
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         const result = await fetchConsts();
 
-        expect(result).toEqual({ order: ['recovered1'], buildings: [9], departments: [] });
+        expect(result).toEqual({ order: ['recovered1'], buildings: [9], departments: [], sources: [] });
         expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
     });
 
@@ -559,6 +560,7 @@ describe('Fetch consts with caching', () => {
             if (store === (modStores as any).order) return ['id', 'created_at'];
             if (store === (modStores as any).buildings) return [1, 2, 3];
             if (store === (modStores as any).departments) return [{ id: 1, name: 'IT' }];
+            if (store === (modStores as any).sources) return ['web'];
             return [];
         });
         localStorageMock.getItem.mockReturnValue(null);
@@ -566,11 +568,11 @@ describe('Fetch consts with caching', () => {
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         const result = await fetchConsts();
 
-        expect(result).toEqual({ order: ['id', 'created_at'], buildings: [1, 2, 3], departments: [{ id: 1, name: 'IT' }] });
+        expect(result).toEqual({ order: ['id', 'created_at'], buildings: [1, 2, 3], departments: [{ id: 1, name: 'IT' }], sources: ['web'] });
         expect(apiMock.get).not.toHaveBeenCalled();
         expect(localStorageMock.setItem).toHaveBeenCalledWith(
             'tickets_consts_cache',
-            expect.stringContaining('"data":{"buildings":[1,2,3],"order":["id","created_at"],"departments":[{"id":1,"name":"IT"}]}')
+            expect.stringContaining('"data":{"buildings":[1,2,3],"order":["id","created_at"],"departments":[{"id":1,"name":"IT"}],"sources":["web"]}')
         );
     });
 
@@ -580,21 +582,23 @@ describe('Fetch consts with caching', () => {
             if (store === (modStores as any).order) return ['id'];
             if (store === (modStores as any).buildings) return [];
             if (store === (modStores as any).departments) return [];
+            if (store === (modStores as any).sources) return [];
             return [];
         });
         localStorageMock.getItem.mockReturnValue(null);
-        helpers.mockSuccess('get', { order_by: ['id', 'name'], buildings: [4, 5, 6], departments: [{ id: 2, name: 'Sales' }] });
+        helpers.mockSuccess('get', { order_by: ['id', 'name'], buildings: [4, 5, 6], departments: [{ id: 2, name: 'Sales' }], sources: [] });
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         const result = await fetchConsts();
 
-        expect(result).toEqual({ order: ['id', 'name'], buildings: [4, 5, 6], departments: [{ id: 2, name: 'Sales' }] });
+        expect(result).toEqual({ order: ['id', 'name'], buildings: [4, 5, 6], departments: [{ id: 2, name: 'Sales' }], sources: [] });
         expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
 
         const modStoresAfter = await import('$lib/utils/setup/stores');
         expect((modStoresAfter as any).order.set).toHaveBeenCalledWith(['id', 'name']);
         expect((modStoresAfter as any).buildings.set).toHaveBeenCalledWith([4, 5, 6]);
         expect((modStoresAfter as any).departments.set).toHaveBeenCalledWith([{ id: 2, name: 'Sales' }]);
+        expect((modStoresAfter as any).sources.set).toHaveBeenCalledWith([]);
     });
 
     it('Calls API when order store is empty', async () => {
@@ -603,21 +607,23 @@ describe('Fetch consts with caching', () => {
             if (store === (modStores as any).order) return [];
             if (store === (modStores as any).buildings) return [1, 2];
             if (store === (modStores as any).departments) return [];
+            if (store === (modStores as any).sources) return [];
             return [];
         });
         localStorageMock.getItem.mockReturnValue(null);
-        helpers.mockSuccess('get', { order_by: ['title', 'date'], buildings: [7, 8], departments: [] });
+        helpers.mockSuccess('get', { order_by: ['title', 'date'], buildings: [7, 8], departments: [], sources: [] });
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         const result = await fetchConsts();
 
-        expect(result).toEqual({ order: ['title', 'date'], buildings: [7, 8], departments: [] });
+        expect(result).toEqual({ order: ['title', 'date'], buildings: [7, 8], departments: [], sources: [] });
         expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
 
         const modStoresAfter = await import('$lib/utils/setup/stores');
         expect((modStoresAfter as any).order.set).toHaveBeenCalledWith(['title', 'date']);
         expect((modStoresAfter as any).buildings.set).toHaveBeenCalledWith([7, 8]);
         expect((modStoresAfter as any).departments.set).toHaveBeenCalledWith([]);
+        expect((modStoresAfter as any).sources.set).toHaveBeenCalledWith([]);
     });
 
     it('Fetch void consts', async () => {
@@ -628,7 +634,7 @@ describe('Fetch consts with caching', () => {
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         const result = await fetchConsts();
 
-        expect(result).toEqual({ order: [], buildings: [], departments: [] });
+        expect(result).toEqual({ order: [], buildings: [], departments: [], sources: [] });
         expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
     });
 
@@ -660,12 +666,12 @@ describe('Fetch consts with caching', () => {
         localStorageMock.setItem.mockImplementation(() => {
             throw new Error('LocalStorage is full');
         });
-        helpers.mockSuccess('get', { order_by: ['test1'], buildings: [1], departments: [] });
+        helpers.mockSuccess('get', { order_by: ['test1'], buildings: [1], departments: [], sources: [] });
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         const result = await fetchConsts();
 
-        expect(result).toEqual({ order: ['test1'], buildings: [1], departments: [] });
+        expect(result).toEqual({ order: ['test1'], buildings: [1], departments: [], sources: [] });
         expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
     });
 
@@ -675,14 +681,14 @@ describe('Fetch consts with caching', () => {
         localStorageMock.setItem.mockImplementation(() => {
             throw new Error('Storage error');
         });
-        helpers.mockSuccess('get', { order_by: ['test1'], buildings: [1], departments: [] });
+        helpers.mockSuccess('get', { order_by: ['test1'], buildings: [1], departments: [], sources: [] });
 
         const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
         const { fetchConsts } = await import('$lib/utils/tickets/api/get');
         const result = await fetchConsts();
 
-        expect(result).toEqual({ order: ['test1'], buildings: [1], departments: [] });
+        expect(result).toEqual({ order: ['test1'], buildings: [1], departments: [], sources: [] });
         expect(apiMock.get).toHaveBeenCalledWith('/api/tickets/consts');
         expect(consoleWarnSpy).toHaveBeenCalledWith('Не удалось сохранить константы в кеш');
         expect(localStorageMock.setItem).toHaveBeenCalled();
@@ -697,7 +703,8 @@ describe('Fetch consts with caching', () => {
             data: {
                 buildings: "not-an-array",
                 order: ['valid1', 'valid2'],
-                departments: []
+                departments: [],
+                sources: []
             }
         };
         localStorageMock.getItem.mockReturnValue(JSON.stringify(invalidCacheData));
@@ -708,7 +715,8 @@ describe('Fetch consts with caching', () => {
         expect((modStores as any).buildings.set).toHaveBeenCalledWith([]);
         expect((modStores as any).order.set).toHaveBeenCalledWith(['valid1', 'valid2']);
         expect((modStores as any).departments.set).toHaveBeenCalledWith([]);
-        expect(result).toEqual({ buildings: "not-an-array", order: ['valid1', 'valid2'], departments: [] });
+        expect((modStores as any).sources.set).toHaveBeenCalledWith([]);
+        expect(result).toEqual({ buildings: "not-an-array", order: ['valid1', 'valid2'], departments: [], sources: [] });
         expect(apiMock.get).not.toHaveBeenCalled();
     });
 
@@ -719,7 +727,8 @@ describe('Fetch consts with caching', () => {
             data: {
                 buildings: [1, 2, 3],
                 order: null,
-                departments: []
+                departments: [],
+                sources: []
             }
         };
         localStorageMock.getItem.mockReturnValue(JSON.stringify(invalidCacheData));
@@ -730,7 +739,8 @@ describe('Fetch consts with caching', () => {
         expect((modStores as any).buildings.set).toHaveBeenCalledWith([1, 2, 3]);
         expect((modStores as any).order.set).toHaveBeenCalledWith([]);
         expect((modStores as any).departments.set).toHaveBeenCalledWith([]);
-        expect(result).toEqual({ buildings: [1, 2, 3], order: null, departments: [] });
+        expect((modStores as any).sources.set).toHaveBeenCalledWith([]);
+        expect(result).toEqual({ buildings: [1, 2, 3], order: null, departments: [], sources: [] });
         expect(apiMock.get).not.toHaveBeenCalled();
     });
 
@@ -738,7 +748,7 @@ describe('Fetch consts with caching', () => {
         const modStores = await import('$lib/utils/setup/stores');
         const invalidCache = {
             timestamp: Date.now() - 5 * 60 * 1000,
-            data: { buildings: [1], order: ['o'], departments: 'not-array' }
+            data: { buildings: [1], order: ['o'], departments: 'not-array', sources: [] }
         };
         localStorageMock.getItem.mockReturnValueOnce(JSON.stringify(invalidCache));
 
@@ -746,6 +756,7 @@ describe('Fetch consts with caching', () => {
         const result = await fetchConsts();
 
         expect((modStores as any).departments.set).toHaveBeenCalledWith([]);
+        expect((modStores as any).sources.set).toHaveBeenCalledWith([]);
         expect(result.departments).toBe('not-array');
     });
 
@@ -758,6 +769,7 @@ describe('Fetch consts with caching', () => {
             if (store === (modStores as any).order) return ['o1'];
             if (store === (modStores as any).buildings) return [1];
             if (store === (modStores as any).departments) return [{ id: 1, name: 'IT' }];
+            if (store === (modStores as any).sources) return ['web'];
             return [];
         });
 
@@ -774,11 +786,46 @@ describe('Fetch consts with caching', () => {
         expect(result).toEqual({
             buildings: [1],
             order: ['o1'],
-            departments: [{ id: 1, name: 'IT' }]
+            departments: [{ id: 1, name: 'IT' }],
+            sources: ['web']
         });
         expect(consoleWarnSpy).toHaveBeenCalledWith('Не удалось сохранить константы в кеш');
 
         consoleWarnSpy.mockRestore();
+    });
+
+    it('Uses fallback [] for sources from cache when value changes between checks', async () => {
+        const modStores = await import('$lib/utils/setup/stores');
+        localStorageMock.getItem.mockReturnValueOnce('{"timestamp":0,"data":{}}');
+
+        let sourcesReads = 0;
+        const parseSpy = vi.spyOn(JSON, 'parse').mockImplementation(() => {
+            const data: any = {
+                buildings: [1],
+                order: ['o'],
+                departments: [{ id: 1, name: 'IT' }]
+            };
+            Object.defineProperty(data, 'sources', {
+                get() {
+                    sourcesReads += 1;
+                    if (sourcesReads === 1) return ['web'];
+                    return 'not-array';
+                }
+            });
+            return {
+                timestamp: Date.now(),
+                data
+            } as any;
+        });
+
+        const { fetchConsts } = await import('$lib/utils/tickets/api/get');
+        await fetchConsts();
+
+        expect((modStores as any).sources.set).toHaveBeenCalledWith([]);
+        expect(sourcesReads).toBeGreaterThanOrEqual(2);
+        expect(apiMock.get).not.toHaveBeenCalled();
+
+        parseSpy.mockRestore();
     });
 });
 

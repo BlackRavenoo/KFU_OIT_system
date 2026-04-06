@@ -464,6 +464,19 @@ describe('serialize', () => {
         expect(result[0].type).toBe('link');
         expect(result[0].href).toBe('#');
     });
+
+    it('Serializes <a> with embed type metadata', () => {
+        const html = '<a href="https://example.com/pic.jpg" data-md-embed-type="image">Image</a>';
+        const result = serialize(html);
+        expect(result[0].type).toBe('link');
+        expect((result[0] as any).embedType).toBe('image');
+    });
+
+    it('Skips generated embed blocks during serialization', () => {
+        const html = '<div class="te-generated-embed te-generated-embed-image" data-md-embed-owner="x"><img src="https://example.com/pic.jpg"></div>';
+        const result = serialize(html);
+        expect(result).toEqual([]);
+    });
 });
 
 describe('getNodeStyles', () => {
@@ -1137,5 +1150,152 @@ describe('deserialize', () => {
         const input: any = [{ type: 'link', text: 'Click' }];
         const out = deserialize(input);
         expect(out).toBe('<a href="#">Click</a>');
+    });
+
+    it('Deserializes link with image embed type', () => {
+        const input: any = [{ type: 'link', href: 'https://example.com/img.png', text: 'Img', embedType: 'image' }];
+        const out = deserialize(input);
+        expect(out).toContain('data-md-embed-type="image"');
+        expect(out).toContain('te-generated-embed-image');
+        expect(out).toContain('<img');
+        expect(out).toContain('https://example.com/img.png');
+    });
+
+    it('Deserializes link with rutube embed type', () => {
+        const input: any = [{ type: 'link', href: 'https://rutube.ru/video/xyz987', text: 'Video', embedType: 'rutube' }];
+        const out = deserialize(input);
+        expect(out).toContain('data-md-embed-type="rutube"');
+        expect(out).toContain('te-generated-embed-rutube');
+        expect(out).toContain('<iframe');
+        expect(out).toContain('https://rutube.ru/play/embed/xyz987');
+    });
+
+    it('Deserializes link with rutube embed path', () => {
+        const input: any = [{ type: 'link', href: 'https://rutube.ru/play/embed/emb654', text: 'Video', embedType: 'rutube' }];
+        const out = deserialize(input);
+        expect(out).toContain('te-generated-embed-rutube');
+        expect(out).toContain('https://rutube.ru/play/embed/emb654');
+    });
+
+    it('Deserializes link with rutube fallback path segment', () => {
+        const input: any = [{ type: 'link', href: 'https://rutube.ru/channel/fallback789', text: 'Video', embedType: 'rutube' }];
+        const out = deserialize(input);
+        expect(out).toContain('te-generated-embed-rutube');
+        expect(out).toContain('https://rutube.ru/play/embed/fallback789');
+    });
+
+    it('Does not render rutube embed when url is invalid', () => {
+        const input: any = [{ type: 'link', href: 'https://example.com/not-rutube', text: 'Video', embedType: 'rutube' }];
+        const out = deserialize(input);
+        expect(out).toContain('<a href="https://example.com/not-rutube"');
+        expect(out).not.toContain('te-generated-embed-rutube');
+    });
+
+    it('Deserializes markdown image syntax from text node', () => {
+        const out = deserialize([{ type: 'text', text: '![Alt](https://example.com/a.webp)' } as any]);
+        expect(out).toContain('<a href="https://example.com/a.webp"');
+        expect(out).toContain('te-generated-embed-image');
+        expect(out).toContain('<img');
+    });
+
+    it('Deserializes markdown rutube syntax with trailing bang from text node', () => {
+        const out = deserialize([{ type: 'text', text: '[Watch](https://rutube.ru/video/abc123)!' } as any]);
+        expect(out).toContain('<a href="https://rutube.ru/video/abc123"');
+        expect(out).toContain('te-generated-embed-rutube');
+        expect(out).toContain('https://rutube.ru/play/embed/abc123');
+    });
+
+    it('Handles url constructor error for rutube markdown embed', () => {
+        const OriginalURL = globalThis.URL;
+        const URLMock: any = function () {
+            throw new TypeError('boom');
+        };
+        URLMock.createObjectURL = (OriginalURL as any).createObjectURL;
+        URLMock.revokeObjectURL = (OriginalURL as any).revokeObjectURL;
+        (globalThis as any).URL = URLMock;
+
+        try {
+            const out = deserialize([{ type: 'text', text: '[Watch](https://rutube.ru/video/abc123)!' } as any]);
+            expect(out).toContain('<a href="https://rutube.ru/video/abc123">Watch</a>');
+            expect(out).not.toContain('te-generated-embed-rutube');
+            expect(out).not.toContain('<iframe');
+            expect(out).not.toContain('data-md-embed-type="rutube"');
+        } finally {
+            (globalThis as any).URL = OriginalURL;
+        }
+    });
+
+    it('Returns plain rutube link without embed when path is empty', () => {
+        const out = deserialize([{ type: 'link', href: 'https://rutube.ru/', text: 'Video', embedType: 'rutube' } as any]);
+        expect(out).toContain('<a href="https://rutube.ru/"');
+        expect(out).toContain('data-md-embed-type="rutube"');
+        expect(out).not.toContain('te-generated-embed-rutube');
+        expect(out).not.toContain('<iframe');
+    });
+
+    it('Uses fallback id when seed becomes empty', () => {
+        const out = deserialize([{ type: 'link', href: '%%%', text: '***', embedType: '!!!' } as any]);
+        expect(out).toContain('data-md-embed-id="md-embed"');
+    });
+
+    it('Handles missing regex full match value', () => {
+        const originalMatchAll = String.prototype.matchAll;
+        (String.prototype as any).matchAll = function () {
+            return [Object.assign([undefined, '', '', 'Txt', 'https://example.com', ''], { index: 0 })][Symbol.iterator]();
+        };
+
+        try {
+            const out = deserializeText('NO_MD', false, {}, true);
+            expect(out).toContain('<a href="https://example.com">Txt</a>');
+            expect(out).toContain('NO_MD');
+        } finally {
+            (String.prototype as any).matchAll = originalMatchAll;
+        }
+    });
+
+    it('Uses zero fallback when match index is undefined', () => {
+        const originalMatchAll = String.prototype.matchAll;
+        (String.prototype as any).matchAll = function () {
+            return [[ '[Txt](https://example.com)', '', '', 'Txt', 'https://example.com', '' ]][Symbol.iterator]();
+        };
+
+        try {
+            const out = deserializeText('TAIL', false, {}, true);
+            expect(out).toBe('<a href="https://example.com">Txt</a>');
+            expect(out).not.toContain('TAIL');
+        } finally {
+            (String.prototype as any).matchAll = originalMatchAll;
+        }
+    });
+
+    it('Uses image url as label when alt is empty', () => {
+        const out = deserialize([{ type: 'text', text: '![](https://example.com/a.png)' } as any]);
+        expect(out).toContain('<a href="https://example.com/a.png"');
+        expect(out).toContain('>https://example.com/a.png</a>');
+        expect(out).toContain('<img src="https://example.com/a.png" alt="https://example.com/a.png"');
+    });
+
+	it('Logs warning when rutube id is unavailable on embed render', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const OriginalURL = globalThis.URL;
+        let calls = 0;
+        const URLMock: any = function (input: string) {
+            calls += 1;
+            if (calls === 1) return new OriginalURL('https://rutube.ru/video/abc123');
+            return new OriginalURL('https://rutube.ru/');
+        };
+        URLMock.createObjectURL = (OriginalURL as any).createObjectURL;
+        URLMock.revokeObjectURL = (OriginalURL as any).revokeObjectURL;
+        (globalThis as any).URL = URLMock;
+
+        try {
+            const out = deserializeText('[Watch](https://rutube.ru/video/abc123)!', false, {}, true);
+            expect(out).toContain('data-md-embed-type="rutube"');
+            expect(out).not.toContain('te-generated-embed-rutube');
+            expect(warnSpy).toHaveBeenCalledWith('processLinks: Unable to extract Rutube video ID from URL', 'https://rutube.ru/video/abc123');
+        } finally {
+            (globalThis as any).URL = OriginalURL;
+            warnSpy.mockRestore();
+        }
     });
 });
