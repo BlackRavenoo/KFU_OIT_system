@@ -1,4 +1,4 @@
-use actix_web::{ResponseError, web::{self, Path}};
+use actix_web::{HttpResponse, ResponseError, web::{self, Path}};
 use anyhow::Context;
 use garde::Validate;
 use garde_actix_web::web::Json;
@@ -33,7 +33,7 @@ pub async fn attach_asset(
     ticket_id: Path<i64>,
     Json(schema): Json<AttachAssetSchema>,
     pool: web::Data<PgPool>,
-) -> Result<(), AttachAssetError> {
+) -> Result<HttpResponse, AttachAssetError> {
     attach(
         ticket_id.into_inner(),
         schema,
@@ -42,7 +42,7 @@ pub async fn attach_asset(
     .await
     .context("Failed to attach asset to ticket")?;
 
-    Ok(())
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[tracing::instrument(
