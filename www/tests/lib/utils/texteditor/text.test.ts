@@ -677,4 +677,55 @@ describe('Transform markdown links in text editor', () => {
     it('Handles null editor safely', () => {
         expect(() => transformMarkdownLinksInEditor(null)).not.toThrow();
     });
+
+    it('Handles rutube subdomain links with trailing bang', () => {
+        editorDiv.innerHTML = '[Watch](https://video.rutube.ru/video/subdomain123)!';
+        transformMarkdownLinksInEditor(editorDiv);
+        const link = editorDiv.querySelector('a') as HTMLAnchorElement;
+        const iframe = editorDiv.querySelector('.te-generated-embed-rutube iframe') as HTMLIFrameElement;
+        expect(link).not.toBeNull();
+        expect(link.dataset.mdEmbedType).toBe('rutube');
+        expect(iframe).not.toBeNull();
+        expect(iframe.getAttribute('src')).toContain('https://rutube.ru/play/embed/subdomain123');
+    });
+
+    it('Skips embed for malformed bang link', () => {
+        editorDiv.innerHTML = '[Watch](ht!tp://bad url)!';
+        transformMarkdownLinksInEditor(editorDiv);
+        const link = editorDiv.querySelector('a') as HTMLAnchorElement;
+        const embed = editorDiv.querySelector('.te-generated-embed');
+        expect(link).not.toBeNull();
+        expect(link.dataset.mdEmbedType).toBeUndefined();
+        expect(embed).toBeNull();
+    });
+
+    it('Skips embed for non-rutube bang link', () => {
+        editorDiv.innerHTML = '[Watch](https://example.com/video/abc123)!';
+        transformMarkdownLinksInEditor(editorDiv);
+        const link = editorDiv.querySelector('a') as HTMLAnchorElement;
+        const embed = editorDiv.querySelector('.te-generated-embed');
+        expect(link).not.toBeNull();
+        expect(link.getAttribute('href')).toBe('https://example.com/video/abc123');
+        expect(link.dataset.mdEmbedType).toBeUndefined();
+        expect(embed).toBeNull();
+    });
+
+    it('Skips embed for rutube root link with bang', () => {
+        editorDiv.innerHTML = '[Watch](https://rutube.ru/)!';
+        transformMarkdownLinksInEditor(editorDiv);
+        const link = editorDiv.querySelector('a') as HTMLAnchorElement;
+        const embed = editorDiv.querySelector('.te-generated-embed');
+        expect(link).not.toBeNull();
+        expect(link.getAttribute('href')).toBe('https://rutube.ru/');
+        expect(link.dataset.mdEmbedType).toBeUndefined();
+        expect(embed).toBeNull();
+    });
+
+    it('Uses empty embed id for invalid marked rutube owner link', () => {
+        editorDiv.innerHTML = '<a href="https://example.com/video/abc" data-md-embed-type="rutube" data-md-embed-id="forced-rutube">Watch</a>';
+        transformMarkdownLinksInEditor(editorDiv);
+        const iframe = editorDiv.querySelector('.te-generated-embed-rutube iframe') as HTMLIFrameElement;
+        expect(iframe).not.toBeNull();
+        expect(iframe.getAttribute('src')).toBe('https://rutube.ru/play/embed/');
+    });
 });

@@ -205,15 +205,6 @@ export function setAlign(
     updateActiveStates();
 }
 
-function escapeHtml(input: string): string {
-    return input
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
 function isImageLink(url: string): boolean {
     return /\.(jpe?g|jpd|png|webp)(?:$|[?#])/i.test(url.trim());
 }

@@ -25,7 +25,20 @@ export type Ticket = {
     attachments: null | any,
     building: Building,
     department: Department,
-    cabinet: string
+    cabinet: string,
+    ticket_assets?: TicketAssetLink[]
+};
+
+export type TicketAssetLink = {
+    asset_id: number;
+    comment?: string;
+    asset: {
+        id: number;
+        name: string;
+        inventory_number?: string;
+        serial_number?: string;
+        location?: string;
+    };
 };
 
 export type TicketSource = {

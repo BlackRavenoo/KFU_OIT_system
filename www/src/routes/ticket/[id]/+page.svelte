@@ -15,7 +15,10 @@
     import { getAvatar } from '$lib/utils/account/avatar';
     import { loadUsersData } from '$lib/utils/admin/users';
     import { handleAuthError } from '$lib/utils/api';
+    import { api } from '$lib/utils/api';
+    import { getAssets } from '$lib/utils/assets/api';
     import type { Ticket, Building, UiStatus, PriorityStatus, TicketSource } from '$lib/utils/tickets/types';
+    import type { Asset } from '$lib/utils/assets/types';
     import type { IUserData } from '$lib/utils/auth/types';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
     import FileCard from './File.svelte';
@@ -80,6 +83,27 @@
     let assignSearchResults: IUserData[] = [];
     let assignSearchLoading: boolean = false;
 
+    type LinkedTicketAsset = {
+        id: number;
+        name: string;
+        inventory_number?: string;
+        serial_number?: string;
+        location?: string;
+        comment?: string;
+    };
+
+    let linkedAssets: LinkedTicketAsset[] = [];
+    let showAttachAssetModal = false;
+    let assetSearchQuery = '';
+    let assetSearchLoading = false;
+    let assetSearchResults: Asset[] = [];
+    let linkedAssetIds: Set<number> = new Set();
+    let availableAttachAssets: Asset[] = [];
+    let selectedAssetId: number | null = null;
+    let attachAssetComment = '';
+    let isAttachingAsset = false;
+    let assetSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
     function updateIsMobile() {
         isMobile = window.innerWidth <= 900;
     }
@@ -115,9 +139,196 @@
             closeModal();
             showDeleteConfirm = false;
             closeAssignModal();
+            closeAttachAssetModal();
             closeRemoveConfirm();
             showFileRemoveConfirm = false;
         }
+    }
+
+    function normalizeLinkedAssets(ticket: any): LinkedTicketAsset[] {
+        const raw = ticket?.ticket_assets ?? ticket?.assets ?? ticket?.attached_assets ?? [];
+        if (!Array.isArray(raw)) return [];
+
+        return raw
+            .map((row: any) => {
+                const asset = row?.asset ?? row;
+                const id = Number(row?.asset_id ?? asset?.id ?? 0);
+
+                if (!id) return null;
+
+                return {
+                    id,
+                    name: String(asset?.name ?? `Ассет #${ id }`),
+                    inventory_number: asset?.inventory_number ?? undefined,
+                    serial_number: asset?.serial_number ?? undefined,
+                    location: asset?.location ?? undefined,
+                    comment: row?.comment ?? asset?.comment ?? undefined,
+                } as LinkedTicketAsset;
+            })
+            .filter((v): v is LinkedTicketAsset => v !== null);
+    }
+
+    let canManageTicketAssets = false;
+    $: canManageTicketAssets =
+        !!$currentUser
+        && ($currentUser.role === UserRole.Programmer || $currentUser.role === UserRole.Moderator || $currentUser.role === UserRole.Administrator);
+
+    $: linkedAssetIds = new Set(linkedAssets.map((asset) => asset.id));
+    $: availableAttachAssets = assetSearchResults.filter((asset) => !linkedAssetIds.has(asset.id));
+
+    function openAttachAssetModal() {
+        showAttachAssetModal = true;
+        assetSearchQuery = '';
+        assetSearchResults = [];
+        selectedAssetId = null;
+        attachAssetComment = '';
+        document.body.style.overflow = 'hidden';
+        window.addEventListener('keydown', handleEsc);
+    }
+
+    function closeAttachAssetModal() {
+        showAttachAssetModal = false;
+        assetSearchQuery = '';
+        assetSearchResults = [];
+        selectedAssetId = null;
+        attachAssetComment = '';
+        assetSearchLoading = false;
+        if (assetSearchDebounceTimer) {
+            clearTimeout(assetSearchDebounceTimer);
+            assetSearchDebounceTimer = null;
+        }
+        document.body.style.overflow = '';
+        window.removeEventListener('keydown', handleEsc);
+    }
+
+    async function searchAssetsToAttach() {
+        const query = assetSearchQuery.trim();
+        if (!query) {
+            assetSearchResults = [];
+            selectedAssetId = null;
+            return;
+        }
+
+        assetSearchLoading = true;
+        try {
+            const response = await getAssets({ page: 1, page_size: 10, name: query });
+            if (!response.success) {
+                assetSearchResults = [];
+                return;
+            }
+
+            const items = ((response.data as any)?.items ?? (response.data as any)?.data ?? []) as any[];
+
+            assetSearchResults = items
+                .map((row) => ({
+                    id: Number(row?.id ?? 0),
+                    model_id: Number(row?.model?.id ?? row?.model_id ?? 0),
+                    status: Number(row?.status?.id ?? row?.status ?? 0),
+                    name: String(row?.name ?? ''),
+                    inventory_number: row?.inventory_number ?? undefined,
+                    serial_number: row?.serial_number ?? undefined,
+                    location: row?.location ?? undefined,
+                }))
+                .filter((item) => item.id > 0 && item.name.length > 0);
+        } catch {
+            assetSearchResults = [];
+        } finally {
+            assetSearchLoading = false;
+        }
+    }
+
+    function queueAssetsSearch() {
+        if (assetSearchDebounceTimer) clearTimeout(assetSearchDebounceTimer);
+        assetSearchDebounceTimer = setTimeout(() => {
+            searchAssetsToAttach();
+        }, 250);
+    }
+
+    async function attachSelectedAsset() {
+        if (!ticketId || !selectedAssetId || isAttachingAsset) return;
+
+        const comment = attachAssetComment.trim() || undefined;
+        isAttachingAsset = true;
+        try {
+            const res = await api.post(`/api/v1/tickets/${ ticketId }/assets`, {
+                asset_id: selectedAssetId,
+                comment,
+            });
+
+            if (!res.success) {
+                if (res.status === 404 || res.status === 405 || res.status === 501) {
+                    const selected = availableAttachAssets.find((asset) => asset.id === selectedAssetId)
+                        || assetSearchResults.find((asset) => asset.id === selectedAssetId);
+
+                    if (!selected) {
+                        notification('Ассет не найден в текущем списке', NotificationType.Error);
+                        return;
+                    }
+
+                    if (!linkedAssets.some((asset) => asset.id === selected.id)) {
+                        linkedAssets = [
+                            ...linkedAssets,
+                            {
+                                id: selected.id,
+                                name: selected.name,
+                                inventory_number: selected.inventory_number ?? undefined,
+                                serial_number: selected.serial_number ?? undefined,
+                                location: selected.location ?? undefined,
+                                comment,
+                            }
+                        ];
+                    }
+
+                    notification('Ассет привязан локально (серверная ручка ещё не готова)', NotificationType.Warning);
+                    closeAttachAssetModal();
+                    return;
+                }
+
+                notification(res.error || 'Не удалось привязать ассет', NotificationType.Error);
+                return;
+            }
+
+            await reloadLinkedAssets();
+
+            notification('Ассет привязан к заявке', NotificationType.Success);
+            closeAttachAssetModal();
+        } catch {
+            notification('Не удалось привязать ассет', NotificationType.Error);
+        } finally {
+            isAttachingAsset = false;
+        }
+    }
+
+    async function detachLinkedAsset(assetId: number) {
+        if (!ticketId || !assetId) return;
+
+        try {
+            const res = await api.delete(`/api/v1/tickets/${ ticketId }/assets/${ assetId }`);
+            if (!res.success) {
+                if (res.status === 404 || res.status === 405 || res.status === 501) {
+                    linkedAssets = linkedAssets.filter((asset) => asset.id !== assetId);
+                    notification('Ассет отвязан локально (серверная ручка ещё не готова)', NotificationType.Warning);
+                    return;
+                }
+
+                notification(res.error || 'Не удалось отвязать ассет', NotificationType.Error);
+                return;
+            }
+
+            await reloadLinkedAssets();
+            notification('Ассет отвязан от заявки', NotificationType.Success);
+        } catch {
+            notification('Не удалось отвязать ассет', NotificationType.Error);
+        }
+    }
+
+    async function reloadLinkedAssets() {
+        if (!ticketId) return;
+
+        try {
+            const refreshed = await getById(ticketId);
+            linkedAssets = normalizeLinkedAssets(refreshed);
+        } catch {}
     }
 
     async function assignHandler() {
@@ -607,6 +818,7 @@
         else {
             await fetchConsts();
             ticketData = await getById(ticketId);
+            linkedAssets = normalizeLinkedAssets(ticketData);
             if (ticketData && ticketData.building && ticketData.building.code)
                 pageTitle.set(`Заявка ${ticketData.building.code}-${ticketId} | Система управления заявками ЕИ КФУ`);
     
@@ -656,6 +868,7 @@
         window.removeEventListener('keydown', handleEsc);
         window.removeEventListener('resize', updateScreenWidth);
         window.removeEventListener('resize', updateIsMobile);
+        if (assetSearchDebounceTimer) clearTimeout(assetSearchDebounceTimer);
         
         executorAvatarContainers.clear();
         loadedExecutorAvatars.clear();
@@ -979,6 +1192,43 @@
                     </div>
                 {/if}
             {/if}
+
+            <div class="assets-mobile-block assets-inline-block">
+                <div class="assets-card-header">
+                    <div class="assets-title">Ассеты ({ linkedAssets.length })</div>
+                    {#if canManageTicketAssets}
+                        <button class="asset-add-btn" on:click={ openAttachAssetModal }>+ Ассет</button>
+                    {/if}
+                </div>
+
+                {#if linkedAssets.length === 0}
+                    <div class="assets-empty">Нет ассетов</div>
+                {:else}
+                    <div class="assets-compact-list">
+                        {#each linkedAssets as linkedAsset (linkedAsset.id)}
+                            <article class="asset-compact-item">
+                                <div class="asset-compact-main">
+                                    <strong>{ linkedAsset.name }</strong>
+                                    <span class="asset-chip-id">#{ linkedAsset.id }</span>
+                                </div>
+                                {#if linkedAsset.inventory_number || linkedAsset.serial_number || linkedAsset.location}
+                                    <div class="asset-compact-meta">
+                                        {#if linkedAsset.inventory_number}<span>Инв: { linkedAsset.inventory_number }</span>{/if}
+                                        {#if linkedAsset.serial_number}<span>SN: { linkedAsset.serial_number }</span>{/if}
+                                        {#if linkedAsset.location}<span>{ linkedAsset.location }</span>{/if}
+                                    </div>
+                                {/if}
+                                {#if canManageTicketAssets}
+                                    <button class="asset-unlink-btn compact" on:click={ () => detachLinkedAsset(linkedAsset.id) }>
+                                        Отвязать
+                                    </button>
+                                {/if}
+                            </article>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
+
             <div class="author-contacts">
                 {#if ticketData}
                     <div 
@@ -1417,6 +1667,41 @@
                     </div>
                 {/if}
             {/if}
+            <div class="assets-mobile-block assets-inline-block">
+                <div class="assets-card-header">
+                    <div class="assets-title">Ассеты ({ linkedAssets.length })</div>
+                    {#if canManageTicketAssets}
+                        <button class="asset-add-btn" on:click={ openAttachAssetModal }>+ Ассет</button>
+                    {/if}
+                </div>
+
+                {#if linkedAssets.length === 0}
+                    <div class="assets-empty">Нет ассетов</div>
+                {:else}
+                    <div class="assets-compact-list">
+                        {#each linkedAssets as linkedAsset (linkedAsset.id)}
+                            <article class="asset-compact-item">
+                                <div class="asset-compact-main">
+                                    <strong>{ linkedAsset.name }</strong>
+                                    <span class="asset-chip-id">#{ linkedAsset.id }</span>
+                                </div>
+                                {#if linkedAsset.inventory_number || linkedAsset.serial_number || linkedAsset.location}
+                                    <div class="asset-compact-meta">
+                                        {#if linkedAsset.inventory_number}<span>Инв: { linkedAsset.inventory_number }</span>{/if}
+                                        {#if linkedAsset.serial_number}<span>SN: { linkedAsset.serial_number }</span>{/if}
+                                        {#if linkedAsset.location}<span>{ linkedAsset.location }</span>{/if}
+                                    </div>
+                                {/if}
+                                {#if canManageTicketAssets}
+                                    <button class="asset-unlink-btn compact" on:click={ () => detachLinkedAsset(linkedAsset.id) }>
+                                        Отвязать
+                                    </button>
+                                {/if}
+                            </article>
+                        {/each}
+                    </div>
+                {/if}
+            </div>
             <div class="author-contacts">
                 {#if ticketData}
                     <div 
@@ -1717,6 +2002,82 @@
             userRole={ $currentUser?.role || UserRole.Anonymous }
             on:close={ () => showChat = false }
         />
+    </div>
+{/if}
+
+{#if showAttachAssetModal}
+    <div
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        tabindex="0"
+        transition:fade={{ duration: 180 }}
+        on:click={(e) => { if (e.target === e.currentTarget) closeAttachAssetModal(); }}
+        on:keydown={(e) => {
+            if (e.key === 'Escape') closeAttachAssetModal();
+        }}
+    >
+        <section class="asset-modal" role="document" aria-label="Привязать ассет">
+            <div class="asset-modal-header">
+                <h2>Привязать ассет</h2>
+                <button class="asset-modal-close" on:click={ closeAttachAssetModal }>&times;</button>
+            </div>
+            <div class="asset-modal-body">
+                <input
+                    type="text"
+                    class="asset-search-input"
+                    placeholder="Поиск ассета по названию..."
+                    bind:value={ assetSearchQuery }
+                    on:input={ queueAssetsSearch }
+                    aria-label="Поиск ассета"
+                />
+
+                {#if assetSearchLoading}
+                    <p class="asset-search-state">Загрузка...</p>
+                {:else if availableAttachAssets.length > 0}
+                    <div class="asset-results-list">
+                        {#each availableAttachAssets as asset (asset.id)}
+                            <button
+                                type="button"
+                                class="asset-result-item attach-asset-result"
+                                class:selected={ selectedAssetId === asset.id }
+                                on:click={() => selectedAssetId = asset.id}
+                            >
+                                <span>{ asset.name }</span>
+                                <span class="user-email">#{ asset.id }{ asset.inventory_number ? ` • Инв. ${asset.inventory_number}` : '' }</span>
+                            </button>
+                        {/each}
+                    </div>
+                {:else if assetSearchQuery.trim()}
+                    <p class="asset-search-state">Подходящие ассеты не найдены</p>
+                {:else}
+                    <p class="asset-search-state">Введите название ассета</p>
+                {/if}
+
+                <label for="asset-comment" class="asset-comment-label">Комментарий к привязке</label>
+                <textarea
+                    id="asset-comment"
+                    rows="3"
+                    bind:value={ attachAssetComment }
+                    class="asset-comment-input"
+                    placeholder="Например: используется для выполнения заявки"
+                ></textarea>
+
+                <div class="attach-asset-actions">
+                    <button class="btn btn-outline" type="button" on:click={ closeAttachAssetModal }>
+                        Отмена
+                    </button>
+                    <button
+                        class="btn btn-primary"
+                        type="button"
+                        disabled={ !selectedAssetId || isAttachingAsset }
+                        on:click={ attachSelectedAsset }
+                    >
+                        Привязать
+                    </button>
+                </div>
+            </div>
+        </section>
     </div>
 {/if}
 
