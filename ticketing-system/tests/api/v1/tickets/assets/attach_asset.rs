@@ -1,24 +1,4 @@
-use crate::helpers::{spawn_app, TestApp};
-
-async fn attach_asset(
-	app: &TestApp,
-	ticket_id: i64,
-	body: &serde_json::Value,
-	token: Option<&str>
-) -> reqwest::Response {
-	let mut builder = reqwest::Client::new()
-		.post(format!("{}/v1/tickets/{}/assets", app.address, ticket_id))
-		.json(body);
-
-	if let Some(token) = token {
-		builder = builder.bearer_auth(token);
-	}
-
-	builder
-		.send()
-		.await
-		.unwrap()
-}
+use crate::helpers::spawn_app;
 
 #[tokio::test]
 async fn attach_asset_returns_200() {
@@ -33,8 +13,7 @@ async fn attach_asset_returns_200() {
 
 	let (access, _) = app.get_admin_jwt_tokens().await;
 
-	let resp = attach_asset(
-		&app,
+	let resp = app.attach_asset(
 		1,
 		&serde_json::json!({
 			"asset_id": asset_id,
@@ -60,8 +39,7 @@ async fn attach_asset_saves_link_in_db() {
 	let (access, _) = app.get_admin_jwt_tokens().await;
 	let comment = "Asset is related to this ticket";
 
-	attach_asset(
-		&app,
+	app.attach_asset(
 		1,
 		&serde_json::json!({
 			"asset_id": asset_id,
@@ -101,8 +79,7 @@ async fn attach_asset_without_token_returns_401() {
 	let model_id = app.create_test_model().await;
 	let asset_id = app.create_test_asset(model_id).await;
 
-	let resp = attach_asset(
-		&app,
+	let resp = app.attach_asset(
 		1,
 		&serde_json::json!({
 			"asset_id": asset_id,
@@ -120,8 +97,7 @@ async fn attach_asset_with_empty_body_returns_400() {
 
 	let (access, _) = app.get_admin_jwt_tokens().await;
 
-	let resp = attach_asset(
-		&app,
+	let resp = app.attach_asset(
 		1,
 		&serde_json::json!({}),
 		Some(&access)
@@ -140,8 +116,7 @@ async fn attach_asset_with_invalid_asset_id_returns_400() {
 
 	let (access, _) = app.get_admin_jwt_tokens().await;
 
-	let resp = attach_asset(
-		&app,
+	let resp = app.attach_asset(
 		1,
 		&serde_json::json!({
 			"asset_id": 0
@@ -165,8 +140,7 @@ async fn attach_asset_with_empty_comment_returns_400() {
 
 	let (access, _) = app.get_admin_jwt_tokens().await;
 
-	let resp = attach_asset(
-		&app,
+	let resp = app.attach_asset(
 		1,
 		&serde_json::json!({
 			"asset_id": asset_id,
@@ -196,8 +170,7 @@ async fn attach_asset_with_db_error_returns_500() {
 		.await
 		.unwrap();
 
-	let resp = attach_asset(
-		&app,
+	let resp = app.attach_asset(
 		1,
 		&serde_json::json!({
 			"asset_id": asset_id

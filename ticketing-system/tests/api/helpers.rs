@@ -205,6 +205,21 @@ impl TestApp {
             .unwrap()
     }
 
+    pub async fn attach_asset(&self, ticket_id: TicketId, body: &serde_json::Value, token: Option<&str>) -> reqwest::Response {
+        let mut builder = reqwest::Client::new()
+            .post(format!("{}/v1/tickets/{}/assets", self.address, ticket_id))
+            .json(body);
+
+        if let Some(token) = token {
+            builder = builder.bearer_auth(token);
+        }
+
+        builder
+            .send()
+            .await
+            .unwrap()
+    }
+
     pub async fn get_ticket_using_admin_token(&self, ticket_id: TicketId) -> reqwest::Response {
         let (access, _) = self.get_admin_jwt_tokens().await;
 
