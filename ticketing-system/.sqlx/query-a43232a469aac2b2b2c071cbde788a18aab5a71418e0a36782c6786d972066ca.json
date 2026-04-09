@@ -1,0 +1,106 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n\t\tSELECT\n\t\t\ta.id,\n\t\t\ta.name,\n\t\t\ta.description,\n\t\t\ta.serial_number,\n\t\t\ta.inventory_number,\n\t\t\tjson_build_object(\n\t\t\t\t'id', ast.id,\n\t\t\t\t'name', ast.name,\n\t\t\t\t'color', ast.color\n\t\t\t) AS \"status!: Json<Status>\",\n\t\t\ta.location,\n\t\t\ta.assigned_to,\n\t\t\tjsonb_build_object(\n\t\t\t\t'id', am.id,\n\t\t\t\t'name', am.name,\n\t\t\t\t'category', jsonb_build_object(\n\t\t\t\t\t'id', ac.id,\n\t\t\t\t\t'name', ac.name,\n\t\t\t\t\t'color', ac.color,\n\t\t\t\t\t'notes', ac.notes\n\t\t\t\t)\n\t\t\t) AS \"model!: Json<Model>\",\n\t\t\ta.ip AS \"ip: IpAddr\",\n\t\t\ta.mac,\n\t\t\ta.photo_key,\n\t\t\ta.commission_date,\n\t\t\ta.decommission_date,\n\t\t\tta.comment\n\t\tFROM ticket_assets ta\n\t\tJOIN assets a ON a.id = ta.asset_id\n\t\tJOIN asset_statuses ast ON ast.id = a.status\n\t\tJOIN asset_models am ON am.id = a.model_id\n\t\tJOIN asset_categories ac ON ac.id = am.category\n\t\tWHERE ta.ticket_id = $1\n\t\tORDER BY a.id DESC\n\t\t",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "serial_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "inventory_number",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "status!: Json<Status>",
+        "type_info": "Json"
+      },
+      {
+        "ordinal": 6,
+        "name": "location",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "assigned_to",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 8,
+        "name": "model!: Json<Model>",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "ip: IpAddr",
+        "type_info": "Inet"
+      },
+      {
+        "ordinal": 10,
+        "name": "mac",
+        "type_info": "Macaddr"
+      },
+      {
+        "ordinal": 11,
+        "name": "photo_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "commission_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 13,
+        "name": "decommission_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "comment",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      null,
+      true,
+      true,
+      null,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "a43232a469aac2b2b2c071cbde788a18aab5a71418e0a36782c6786d972066ca"
+}
