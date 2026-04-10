@@ -15,7 +15,7 @@
     import { getAvatar } from '$lib/utils/account/avatar';
     import { loadUsersData } from '$lib/utils/admin/users';
     import { handleAuthError } from '$lib/utils/api';
-    import { api } from '$lib/utils/api';
+    import { attachAssetToTicket, deleteTicketAsset, getTicketAssets } from '$lib/utils/tickets/api/assets';
     import { getAssets } from '$lib/utils/assets/api';
     import type { Ticket, Building, UiStatus, PriorityStatus, TicketSource } from '$lib/utils/tickets/types';
     import type { Asset } from '$lib/utils/assets/types';
@@ -145,8 +145,10 @@
         }
     }
 
-    function normalizeLinkedAssets(ticket: any): LinkedTicketAsset[] {
-        const raw = ticket?.ticket_assets ?? ticket?.assets ?? ticket?.attached_assets ?? [];
+    function normalizeLinkedAssets(source: any): LinkedTicketAsset[] {
+        const raw = Array.isArray(source)
+            ? source
+            : source?.ticket_assets ?? source?.assets ?? source?.attached_assets ?? [];
         if (!Array.isArray(raw)) return [];
 
         return raw
@@ -250,40 +252,12 @@
         const comment = attachAssetComment.trim() || undefined;
         isAttachingAsset = true;
         try {
-            const res = await api.post(`/api/v1/tickets/${ ticketId }/assets`, {
+            const res = await attachAssetToTicket(ticketId, {
                 asset_id: selectedAssetId,
                 comment,
             });
 
             if (!res.success) {
-                if (res.status === 404 || res.status === 405 || res.status === 501) {
-                    const selected = availableAttachAssets.find((asset) => asset.id === selectedAssetId)
-                        || assetSearchResults.find((asset) => asset.id === selectedAssetId);
-
-                    if (!selected) {
-                        notification('Ассет не найден в текущем списке', NotificationType.Error);
-                        return;
-                    }
-
-                    if (!linkedAssets.some((asset) => asset.id === selected.id)) {
-                        linkedAssets = [
-                            ...linkedAssets,
-                            {
-                                id: selected.id,
-                                name: selected.name,
-                                inventory_number: selected.inventory_number ?? undefined,
-                                serial_number: selected.serial_number ?? undefined,
-                                location: selected.location ?? undefined,
-                                comment,
-                            }
-                        ];
-                    }
-
-                    notification('Ассет привязан локально (серверная ручка ещё не готова)', NotificationType.Warning);
-                    closeAttachAssetModal();
-                    return;
-                }
-
                 notification(res.error || 'Не удалось привязать ассет', NotificationType.Error);
                 return;
             }
@@ -303,14 +277,8 @@
         if (!ticketId || !assetId) return;
 
         try {
-            const res = await api.delete(`/api/v1/tickets/${ ticketId }/assets/${ assetId }`);
+            const res = await deleteTicketAsset(ticketId, assetId);
             if (!res.success) {
-                if (res.status === 404 || res.status === 405 || res.status === 501) {
-                    linkedAssets = linkedAssets.filter((asset) => asset.id !== assetId);
-                    notification('Ассет отвязан локально (серверная ручка ещё не готова)', NotificationType.Warning);
-                    return;
-                }
-
                 notification(res.error || 'Не удалось отвязать ассет', NotificationType.Error);
                 return;
             }
@@ -326,9 +294,16 @@
         if (!ticketId) return;
 
         try {
-            const refreshed = await getById(ticketId);
-            linkedAssets = normalizeLinkedAssets(refreshed);
-        } catch {}
+            const response = await getTicketAssets(ticketId);
+            if (!response.success) {
+                linkedAssets = [];
+                return;
+            }
+
+            linkedAssets = normalizeLinkedAssets(response.data ?? []);
+        } catch {
+            linkedAssets = [];
+        }
     }
 
     async function assignHandler() {
@@ -818,7 +793,7 @@
         else {
             await fetchConsts();
             ticketData = await getById(ticketId);
-            linkedAssets = normalizeLinkedAssets(ticketData);
+            await reloadLinkedAssets();
             if (ticketData && ticketData.building && ticketData.building.code)
                 pageTitle.set(`Заявка ${ticketData.building.code}-${ticketId} | Система управления заявками ЕИ КФУ`);
     

@@ -332,9 +332,8 @@ export function transformMarkdownLinksInEditor(editorDiv: HTMLDivElement | null)
         if (!owner || !type) continue;
         owners.add(owner);
         const existing = editorDiv.querySelector(`.te-generated-embed[data-md-embed-owner="${CSS.escape(owner)}"]`) as HTMLElement | null;
-        if (!existing) {
+        if (!existing)
             a.after(createEmbedElement(type, a.getAttribute('href') || '', owner, a.textContent || ''));
-        }
     }
 
     const embeds = Array.from(editorDiv.querySelectorAll('.te-generated-embed[data-md-embed-owner]')) as HTMLElement[];
@@ -342,5 +341,4 @@ export function transformMarkdownLinksInEditor(editorDiv: HTMLDivElement | null)
         const owner = emb.dataset.mdEmbedOwner || '';
         if (!owners.has(owner)) emb.remove();
     }
-
 }

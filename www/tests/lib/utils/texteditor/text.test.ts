@@ -728,4 +728,210 @@ describe('Transform markdown links in text editor', () => {
         expect(iframe).not.toBeNull();
         expect(iframe.getAttribute('src')).toBe('https://rutube.ru/play/embed/');
     });
+
+    it('Rejects orphan text node through NodeFilter return path', () => {
+        editorDiv.innerHTML = 'Unchanged';
+        let filterResult: number | undefined;
+        const orphanTextNode = document.createTextNode('[Link](https://example.com)');
+        // @ts-ignore
+        vi.spyOn(document, 'createTreeWalker').mockImplementation((root: Node, whatToShow: number, filter?: NodeFilter | null) => {
+            filterResult = (filter as any).acceptNode(orphanTextNode);
+            return {
+                currentNode: root,
+                nextNode: () => null
+            } as any;
+        });
+
+        transformMarkdownLinksInEditor(editorDiv);
+
+        expect(filterResult).toBe(NodeFilter.FILTER_REJECT);
+        expect(editorDiv.innerHTML).toBe('Unchanged');
+        expect(editorDiv.querySelector('a')).toBeNull();
+    });
+
+    it('Uses fallback empty value when text content is missing', () => {
+        let filterResult: number | undefined;
+        let testedValue: string | undefined;
+        const originalTest = RegExp.prototype.test;
+        vi.spyOn(RegExp.prototype, 'test').mockImplementation(function (this: RegExp, value: string) {
+            if (this.source === '!\\[[^\\]]*\\]\\([^)]+\\)|\\[[^\\]]+\\]\\([^)]+\\)!?') testedValue = value;
+            return originalTest.call(this, value);
+        });
+        // @ts-ignore
+        vi.spyOn(document, 'createTreeWalker').mockImplementation((root: Node, whatToShow: number, filter?: NodeFilter | null) => {
+            const fakeNode = {
+                parentElement: {
+                    closest: () => null
+                },
+                textContent: undefined
+            } as unknown as Node;
+            filterResult = (filter as any).acceptNode(fakeNode);
+            return {
+                currentNode: root,
+                nextNode: () => null
+            } as any;
+        });
+        transformMarkdownLinksInEditor(editorDiv);
+        expect(filterResult).toBe(NodeFilter.FILTER_REJECT);
+        expect(testedValue).toBe('');
+    });
+
+    it('Uses fallback empty src when node text content is missing', () => {
+        editorDiv.innerHTML = 'Keep';
+        let execInput: string | undefined;
+        const originalExec = RegExp.prototype.exec;
+        vi.spyOn(RegExp.prototype, 'exec').mockImplementation(function (this: RegExp, input: string) {
+            if (this.source === '!\\[([^\\]]*)\\]\\(([^)]+)\\)|\\[([^\\]]+)\\]\\(([^)]+)\\)(!?)' && this.flags.includes('g')) execInput = input;
+            return originalExec.call(this, input);
+        });
+        const replaceChild = vi.fn();
+        const fakeNode = {
+            textContent: undefined,
+            parentNode: { replaceChild }
+        } as unknown as Text;
+        let emitted = false;
+        vi.spyOn(document, 'createTreeWalker').mockImplementation(() => {
+            return {
+                currentNode: fakeNode,
+                nextNode: () => {
+                    if (emitted) return null;
+                    emitted = true;
+                    return fakeNode;
+                }
+            } as any;
+        });
+        transformMarkdownLinksInEditor(editorDiv);
+        expect(execInput).toBe('');
+        expect(replaceChild).not.toHaveBeenCalled();
+        expect(editorDiv.innerHTML).toBe('Keep');
+    });
+
+    it('Preserves leading plain text before first markdown match', () => {
+        editorDiv.innerHTML = 'Lead [Site](https://example.com)';
+        const createTextNodeSpy = vi.spyOn(document, 'createTextNode');
+        transformMarkdownLinksInEditor(editorDiv);
+        expect(createTextNodeSpy).toHaveBeenCalledTimes(1);
+        expect(createTextNodeSpy).toHaveBeenCalledWith('Lead ');
+        expect(editorDiv.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+        expect(editorDiv.firstChild?.textContent).toBe('Lead ');
+        const link = editorDiv.querySelector('a') as HTMLAnchorElement;
+        expect(link).not.toBeNull();
+        expect(link.getAttribute('href')).toBe('https://example.com');
+    });
+
+    it('Falls back to image url when markdown image alt is empty', () => {
+        editorDiv.innerHTML = '![](https://example.com/fallback.png)';
+        transformMarkdownLinksInEditor(editorDiv);
+        const link = editorDiv.querySelector('a') as HTMLAnchorElement;
+        expect(link).not.toBeNull();
+        expect(link.textContent).toBe('https://example.com/fallback.png');
+        expect(link.getAttribute('href')).toBe('https://example.com/fallback.png');
+    });
+
+    it('Uses empty text when markdown link text capture is missing', () => {
+        editorDiv.innerHTML = '[Label](https://example.com)';
+        const originalExec = RegExp.prototype.exec;
+        let injected = false;
+        vi.spyOn(RegExp.prototype, 'exec').mockImplementation(function (this: RegExp, input: string) {
+            if (this.source === '!\\[([^\\]]*)\\]\\(([^)]+)\\)|\\[([^\\]]+)\\]\\(([^)]+)\\)(!?)' && this.flags.includes('g')) {
+                if (!injected) {
+                    injected = true;
+                    const match = ['[Label](https://example.com)', undefined, undefined, undefined, 'https://example.com', ''] as unknown as RegExpExecArray;
+                    match.index = 0;
+                    match.input = input;
+                    this.lastIndex = input.length;
+                    return match;
+                }
+                return null;
+            }
+            return originalExec.call(this, input);
+        });
+        transformMarkdownLinksInEditor(editorDiv);
+        const link = editorDiv.querySelector('a') as HTMLAnchorElement;
+        expect(link).not.toBeNull();
+        expect(link.textContent).toBe('');
+        expect(link.getAttribute('href')).toBe('https://example.com');
+    });
+
+    it('Falls back to empty href when markdown link url capture is missing', () => {
+        editorDiv.innerHTML = '[Label](https://example.com)';
+        const originalExec = RegExp.prototype.exec;
+        const originalTrim = String.prototype.trim;
+        let injected = false;
+        let trimmedEmpty = false;
+        vi.spyOn(String.prototype, 'trim').mockImplementation(function (this: string) {
+            if (String(this) === '') trimmedEmpty = true;
+            return originalTrim.call(this);
+        });
+        vi.spyOn(RegExp.prototype, 'exec').mockImplementation(function (this: RegExp, input: string) {
+            if (this.source === '!\\[([^\\]]*)\\]\\(([^)]+)\\)|\\[([^\\]]+)\\]\\(([^)]+)\\)(!?)' && this.flags.includes('g')) {
+                if (!injected) {
+                    injected = true;
+                    const match = ['[Label](https://example.com)', undefined, undefined, 'Label', undefined, ''] as unknown as RegExpExecArray;
+                    match.index = 0;
+                    match.input = input;
+                    this.lastIndex = input.length;
+                    return match;
+                }
+                return null;
+            }
+            return originalExec.call(this, input);
+        });
+        transformMarkdownLinksInEditor(editorDiv);
+        const link = editorDiv.querySelector('a') as HTMLAnchorElement;
+        expect(trimmedEmpty).toBe(true);
+        expect(link).not.toBeNull();
+        expect(link.textContent).toBe('Label');
+        expect(link.getAttribute('href')).toBe('');
+    });
+
+    it('Appends trailing plain text after markdown match', () => {
+        editorDiv.innerHTML = '[Site](https://example.com) tail';
+        const createTextNodeSpy = vi.spyOn(document, 'createTextNode');
+        transformMarkdownLinksInEditor(editorDiv);
+        expect(createTextNodeSpy).toHaveBeenCalledWith(' tail');
+        expect(editorDiv.childNodes.length).toBe(2);
+        expect(editorDiv.firstChild?.nodeName).toBe('A');
+        expect(editorDiv.lastChild?.nodeType).toBe(Node.TEXT_NODE);
+        expect(editorDiv.lastChild?.textContent).toBe(' tail');
+    });
+
+    it('Skips anchor processing when embed type is empty', () => {
+        editorDiv.innerHTML = '<a href="https://example.com/img.png" data-md-embed-id="owner-1" data-md-embed-type="">Img</a>';
+        const afterSpy = vi.spyOn(Element.prototype, 'after');
+        transformMarkdownLinksInEditor(editorDiv);
+        const anchor = editorDiv.querySelector('a[data-md-embed-id="owner-1"]') as HTMLAnchorElement;
+        expect(anchor).not.toBeNull();
+        expect(afterSpy).not.toHaveBeenCalled();
+        expect(editorDiv.querySelector('.te-generated-embed')).toBeNull();
+    });
+
+    it('Uses empty href and label fallbacks when marked anchor has null values', () => {
+        editorDiv.innerHTML = '';
+        const anchor = document.createElement('a');
+        anchor.dataset.mdEmbedType = 'image';
+        anchor.dataset.mdEmbedId = 'owner-fallback';
+        editorDiv.appendChild(anchor);
+        const originalGetAttribute = anchor.getAttribute.bind(anchor);
+        const getAttributeSpy = vi.spyOn(anchor, 'getAttribute').mockImplementation((name: string) => {
+            if (name === 'href') return null;
+            return originalGetAttribute(name);
+        });
+        const textContentSpy = vi.spyOn(anchor, 'textContent', 'get').mockReturnValue(null);
+        transformMarkdownLinksInEditor(editorDiv);
+        const img = editorDiv.querySelector('.te-generated-embed-image img') as HTMLImageElement;
+        expect(getAttributeSpy).toHaveBeenCalledWith('href');
+        expect(textContentSpy).toHaveBeenCalled();
+        expect(img).not.toBeNull();
+        expect(img.getAttribute('src')).toBe('');
+        expect(img.getAttribute('alt')).toBe('');
+    });
+
+    it('Removes embed when owner resolves to empty fallback value', () => {
+        editorDiv.innerHTML = '<div class="te-generated-embed te-generated-embed-image" data-md-embed-owner=""></div>';
+        const hasSpy = vi.spyOn(Set.prototype, 'has');
+        transformMarkdownLinksInEditor(editorDiv);
+        expect(hasSpy).toHaveBeenCalledWith('');
+        expect(editorDiv.querySelector('.te-generated-embed')).toBeNull();
+    });
 });
