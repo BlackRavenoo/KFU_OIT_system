@@ -58,6 +58,7 @@ image = "0.25.9"
 webp = "0.3.1"
 lettre = { version = "0.11.19", features = ["tokio1", "tokio1-native-tls"] }
 sailfish = "0.10.1"
+rust_xlsxwriter = "0.94.0"
 
 mac_address = { version = "1.1.8", features = ["serde"] }
 

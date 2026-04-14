@@ -12,6 +12,7 @@ pub mod departments;
 pub mod buildings;
 pub mod notifications;
 pub mod assets;
+pub mod reports;
 
 pub fn config(cfg: &mut web::ServiceConfig) {
     cfg.service(
@@ -190,6 +191,15 @@ pub fn config(cfg: &mut web::ServiceConfig) {
                             .route("", web::post().to(create_asset))
                             .route("/{id}", web::put().to(update_asset))
                             .route("/{id}", web::delete().to(delete_asset))
+                    )
+            )
+            .service(
+                web::scope("/reports")
+                    .route(
+                        "/tickets/statistics",
+                        web::post()
+                            .to(reports::generate_tickets_statistics_report)
+                            .wrap(JwtMiddleware::min_role(UserRole::Employee))
                     )
             )
     );

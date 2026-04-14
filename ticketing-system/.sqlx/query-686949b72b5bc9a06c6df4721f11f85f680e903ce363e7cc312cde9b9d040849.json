@@ -1,0 +1,67 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT\n            t.id,\n            t.title,\n            t.description,\n            t.cabinet,\n            t.created_at,\n            t.status as \"status!: TicketStatus\",\n            b.name as \"building_name!\",\n            COALESCE(\n                JSON_AGG(JSON_BUILD_OBJECT('name', u.name))\n                    FILTER (WHERE u.id IS NOT NULL),\n                '[]'::json\n            ) as \"assigned_to!: Json<Vec<Assignee>>\"\n        FROM tickets t\n        LEFT JOIN tickets_users tu ON tu.ticket_id = t.id\n        LEFT JOIN users u ON u.id = tu.assigned_to\n        JOIN buildings b ON b.id = t.building_id\n        WHERE t.created_at >= $1\n          AND t.created_at <= $2\n        GROUP BY t.id, b.id\n        ORDER BY t.created_at DESC, t.id DESC\n        LIMIT $3 OFFSET $4\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "cabinet",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "status!: TicketStatus",
+        "type_info": "Int2"
+      },
+      {
+        "ordinal": 6,
+        "name": "building_name!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "assigned_to!: Json<Vec<Assignee>>",
+        "type_info": "Json"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "686949b72b5bc9a06c6df4721f11f85f680e903ce363e7cc312cde9b9d040849"
+}
