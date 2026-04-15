@@ -10,8 +10,11 @@
 
     async function createReport() {
         isGeneratingStatistics = true;
-        await generateStatisticsReport(fromDate, toDate);
-        isGeneratingStatistics = false;
+        try {
+            await generateStatisticsReport(fromDate, toDate);
+        } finally {
+            isGeneratingStatistics = false;
+        }
     }
 
     onMount(() => {
