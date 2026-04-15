@@ -77,7 +77,11 @@ pub async fn generate_tickets_statistics_report(
     let xlsx = build_workbook_bytes(&tickets, schema.from_date, schema.to_date)
         .context("Failed to build XLSX report")?;
 
-    let file_name = format!("statistic_{}_{}.xlsx", schema.from_date, schema.to_date);
+    let file_name = format!(
+        "statistic_{}_{}.xlsx",
+        schema.from_date.format("%Y-%m-%d"),
+        schema.to_date.format("%Y-%m-%d")
+    );
 
     Ok(HttpResponse::Ok()
         .content_type("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
