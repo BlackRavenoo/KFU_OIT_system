@@ -7,7 +7,7 @@ use moka::future::CacheBuilder;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::EmailClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::stats::TicketsStats}, services::{attachment::AttachmentService, notification::NotificationService, registration_token::RegistrationTokenStore}};
+use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::EmailClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::{metrics::{GetMetricsSchema, TicketsMetrics}, stats::TicketsStats}}, services::{attachment::AttachmentService, notification::NotificationService, registration_token::RegistrationTokenStore}};
 
 pub struct Application {
     server: Server,
@@ -110,6 +110,12 @@ pub fn run(
             .build()
     );
 
+    let metrics_cache = Data::new(
+        CacheBuilder::<GetMetricsSchema, Vec<TicketsMetrics>, _>::new(64)
+            .expire_after(CacheExpiry(Duration::from_secs(1800)))
+            .build()
+    );
+
     let server = HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::default())
@@ -123,6 +129,7 @@ pub fn run(
             .app_data(base_url.clone())
             .app_data(notification_service.clone())
             .app_data(stats_cache.clone())
+            .app_data(metrics_cache.clone())
             .app_data(
                 MultipartFormConfig::default()
                     .memory_limit(30 * 1024 * 1024)   
