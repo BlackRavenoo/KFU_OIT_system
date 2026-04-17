@@ -93,7 +93,8 @@ async fn update_status(transaction: &mut Transaction<'_, Postgres>, ticket_id: T
     sqlx::query!(
         r#"
             UPDATE tickets
-            SET status = $1
+            SET status = $1,
+                first_response_at = COALESCE(first_response_at, NOW())
             WHERE id = $2 AND status = $3
         "#,
         TicketStatus::InProgress as i16,

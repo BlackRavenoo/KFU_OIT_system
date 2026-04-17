@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE tickets\n            SET status = $1,\n                first_response_at = COALESCE(first_response_at, NOW())\n            WHERE id = $2 AND status = $3\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int2",
+        "Int8",
+        "Int2"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e157ffd231064588f4329646cb81cbe589f4b7b92200ab05f5e25eae66d63bb7"
+}

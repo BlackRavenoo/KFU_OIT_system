@@ -157,7 +157,6 @@ async fn update(
     build_update_query!(builder, has_fields, description, "description");
     build_update_query!(builder, has_fields, schema.author, "author");
     build_update_query!(builder, has_fields, schema.author_contacts, "author_contacts");
-    build_update_query!(builder, has_fields, schema.status, "status");
     build_update_query!(builder, has_fields, schema.priority, "priority");
     build_update_query!(builder, has_fields, schema.cabinet, "cabinet");
     build_update_query!(builder, has_fields, schema.note, "note");
@@ -165,6 +164,18 @@ async fn update(
     build_update_query!(builder, has_fields, schema.department_id, "department_id");
     build_update_query!(builder, has_fields, schema.source, "source");
     build_update_query!(builder, has_fields, schema.planned_at, "planned_at");
+    
+    if let Some(status) = schema.status.as_ref() {
+        if has_fields {
+            builder.push(", ");
+        }
+        builder.push("status = ").push_bind(status);
+        has_fields = true;
+
+        if matches!(status, &TicketStatus::Closed) {
+            builder.push(", closed_at = COALESCE(closed_at, NOW())");
+        }
+    }
     
     let _ = has_fields;
 
