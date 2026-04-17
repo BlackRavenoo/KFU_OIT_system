@@ -18,7 +18,7 @@ pub struct GetMetricsSchema {
 
 #[derive(Clone, Serialize, FromRow)]
 pub struct TicketsMetrics {
-    pub month: i8,
+    pub month: i16,
     pub total: i64,
     pub closed: i64,
 
@@ -79,17 +79,17 @@ async fn fetch_metrics(
     let mut builder = sqlx::QueryBuilder::new(
         r#"
         SELECT
-            EXTRACT(MONTH FROM created_at) AS month,
+            EXTRACT(MONTH FROM created_at)::SMALLINT AS month,
             COUNT(*) AS total,
             COUNT(CASE WHEN status = 1 THEN 1 END) AS closed,
-            AVG(EXTRACT(EPOCH FROM (first_response_at - created_at))) AS avg_frt,
-            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_response_at - created_at))) AS p50_frt,
-            PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_response_at - created_at))) AS p90_frt,
-            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_response_at - created_at))) AS p95_frt,
-            AVG(EXTRACT(EPOCH FROM (closed_at - created_at))) AS avg_mttr,
-            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (closed_at - created_at))) AS p50_mttr,
-            PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (closed_at - created_at))) AS p90_mttr,
-            PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (closed_at - created_at))) AS p95_mttr,
+            COALESCE(AVG(EXTRACT(EPOCH FROM (first_response_at - created_at))), 0)::BIGINT AS avg_frt,
+            COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_response_at - created_at))), 0)::BIGINT AS p50_frt,
+            COALESCE(PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_response_at - created_at))), 0)::BIGINT AS p90_frt,
+            COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (first_response_at - created_at))), 0)::BIGINT AS p95_frt,
+            COALESCE(AVG(EXTRACT(EPOCH FROM (closed_at - created_at))), 0)::BIGINT AS avg_mttr,
+            COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (closed_at - created_at))), 0)::BIGINT AS p50_mttr,
+            COALESCE(PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (closed_at - created_at))), 0)::BIGINT AS p90_mttr,
+            COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (closed_at - created_at))), 0)::BIGINT AS p95_mttr,
             COUNT(*) FILTER (
                 WHERE closed_at - created_at > INTERVAL '2 hours' AND NOT is_long_term AND planned_at IS NULL
             ) AS sla_breaches
