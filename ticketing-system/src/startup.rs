@@ -7,7 +7,7 @@ use moka::future::CacheBuilder;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing_actix_web::TracingLogger;
 
-use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::EmailClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::{metrics::{GetMetricsSchema, TicketsMetrics}, stats::TicketsStats}}, services::{attachment::AttachmentService, notification::NotificationService, registration_token::RegistrationTokenStore}};
+use crate::{auth::{jwt::JwtService, token_store::TokenStore}, cache_expiry::CacheExpiry, config::Settings, email_client::EmailClient, events::event_publisher::EventPublisher, routes::v1::{config, tickets::{metrics::{GetMetricsSchema, TicketsMetrics}, stats::TicketsStats}}, services::{action_token::ActionTokenStore, attachment::AttachmentService, notification::NotificationService, registration_token::RegistrationTokenStore}};
 
 pub struct Application {
     server: Server,
@@ -95,6 +95,7 @@ pub fn run(
     base_url: String,
 ) -> Result<Server, std::io::Error> {
     let token_store = Data::new(TokenStore::new(redis_pool.clone()));
+    let action_token_store = Data::new(ActionTokenStore::new(redis_pool.clone()));
     let reg_store = Data::new(RegistrationTokenStore::new(redis_pool));
     let jwt_service = Data::new(jwt_service);
     let attachment_service = Data::new(attachment_service);
@@ -120,6 +121,7 @@ pub fn run(
         App::new()
             .wrap(TracingLogger::default())
             .app_data(token_store.clone())
+            .app_data(action_token_store.clone())
             .app_data(reg_store.clone())
             .app_data(jwt_service.clone())
             .app_data(attachment_service.clone())

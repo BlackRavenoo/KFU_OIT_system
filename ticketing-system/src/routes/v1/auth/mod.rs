@@ -1,13 +1,19 @@
 pub mod change_password;
+pub mod confirm_account_recovery;
 pub mod refresh_token;
 pub mod register;
 pub mod me;
 pub mod login;
+pub mod request_account_recovery;
+pub mod validate_recovery_token;
 pub mod validate_token;
 
 pub use change_password::change_password;
+pub use confirm_account_recovery::confirm_account_recovery;
 pub use refresh_token::refresh_token;
 pub use register::register;
 pub use me::me;
 pub use login::login;
+pub use request_account_recovery::request_account_recovery;
+pub use validate_recovery_token::validate_recovery_token;
 pub use validate_token::validate_register_token;
