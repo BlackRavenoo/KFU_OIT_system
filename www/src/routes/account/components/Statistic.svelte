@@ -29,9 +29,9 @@
     ];
 
     $: dashboardTotals = calcDashboardTotals(metrics);
-    $: slaPercent = calcSlaPercent(dashboardTotals.total, dashboardTotals.slaBreaches);
+    $: slaPercent = calcSlaPercent(dashboardTotals.closed, dashboardTotals.slaBreaches);
     $: slaRingPercent = Math.min(100, Math.max(0, slaPercent));
-    $: slaInTimeCount = Math.max(0, dashboardTotals.total - dashboardTotals.slaBreaches);
+    $: slaInTimeCount = Math.max(0, dashboardTotals.closed - dashboardTotals.slaBreaches);
 
     $: maxTicketsCount = Math.max(
         1,
@@ -186,7 +186,7 @@
                             </div>
 
                             <div class="sla-caption">
-                                Нарушений SLA: <strong>{ dashboardTotals.slaBreaches }</strong> из <strong>{ dashboardTotals.total }</strong>
+                                Нарушений SLA: <strong>{ dashboardTotals.slaBreaches }</strong> из <strong>{ dashboardTotals.closed }</strong>
                             </div>
                         </div>
 
@@ -204,7 +204,7 @@
                                 </svg>
                                 <div class="sla-donut-center">
                                     <div class="sla-donut-main">{ slaInTimeCount }</div>
-                                    <div class="sla-donut-sub">в SLA из { dashboardTotals.total }</div>
+                                    <div class="sla-donut-sub">в SLA из { dashboardTotals.closed }</div>
                                 </div>
                             </div>
                         </div>

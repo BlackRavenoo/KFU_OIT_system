@@ -351,3 +351,56 @@ export async function finishRegistration(
         return false;
     }
 }
+
+/**
+ * Запрашивает ссылку на восстановление пароля.
+ * @param email Email пользователя
+ * @returns Promise<boolean> - true если запрос отправлен успешно
+ */
+export async function requestPasswordRecovery(email: string): Promise<boolean> {
+    try {
+        const res = await api.post(Endpoints.requestRecovery, {
+            email: email.trim()
+        });
+
+        if (res.success) {
+            notification('Если аккаунт существует, письмо для восстановления отправлено', NotificationType.Info);
+            return true;
+        }
+
+        notification(res.error || 'Ошибка запроса восстановления', NotificationType.Error);
+        return false;
+    } catch {
+        notification('Ошибка запроса восстановления', NotificationType.Error);
+        return false;
+    }
+}
+
+/**
+ * Подтверждает восстановление аккаунта и устанавливает новый пароль.
+ * @param token Токен восстановления
+ * @param newPassword Новый пароль
+ * @returns Promise<boolean> - true если пароль успешно изменён
+ */
+export async function confirmPasswordRecovery(
+    token: string,
+    newPassword: string
+): Promise<boolean> {
+    try {
+        const res = await api.post(Endpoints.confirmRecovery, {
+            token,
+            new_password: newPassword
+        });
+
+        if (res.success) {
+            notification('Пароль успешно изменён', NotificationType.Success);
+            return true;
+        }
+
+        notification(res.error || 'Ошибка смены пароля', NotificationType.Error);
+        return false;
+    } catch {
+        notification('Ошибка смены пароля', NotificationType.Error);
+        return false;
+    }
+}

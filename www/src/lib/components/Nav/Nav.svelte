@@ -2,11 +2,12 @@
     import KFU_large from '../../../assets/temp_logo.png';
     import KFU from '../../../assets/temp_logo(1).webp';
 
-    import { login, getUserData } from '$lib/utils/auth/api/api';
+    import { login, getUserData, requestPasswordRecovery } from '$lib/utils/auth/api/api';
     import { currentUser, isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle, pageDescription } from '$lib/utils/setup/stores';
     import { navigateToForm, navigateToHome } from '$lib/utils/setup/navigate';
     import { formatName } from '$lib/utils/validation/validate';
+    import { getEmailError } from '$lib/utils/validation/error_messages';
 
     import Modal from './Modal.svelte';
     import { UserRole } from '$lib/utils/auth/types';
@@ -116,16 +117,35 @@
     }
 
     async function resetPasswordHandler() {
-        // !!! TDD !!!
+        loginError = '';
+
+        const email = userEmail.trim();
+        if (!email) {
+            loginError = 'Введите email для восстановления пароля.';
+            return;
+        }
+
+        const emailError = getEmailError(email);
+        if (emailError) {
+            loginError = emailError;
+            return;
+        }
+
+        const success = await requestPasswordRecovery(email);
+        if (success) {
+            userEmail = '';
+            isShowModal = false;
+        }
     }
 
     function navLoginHandler() {
         isShowModal = true;
     }
 
-    function handleModalUpdate(event: CustomEvent<{ userLogin?: string; userPassword?: string; rememberMe?: boolean }>) {
+    function handleModalUpdate(event: CustomEvent<{ userLogin?: string; userPassword?: string; userEmail?: string; rememberMe?: boolean }>) {
         if ('userLogin' in event.detail) userLogin = event.detail.userLogin ?? '';
         if ('userPassword' in event.detail) userPassword = event.detail.userPassword ?? '';
+        if ('userEmail' in event.detail) userEmail = event.detail.userEmail ?? '';
         if ('rememberMe' in event.detail) rememberMe = event.detail.rememberMe ?? false;
     }
 

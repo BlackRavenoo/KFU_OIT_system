@@ -276,6 +276,6 @@
 </header>
 
 <style>
-    @import '../reset/page.css';
+    @import '../reset-password/page.css';
     @import './page.css';
 </style>

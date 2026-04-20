@@ -42,6 +42,9 @@ export interface IAuthApiEndpoints {
     logout: string;
     refresh: string;
     getUserData: string;
+    requestRecovery: string;
+    validateRecovery: string;
+    confirmRecovery: string;
 }
 
 export enum UserRole {

@@ -7,7 +7,8 @@
     import { isAuthenticated } from '$lib/utils/auth/storage/initial';
     import { pageTitle } from '$lib/utils/setup/stores';
     import { navigateToError } from '$lib/utils/error';
-    import { checkConfirmationToken } from '$lib/utils/auth/tokens/confirmation';
+    import { confirmPasswordRecovery } from '$lib/utils/auth/api/api';
+    import { checkRecoveryToken } from '$lib/utils/auth/tokens/confirmation';
     import { getPasswordError, getConfirmPasswordError } from '$lib/utils/validation/error_messages';
     
     let token: string | null = null;
@@ -40,7 +41,18 @@
      */
     async function resetPassword() {
         if (!token) return;
-        // !!!TDD!!!
+
+        isSubmitting = true;
+        try {
+            const success = await confirmPasswordRecovery(token, newPassword);
+            if (success) {
+                setTimeout(() => {
+                    window.location.href = '/?action=login';
+                }, 1000);
+            }
+        } finally {
+            isSubmitting = false;
+        }
     }
     
     /**
@@ -78,7 +90,7 @@
 
         if (browser && $page.url.searchParams) {
             token = $page.url.searchParams.get('token');
-            if (!token || !(await checkConfirmationToken(token))) {
+            if (!token || !(await checkRecoveryToken(token))) {
                 navigateToError(404);
                 return;
             }
@@ -192,7 +204,7 @@
                             </div>
                             
                             <div class="form-footer">
-                                <a href="/login" class="login-link">Вернуться на страницу входа</a>
+                                <a href="/?action=login" class="login-link">Вернуться на страницу входа</a>
                             </div>
                         </form>
                     </div>

@@ -62,10 +62,10 @@ export function calcDashboardTotals(metrics: TicketsMetrics[]): DashboardTotals 
 	);
 }
 
-export function calcSlaPercent(total: number, slaBreaches: number): number {
-	if (!total) return 0;
+export function calcSlaPercent(closed: number, slaBreaches: number): number {
+	if (!closed) return 0;
 
-	const rawValue = ((total - slaBreaches) / total) * 100;
+	const rawValue = ((closed - slaBreaches) / closed) * 100;
 	return Math.max(0, Math.min(100, rawValue));
 }
 
