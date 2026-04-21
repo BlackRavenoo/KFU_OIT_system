@@ -20,7 +20,7 @@ secrecy = { version = "0.10.3", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde-aux = "4.7"
 serde_json = "1.0.149"
-serde_qs = { version = "1.0", features = ["actix4"] }
+serde_qs = { version = "1.1", features = ["actix4"] }
 futures-util = { version = "0.3.32", default-features = false, features = ["std"] }
 
 anyhow = "1.0"
@@ -31,8 +31,8 @@ tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
 tracing-bunyan-formatter = "0.3"
 tracing-log = "0.2"
 tracing-actix-web = "0.7.21"
-tokio = { version = "1.49", features = ["full"] }
-uuid = "1.21"
+tokio = { version = "1.51", features = ["full"] }
+uuid = "1.23"
 jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
 argon2 = { version = "0.5.3", features = ["std"] }
 chrono = { version = "0.4", features = ["serde"] }
@@ -42,7 +42,7 @@ ring = "0.17.14"
 hex = "0.4.3"
 strum = { version = "0.28", features = ["derive"] }
 async-trait="0.1"
-unicode-segmentation = "1.12"
+unicode-segmentation = "1.13"
 reqwest = { version="0.13", features = ["json"] }
 rand = "0.10"
 
@@ -56,7 +56,7 @@ bytes = "1.11.1"
 tokio-util = "0.7.17"
 image = "0.25.9"
 webp = "0.3.1"
-lettre = { version = "0.11.19", features = ["tokio1", "tokio1-native-tls"] }
+lettre = { version = "0.11.21", features = ["tokio1", "tokio1-native-tls"] }
 sailfish = "0.10.1"
 rust_xlsxwriter = "0.94.0"
 
@@ -67,9 +67,12 @@ garde-actix-web = { version = "0.12", features = ["serde_qs"] }
 
 [dev-dependencies]
 claims = "0.8"
-fake = "4.4"
-proptest = "1.10"
+fake = "5.1"
+proptest = "1.11"
 wiremock = "0.6"
-aws-smithy-mocks = "0.2.5"
-linkify = "0.10"
+aws-smithy-mocks = "0.2.6"
+linkify = "0.11"
 reqwest = { version="0.13", features = ["json", "multipart"] }
+
+[patch.crates-io]
+core2 = { git = "https://github.com/technocreatives/core2.git" }
