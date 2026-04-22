@@ -147,3 +147,51 @@ beforeEach(() => {
         await expect(checkConfirmationToken('null-response-token')).rejects.toThrow();
     });
 });
+
+describe('Recovery token validation', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.resetModules();
+    });
+
+    it('returns true when recovery token endpoint responds with success', async () => {
+        const { api } = await import('$lib/utils/api');
+        (api.post as any).mockResolvedValue({ success: true });
+
+        const { checkRecoveryToken } = await import('$lib/utils/auth/tokens/confirmation');
+        const result = await checkRecoveryToken('recovery-valid');
+
+        expect(api.post).toHaveBeenCalledWith('/api/v1/auth/recovery/validate', { token: 'recovery-valid' });
+        expect(result).toBe(true);
+    });
+
+    it('returns false when recovery token endpoint responds with success=false', async () => {
+        const { api } = await import('$lib/utils/api');
+        (api.post as any).mockResolvedValue({ success: false });
+
+        const { checkRecoveryToken } = await import('$lib/utils/auth/tokens/confirmation');
+        const result = await checkRecoveryToken('recovery-invalid');
+
+        expect(api.post).toHaveBeenCalledWith('/api/v1/auth/recovery/validate', { token: 'recovery-invalid' });
+        expect(result).toBe(false);
+    });
+
+    it('throws when API request fails for recovery validation', async () => {
+        const { api } = await import('$lib/utils/api');
+        (api.post as any).mockRejectedValue(new Error('Recovery request failed'));
+
+        const { checkRecoveryToken } = await import('$lib/utils/auth/tokens/confirmation');
+
+        await expect(checkRecoveryToken('recovery-error')).rejects.toThrow('Recovery request failed');
+        expect(api.post).toHaveBeenCalledWith('/api/v1/auth/recovery/validate', { token: 'recovery-error' });
+    });
+
+    it('throws on null response for recovery validation', async () => {
+        const { api } = await import('$lib/utils/api');
+        (api.post as any).mockResolvedValue(null);
+
+        const { checkRecoveryToken } = await import('$lib/utils/auth/tokens/confirmation');
+
+        await expect(checkRecoveryToken('recovery-null')).rejects.toThrow();
+    });
+});

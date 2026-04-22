@@ -1162,3 +1162,149 @@ describe('Finish registration function', () => {
         expect(() => apiModule.onVisibilityOrFocus()).not.toThrow();
     });
 });
+
+describe('Password recovery functions', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.resetModules();
+    });
+
+    function mockRecoveryDependencies(postImpl: any) {
+        const post = vi.fn(postImpl);
+        const notification = vi.fn();
+
+        vi.doMock('$lib/utils/api', () => ({ api: { post, get: vi.fn() } }));
+        vi.doMock('$lib/utils/notifications/notification', () => ({ notification }));
+        vi.doMock('$lib/utils/notifications/types', () => ({
+            NotificationType: {
+                Info: 'info',
+                Error: 'error',
+                Success: 'success'
+            }
+        }));
+        vi.doMock('$lib/utils/auth/tokens/tokens', () => ({
+            getAuthTokens: vi.fn(),
+            clearAuthTokens: vi.fn(),
+            isTokenValid: vi.fn()
+        }));
+        vi.doMock('$lib/utils/auth/tokens/storage', () => ({ setTokenStore: vi.fn() }));
+        vi.doMock('$lib/utils/auth/storage/initial', () => ({
+            currentUser: {
+                subscribe: (run: (v: any) => void) => {
+                    run(null);
+                    return () => {};
+                },
+                set: vi.fn()
+            },
+            isAuthenticated: {
+                subscribe: (run: (v: any) => void) => {
+                    run(false);
+                    return () => {};
+                },
+                set: vi.fn()
+            }
+        }));
+        vi.doMock('$lib/utils/auth/api/requestGate', () => ({ waitForGate: vi.fn(async () => true) }));
+        vi.doMock('@fingerprintjs/fingerprintjs', () => ({
+            default: {
+                load: vi.fn(async () => ({ get: vi.fn(async () => ({ visitorId: 'fp' })) }))
+            }
+        }));
+
+        return { post, notification };
+    }
+
+    it('requestPasswordRecovery trims email and returns true on success', async () => {
+        const mocks = mockRecoveryDependencies(async () => ({ success: true }));
+
+        const { requestPasswordRecovery } = await import('$lib/utils/auth/api/api');
+        const result = await requestPasswordRecovery('   user@example.com   ');
+
+        expect(mocks.post).toHaveBeenCalledWith('/api/v1/auth/recovery/request', {
+            email: 'user@example.com'
+        });
+        expect(mocks.notification).toHaveBeenCalledWith(
+            'Если аккаунт существует, письмо для восстановления отправлено',
+            'info'
+        );
+        expect(result).toBe(true);
+    });
+
+    it('requestPasswordRecovery returns false and uses backend error message', async () => {
+        const mocks = mockRecoveryDependencies(async () => ({ success: false, error: 'rate limited' }));
+
+        const { requestPasswordRecovery } = await import('$lib/utils/auth/api/api');
+        const result = await requestPasswordRecovery('user@example.com');
+
+        expect(mocks.notification).toHaveBeenCalledWith('rate limited', 'error');
+        expect(result).toBe(false);
+    });
+
+    it('requestPasswordRecovery returns false with fallback message when error is missing', async () => {
+        const mocks = mockRecoveryDependencies(async () => ({ success: false }));
+
+        const { requestPasswordRecovery } = await import('$lib/utils/auth/api/api');
+        const result = await requestPasswordRecovery('user@example.com');
+
+        expect(mocks.notification).toHaveBeenCalledWith('Ошибка запроса восстановления', 'error');
+        expect(result).toBe(false);
+    });
+
+    it('requestPasswordRecovery returns false when request throws', async () => {
+        const mocks = mockRecoveryDependencies(async () => {
+            throw new Error('network down');
+        });
+
+        const { requestPasswordRecovery } = await import('$lib/utils/auth/api/api');
+        const result = await requestPasswordRecovery('user@example.com');
+
+        expect(mocks.notification).toHaveBeenCalledWith('Ошибка запроса восстановления', 'error');
+        expect(result).toBe(false);
+    });
+
+    it('confirmPasswordRecovery returns true on success', async () => {
+        const mocks = mockRecoveryDependencies(async () => ({ success: true }));
+
+        const { confirmPasswordRecovery } = await import('$lib/utils/auth/api/api');
+        const result = await confirmPasswordRecovery('token-1', 'new-pass');
+
+        expect(mocks.post).toHaveBeenCalledWith('/api/v1/auth/recovery/confirm', {
+            token: 'token-1',
+            new_password: 'new-pass'
+        });
+        expect(mocks.notification).toHaveBeenCalledWith('Пароль успешно изменён', 'success');
+        expect(result).toBe(true);
+    });
+
+    it('confirmPasswordRecovery returns false and uses backend error message', async () => {
+        const mocks = mockRecoveryDependencies(async () => ({ success: false, error: 'invalid token' }));
+
+        const { confirmPasswordRecovery } = await import('$lib/utils/auth/api/api');
+        const result = await confirmPasswordRecovery('bad-token', 'new-pass');
+
+        expect(mocks.notification).toHaveBeenCalledWith('invalid token', 'error');
+        expect(result).toBe(false);
+    });
+
+    it('confirmPasswordRecovery returns false with fallback message when error is missing', async () => {
+        const mocks = mockRecoveryDependencies(async () => ({ success: false }));
+
+        const { confirmPasswordRecovery } = await import('$lib/utils/auth/api/api');
+        const result = await confirmPasswordRecovery('token-2', 'new-pass');
+
+        expect(mocks.notification).toHaveBeenCalledWith('Ошибка смены пароля', 'error');
+        expect(result).toBe(false);
+    });
+
+    it('confirmPasswordRecovery returns false when request throws', async () => {
+        const mocks = mockRecoveryDependencies(async () => {
+            throw new Error('network down');
+        });
+
+        const { confirmPasswordRecovery } = await import('$lib/utils/auth/api/api');
+        const result = await confirmPasswordRecovery('token-3', 'new-pass');
+
+        expect(mocks.notification).toHaveBeenCalledWith('Ошибка смены пароля', 'error');
+        expect(result).toBe(false);
+    });
+});

@@ -66,6 +66,20 @@
     $: frtGrid = buildGridValues(maxFrt, chartGridSteps);
     $: mttrGrid = buildGridValues(maxMttr, chartGridSteps);
 
+    $: latestFrtSummary = {
+        avg: getLatestNonZeroMetric(metrics, 'avg_frt'),
+        p50: getLatestNonZeroMetric(metrics, 'p50_frt'),
+        p90: getLatestNonZeroMetric(metrics, 'p90_frt'),
+        p95: getLatestNonZeroMetric(metrics, 'p95_frt')
+    };
+
+    $: latestMttrSummary = {
+        avg: getLatestNonZeroMetric(metrics, 'avg_mttr'),
+        p50: getLatestNonZeroMetric(metrics, 'p50_mttr'),
+        p90: getLatestNonZeroMetric(metrics, 'p90_mttr'),
+        p95: getLatestNonZeroMetric(metrics, 'p95_mttr')
+    };
+
     async function createReport() {
         isGeneratingStatistics = true;
         try {
@@ -140,6 +154,18 @@
         key: 'avg_frt' | 'p50_frt' | 'p90_frt' | 'p95_frt' | 'avg_mttr' | 'p50_mttr' | 'p90_mttr' | 'p95_mttr'
     ): number[] {
         return points.map((item) => item[key]);
+    }
+
+    function getLatestNonZeroMetric(
+        points: TicketsMetrics[],
+        key: 'avg_frt' | 'p50_frt' | 'p90_frt' | 'p95_frt' | 'avg_mttr' | 'p50_mttr' | 'p90_mttr' | 'p95_mttr'
+    ): number {
+        for (let index = points.length - 1; index >= 0; index--) {
+            const value = points[index][key];
+            if (value > 0) return value;
+        }
+
+        return points.length > 0 ? points[points.length - 1][key] : 0;
     }
 
     function buildGridValues(maxValue: number, steps: number): number[] {
@@ -300,10 +326,10 @@
                     </div>
 
                     <div class="chart-summary">
-                        <span>AVG: { toDuration(metrics[metrics.length - 1].avg_frt) }</span>
-                        <span>P50: { toDuration(metrics[metrics.length - 1].p50_frt) }</span>
-                        <span>P90: { toDuration(metrics[metrics.length - 1].p90_frt) }</span>
-                        <span>P95: { toDuration(metrics[metrics.length - 1].p95_frt) }</span>
+                        <span>AVG: { toDuration(latestFrtSummary.avg) }</span>
+                        <span>P50: { toDuration(latestFrtSummary.p50) }</span>
+                        <span>P90: { toDuration(latestFrtSummary.p90) }</span>
+                        <span>P95: { toDuration(latestFrtSummary.p95) }</span>
                     </div>
                 </div>
 
@@ -354,10 +380,10 @@
                     </div>
 
                     <div class="chart-summary">
-                        <span>AVG: { toDuration(metrics[metrics.length - 1].avg_mttr) }</span>
-                        <span>P50: { toDuration(metrics[metrics.length - 1].p50_mttr) }</span>
-                        <span>P90: { toDuration(metrics[metrics.length - 1].p90_mttr) }</span>
-                        <span>P95: { toDuration(metrics[metrics.length - 1].p95_mttr) }</span>
+                        <span>AVG: { toDuration(latestMttrSummary.avg) }</span>
+                        <span>P50: { toDuration(latestMttrSummary.p50) }</span>
+                        <span>P90: { toDuration(latestMttrSummary.p90) }</span>
+                        <span>P95: { toDuration(latestMttrSummary.p95) }</span>
                     </div>
                 </div>
             </div>
