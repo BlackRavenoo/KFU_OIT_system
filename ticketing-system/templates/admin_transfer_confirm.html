@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подтверждение передачи админки</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Rubik', system-ui, sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+
+        .button {
+            background: linear-gradient(220deg, rgba(0, 64, 153, .85) 0%, rgba(0, 115, 255, 1) 100%);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 14px 40px;
+            border-radius: 30px;
+            font-weight: 500;
+            font-size: 1.1rem;
+            display: inline-block;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(7, 92, 239, 0.25);
+        }
+    </style>
+</head>
+<body>
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f5f5f5; padding: 20px;">
+        <tr>
+            <td align="center">
+                <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
+                    <tr>
+                        <td style="padding: 30px 30px 20px; background-image: radial-gradient(circle at top right,rgba(255,255,255,.8) 0%,#bad2e6 70%); border-top-left-radius: 8px; border-top-right-radius: 8px;">
+                            <img src="<%= self.base_url %>/_app/immutable/assets/KFU_large.DUfb1mf_.webp" alt="КФУ Система управления заявками" width="180" style="max-width: 100%; height: auto; margin-bottom: 2rem;">
+                            <h1 style="margin-bottom: 20px; color: #242424;">Подтверждение передачи админки</h1>
+                            <h2 style="margin-bottom: 30px; font-weight: 600; background: linear-gradient(220deg, rgba(0, 64, 153, .85) 0%, rgba(0, 115, 255, 1) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; color: transparent;">Требуется подтверждение</h2>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="padding: 40px 30px; text-align: center;">
+                            <p style="color: rgba(0, 0, 0, 0.87); font-size: 16px; line-height: 1.5; margin-bottom: 20px;">
+                                Для пользователя <b><%= self.user_name %></b> запрошена передача прав администратора.
+                                Чтобы принять права, нажмите кнопку ниже.
+                            </p>
+
+                            <a href="<%= self.link %>" class="button">
+                                Подтвердить передачу прав
+                            </a>
+
+                            <p style="color: rgba(0, 0, 0, 0.67); font-size: 14px; line-height: 1.6; margin-top: 15px;">
+                                Если кнопка не работает, скопируйте и вставьте ссылку в браузер:
+                                <br>
+                                <a href="<%= self.link %>" style="color: #075cef; text-decoration: none;"><%= self.link %></a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
