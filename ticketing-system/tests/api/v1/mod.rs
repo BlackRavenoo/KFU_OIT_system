@@ -7,5 +7,6 @@ mod buildings;
 mod departments;
 mod notifications;
 mod assets;
+mod reports;
 
 mod attachments;
