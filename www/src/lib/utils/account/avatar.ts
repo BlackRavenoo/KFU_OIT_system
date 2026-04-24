@@ -6,6 +6,11 @@ import { tick } from 'svelte';
 import { browser } from '$app/environment';
 import { type IUserData } from '$lib/utils/auth/types';
 
+/**
+ * Интерфейс для состояния аватара, 
+ * включающий параметры для управления перетаскиванием, 
+ * изменением размера, масштабированием и позиционированием изображения.
+ */
 export interface AvatarState {
     isDragging: boolean;
     isResizing: boolean;

@@ -7,8 +7,10 @@ import { UserStatus } from '$lib/utils/auth/types';
 
 import type { IUserData, UserRole } from '$lib/utils/auth/types';
 
+// Временная переменная для хранения ID пользователя, помеченного на удаление или восстановление
 let marked_id: number = 999999999;
 
+// Константы для API эндпоинтов
 const USER_LIST_ENDPOINT = '/api/v1/user/list';
 const USER_INVITE_ENDPOINT = '/api/v1/user/admin/invite';
 const USER_ACTIVATE_ENDPOINT = `/api/v1/user/${marked_id}/activate`;
@@ -16,6 +18,12 @@ const USER_DEACTIVATE_ENDPOINT = `/api/v1/user/${marked_id}/deactivate`;
 const USER_CHANGE_STATUS_ENDPOINT = '/api/v1/user/status';
 const USER_CHANGE_ROLE_ENDPOINT = '/api/v1/user/admin/role';
 
+/**
+ * Интерфейс состояния для управления пользователями
+ * - users: массив данных пользователей
+ * - totalPages: общее количество страниц для пагинации
+ * - error: флаг наличия ошибки при загрузке данных
+ */
 export interface UsersState {
     users: IUserData[];
     totalPages: number;

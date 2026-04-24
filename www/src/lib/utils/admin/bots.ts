@@ -2,6 +2,16 @@ import { loadItems, createItem, deleteItem } from '$lib/utils/admin/api-handlers
 import { notification } from '$lib/utils/notifications/notification';
 import { NotificationType } from '$lib/utils/notifications/types';
 
+/**
+ * 
+ * 
+ * 
+ * ПОМЕЧЕНО НА УДАЛЕНИЕ С ЗАМЕНОЙ НА РАЗДЕЛ ПЕРЕДАЧИ АДМИНКИ
+ * 
+ * 
+ * 
+ */
+
 const BOTS_ENDPOINT = '/api/v1/bots';
 
 export interface Bot {

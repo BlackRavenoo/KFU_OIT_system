@@ -1,6 +1,4 @@
-/**
- * Результат проверки капчи
- */
+// Результат проверки капчи
 export interface CaptchaResult {
     success: boolean;
     errorMessage?: string;
@@ -18,6 +16,7 @@ export abstract class Captcha {
      * Создает экземпляр капчи
      * @param key Ключ API для капчи
      * @param containerId ID элемента, в который будет вставлена капча
+     * @throws {Error} если ключ или ID контейнера не указаны
      */
     constructor(key: string, containerId: string) {
         this.key = key;
@@ -32,7 +31,7 @@ export abstract class Captcha {
 
     /**
      * Рендерит капчу в указанный контейнер
-     * @returns Promise, который разрешается, когда капча загружена
+     * @returns {Promise<void>} Promise, который разрешается, когда капча загружена
      */
     public abstract render(): Promise<void>;
 

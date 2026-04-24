@@ -4,7 +4,7 @@
  * Содержит функции для получения, установки и проверки токенов авторизации.
  */
 
-import { refreshAuthTokens, logout } from '../api/api';
+import { refreshAuthTokens } from '../api/api';
 import { getTokenStore, setTokenStore } from './storage';
 
 import type { IAuthTokens } from '../types';
@@ -30,6 +30,8 @@ export async function checkToken(): Promise<boolean> {
 
 /**
  * Проверка валидности токена доступа без обновления.
+ * @param token Токен доступа для проверки.
+ * @returns true, если токен действителен, иначе false.
  */
 export function isTokenValid(token: string): boolean {
     try {

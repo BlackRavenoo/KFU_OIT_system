@@ -3,6 +3,7 @@ import { api } from '$lib/utils/api';
 /**
  * Проверка токена на валидность
  * @param token Токен подтверждения регистрации
+ * @returns `true`, если токен действителен, иначе `false`.
 */
 export async function checkConfirmationToken(token: string): Promise<boolean> {
     const res = await api.post<{ valid: boolean }>('/api/v1/auth/validate', { token });
@@ -12,6 +13,7 @@ export async function checkConfirmationToken(token: string): Promise<boolean> {
 /**
  * Проверка токена восстановления пароля на валидность
  * @param token Токен восстановления
+ * @returns `true`, если токен действителен, иначе `false`.
  */
 export async function checkRecoveryToken(token: string): Promise<boolean> {
     const res = await api.post('/api/v1/auth/recovery/validate', { token });

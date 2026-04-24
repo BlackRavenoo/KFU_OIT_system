@@ -17,6 +17,7 @@ const RETRY_DELAY = 3000;
 const VALIDATE_ENDPOINT = '/api/v1/auth/me';
 const REFRESH_ENDPOINT = '/api/v1/auth/token';
 
+// Флаги и объекты для управления состоянием request gate
 let gateOpen = true;
 let gatePromise: Promise<boolean> | null = null;
 let resolveGate: ((value: boolean) => void) | null = null;
@@ -59,6 +60,7 @@ function failGate(): void {
 
 /**
  * Проверяет, открыты ли request gate
+ * @returns {boolean} true, если request gate открыты, false — если закрыты
  */
 export function isGateOpen(): boolean {
     return gateOpen;
@@ -66,7 +68,7 @@ export function isGateOpen(): boolean {
 
 /**
  * Ожидает открытия request gate
- * @returns true — если гейт открылся успешно, false — если валидация провалилась
+ * @returns {boolean} true — если гейт открылся успешно, false — если валидация провалилась
  */
 export async function waitForGate(): Promise<boolean> {
     if (gateOpen || !gatePromise) return true;
@@ -76,6 +78,8 @@ export async function waitForGate(): Promise<boolean> {
 /**
  * Проверяет, является ли URL авторизационным эндпоинтом,
  * который должен проходить без ожидания request gate
+ * @param url URL для проверки
+ * @returns {boolean} true — если URL является авторизационным, false — иначе
  */
 export function isAuthBypassUrl(url?: string): boolean {
     if (!url) return false;
@@ -94,6 +98,8 @@ export function isAuthBypassUrl(url?: string): boolean {
 
 /**
  * Валидирует токен в обход axios-перехватчика
+ * @param accessToken Токен для валидации
+ * @returns {boolean} true — если токен валиден, false — если невалиден или произошла ошибка
  */
 async function validateTokenOnServer(accessToken: string): Promise<boolean> {
     try {
@@ -112,6 +118,8 @@ async function validateTokenOnServer(accessToken: string): Promise<boolean> {
 
 /**
  * Обновляет токены в обход axios-перехватчика
+ * @param refreshToken Токен обновления для получения новых токенов
+ * @returns Объект с новыми токенами или null, если обновление не удалось
  */
 async function refreshTokensRaw(
     refreshToken: string
@@ -152,6 +160,7 @@ async function refreshTokensRaw(
 
 /**
  * Попытка валидации токена
+ * @returns {boolean} true — если валидация успешна, false — если неудачна
  */
 async function attemptValidation(): Promise<boolean> {
     const raw = localStorage.getItem('auth_tokens');
@@ -187,6 +196,7 @@ async function attemptValidation(): Promise<boolean> {
 
 /**
  * Инициализирует request gate
+ * @returns {Promise<void>} Promise, который разрешается после завершения процесса инициализации
  */
 export async function initRequestGate(): Promise<void> {
     if (typeof window === 'undefined') return;

@@ -30,6 +30,7 @@ const CACHE_TTL_USER_DATA = 15 * 60 * 1000;
 /**
  * Парсит время истечения токена из accessToken
  * @param token Токен для проверки
+ * @returns {number | null} Время истечения в миллисекундах или null, если не удалось распарсить
  */
 function getTokenExpiration(token: string): number | null {
     try {
@@ -94,6 +95,7 @@ export async function tryRefresh() {
 
 /** 
  * Обновляет токены авторизации через refresh_token.
+ * @returns {Promise<boolean>} true — если обновление прошло успешно, false — если не удалось обновить токены
  */
 export async function refreshAuthTokens(): Promise<boolean> {
     const tokensData = getAuthTokens();
@@ -129,6 +131,7 @@ export async function refreshAuthTokens(): Promise<boolean> {
 
 /**
  * Выход пользователя из системы.
+ * @returns {Promise<void>} Promise, который разрешается после завершения процесса выхода
  */
 export async function logout(): Promise<void> {
     try {

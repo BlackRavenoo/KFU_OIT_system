@@ -2,6 +2,10 @@
  * Обработчик изменения прикреплённых к форме файлов.
  * Добавляет выбранные файлы в список, если их количество не превышает 5.
  * @param {Event} event - Событие изменения файла.
+ * @param {File[]} files - Текущий список прикреплённых файлов.
+ * @param {string[]} fileNames - Текущий список имён прикреплённых файлов.
+ * @param {(msg: string) => void} showModal - Функция для отображения модального окна с сообщением.
+ * @returns {{ files: File[], fileNames: string[] }} Обновлённые списки файлов и имён файлов.
  */
 export function handleFileChange(
     event: Event,
@@ -27,6 +31,9 @@ export function handleFileChange(
 /**
  * Удаляет файл из списка прикреплённых файлов по индексу.
  * @param {number} index - Индекс файла для удаления.
+ * @param {File[]} files - Текущий список файлов.
+ * @param {string[]} fileNames - Текущий список имён файлов.
+ * @returns {{ files: File[], fileNames: string[] }} Обновлённые списки файлов и имён файлов.
  */
 export function removeFile(
     index: number,

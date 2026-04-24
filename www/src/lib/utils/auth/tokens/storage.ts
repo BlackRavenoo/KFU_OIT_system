@@ -6,6 +6,10 @@ import type { IAuthTokens, ITokenStorage } from '../types';
 export class LocalStorageTokenStorage implements ITokenStorage {
     private tokens: IAuthTokens | null = null;
 
+    /**
+     * Создаёт экземпляр и инициализирует токены из localStorage. 
+     * Если localStorage недоступен, используется пустой шаблон.
+     */
     constructor() {
         this.tokens = this.readFromLocalStorage();
     }
@@ -25,6 +29,11 @@ export class LocalStorageTokenStorage implements ITokenStorage {
         }
     }
 
+    /**
+     * Функция для чтения токенов из localStorage. 
+     * Если данные повреждены или отсутствуют, возвращает шаблон с пустыми строками.
+     * @returns {IAuthTokens} Токены авторизации или шаблон с пустыми строками.
+     */
     private readFromLocalStorage(): IAuthTokens {
         const template: IAuthTokens = {
             accessToken: '',
@@ -46,10 +55,18 @@ export class LocalStorageTokenStorage implements ITokenStorage {
         return template;
     }
 
+    /**
+     * Функция для получения текущих токенов из памяти.
+     * @returns {IAuthTokens | null} Токены авторизации или null, если токены не установлены.
+     */
     get(): IAuthTokens | null {
         return this.tokens;
     }
 
+    /**
+     * Функция для установки токенов в память и сохранения их в localStorage.
+     * @param tokens - Токены авторизации для сохранения. Если null, токены будут удалены.
+     */
     set(tokens: IAuthTokens | null): void {
         this.tokens = tokens;
         
@@ -64,6 +81,9 @@ export class LocalStorageTokenStorage implements ITokenStorage {
         }
     }
 
+    /**
+     * Функция для очистки токенов из памяти и localStorage.
+     */
     clear(): void {
         this.tokens = null;
         
@@ -77,29 +97,47 @@ export class LocalStorageTokenStorage implements ITokenStorage {
     }
 }
 
-/**
- * Абстракция для работы с хранилищем токенов.
- */
+// Абстракция для работы с хранилищем токенов.
 export let tokenStorage: ITokenStorage | null = null;
 
+/**
+ * Функция для установки глобального экземпляра хранилища токенов.
+ * @param storage - Экземпляр хранилища токенов для использования в приложении.
+ */
 export function setTokenStorage(storage: ITokenStorage) {
     tokenStorage = storage;
 }
 
+/**
+ * Функция для получения текущего экземпляра хранилища токенов.
+ * @throws {Error} Если хранилище токенов не инициализировано.
+ * @returns {ITokenStorage} Текущий экземпляр хранилища токенов.
+ */
 export function getTokenStorage(): ITokenStorage {
     if (!tokenStorage)
         throw new Error('Token storage is not initialized');
     return tokenStorage;
 }
 
+/**
+ * Функция для получения текущих токенов авторизации из хранилища.
+ * @returns {IAuthTokens | null} Текущие токены авторизации или null, если токены не установлены.
+ */
 export function getTokenStore(): IAuthTokens | null {
     return getTokenStorage().get();
 }
 
+/**
+ * Функция для установки токенов авторизации в хранилище.
+ * @param tokens - Токены авторизации для сохранения.
+ */
 export function setTokenStore(tokens: IAuthTokens | null) {
     getTokenStorage().set(tokens);
 }
 
+/**
+ * Функция для очистки токенов авторизации из хранилища.
+ */
 export function clearTokenStore() {
     getTokenStorage().clear();
 }

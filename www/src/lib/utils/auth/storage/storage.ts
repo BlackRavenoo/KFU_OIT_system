@@ -1,5 +1,10 @@
 import type { IAuthStore } from '../types';
 
+/**
+ * Реализация `IAuthStore` на основе `localStorage`.
+ * Предоставляет методы для получения, установки и удаления данных авторизации.
+ * Включает проверку доступности `localStorage` и обработку ошибок при работе с ним.
+ */
 export class LocalStorageAuthStore implements IAuthStore {
     /**
      * Проверяет доступность localStorage
