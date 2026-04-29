@@ -5,6 +5,7 @@ mod delete_ticket;
 mod consts;
 mod stats;
 mod metrics;
+mod messages;
 mod assign_ticket;
 mod get_ticket;
 mod assets;
