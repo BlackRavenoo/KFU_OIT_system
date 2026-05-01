@@ -9,6 +9,10 @@ export interface VisibleElements {
 /**
  * Настройка Intersection Observer для отслеживания видимости ключевых элементов
  * Используется для анимации появления элементов при прокрутке страницы
+ * @param {string[]} elementIds - Массив идентификаторов элементов для отслеживания
+ * @param {(id: string, value: boolean) => void} setVisible - Функция для обновления состояния видимости элемента
+ * @param {IntersectionObserverInit} [options] - Дополнительные настройки для Intersection Observer
+ * @returns {IntersectionObserver} - Возвращает созданный экземпляр Intersection Observer
  */
 export function setupIntersectionObserver(
     elementIds: string[],

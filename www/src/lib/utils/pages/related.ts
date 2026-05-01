@@ -1,5 +1,6 @@
 import { api } from '$lib/utils/api';
 
+/** Интерфейс для элемента связанной статьи */
 export interface RelatedItem {
     id: string;
     title: string;

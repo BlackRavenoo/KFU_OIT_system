@@ -2,6 +2,7 @@
  * Нормализует дату в формате ISO 8601.
  * Вывод строго в UTC без таймзоны.
  * @param {string} date - Дата в строковом формате.
+ * @returns {string|null} Нормализованная дата в формате ISO 8601 или null для невалидных дат.
  */
 export function normalizeDate(date: string): string | null {
     if (!date || !date.trim()) return null;
@@ -40,9 +41,9 @@ export function normalizeDate(date: string): string | null {
 
 /**
  * Преобразует строку даты в формат RFC3339
- * @param dateStr - строка даты
- * @param endOfDay - если true, устанавливает время на конец дня (23:59:59)
- * @returns строка в формате RFC3339 или пустую строку для невалидных дат
+ * @param {string} dateStr - строка даты
+ * @param {boolean} [endOfDay=false] - если true, устанавливает время на конец дня (23:59:59)
+ * @returns {string} строка в формате RFC3339 или пустую строку для невалидных дат
  */
 export function toRfc3339(dateStr: string, endOfDay = false): string {
     if (!dateStr) return '';
@@ -61,7 +62,8 @@ export function toRfc3339(dateStr: string, endOfDay = false): string {
 
 /**
  * Создаёт строку запроса из объекта параметров
- * @param params - объект параметров
+ * @param {Record<string, any>} params - объект параметров
+ * @return {string} строка запроса, готовая для использования в URL
  */
 export function buildQuery(params: Record<string, any>) {
     const parts: string[] = [];

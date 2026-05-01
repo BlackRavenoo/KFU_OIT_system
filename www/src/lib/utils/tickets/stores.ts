@@ -2,6 +2,10 @@ import type { ITicketsFiltersStorage, TicketsFilters } from '$lib/utils/tickets/
 
 const FILTERS_KEY = 'ticketsFilters';
 
+/**
+ * Дефолтные значения фильтров для тикетов. 
+ * Эти значения будут использоваться при инициализации хранилища и при очистке фильтров.
+ */
 const defaultFilters: TicketsFilters = {
     search: '',
     viewMode: 'cards',
@@ -54,24 +58,44 @@ export class LocalStorageTicketsFiltersStorage implements ITicketsFiltersStorage
 
 let filtersStorage: ITicketsFiltersStorage | null = null;
 
+/**
+ * Функция для установки хранилища фильтров. 
+ * @param {ITicketsFiltersStorage} storage - экземпляр хранилища фильтров
+ */
 export function setTicketsFiltersStorage(storage: ITicketsFiltersStorage) {
     filtersStorage = storage;
 }
 
+/**
+ * Функция для получения текущего хранилища фильтров.
+ * @throws {Error} если хранилище фильтров не инициализировано
+ * @returns {ITicketsFiltersStorage} текущий экземпляр хранилища фильтров
+ */
 export function getTicketsFiltersStorage(): ITicketsFiltersStorage {
     if (!filtersStorage)
         throw new Error('Tickets filters storage is not initialized');
     return filtersStorage;
 }
 
+/**
+ * Функция для получения текущих фильтров тикетов из хранилища.
+ * @returns {TicketsFilters} текущие фильтры тикетов
+ */
 export function getTicketsFilters(): TicketsFilters {
     return getTicketsFiltersStorage().get();
 }
 
+/**
+ * Функция для установки новых фильтров тикетов в хранилище.
+ * @param {TicketsFilters} filters - новые фильтры тикетов
+ */
 export function setTicketsFilters(filters: TicketsFilters) {
     getTicketsFiltersStorage().set(filters);
 }
 
+/**
+ * Функция для очистки фильтров тикетов, возвращая их к дефолтным значениям.
+ */
 export function clearTicketsFilters() {
     getTicketsFiltersStorage().clear();
 }

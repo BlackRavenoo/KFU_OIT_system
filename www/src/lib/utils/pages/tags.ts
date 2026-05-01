@@ -3,6 +3,7 @@ import { get } from 'svelte/store';
 import { currentUser } from '$lib/utils/auth/storage/initial';
 import { UserRole } from '$lib/utils/auth/types';
 
+/** Интерфейс для тега, получаемого с сервера */
 export interface ServerTagDto {
     id: number;
     name: string;

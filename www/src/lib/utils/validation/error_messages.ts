@@ -2,6 +2,8 @@ import { validateName, validateLogin, validateEmail, validatePassword } from './
 
 /**
  * Валидация имени
+ * @param {string} name - Имя для проверки
+ * @returns {string} Сообщение об ошибке или пустая строка, если ошибок нет
  */
 export function getNameError(name: string): string {
     if (!name.trim()) return '';
@@ -11,6 +13,8 @@ export function getNameError(name: string): string {
 
 /**
  * Валидация логина
+ * @param {string} login - Логин для проверки
+ * @returns {string} Сообщение об ошибке или пустая строка, если ошибок нет
  */
 export function getLoginError(login: string): string {
     if (!login.trim()) return '';
@@ -20,6 +24,8 @@ export function getLoginError(login: string): string {
 
 /**
  * Валидация email
+ * @param {string} email - Email для проверки
+ * @returns {string} Сообщение об ошибке или пустая строка, если ошибок нет
  */
 export function getEmailError(email: string): string {
     if (!email.trim()) return '';
@@ -29,6 +35,8 @@ export function getEmailError(email: string): string {
 
 /**
  * Валидация пароля
+ * @param {string} password - Пароль для проверки
+ * @returns {string} Сообщение об ошибке или пустая строка, если ошибок нет
  */
 export function getPasswordError(password: string): string {
     if (!password) return '';
@@ -38,6 +46,9 @@ export function getPasswordError(password: string): string {
 
 /**
  * Валидация совпадения паролей
+ * @param {string} password - Пароль для сравнения
+ * @param {string} confirmPassword - Подтверждение пароля для сравнения
+ * @returns {string} Сообщение об ошибке или пустая строка, если ошибок нет
  */
 export function getConfirmPasswordError(password: string, confirmPassword: string): string {
     if (!confirmPassword) return '';

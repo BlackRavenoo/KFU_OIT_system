@@ -1,6 +1,9 @@
 /**
  * Обработчик нажатия клавиш в модальном окне.
  * Закрывает модальное окно при нажатии Escape и управляет фокусом при Tab.
+ * @param e - Событие нажатия клавиши
+ * @param modalElement - Элемент модального окна
+ * @returns {boolean} - Возвращает false, если модальное окно должно быть закрыто, иначе true
  */
 export function handleModalKeydown(e: KeyboardEvent, modalElement: HTMLElement) {
     if (e.key === 'Escape') {
@@ -30,6 +33,7 @@ export function handleModalKeydown(e: KeyboardEvent, modalElement: HTMLElement) 
 
 /**
  * Переключает видимость модального окна и устанавливает фокус
+ * @param modalElement - Элемент модального окна, который нужно показать
  */
 export function showModal(modalElement?: HTMLElement) {
     setTimeout(() => {

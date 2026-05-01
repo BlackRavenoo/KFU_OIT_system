@@ -17,7 +17,10 @@ const CACHE_TTL_CONSTS = 15 * 60 * 1000;
  * Получение списка тикетов с учётом фильтров.
  * Использует параметры из хранилища фильтров.
  * Возвращает массив тикетов и максимальное количество страниц.
- * @param search Строка для поиска по тикетам (необязательный параметр).
+ * @param {string} search Строка для поиска по тикетам (необязательный параметр).
+ * @param {Record<string, any>} search_params Дополнительные параметры поиска (необязательный параметр).
+ * @throws {Error} Если произошла ошибка при загрузке тикетов.
+ * @returns {Promise<{ tickets: Ticket[]; max_page: number }>} Объект с массивом тикетов и максимальным количеством страниц.
  */
 export async function fetchTickets(search: string = '', search_params: Record<string, any> = {}): Promise<{ tickets: Ticket[]; max_page: number }> {
     const filters = getTicketsFilters();
@@ -95,7 +98,9 @@ export async function fetchTickets(search: string = '', search_params: Record<st
 /**
  * Получение тикета по ID.
  * Использует API для получения данных тикета.
- * @returns Promise<Ticket>
+ * @param {string} id ID тикета.
+ * @throws {Error} Если произошла ошибка при получении тикета.
+ * @returns {Promise<Ticket>} Объект с данными тикета.
  */
 export async function getById(id: string): Promise<Ticket> {
     const response = await api.get<Ticket>(`${TICKETS_API_ENDPOINTS.read}${id}`);
@@ -109,6 +114,8 @@ export async function getById(id: string): Promise<Ticket> {
 /**
  * Получение констант для фильтров.
  * Если константы уже загружены, возвращает их из хранилища.
+ * @param {boolean} force_update Если true, принудительно обновляет константы, игнорируя кеш.
+ * @throws {Error} Если произошла ошибка при загрузке констант.
  * @returns {Promise<{ buildings: Building[], order: OrderBy[], departments: Department[], sources: TicketSource[] }>}
  */
 export async function fetchConsts(force_update: boolean = false): Promise<{ buildings: Building[], order: OrderBy[], departments: Department[], sources: TicketSource[] }> {
@@ -183,6 +190,8 @@ export async function fetchConsts(force_update: boolean = false): Promise<{ buil
 /**
  * Загрузка изображений по ключам вложений.
  * Использует API для получения изображений по ключам.
+ * @param {string[]} attachments Массив ключей вложений.
+ * @throws {Error} Если произошла ошибка при загрузке изображений.
  * @returns {Promise<string[]>} Массив изображений.
  */
 export async function fetchImages(attachments: string[]): Promise<string[]> {
@@ -207,8 +216,8 @@ export async function fetchImages(attachments: string[]): Promise<string[]> {
 
 /**
  * Загрузка активных заявок пользователя
- * @param userId ID пользователя
- * @returns Массив активных заявок
+ * @param {string} userId ID пользователя
+ * @returns {Promise<any[]>} Массив активных заявок
  */
 export async function loadActiveUserTickets(userId: string): Promise<any[]> {
     try {

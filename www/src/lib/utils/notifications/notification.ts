@@ -3,6 +3,9 @@ import { NotificationType } from './types';
 /**
  * Показывает всплывающее уведомление.
  * Закрывается по ЛКМ, ПКМ, среднему клику и по контекстному меню.
+ * Уведомление автоматически исчезает через 3 секунды.
+ * @param message Текст уведомления.
+ * @param type Тип уведомления (error, success, warning, info).
  */
 export function notification(message: string, type: NotificationType) {
     const el = document.createElement('div');

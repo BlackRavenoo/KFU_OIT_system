@@ -10,6 +10,8 @@ import { normalizeDate } from '$lib/utils/tickets/support';
  * @param {string} Contact - Контактные данные автора заявки.
  * @param {string} DateVal - Дата, запланированная для заявки.
  * @param {File[] | null} File - Файлы, прикрепленные к заявке (необязательный параметр).
+ * @throws {Error} Если не все обязательные поля заполнены или при ошибке создания заявки.
+ * @returns {Promise<number>} Идентификатор созданной заявки.
  */
 export async function createTicket(
     Title: string,
@@ -54,8 +56,9 @@ export async function createTicket(
 /**
  * Обновление тикета по ID.
  * Отправляет PATCH-запрос на сервер с обновлёнными данными тикета.
- * @param ticketId Идентификатор тикета, который нужно обновить.
- * @param data Данные для обновления тикета.
+ * @param {string} ticketId Идентификатор тикета, который нужно обновить.
+ * @param {Object} data Данные для обновления тикета.
+ * @throws {Error} Если произошла ошибка при обновлении тикета.
  */
 export async function updateTicket(
     ticketId: string,
@@ -102,7 +105,8 @@ export async function updateTicket(
 /**
  * Функция для удаления тикета по ID.
  * Отправляет DELETE-запрос на сервер для удаления тикета.
- * @param ticketId Идентификатор тикета, который нужно удалить.
+ * @param {string} ticketId Идентификатор тикета, который нужно удалить.
+ * @throws {Error} Если произошла ошибка при удалении тикета.
  */
 export async function deleteTicket(ticketId: string): Promise<void> {
     const response = await api.delete(`${TICKETS_API_ENDPOINTS.delete}${ticketId}`);

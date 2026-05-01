@@ -1,3 +1,4 @@
+/** Интерфейс для сериализованного узла редактора */
 type SerializedNode = {
     type: string;
     text?: string | SerializedNode[];
@@ -29,6 +30,7 @@ function normalizeTextAlign(raw: string, dir: string): 'left' | 'center' | 'righ
  * Получает стили элемента (выравнивание, цвет текста, цвет фона).
  * ВАЖНО: сперва учитываем HTML-атрибут align, затем inline-стили, затем computedStyle.
  * @param node - DOM элемент
+ * @return Объект со стилями align, color и bgColor
  */
 function getNodeStyles(node: HTMLElement): { align: 'left' | 'center' | 'right' | 'justify'; color: string; bgColor: string } {
     const inlineStyle = node.style;
@@ -65,6 +67,7 @@ function getNodeStyles(node: HTMLElement): { align: 'left' | 'center' | 'right' 
 /**
  * Преобразует блочные переносы (div, p) в <br> для корректной сериализации переносов строк
  * @param html - Входящий HTML
+ * @return HTML с нормализованными переносами строк
  */
 function normalizeLineBreaks(html: string): string {
     return html
@@ -82,6 +85,8 @@ function normalizeLineBreaks(html: string): string {
  * Обрабатывает дочерние узлы и возвращает массив сериализованных элементов
  * Сохраняет переносы строк как отдельные объекты { type: 'br' }
  * @param node - Родительский узел
+ * @return Массив строк и сериализованных узлов, или строка если результат 
+ * один текстовый узел, или пустая строка если нет текста
  */
 function serializeChildren(node: Node): SerializedNode[] | string {
     const result: (string | SerializedNode)[] = [];
@@ -112,6 +117,7 @@ function serializeChildren(node: Node): SerializedNode[] | string {
 /**
  * Сериализует один узел DOM в объект
  * @param node - DOM элемент для сериализации
+ * @return Сериализованный узел или null, если узел не может быть сериализован
  */
 function serializeNode(node: HTMLElement): SerializedNode | null {
     const nodeName = node.nodeName.toLowerCase();
@@ -313,6 +319,11 @@ function mergeStyles(parent: SerializedNode, child: SerializedNode): SerializedN
     };
 }
 
+/**
+ * Функция для безопасного экранирования HTML-специальных символов в строке
+ * @param input - Входная строка для экранирования
+ * @returns Экранированная строка
+ */
 function escapeHtml(input: string): string {
     return input
         .replace(/&/g, '&amp;')
@@ -322,10 +333,20 @@ function escapeHtml(input: string): string {
         .replace(/'/g, '&#39;');
 }
 
+/**
+ * Проверяет, является ли ссылка изображением
+ * @param url - URL для проверки
+ * @returns true, если ссылка указывает на изображение, иначе false
+ */
 function isImageLink(url: string): boolean {
     return /\.(jpe?g|jpd|png|webp)(?:$|[?#])/i.test(url.trim());
 }
 
+/**
+ * Извлекает идентификатор видео Rutube из URL
+ * @param url - URL для проверки
+ * @returns Идентификатор видео Rutube или null, если URL некорректен
+ */
 function getRutubeVideoId(url: string): string | null {
     try {
         const parsed = new URL(url.trim());
@@ -343,10 +364,22 @@ function getRutubeVideoId(url: string): string | null {
     }
 }
 
+/**
+ * Генерирует уникальный идентификатор для встроенного контента
+ * @param seed - Исходная строка для генерации идентификатора
+ * @returns Уникальный идентификатор в формате 'md-...'
+ */
 function makeEmbedId(seed: string): string {
     return `md-${seed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'embed'}`;
 }
 
+/**
+ * Генерирует HTML для встроенного контента в зависимости от типа
+ * @param href - URL встроенного контента
+ * @param label - Текстовая метка для встроенного контента
+ * @param embedType - Тип встроенного контента ('image' или 'rutube')
+ * @returns HTML строка для вставки в документ
+ */
 function renderEmbedHtmlByType(href: string, label: string, embedType?: 'image' | 'rutube'): string {
     if (!embedType) return '';
     const safeHref = escapeHtml(href);
@@ -424,6 +457,8 @@ function processLinks(text: string, styleAttr: string): string {
 /**
  * Вычисляет атрибут style для инлайн-ссылки на основе стилей родительского узла.
  * Используются только нас­ледуемые инлайн-свойства (цвет, фон), text-align игнорируется.
+ * @param styles - Стили родительского узла
+ * @returns Строка с атрибутом style для вставки в тег <a>, или пустая строка если нет стилей
  */
 function linkStyleAttrFrom(styles: Partial<SerializedNode>): string {
     const parts: string[] = [];

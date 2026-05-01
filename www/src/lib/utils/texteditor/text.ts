@@ -205,10 +205,20 @@ export function setAlign(
     updateActiveStates();
 }
 
+/**
+ * Проверяет, является ли ссылка изображением
+ * @param {string} url - URL для проверки
+ * @returns {boolean} true, если ссылка указывает на изображение, иначе false
+ */
 function isImageLink(url: string): boolean {
     return /\.(jpe?g|jpd|png|webp)(?:$|[?#])/i.test(url.trim());
 }
 
+/**
+ * Извлекает идентификатор видео Rutube из URL
+ * @param {string} url - URL для проверки
+ * @returns {string | null} Идентификатор видео Rutube или null, если URL некорректен
+ */
 function getRutubeVideoId(url: string): string | null {
     try {
         const parsed = new URL(url.trim());
@@ -226,6 +236,14 @@ function getRutubeVideoId(url: string): string | null {
     }
 }
 
+/**
+ * Генерирует HTML для встроенного контента в зависимости от типа
+ * @param {('image' | 'rutube')} kind - Тип встроенного контента ('image' или 'rutube')
+ * @param {string} href - URL встроенного контента
+ * @param {string} linkId - Идентификатор ссылки, к которой привязан embed
+ * @param {string} label - Текстовая метка для встроенного контента
+ * @returns {HTMLElement} HTML элемент для вставки в документ
+ */
 function createEmbedElement(kind: 'image' | 'rutube', href: string, linkId: string, label: string): HTMLElement {
     const wrap = document.createElement('div');
     wrap.className = `te-generated-embed te-generated-embed-${kind}`;
@@ -260,6 +278,8 @@ let generatedCounter = 0;
  * - [text](url)! и ![alt](url) => ссылка + автогенерируемый embed (картинка/rutube)
  *
  * Embed нельзя удалить напрямую: при каждом вводе он пересоздаётся из ссылки.
+ * 
+ * @param {HTMLDivElement | null} editorDiv - DOM-элемент редактируемой области
  */
 export function transformMarkdownLinksInEditor(editorDiv: HTMLDivElement | null): void {
     if (!editorDiv) return;

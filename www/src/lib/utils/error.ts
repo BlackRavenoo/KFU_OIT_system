@@ -4,7 +4,7 @@ import { browser } from '$app/environment';
 /**
  * Перебрасывает пользователя на страницу ошибки с нужным статусом
  * Использует существующий +error.svelte компонент
- * @param status HTTP-статус ошибки (403, 415 и т.д.)
+ * @param {number} status - HTTP-статус ошибки (403, 415 и т.д.)
  */
 export function navigateToError(status: number): void {
     if (!browser) return;

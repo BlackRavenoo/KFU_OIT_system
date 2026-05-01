@@ -9,6 +9,10 @@ import { NotificationType } from '$lib/utils/notifications/types';
 import { navigateToError } from './error';
 import { isGateOpen, waitForGate, isAuthBypassUrl } from '$lib/utils/auth/api/requestGate';
 
+/**
+ * Интерфейс для стандартного ответа API
+ * @template T - Тип данных в поле data
+ */
 export interface ApiResponse<T = any> {
     success: boolean;
     data?: T;
@@ -16,6 +20,9 @@ export interface ApiResponse<T = any> {
     status: number;
 }
 
+/**
+ * Создание экземпляра Axios с базовой конфигурацией для API запросов
+ */
 const apiClient: AxiosInstance = axios.create({
     baseURL: '',
     timeout: 30000,
@@ -26,6 +33,12 @@ const apiClient: AxiosInstance = axios.create({
     withCredentials: true
 });
 
+/**
+ * Перехватчик запросов для добавления токена авторизации и управления "воротами" доступа
+ * - Проверяет, нужно ли открывать "ворота" для данного URL
+ * - Добавляет токен авторизации в заголовки, если он есть
+ * - Управляет Content-Type в зависимости от типа данных
+ */
 apiClient.interceptors.request.use(
     async (config) => {
         if (!isAuthBypassUrl(config.url) && !isGateOpen()) {
@@ -48,6 +61,13 @@ apiClient.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+/**
+ * Перехватчик ответов для обработки ошибок авторизации и других ошибок API
+ * - Обрабатывает 401 и 403 ошибки, связанные с авторизацией, с попыткой обновления токенов
+ * - Перенаправляет на страницу входа при необходимости
+ * - Показывает уведомления об ошибках и перенаправляет на страницы ошибок при определенных статусах
+ * - Реализует стратегию повторных попыток для ошибок сервера (5xx)
+ */
 apiClient.interceptors.response.use(
     (response) => response,
     async (error: any) => {
@@ -145,8 +165,8 @@ apiClient.interceptors.response.use(
 
 /**
  * Извлекает путь из URL
- * @param url URL для извлечения пути
- * @returns Путь из URL
+ * @param {string} [url] - URL для извлечения пути
+ * @returns {string} Путь из URL
  */
 function extractPath(url?: string): string {
     if (!url) return '';
@@ -161,8 +181,7 @@ function extractPath(url?: string): string {
 /**
  * Обработчик ошибок аутентификации, перенаправляющий пользователя на страницу входа
  * Сохраняет текущий путь для последующего перенаправления после успешного входа
- * @param status Код статуса ошибки
- * @param path Путь, на который нужно перенаправить пользователя
+ * @param {string} [path] - Путь, на который нужно перенаправить пользователя
  */
 export function handleAuthError(path?: string): void {
     try {
@@ -176,8 +195,8 @@ export function handleAuthError(path?: string): void {
 
 /**
  * Форматирует успешный ответ от API
- * @param response - ответ Axios
- * @returns ApiResponse
+ * @param {AxiosResponse} response - ответ Axios
+ * @returns {ApiResponse<T>} Отформатированный ответ
  */
 function formatResponse<T>(response: AxiosResponse): ApiResponse<T> {
     return {
@@ -189,8 +208,8 @@ function formatResponse<T>(response: AxiosResponse): ApiResponse<T> {
 
 /**
  * Форматирует ошибку от API
- * @param error - ошибка Axios
- * @returns ApiResponse 
+ * @param {AxiosError} error - ошибка Axios
+ * @returns {ApiResponse} Отформатированная ошибка
  */
 function formatError(error: AxiosError): ApiResponse {
     if (error.response) {
@@ -214,6 +233,13 @@ function formatError(error: AxiosError): ApiResponse {
     };
 }
 
+/**
+ * Унифицированный интерфейс для выполнения API запросов с поддержкой различных HTTP методов, типов данных и обработки ошибок
+ * - Позволяет выполнять GET, POST, PUT, PATCH и DELETE запросы
+ * - Поддерживает отправку данных в виде JSON или FormData
+ * - Обрабатывает ошибки и возвращает стандартизированный ответ ApiResponse
+ * @typeParam T - Тип данных в поле data успешного ответа
+ */
 export const api = {
     get: async <T>(
         route: string,

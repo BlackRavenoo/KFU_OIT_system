@@ -7,7 +7,8 @@ import type { Ticket } from '$lib/utils/tickets/types';
 
 /**
  * Назначает тикет на исполнителя.
- * @param ticketId ID тикета, который нужно назначить.
+ * @param {string} ticketId ID тикета, который нужно назначить.
+ * @throws {Error} Если запрос не удался, выбрасывает ошибку с сообщением из ответа или общим сообщением об ошибке.
  */
 export async function assign(ticketId: string): Promise<void> {
     const response = await api.patch(`${TICKETS_API_ENDPOINTS.read}${ticketId}/assign`);
@@ -18,7 +19,8 @@ export async function assign(ticketId: string): Promise<void> {
 
 /**
  * Снимает назначение тикета с исполнителя.
- * @param ticketId ID тикета, с которого нужно снять назначение.
+ * @param {string} ticketId ID тикета, с которого нужно снять назначение.
+ * @throws {Error} Если запрос не удался, выбрасывает ошибку с сообщением из ответа или общим сообщением об ошибке.
  */
 export async function unassign(ticketId: string): Promise<void> {
     const response = await api.patch(`${TICKETS_API_ENDPOINTS.read}${ticketId}/unassign`);
@@ -30,9 +32,10 @@ export async function unassign(ticketId: string): Promise<void> {
 /**
  * Назначить конкретного пользователя на тикет.
  * Делает POST-запрос, обрабатывает ошибки и в случае успеха подтягивает обновлённые данные тикета.
- * @param ticketId ID тикета.
- * @param userId ID пользователя.
- * @return Объект с результатом операции и обновлёнными данными тикета в случае успеха.
+ * @param {string} ticketId ID тикета.
+ * @param {string} userId ID пользователя.
+ * @returns {Promise<{ success: true; ticket: Ticket } | { success: false; error: string }>} 
+ * Объект с результатом операции и обновлёнными данными тикета в случае успеха.
  */
 export async function assignUserToTicket(ticketId: string, userId: string): Promise<{ success: true; ticket: Ticket } | { success: false; error: string }> {
     try {
@@ -57,9 +60,9 @@ export async function assignUserToTicket(ticketId: string, userId: string): Prom
 /**
  * Снять с тикета конкретного исполнителя.
  * Делает POST-запрос, обрабатывает ошибки и в случае успеха подтягивает обновлённые данные тикета.
- * @param ticketId ID тикета.
- * @param executorId ID исполнителя.
- * @return Объект с результатом операции и обновлёнными данными тикета в случае успеха.
+ * @param {string} ticketId ID тикета.
+ * @param {string} executorId ID исполнителя.
+ * @returns {Promise<{ success: true; ticket: Ticket } | { success: false; error: string }>} Объект с результатом операции и обновлёнными данными тикета в случае успеха.
  */
 export async function unassignUserFromTicket(ticketId: string, executorId: string): Promise<{ success: true; ticket: Ticket } | { success: false; error: string }> {
     try {
