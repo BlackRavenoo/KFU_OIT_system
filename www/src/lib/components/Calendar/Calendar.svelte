@@ -29,6 +29,11 @@
     let startInput = '';
     let endInput = '';
 
+    /**
+     * Устанавливает новый диапазон дат и обновляет отображаемые дни и входные поля.
+     * @param {Date} s Начальная дата
+     * @param {Date} e Конечная дата
+     */
     function setRange(s: Date, e: Date) {
         startDate = new Date(s);
         startDate.setHours(0,0,0,0);
@@ -39,6 +44,10 @@
         endInput = toKey(endDate);
     }
 
+    /**
+     * Переходит к предыдущей неделе относительно текущего диапазона дат.
+     * Вычисляет новый диапазон дат, обновляет отображаемые дни и загружает заявки для нового диапазона.
+     */
     function prevWeek() {
         const s = new Date(startDate);
         s.setDate(s.getDate() - 7);
@@ -47,6 +56,10 @@
         void refreshTickets();
     }
 
+    /**
+     * Переходит к следующей неделе относительно текущего диапазона дат.
+     * Вычисляет новый диапазон дат, обновляет отображаемые дни и загружает заявки для нового диапазона.
+     */
     function nextWeek() {
         const s = new Date(startDate);
         s.setDate(s.getDate() + 7);
@@ -55,6 +68,10 @@
         void refreshTickets();
     }
 
+    /**
+     * Обрабатывает изменение диапазона дат через входные поля. 
+     * Валидирует введенные даты, устанавливает новый диапазон и загружает заявки для нового диапазона.
+     */
     function onInputRangeChange() {
         const s = new Date(startInput);
         const e = new Date(endInput);
@@ -68,6 +85,11 @@
         void refreshTickets();
     }
 
+    /**
+     * Возвращает CSS-класс приоритета на основе строки приоритета заявки.
+     * @param {string} [p] Строка приоритета заявки ("low", "medium", "high", "critical")
+     * @returns {string} CSS-класс для приоритета
+     */
     function priorityClass(p?: string) {
         const key = String(p ?? '').toLowerCase();
         if (key === 'low') return 'priority-low';
@@ -77,6 +99,11 @@
         return 'priority-normal';
     }
 
+    /**
+     * Форматирует строку ISO даты в локальное время в формате "HH:MM".
+     * @param {string} [iso] Строка ISO даты
+     * @returns {string} Отформатированное время в формате "HH:MM"
+     */
     function formatTimeFromIso(iso?: string) {
         if (!iso) return '';
         const n = normalizeDate(iso);
@@ -86,6 +113,14 @@
         return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
+    /**
+     * Загружает заявки для текущего диапазона дат и обновляет состояние компонента.
+      - Устанавливает флаг загрузки и очищает предыдущие данные и ошибки.
+      - Вызывает функцию загрузки заявок для текущего диапазона дат.
+      - Обрабатывает возможные ошибки при загрузке и сохраняет их в состоянии.
+      - Сбрасывает флаг загрузки после завершения операции.
+     * @throws {Error} Если произошла ошибка при загрузке заявок
+     */
     async function refreshTickets() {
         loading = true;
         error = null;
@@ -99,33 +134,66 @@
         }
     }
 
+    /**
+     * Проверяет, является ли переданная дата сегодняшним днем.
+     * @param {Date} d Дата для проверки
+     * @returns {boolean} true, если переданная дата соответствует сегодняшнему дню, иначе false
+     */
     function isToday(d: Date) {
         const t = new Date();
         return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
     }
 
+    /**
+     * Обрабатывает клик по фону модального окна. 
+     * Если клик был на фоне (элемент с классом "cal-backdrop"), вызывает функцию закрытия модального окна.
+     * @param {MouseEvent} e Событие клика мыши
+     */
     function backdropClick(e: MouseEvent) {
         if ((e.target as HTMLElement)?.classList?.contains('cal-backdrop')) close();
     }
 
+    /**
+     * Обрабатывает нажатия клавиш на фоне модального окна.
+     * Если нажата клавиша "Enter" или "Пробел" и фокус находится на фоне, вызывает функцию закрытия модального окна.
+     * @param {KeyboardEvent} e Событие нажатия клавиши
+     */
     function backdropKeydown(e: KeyboardEvent) {
-        if (e.key === 'Enter' || e.key === ' ') {
-            if ((e.target as HTMLElement)?.classList?.contains('cal-backdrop')) {
+        if (e.key === 'Enter' || e.key === ' ')
+            if ((e.target as HTMLElement)?.classList?.contains('cal-backdrop'))
                 close();
-            }
-        }
     }
 
+    /**
+     * Обрабатывает глобальные нажатия клавиш для управления календарем.
+     * - Если нажата клавиша "Escape", закрывает календарь.
+     * - Если нажата клавиша "ArrowLeft", переходит к предыдущей неделе.
+     * - Если нажата клавиша "ArrowRight", переходит к следующей неделе.
+     * @param {KeyboardEvent} e Событие нажатия клавиши
+     */
     function onKey(e: KeyboardEvent) {
         if (e.key === 'Escape') close();
         if (e.key === 'ArrowLeft') prevWeek();
         if (e.key === 'ArrowRight') nextWeek();
     }
 
+    /**
+     * Вызывает событие "close" для уведомления родительского компонента о необходимости закрыть календарь.
+     * @emits close
+     */
     function close() {
         dispatch('close');
     }
 
+    /**
+     * При монтировании компонента выполняет следующие действия:
+     * - Проверяет аутентификацию пользователя и его роль. 
+     * Если пользователь не аутентифицирован или является клиентом, вызывает функцию обработки ошибки аутентификации и возвращает.
+     * - Устанавливает начальный диапазон дат на основе переданных пропсов или текущей недели.
+     * - Загружает заявки для установленного диапазона дат.
+     * - Устанавливает заголовок страницы и описание для SEO.
+     * - Добавляет глобальный обработчик нажатий клавиш для управления календарем.
+    */
     onMount(() => {
         if (!$isAuthenticated || $currentUser === null || $currentUser.role === UserRole.Client) {
             handleAuthError(get(pageStore).url.pathname);
@@ -153,6 +221,10 @@
         window.addEventListener('keydown', onKey);
     });
 
+    /**
+     * При уничтожении компонента удаляет глобальный обработчик нажатий клавиш, добавленный при монтировании, 
+     * чтобы предотвратить утечки памяти и нежелательное поведение после закрытия календаря.
+    */
     onDestroy(() => {
         window.removeEventListener('keydown', onKey);
     });

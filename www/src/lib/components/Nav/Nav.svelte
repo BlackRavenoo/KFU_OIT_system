@@ -49,6 +49,11 @@
 
     let notificationsListEl: HTMLUListElement | null = null;
 
+    /**
+     * Нормализует параметр маршрута, извлекая путь, поисковую строку и хэш, и проверяя, что он ведет на тот же домен.
+     * @param {(string | null)} val - Исходное значение параметра маршрута.
+     * @returns {(string | null)} Нормализованный путь или null, если параметр некорректен или ведет на другой домен.
+     */
     function normalizeRouteParam(val: string | null): string | null {
         if (!val) return null;
         try {
@@ -62,6 +67,11 @@
         }
     }
 
+    /**
+     * Реактивный блок, который следит за изменениями URL страницы. 
+     * Если в URL есть параметр "action=login" и пользователь не аутентифицирован, отображается модальное окно входа. 
+     * Если также указан параметр "route", он сохраняется для перенаправления после успешного входа.
+    */
     $: {
         const u = $page?.url;
         if (!u) {
@@ -76,6 +86,10 @@
         }
     }
 
+    /**
+     * Обработчик события входа. 
+     * Проверяет введенные пользователем данные, выполняет проверку капчи (если компонент капчи доступен),
+     */
     async function loginHandler() {
         loginError = '';
         if (!userLogin || !userPassword) return;
@@ -116,6 +130,11 @@
         }
     }
 
+    /**
+     * Обработчик события сброса пароля.
+     * Проверяет введенный email, выполняет его валидацию и отправляет запрос на восстановление пароля. 
+       В случае ошибок отображает соответствующее сообщение.
+    */
     async function resetPasswordHandler() {
         loginError = '';
 
@@ -138,10 +157,19 @@
         }
     }
 
+    /**
+     * Обработчик для кнопки входа в навигационной панели.
+    */
     function navLoginHandler() {
         isShowModal = true;
     }
 
+    /**
+     * Обработчик обновления данных в модальном окне.
+     * Получает данные из события и обновляет соответствующие переменные состояния в компоненте.
+     * @param {CustomEvent<{ userLogin?: string; userPassword?: string; userEmail?: string; rememberMe?: boolean }>} event - 
+     * Событие обновления данных модального окна, содержащее новые значения для полей входа, пароля, email и флага "запомнить меня".
+     */
     function handleModalUpdate(event: CustomEvent<{ userLogin?: string; userPassword?: string; userEmail?: string; rememberMe?: boolean }>) {
         if ('userLogin' in event.detail) userLogin = event.detail.userLogin ?? '';
         if ('userPassword' in event.detail) userPassword = event.detail.userPassword ?? '';
@@ -149,10 +177,16 @@
         if ('rememberMe' in event.detail) rememberMe = event.detail.rememberMe ?? false;
     }
 
+    /**
+     * Обработчик закрытия модального окна. Устанавливает флаг отображения модального окна в false, скрывая его.
+     */
     function handleModalClose() {
         isShowModal = false;
     }
 
+    /**
+     * Функция для получения количества непрочитанных уведомлений пользователя.
+     */
     async function fetchNotificationsCount() {
         if (!$isAuthenticated) {
             notificationsCount = 0;
@@ -163,6 +197,10 @@
         } catch { }
     }
 
+    /**
+     * Функция для открытия панели уведомлений. Загружает уведомления пользователя, обрабатывает состояние загрузки и ошибки, 
+     * и прокручивает список уведомлений к последнему элементу после загрузки.
+     */
     async function openNotifications() {
         isNotificationsOpen = true;
         notificationsLoading = true;
@@ -184,12 +222,20 @@
         }
     }
 
+    /**
+     * Функция для закрытия панели уведомлений. Устанавливает флаг открытия панели в false, скрывая ее.
+     */
     function closeNotifications() {
         isNotificationsOpen = false;
     }
 
     let intervalId: any;
 
+    /**
+     * Обработчик клика по кнопке уведомлений. Останавливает распространение события клика и переключает состояние панели уведомлений:
+     * если панель открыта, она будет закрыта, и наоборот.
+     * @param {MouseEvent} event - Событие клика по кнопке уведомлений.
+    */
     function handleNotificationsButtonClick(event: MouseEvent) {
         event.stopPropagation();
         isNotificationsOpen ?
@@ -197,12 +243,20 @@
             openNotifications();
     }
 
+    /**
+     * Обработчик клика по документу. Проверяет, был ли клик сделан вне кнопки уведомлений и панели уведомлений, и если да, то закрывает панель уведомлений.
+     * @param {MouseEvent} event - Событие клика по документу.
+    */
     function handleDocumentClick(event: MouseEvent) {
         const target = event.target as HTMLElement;
         if (!target.closest('#notifications-button') && !target.closest('.notifications-dropdown'))
             closeNotifications();
     }
 
+    /**
+     * Функция для отметки всех уведомлений как прочитанных. 
+     * Получает список непрочитанных уведомлений, отправляет запрос на сервер для их отметки как прочитанных,
+     */
     async function markAllAsRead() {
         markingAll = true;
         const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
@@ -218,6 +272,12 @@
         markingAll = false;
     }
 
+    /**
+     * Функция для отметки одного уведомления как прочитанного.
+     * Получает идентификатор уведомления, отправляет запрос на сервер для его отметки как прочитанного, 
+     * и обновляет состояние уведомлений и счетчик непрочитанных уведомлений
+     * @param {number} id - Идентификатор уведомления.
+     */
     async function markOneAsRead(id: number) {
         markingOne[id] = true;
         try {
@@ -228,6 +288,15 @@
         markingOne[id] = false;
     }
 
+    /**
+     * Обработчик клика по уведомлению. Если клик не был на кнопке "Отметить как прочитанное", то выполняет следующие действия:
+     * - Отменяет действие по умолчанию для события клика.
+     * - Если уведомление не было прочитано, отправляет запрос на сервер для его отметки как прочитанного.
+     * - Закрывает панель уведомлений.
+     * - Перенаправляет пользователя на страницу заявки, связанной с уведомлением.
+     * @param {UserNotification} n - Уведомление, по которому был выполнен клик.
+     * @param {MouseEvent | KeyboardEvent} event - Событие клика или клавиши.
+     */
     async function handleNotificationClick(n: UserNotification, event: MouseEvent | KeyboardEvent) {
         if ((event.target as HTMLElement).closest('.mark-one-btn')) return;
         event.preventDefault?.();
@@ -238,8 +307,17 @@
         });
     }
 
+    /**
+     * Добавление функциональности бесконечной прокрутки к списку уведомлений.
+     * При прокрутке к верхней части списка загружаются более старые уведомления, а при прокрутке к нижней части - более новые уведомления.
+     * @param {HTMLUListElement} node - Элемент списка уведомлений.
+     * @returns {Object} Объект с методом destroy для удаления обработчика события прокрутки при уничтожении компонента.
+     */
     function scrollableList(node: HTMLUListElement) {
         notificationsListEl = node;
+        /**
+         * Обработчик события прокрутки для списка уведомлений. 
+         */
         async function onScroll() {
             if (notificationsLoading || notifications.length === 0) return;
 
@@ -293,23 +371,36 @@
         };
     }
 
+    /**
+     * Функция для прокрутки списка уведомлений к последнему элементу. 
+     * Использует функцию tick для ожидания обновления DOM перед выполнением прокрутки.
+     */
     async function scrollToBottomNotifications() {
         await tick();
         if (notificationsListEl) {
             notificationsListEl.scrollTop = notificationsListEl.scrollHeight;
         } else {
             setTimeout(() => {
-                if (notificationsListEl) {
+                if (notificationsListEl)
                     notificationsListEl.scrollTop = notificationsListEl.scrollHeight;
-                }
             }, 0);
         }
     }
 
+    /**
+     * Реактивный блок, который следит за состоянием открытия панели уведомлений.
+    */
     $: if (isNotificationsOpen) {
         scrollToBottomNotifications();
     }
 
+    /**
+     * При монтировании компонента, если пользователь аутентифицирован и не является анонимом, 
+     * выполняется функция для получения количества непрочитанных уведомлений. 
+     * Также устанавливается интервал для периодического обновления количества уведомлений каждую минуту, 
+     * и добавляется обработчик кликов по документу для закрытия панели уведомлений при клике вне ее. 
+     * При уничтожении компонента интервал очищается и удаляется обработчик кликов по документу.
+    */
     onMount(() => {
         $currentUser && $currentUser.role !== UserRole.Anonymous && fetchNotificationsCount();
         intervalId = setInterval(() => {
@@ -318,6 +409,10 @@
         document.addEventListener('click', handleDocumentClick);
     });
 
+    /**
+     * При уничтожении компонента, если установлен интервал для обновления количества уведомлений, он очищается.
+     * Также удаляется обработчик кликов по документу, который был добавлен при монтировании компонента для закрытия панели уведомлений.
+    */
     onDestroy(() => {
         if (intervalId) clearInterval(intervalId);
         document.removeEventListener('click', handleDocumentClick);

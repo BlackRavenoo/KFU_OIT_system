@@ -7,6 +7,10 @@
     let focused: boolean = false;
     const dispatch = createEventDispatcher();
 
+    /**
+     * Очищает поле поиска, сбрасывает состояние и фокусирует инпут после очистки.
+     * @emits update
+     */
     function clearSearch() {
         searchQuery = '';
         dispatch('update', searchQuery);

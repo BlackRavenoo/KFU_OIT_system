@@ -13,17 +13,25 @@
     let modalElement: HTMLElement;
     
     /**
-     * Обработчик нажатия клавиш для окна подтверждения
+     * Обработчик нажатия клавиш для окна подтверждения.
+     * Enter - подтверждение, Escape - отмена
+     * @param {KeyboardEvent} e - событие нажатия клавиши
      */
     function keydownHandler(e: KeyboardEvent) {
         handleConfirmationKeydown(e, onConfirm, onCancel);
     }
 
+    /**
+     * При монтировании компонента устанавливаем фокус на модальное окно и добавляем слушатель клавиатуры.
+    */
     onMount(() => {
         modalElement?.focus();
         setupKeydownListener(keydownHandler);
     });
 
+    /**
+     * При размонтировании компонента удаляем слушатель клавиатуры, чтобы избежать утечек памяти и нежелательных эффектов.
+    */
     onDestroy(() => {
         removeKeydownListener(keydownHandler);
     });

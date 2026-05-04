@@ -4,8 +4,8 @@ import type { Ticket } from '$lib/utils/tickets/types';
 
 /**
  * Преобразует дату в строку формата DD-MM-YYYY
- * @param d Дата
- * @returns Строка формата DD-MM-YYYY
+ * @param {Date} d Дата
+ * @returns {string} Строка формата DD-MM-YYYY
  */
 export function toKey(d: Date): string {
     const y = d.getFullYear();
@@ -16,8 +16,8 @@ export function toKey(d: Date): string {
 
 /**
  * Получает диапазон дат для недели, в которой находится заданная дата
- * @param center Дата внутри недели
- * @returns Объект с началом и концом недели
+ * @param {Date} center Дата внутри недели
+ * @returns {{ start: Date, end: Date }} Объект с началом и концом недели
  */
 export function getWeekRange(center: Date): { start: Date; end: Date } {
     const d = new Date(center);
@@ -34,9 +34,9 @@ export function getWeekRange(center: Date): { start: Date; end: Date } {
 
 /** 
  * Строит массив дат в заданном диапазоне
- * @param start Начальная дата
- * @param end Конечная дата
- * @returns Массив дат
+ * @param {Date} start Начальная дата
+ * @param {Date} end Конечная дата
+ * @returns {Date[]} Массив дат
  */
 export function buildDays(start: Date, end: Date): Date[] {
     const arr: Date[] = [];
@@ -51,9 +51,9 @@ export function buildDays(start: Date, end: Date): Date[] {
 
 /**
  * Загружает тикеты, запланированные в заданном диапазоне дат
- * @param startDate Начальная дата
- * @param endDate Конечная дата
- * @returns Объект с массивами тикетов, сгруппированными по датам
+ * @param {Date} startDate Начальная дата
+ * @param {Date} endDate Конечная дата
+ * @returns {Promise<Record<string, Ticket[]>>} Объект с массивами тикетов, сгруппированными по датам
  */
 export async function loadTicketsForRange(startDate: Date, endDate: Date): Promise<Record<string, Ticket[]>> {
     const ticketsByDate: Record<string, Ticket[]> = {};

@@ -10,23 +10,30 @@
 
     /**
      * Запускает событие закрытия модального окна.
+     * @emits close
      */
     function closeModal() {
         dispatch('close');
     }
 
     /**
-     * Обработчик нажатия клавиш для модального окна
+     * Обработчик нажатия клавиш для модального окна.
      */
     function keydownHandler(e: KeyboardEvent) {
         handleModalKeydown(e, closeModal);
     }
 
+    /**
+     * Устанавливает фокус на модальное окно при его открытии и добавляет слушатель событий для обработки нажатий клавиш.
+    */
     onMount(() => {
         modalElement?.focus();
         setupKeydownListener(keydownHandler);
     });
 
+    /**
+     * Удаляет слушатель событий при уничтожении компонента, чтобы предотвратить утечки памяти и нежелательное поведение при закрытии модального окна.
+    */
     onDestroy(() => {
         removeKeydownListener(keydownHandler);
     });
