@@ -31,6 +31,9 @@
     let startHeight = 0;
 
     let isMobile = false;
+    /**
+     * Обновляет флаг isMobile при изменении размера окна. Чат будет занимать весь экран на устройствах с шириной 900px и меньше.
+     */
     function updateIsMobile() {
         isMobile = window.innerWidth <= 900;
     }
@@ -39,10 +42,16 @@
 
     $: userId = $currentUser?.id ? Number($currentUser.id) : null;
 
+    /**
+     * Определяет, можно ли показывать внутренние сообщения. Внутренние сообщения видны только сотрудникам.
+     */
     function canShowInternal() {
         return userRole !== UserRole.Client && userRole !== UserRole.Anonymous;
     }
 
+    /**
+     * Отправляет сообщение. После успешной отправки сообщения, обновляет список сообщений и прокручивает чат к последнему сообщению.
+     */
     async function sendMessage() {
         const text = input.trim();
         if (!text) return;
@@ -54,11 +63,18 @@
         if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
     }
 
+    /**
+     * Запрашивает подтверждение удаления сообщения. Устанавливает messageToDelete и отображает модальное окно подтверждения.
+     * @param {Message} msg Сообщение, которое пользователь хочет удалить
+     */
     function askDelete(msg: Message) {
         messageToDelete = msg;
         showDeleteConfirm = true;
     }
 
+    /**
+     * Функция, которая вызывается при подтверждении удаления сообщения.
+     */
     async function confirmDelete() {
         if (messageToDelete) {
             await deleteMessage(ticketId, messageToDelete.id);
@@ -69,11 +85,18 @@
         messageToDelete = null;
     }
 
+    /**
+     * Функция, которая вызывается при отмене удаления сообщения. 
+     */
     function cancelDelete() {
         showDeleteConfirm = false;
         messageToDelete = null;
     }
 
+    /**
+     * Обрабатывает нажатия клавиш в поле ввода сообщения. Если нажата клавиша Enter без Shift, отправляет сообщение.
+     * @param {KeyboardEvent} e Событие нажатия клавиши
+     */
     function handleInputKeydown(e: KeyboardEvent) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -81,6 +104,10 @@
         }
     }
 
+    /**
+     * Обрабатывает событие прокрутки в окне сообщений. 
+     * Если пользователь прокручивает вверх и достигает верхней границы, загружает предыдущие сообщения, если они есть.
+     */
     async function handleScroll() {
         if (!chatMessagesEl || loadingMore || allLoaded || messages.length === 0) return;
         const epsilon = 2;
@@ -92,16 +119,18 @@
             if (res.success && Array.isArray(res.data) && res.data.length > 0) {
                 messages = [...res.data, ...messages];
                 await tick();
-                if (chatMessagesEl) {
+                if (chatMessagesEl)
                     chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight - prevHeight;
-                }
-            } else {
-                allLoaded = true;
-            }
+            } else allLoaded = true;
             loadingMore = false;
         }
     }
 
+    /**
+     * Начинает процесс изменения размера окна чата. Устанавливает флаг resizing, сохраняет начальные координаты мыши и размеры окна, 
+     * а также добавляет обработчики событий для движения мыши и отпускания кнопки мыши.
+     * @param {MouseEvent} e Событие нажатия кнопки мыши на ручке изменения размера
+     */
     function startResize(e: MouseEvent) {
         if (!chatModalEl || isMobile) return;
         resizing = true;
@@ -114,6 +143,11 @@
         e.preventDefault();
     }
 
+    /**
+     * Обрабатывает событие движения мыши при изменении размера окна чата. 
+     * Вычисляет новые размеры окна на основе движения мыши и применяет их к стилю окна.
+     * @param {MouseEvent} e Событие движения мыши
+     */
     function onResize(e: MouseEvent) {
         if (!resizing || !chatModalEl) return;
         const minWidth = 320;
@@ -124,12 +158,19 @@
         chatModalEl.style.height = newHeight + 'px';
     }
 
+    /**
+     * Завершает процесс изменения размера окна чата. 
+     * Сбрасывает флаг resizing и удаляет обработчики событий для движения мыши и отпускания кнопки мыши.
+     */
     function stopResize() {
         resizing = false;
         window.removeEventListener('mousemove', onResize);
         window.removeEventListener('mouseup', stopResize);
     }
 
+    /**
+     * При монтировании компонента, обновляет флаг isMobile, добавляет обработчик события изменения размера окна для обновления isMobile.
+    */
     onMount(() => {
         updateIsMobile();
         window.addEventListener('resize', updateIsMobile);
@@ -141,6 +182,9 @@
         });
     });
 
+    /**
+     * При уничтожении компонента, отписывается от обновлений сообщений и удаляет обработчик события изменения размера окна.
+    */
     onDestroy(() => {
         if (unsubscribe) unsubscribe();
         window.removeEventListener('resize', updateIsMobile);

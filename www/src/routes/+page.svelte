@@ -45,6 +45,9 @@
     let observer: IntersectionObserver;
     let themeObserver: MutationObserver;
 
+    /**
+     * Отслеживание видимости ключевых секций страницы для запуска анимаций при скролле и оптимизации загрузки контента.
+     */
     let visibleElements: VisibleElements = {
         hero: false,
         steps: false,
@@ -53,12 +56,19 @@
         form: false
     };
 
+    /**
+     * Управление состоянием форм и валидацией полей для обеспечения корректного ввода данных пользователем перед отправкой заявки.
+     */
     let touched = {
         Title: false,
         Description: false,
         Building: false
     };
 
+    /**
+     * Хранение сообщений об ошибках для каждого поля формы, которые отображаются при некорректном вводе данных пользователем, 
+     * чтобы обеспечить понятную обратную связь и помочь исправить ошибки перед отправкой заявки.
+     */
     let errors = {
         Title: '',
         Description: '',
@@ -68,10 +78,19 @@
     let systemNotifications: SystemNotification[] = [];
     let loadingNotifications = true;
 
+    /**
+     * Отслеживание текущей темы (светлая или темная) для динамического изменения изображений 
+     * и стилей страницы в зависимости от выбранной пользователем темы оформления.
+     */
     function updateTheme() {
         isDarkTheme = document.querySelector("html")?.classList.contains("dark") || false;
     }
 
+    /**
+     * Проверка валидности формы перед отправкой заявки. 
+     * Устанавливает сообщения об ошибках для каждого поля, если они не заполнены.
+     * @returns {boolean} - Возвращает true, если все поля валидны, иначе false.
+     */
     function validateForm() {
         errors.Title = Title.trim() === '' ? 'Заполните заголовок' : '';
         errors.Description = Description.trim() === '' ? 'Заполните описание' : '';
@@ -79,10 +98,20 @@
         return Object.values(errors).every(e => e === '');
     }
 
+    /**
+     * Управление видимостью ключевых секций страницы для запуска анимаций при скролле и оптимизации загрузки контента.
+     * @param {string} id - Идентификатор секции, для которой нужно установить видимость.
+     * @param {boolean} value - Логическое значение, указывающее, видима ли секция.
+     */
     function setVisible(id: string, value: boolean) {
         visibleElements = { ...visibleElements, [id]: value };
     }
 
+    /**
+     * Обработка изменения файлов в форме заявки. Ограничивает количество прикрепляемых файлов до 5 и 
+     * отображает модальное окно с предупреждением, если пользователь пытается добавить больше.
+     * @param {Event} event - Событие изменения файлов, вызванное пользователем при выборе файлов для прикрепления к заявке.
+     */
     function onFileChange(event: Event) {
         const result = handleFileChange(event, File, fileName, () => {
             modalMessage = 'Доступно максимум 5 изображений для загрузки.';
@@ -95,12 +124,20 @@
         fileName = result.fileNames;
     }
 
+    /**
+     * Удаление прикрепленного файла из формы заявки. Обновляет состояние файлов и их имен после удаления.
+     * @param {number} index - Индекс файла, который нужно удалить.
+     */
     function onRemoveFile(index: number) {
         const result = removeFile(index, File, fileName);
         File = result.files;
         fileName = result.fileNames;
     }
 
+    /**
+     * Обработка отправки формы заявки. 
+     * Проверяет валидность формы, собирает данные и перенаправляет пользователя на страницу создания заявки.
+     */
     function onSubmitForm() {
         const params = new URLSearchParams();
         if (Title.trim()) params.set('title', Title.trim());
@@ -119,6 +156,10 @@
         goto(`/account?tab=request${qs ? `&${qs}` : ''}`);
     }
 
+    /**
+     * Загрузка статистики по заявкам для отображения на главной странице. 
+     * Получает данные о количестве заявок за последние 24 часа,
+     */
     async function loadStats() {
         try {
             const stats = await getPublicStats();
@@ -130,6 +171,9 @@
         }
     }
 
+    /**
+     * Загрузка системных уведомлений для отображения на странице. 
+     */
     async function loadSystemNotifications() {
         loadingNotifications = true;
         const res = await getSystemNotifications();
@@ -142,6 +186,11 @@
         loadingNotifications = false;
     }
 
+    /**
+     * Инициализация страницы при монтировании компонента.
+     * Загружает стили, настраивает наблюдатель за видимостью секций, обновляет тему, загружает статистику и системные уведомления,
+     * а также устанавливает заголовок и описание страницы для SEO. 
+    */
     onMount(() => {
         loadStyleContent(pageCSS, styleElements, 'page-styles');
         observer = setupIntersectionObserver(
@@ -176,6 +225,9 @@
         }, 100);
     });
 
+    /**
+     * Очистка ресурсов и сброс состояния при размонтировании компонента.
+    */
     onDestroy(() => {
         cleanupStyleElements(styleElements);
         observer?.disconnect();

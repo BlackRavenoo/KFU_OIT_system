@@ -83,6 +83,9 @@
     let assignSearchResults: IUserData[] = [];
     let assignSearchLoading: boolean = false;
 
+    /**
+     * Тип для ассетов, связанных с заявкой. Может быть получен из разных форматов ответа API, поэтому нормализуется в функцию normalizeLinkedAssets
+    */
     type LinkedTicketAsset = {
         id: number;
         name: string;
@@ -104,14 +107,25 @@
     let isAttachingAsset = false;
     let assetSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+    /**
+     * Обновляет флаг isMobile при изменении размера окна.
+     */
     function updateIsMobile() {
         isMobile = window.innerWidth <= 900;
     }
 
+    /**
+     * Обновляет флаг isWideScreen при изменении размера окна.
+     */
     function updateScreenWidth() {
         isWideScreen = window.innerWidth > 1280;
     }
 
+    /**
+     * Открывает модальное окно для просмотра изображения. 
+     * Сохраняет последний фокус для возвращения после закрытия, блокирует прокрутку и добавляет обработчики клавиш.
+     * @param {string} img URL изображения для отображения в модальном окне.
+     */
     function openModal(img: string): void {
         modalImg = img;
         modalOpen = true;
@@ -125,6 +139,10 @@
         }, 0);
     }
 
+    /**
+     * Закрывает модальное окно просмотра изображения. 
+     * Восстанавливает фокус на последний элемент, разблокирует прокрутку и удаляет обработчики клавиш.
+    */
     function closeModal(): void {
         modalOpen = false;
         modalImg = null;
@@ -134,6 +152,10 @@
         lastFocused?.focus();
     }
 
+    /**
+     * Обработчик нажатия клавиши Escape для закрытия всех открытых модальных окон.
+     * @param {KeyboardEvent} e Событие клавиатуры для проверки нажатия клавиши Escape.
+    */
     function handleEsc(e: KeyboardEvent): void {
         if (e.key === 'Escape') {
             closeModal();
@@ -145,6 +167,11 @@
         }
     }
 
+    /**
+     * Нормализует данные об ассетах, связанных с заявкой, в единый формат LinkedTicketAsset[] независимо от структуры ответа API.
+     * @param {any} source Исходные данные, которые могут содержать информацию о связанных ассетах в разных форматах.
+     * @returns {LinkedTicketAsset[]} Массив нормализованных объектов LinkedTicketAsset, представляющих ассеты, связанные с заявкой.
+     */
     function normalizeLinkedAssets(source: any): LinkedTicketAsset[] {
         const raw = Array.isArray(source)
             ? source
@@ -178,6 +205,10 @@
     $: linkedAssetIds = new Set(linkedAssets.map((asset) => asset.id));
     $: availableAttachAssets = assetSearchResults.filter((asset) => !linkedAssetIds.has(asset.id));
 
+    /**
+     * Открывает модальное окно для привязки ассета к заявке. 
+     * Сбрасывает состояние поиска ассетов, блокирует прокрутку и добавляет обработчик клавиши Escape для закрытия.
+     */
     function openAttachAssetModal() {
         showAttachAssetModal = true;
         assetSearchQuery = '';
@@ -188,6 +219,9 @@
         window.addEventListener('keydown', handleEsc);
     }
 
+    /**
+     * Закрывает модальное окно для привязки ассета к заявке.
+    */
     function closeAttachAssetModal() {
         showAttachAssetModal = false;
         assetSearchQuery = '';
@@ -203,6 +237,11 @@
         window.removeEventListener('keydown', handleEsc);
     }
 
+    /**
+     * Выполняет поиск ассетов для привязки к заявке на основе текущего значения строки поиска.
+     * @throws Ошибка при выполнении запроса к API для получения ассетов, соответствующих строке поиска.
+     * @returns {Promise<void>} Асинхронная функция, которая обновляет список результатов поиска ассетов и состояние загрузки.
+     */
     async function searchAssetsToAttach() {
         const query = assetSearchQuery.trim();
         if (!query) {
@@ -239,6 +278,10 @@
         }
     }
 
+    /**
+     * Обработчик изменения строки поиска ассетов для привязки к заявке. 
+     * Реализует дебаунс для оптимизации количества запросов к API при вводе пользователем.
+    */
     function queueAssetsSearch() {
         if (assetSearchDebounceTimer) clearTimeout(assetSearchDebounceTimer);
         assetSearchDebounceTimer = setTimeout(() => {
@@ -246,6 +289,11 @@
         }, 250);
     }
 
+    /**
+     * Выполняет привязку выбранного ассета к заявке с указанным комментарием.
+     * @throws Ошибка при выполнении запроса к API для привязки ассета к заявке или при обновлении списка связанных ассетов после успешной привязки.
+     * @returns {Promise<void>} Асинхронная функция, которая обновляет список связанных ассетов после успешной привязки и отображает уведомления о результате операции.
+    */
     async function attachSelectedAsset() {
         if (!ticketId || !selectedAssetId || isAttachingAsset) return;
 
@@ -273,6 +321,12 @@
         }
     }
 
+    /**
+     * Выполняет отвязку указанного ассета от заявки.
+     * @param {number} assetId Идентификатор ассета, который необходимо отвязать от заявки.
+     * @throws Ошибка при выполнении запроса к API для отвязки ассета от заявки или при обновлении списка связанных ассетов после успешной отвязки.
+     * @returns {Promise<void>} Асинхронная функция, которая обновляет список связанных ассетов после успешной отвязки и отображает уведомления о результате операции.
+    */
     async function detachLinkedAsset(assetId: number) {
         if (!ticketId || !assetId) return;
 
@@ -290,6 +344,11 @@
         }
     }
 
+    /**
+     * Перезагружает список ассетов, связанных с заявкой, выполняя запрос к API и нормализуя полученные данные.
+     * @throws Ошибка при выполнении запроса к API для получения связанных ассетов или при нормализации данных.
+     * @returns {Promise<void>} Асинхронная функция, которая обновляет список связанных ассетов или очищает его в случае ошибки, и отображает уведомления о результате операции.
+     */
     async function reloadLinkedAssets() {
         if (!ticketId) return;
 
@@ -306,6 +365,11 @@
         }
     }
 
+    /**
+     * Обработчик для взятия заявки в работу текущим пользователем. 
+     * Выполняет запрос к API для назначения заявки, обновляет локальное состояние заявки и отображает уведомления о результате операции.
+     * @throws Ошибка при выполнении запроса к API для назначения заявки или при обновлении локального состояния заявки после успешного назначения.
+     */
     async function assignHandler() {
         assign(ticketId as string)
             .then(() => {
@@ -330,6 +394,11 @@
             });
     }
 
+    /**
+     * Обработчик для снятия заявки с выполнения текущим пользователем.
+     * Выполняет запрос к API для снятия заявки, обновляет локальное состояние заявки и отображает уведомления о результате операции.
+     * @throws Ошибка при выполнении запроса к API для снятия заявки или при обновлении локального состояния заявки после успешного снятия.
+    */
     async function unassignHandler() {
         unassign(ticketId as string)
             .then(() => {
@@ -355,6 +424,11 @@
             });
     }
 
+    /**
+     * Обработчик клика по исполнителю заявки для его удаления.
+     * @param {string} executorId Идентификатор исполнителя, которого необходимо удалить из заявки.
+     * @param {string} executorName Имя исполнителя, которое будет отображаться в окне подтверждения удаления.
+     */
     async function onExecutorClick(executorId: string, executorName: string) {
         if (!canAssignExecutors) return;
         executorToRemove = { id: executorId, name: executorName };
@@ -362,6 +436,9 @@
         document.body.style.overflow = 'hidden';
     }
 
+    /**
+     * Обработчик клика или нажатия клавиши Enter/Space по кнопке удаления исполнителя заявки.
+    */
     function onRemoveBtnClick(e: MouseEvent | KeyboardEvent, executorId: string, executorName: string) {
         if (e && typeof (e as MouseEvent).stopPropagation === 'function')
             (e as MouseEvent).stopPropagation();
@@ -370,6 +447,10 @@
         document.body.style.overflow = 'hidden';
     }
 
+    /**
+     * Подтверждает удаление исполнителя из заявки, выполняя запрос к API для отвязки исполнителя, 
+     * обновляя локальное состояние заявки и отображая уведомления о результате операции.
+    */
     async function confirmRemoveExecutor() {
         const id = executorToRemove?.id;
         showRemoveConfirm = false;
@@ -388,22 +469,37 @@
         } catch (e) { }
     }
 
+    /**
+     * Закрывает окно подтверждения удаления исполнителя из заявки, сбрасывая состояние и разблокируя прокрутку.
+    */
     function closeRemoveConfirm() {
         showRemoveConfirm = false;
         executorToRemove = null;
         document.body.style.overflow = '';
     }
 
+    /**
+     * Обработчик для открытия окна подтверждения удаления заявки. Устанавливает флаг отображения окна и добавляет обработчик клавиши Escape для закрытия.
+    */
     function handleDelete() {
         showDeleteConfirm = true;
         window.addEventListener('keydown', handleEsc);
     }
 
+    /**
+     * Обработчик для закрытия окна подтверждения удаления заявки. Сбрасывает флаг отображения окна и удаляет обработчик клавиши Escape.
+    */
     function closeDeleteConfirm() {
         showDeleteConfirm = false;
         window.removeEventListener('keydown', handleEsc);
     }
 
+    /**
+     * Обработчик для подтверждения удаления заявки. 
+     * Выполняет запрос к API для удаления заявки, обновляет локальное состояние и отображает уведомления о результате операции. 
+     * После успешного удаления перенаправляет пользователя на список заявок.
+     * @throws Ошибка при выполнении запроса к API для удаления заявки или при обновлении локального состояния после успешного удаления.
+    */
     async function confirmDelete() {
         try {
             deleteTicket(ticketId as string)
@@ -421,6 +517,9 @@
         }
     }
 
+    /**
+     * Обработчик для завершения заявки. Устанавливает статус заявки в "closed", сохраняет изменения и отображает уведомления о результате операции.
+    */
     async function finishHandler() {
         if (!ticketData) return;
         priority = ticketData.priority;
@@ -436,6 +535,10 @@
         await saveEdit();
     }
 
+    /**
+     * Обработчик нажатия клавиш стрелок влево/вправо при открытом модальном окне просмотра изображения для переключения между изображениями заявки.
+     * @param {KeyboardEvent} e Событие клавиатуры для проверки нажатия клавиш стрелок и переключения изображения в модальном окне.
+    */
     function handleArrowKeys(e: KeyboardEvent): void {
         if (!modalImg || images.length === 0) return;
         const currentIndex = images.indexOf(modalImg);
@@ -448,6 +551,10 @@
         }
     }
 
+    /**
+     * Обработчик для отмены редактирования заявки. 
+     * Восстанавливает все измененные поля до их первоначальных значений из данных заявки и сохраняет изменения, устанавливая статус заявки в "cancelled". 
+     */
     async function handleCancel() {
         if (!ticketData) return;
         priority = ticketData.priority;
@@ -463,6 +570,9 @@
         await saveEdit();
     }
 
+    /**
+     * Обработчик для начала редактирования заявки. 
+    */
     function startEdit() {
         if (!ticketData) return;
         isEditing = true;
@@ -483,16 +593,23 @@
         attachments_to_add = [];
     }
 
+    /**
+     * Обработчик для изменения поля "Планируемая дата выполнения" заявки.
+     * @param {Event} e Событие изменения значения поля.
+    */
     function handlePlannedAtChange(e: Event) {
         planned_at = (e.target as HTMLInputElement).value || null;
     }
 
+    /**
+     * Обработчик для добавления новых файлов к заявке.
+     * @param {Event} e Событие изменения значения поля выбора файлов, содержащее выбранные файлы для добавления к заявке.
+    */
     function handleFileAdd(e: Event) {
         const input = e.target as HTMLInputElement;
         if (!input.files) return;
-        for (const file of Array.from(input.files)) {
+        for (const file of Array.from(input.files))
             attachments_to_add = [...attachments_to_add, file];
-        }
         input.value = '';
     }
 
@@ -510,6 +627,11 @@
             file: f
         }));
     
+    /**
+     * Обработчик для удаления прикрепленных файлов или изображений из заявки.
+     * @param {('image' | 'file' | 'newfile' | 'newimage')} type Тип удаляемого элемента.
+     * @param {number} idx Индекс удаляемого элемента в соответствующем массиве.
+    */
     function handleAttachmentRemove(type: 'image' | 'file' | 'newfile' | 'newimage', idx: number) {
         if (type === 'image') {
             const originalName = originalImageNames[idx];
@@ -538,6 +660,11 @@
         }
     }
 
+    /**
+     * Обработчик для сохранения изменений в заявке.
+     * Собирает все измененные поля и выполняет запрос к API для обновления заявки.
+     * @throws Ошибка при выполнении запроса к API для обновления заявки или при обновлении локального состояния после успешного обновления.
+    */
     async function saveEdit() {
         if (!ticketData) return;
         if (isSubmitting) return;
@@ -610,6 +737,9 @@
         }
     }
 
+    /**
+     * Загружает аватар автора заявки, если он еще не был загружен и не находится в процессе загрузки.
+    */
     async function loadAuthorAvatar() {
         if (!ticketData || !authorAvatarContainer || authorAvatarLoaded || authorAvatarLoading) return;
         
@@ -628,6 +758,11 @@
         }
     }
 
+    /**
+     * Загружает аватар исполнителя заявки по его идентификатору, если он еще не был загружен и не находится в процессе загрузки.
+     * @param {string} executorId Идентификатор исполнителя, для которого необходимо загрузить аватар.
+     * @param {HTMLDivElement} container Контейнер, в который будет загружен аватар исполнителя после его получения.
+    */
     async function loadExecutorAvatar(executorId: string, container: HTMLDivElement) {
         if (loadedExecutorAvatars.has(executorId) || loadingExecutorAvatars.has(executorId)) return;
         
@@ -644,6 +779,9 @@
         }
     }
 
+    /**
+     * Загружает аватары всех исполнителей заявки, которые еще не были загружены и не находятся в процессе загрузки.
+    */
     async function loadExecutorAvatars() {
         if (!ticketData || !ticketData.assigned_to) return;
         
@@ -655,7 +793,14 @@
         }
     }
 
-    function setExecutorAvatarContainer(node: HTMLDivElement, executorId?: string) {
+    /**
+     * Устанавливает контейнер для аватара исполнителя заявки и загружает аватар, если идентификатор исполнителя предоставлен.
+     * Возвращает объект с методами для обновления и уничтожения контейнера, которые управляют состоянием загрузки и отображения аватара исполнителя при изменении идентификатора или удалении контейнера.
+     * @param {HTMLDivElement} node Контейнер для аватара исполнителя заявки, который будет использоваться для загрузки и отображения аватара исполнителя.
+     * @param {string} [executorId] Необязательный идентификатор исполнителя заявки, для которого необходимо загрузить аватар.
+     * @returns {object} Объект с методами update и destroy для управления состоянием контейнера аватара исполнителя при изменении идентификатора или удалении контейнера.
+    */
+    function setExecutorAvatarContainer(node: HTMLDivElement, executorId?: string): { update: (newId?: string) => void; destroy: () => void } {
         let currentId = executorId;
         
         if (currentId && node) {
@@ -687,6 +832,9 @@
         };
     }
 
+    /**
+     * Обработчик для открытия модального окна назначения исполнителя заявки.
+    */
     function openAssignModal() {
         showAssignModal = true;
         assignSearchQuery = '';
@@ -695,6 +843,9 @@
         window.addEventListener('keydown', handleEsc);
     }
 
+    /**
+     * Обработчик для закрытия модального окна назначения исполнителя заявки.
+    */
     function closeAssignModal() {
         showAssignModal = false;
         assignSearchQuery = '';
@@ -703,6 +854,11 @@
         window.removeEventListener('keydown', handleEsc);
     }
 
+    /**
+     * Выполняет поиск пользователей для назначения исполнителем заявки на основе текущего значения строки поиска.
+     * Исключает из результатов поиска пользователей, которые уже назначены исполнителями заявки.
+     * @throws Ошибка при выполнении запроса к API для получения пользователей, соответствующих
+    */
     async function searchUsers() {
         if (!assignSearchQuery.trim()) {
             assignSearchResults = [];
@@ -726,6 +882,11 @@
         }
     }
 
+    /**
+     * Выполняет назначение выбранного пользователя исполнителем заявки, 
+     * обновляет локальное состояние заявки и отображает уведомления о результате операции.
+     * @param {string} userId Идентификатор пользователя, которого необходимо назначить исполнителем заявки.
+    */
     async function assignUserToTicket(userId: string) {
         if (!ticketId) return;
 
@@ -762,6 +923,11 @@
         else return 'file-default';
     };
 
+    /**
+     * Получает имя файла из строки пути или объекта вложения, поддерживая различные форматы представления вложений.
+     * @param {string | object} att Вложение, представленное в виде строки пути или объекта с различными возможными полями для имени файла.
+     * @returns {string} Имя файла, извлеченное из строки пути или объекта вложения, или пустая строк
+    */
     function getAttachmentName(att: any): string {
         if (!att) return '';
         if (typeof att === 'string') {
@@ -771,12 +937,23 @@
         return att.name || att.filename || String(att.id || att.path || '');
     }
 
+    /**
+     * Получает URL для доступа к вложению, поддерживая различные форматы представления вложений 
+     * и обеспечивая корректное формирование URL для строковых путей и объектов вложений.
+     * @param {string | object} att Вложение, представленное в виде строки пути или объекта с различными возможными полями для идентификации вложения.
+     * @returns {string} URL для доступа к вложению.
+    */
     function getAttachmentUrl(att: any): string {
         if (!att) return '';
         else if (typeof att === 'string') return att.startsWith('http') ? att : `/api/v1/attachments/${att}`;
         else return String(att);
     }
 
+    /**
+     * Получает расширение файла из имени файла.
+     * @param {string} name Имя файла, из которого необходимо извлечь расширение.
+     * @returns {string} Расширение файла или пустая строка, если расширение не найдено.
+    */
     function getExtFromName(name: string) {
         const idx = name.lastIndexOf('.');
         if (idx === -1) return '';
@@ -785,6 +962,12 @@
 
     const canAssignExecutors = $currentUser && ($currentUser.role === UserRole.Administrator || $currentUser.role === UserRole.Moderator);
 
+    /**
+     * Обработчик для загрузки данных заявки при монтировании компонента. 
+     * Выполняет проверку аутентификации пользователя, загружает константы, данные заявки и связанные с ней ассеты, а также устанавливает
+     * заголовок страницы в соответствии с данными заявки. Добавляет обработчики событий для изменения размера окна и обновления состояния 
+     * мобильного устройства.
+    */
     onMount(async () => {
         if (!ticketId) return;
 
@@ -831,6 +1014,9 @@
         }
     });
 
+    /**
+     * Обработчик для очистки ресурсов и сброса состояния при размонтировании компонента.
+    */
     onDestroy(() => {
         pageTitle.set('Service Desk | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Елабужского института Казанского Федерального Университета. Система позволяет создавать заявки на услуги ОИТ, отслеживать их статус, получать советы для самостоятельного решения проблемы и многое другое.');

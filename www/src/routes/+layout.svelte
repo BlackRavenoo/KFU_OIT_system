@@ -19,6 +19,11 @@
 
     const pagesWithFooter = ['/', '/contact', '/faq', '/privacy'];
     
+    /**
+     * showFooter - определяет, нужно ли отображать футер на текущей странице
+     * isHomePage - определяет, является ли текущая страница главной
+     * isButtonVisible - определяет, должна ли быть видна кнопка смены темы
+     */
     $: showFooter = pagesWithFooter.some(path => $page.url.pathname === path);
     $: isHomePage = $page.url.pathname === '/';
     $: isButtonVisible = (isHomePage && !isScrolled) || showThemeButton;
@@ -57,6 +62,10 @@
         }, 3000);
     }
 
+    /**
+     * Добавляет класс 'page-transitioning' к элементу body при начале перехода между страницами для управления 
+     * видимостью элементов навигации и предотвращения мерцания при загрузке новых данных.
+     */
     function handleTransitionStart() {
         document.body.classList.add('page-transitioning');
     }
@@ -64,6 +73,11 @@
     let isNotificationVisible = false;
     let _notificationObserver: MutationObserver | null = null;
 
+    /**
+     * Проверяет аутентификацию пользователя при монтировании компонента, устанавливает тему оформления в соответствии
+     * с сохраненными настройками или системными предпочтениями, а также настраивает отслеживание прокрутки и изменений 
+     * в контейнере уведомлений для управления видимостью кнопки смены темы и уведомлений соответственно.
+    */
     onMount(() => {
         checkAuthentication();
 

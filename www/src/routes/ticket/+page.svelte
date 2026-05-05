@@ -40,8 +40,14 @@
     if (!selectedDepartment)
         selectedDepartment = -1;
 
+    /**
+     * Обновляем глобальные фильтры при каждом изменении локальных переменных, чтобы сохранять их при навигации и обновлении страницы
+    */
     $: setTicketsFilters({ search, viewMode, sortOrder, selectedStatus, selectedBuildings, department: selectedDepartment, plannedFrom, plannedTo, page_size, selectedSort, page });
 
+    /**
+     * При загрузке страницы проверяем URL на наличие параметра page и устанавливаем его, если он есть и валиден.
+    */
     $: {
         const $page = get(pageStore);
         if ($page.url.searchParams) {
@@ -54,6 +60,9 @@
         }
     }
 
+    /**
+     * При каждом изменении номера страницы обновляем URL, чтобы сохранять его при навигации и обновлении страницы.
+     */
     function updatePageUrl() {
         if (browser) {
             const url = new URL(window.location.href);
@@ -64,6 +73,10 @@
         }
     }
 
+    /**
+     * Обработчик изменения страницы. Вызывается при клике на пагинацию. Обновляет номер страницы, URL и загружает тикеты для новой страницы.
+     * @param {number} newPage - новый номер страницы, который нужно загрузить
+     */
     async function handlePageChange(newPage: number) {
         page = newPage;
         updatePageUrl();
@@ -72,6 +85,10 @@
         maxPage = result.max_page;
     }
 
+    /**
+     * Обработчик поиска. Вызывается при отправке поискового запроса. 
+     * Сбрасывает номер страницы на 1, обновляет URL и загружает тикеты для нового запроса.
+     */
     async function handleSearch() {
         page = 1;
         updatePageUrl();
@@ -80,15 +97,26 @@
         maxPage = result.max_page;
     }
 
+    /**
+     * Блокируем прокрутку страницы при открытии фильтров на мобильных устройствах, чтобы улучшить UX 
+     * и предотвратить случайные клики по элементам страницы при взаимодействии с фильтрами.
+     */
     function lockScroll() {
         document.documentElement.style.overflow = 'hidden';
         document.body.style.overflow = 'hidden';
     }
+
+    /**
+     * Разблокируем прокрутку страницы при закрытии фильтров на мобильных устройствах, чтобы восстановить стандартное поведение страницы.
+     */
     function unlockScroll() {
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
     }
 
+    /**
+     * Обработчик изменения фильтров. Вызывается при клике на кнопку "Применить" в фильтрах.
+    */
     async function handleFilterChange() {
         page = 1;
         updatePageUrl();
@@ -101,6 +129,9 @@
         }
     }
 
+    /**
+     * Обработчик переключения порядка сортировки. Вызывается при клике на кнопку смены порядка сортировки.
+    */
     async function handleToggleSort() {
         const filtersNow = getTicketsFilters();
         const newOrder = filtersNow.sortOrder === 'asc' ? 'desc' : 'asc';
@@ -114,6 +145,10 @@
         maxPage = result.max_page;
     }
 
+    /**
+     * Обработчик сброса фильтров. Вызывается при клике на кнопку "Сбросить" в фильтрах. 
+     * Сбрасывает все фильтры к их начальным значениям, обновляет URL и загружает тикеты для сброшенных фильтров.
+    */
     async function handleClearFilters() {
         clearTicketsFilters();
         ({
@@ -143,6 +178,9 @@
         maxPage = result.max_page;
     }
 
+    /**
+     * Проверяем ширину окна при загрузке страницы и при изменении размера окна, чтобы определить, является ли устройство мобильным.
+    */
     function checkMobile() {
         isMobile = window.innerWidth <= 900;
         if (!isMobile) {
@@ -151,6 +189,9 @@
         }
     }
 
+    /**
+     * Обработчик переключения видимости фильтров на мобильных устройствах. Вызывается при клике на кнопку "Фильтры" в мобильной версии.
+     */
     function toggleFiltersCollapsed() {
         filtersCollapsed = !filtersCollapsed;
         if (isMobile) {
@@ -162,6 +203,10 @@
     let refreshTimer: ReturnType<typeof setInterval> | null = null;
     const TEN_MIN = 10 * 60 * 1000;
 
+    /**
+     * Функция для периодического обновления списка тикетов. 
+     * Вызывается каждые 10 минут, чтобы обеспечить актуальность данных без необходимости ручного обновления страницы.
+     */
     async function refreshTickets() {
         try {
             const result = await fetchTickets(search, { page });
@@ -170,6 +215,11 @@
         } catch { }
     }
 
+    /**
+     * Проверяем, является ли тикет критичным, на основе его приоритета.
+     * @param {any} ticket - тикет, который нужно проверить
+     * @returns {boolean} - возвращает true, если тикет критичный, иначе false
+     */
     function isCritical(ticket: any): boolean {
         const v = String(ticket?.priority ?? '').toLowerCase();
         return v  === 'critical';
@@ -178,12 +228,20 @@
     let confirmVisible = false;
     let ticketForCritical: any = null;
 
+    /**
+     * Показываем подтверждение для установки критичного приоритета. Вызывается при клике на иконку приоритета в тикете.
+     * @param {any} ticket - тикет, для которого нужно установить критичный приоритет
+     */
     function promptCritical(ticket: any) {
         if (isCritical(ticket)) return;
         ticketForCritical = ticket;
         confirmVisible = true;
     }
 
+    /**
+     * Подтверждаем установку критичного приоритета. Вызывается при подтверждении действия в модальном окне.
+     * @throws ошибка, если не удалось обновить тикет на сервере
+     */
     async function confirmSetCritical() {
         const id = ticketForCritical?.id != null ? String(ticketForCritical.id) : '';
         if (!id) {
@@ -202,6 +260,9 @@
         }
     }
 
+    /**
+     * Отменяем установку критичного приоритета. Вызывается при отмене действия в модальном окне или при закрытии окна подтверждения.
+     */
     function cancelSetCritical() {
         confirmVisible = false;
         ticketForCritical = null;
@@ -209,6 +270,10 @@
 
     let combinedSort = `${selectedSort}|${sortOrder}`;
 
+    /**
+     * Обработчик изменения сортировки. Вызывается при выборе нового параметра сортировки в выпадающем списке сортировки.
+     * @param {Event} e - событие изменения, содержащее информацию о выбранной сортировке в виде строки формата "id|order"
+     */
     function handleCombinedSortChange(e: Event) {
         const val = (e.target as HTMLSelectElement).value;
         const [idStr, order] = val.split('|');
@@ -221,6 +286,11 @@
 
     let calendarOpen = false;
 
+    /**
+     * При монтировании компонента устанавливаем заголовок страницы, описание, проверяем аутентификацию пользователя и загружаем начальные данные. 
+     * Добавляем обработчик изменения размера окна для определения мобильного устройства и устанавливаем таймер для периодического обновления тикетов.
+     * @throws ошибка, если пользователь не аутентифицирован или не имеет прав доступа к странице заявок
+    */
     onMount(async () => {
         pageTitle.set('Заявки | Система управления заявками ЕИ КФУ');
         pageDescription.set('Отслеживайте статус заявок, принимайте к выполнению новые. Настройте рабочее пространство под себя с множеством гибких фильтров и сортировок.');
@@ -254,6 +324,10 @@
         }
     });
 
+    /**
+     * При размонтировании компонента удаляем обработчик изменения размера окна, очищаем таймер обновления тикетов, 
+     * разблокируем прокрутку и сбрасываем заголовок и описание страницы к их значениям по умолчанию.
+    */
     onDestroy(() => {
         window.removeEventListener('resize', checkMobile);
         if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }

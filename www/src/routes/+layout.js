@@ -17,6 +17,10 @@ setTokenStorage(tokenStorage);
 setTicketsFiltersStorage(new LocalStorageTicketsFiltersStorage());
 setAssetsFiltersStorage(new LocalStorageAssetsFiltersStorage());
 
+/**
+ * Инициализирует состояние аутентификации и данные текущего пользователя при загрузке приложения на стороне клиента, 
+ * а также настраивает механизм контроля запросов для управления доступом к защищенным ресурсам. 
+ */
 if (browser) {
     const { initialAuthState, initialUserData } = initializeAuth();
 

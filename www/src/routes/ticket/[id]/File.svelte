@@ -10,10 +10,18 @@
     const uid = Math.random().toString(36).slice(2,9);
     const dispatch = createEventDispatcher();
 
+    /**
+     * Открывает файл в новой вкладке.
+     * @param {string} u URL файла для скачивания.
+     */
     function downloadFile(u: string) {
         window.open(u, '_blank', 'noopener');
     }
 
+    /**
+     * Генерирует SVG-иконку для файла на основе его расширения.
+     * @param {string} eRaw Расширение файла (например, "pdf", "docx", "pptx").
+     */
     function fileIconSvg(eRaw: string): string {
         const e = (eRaw || '').toLowerCase();
         const W = 64;
