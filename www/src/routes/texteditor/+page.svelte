@@ -56,16 +56,27 @@
     let tagSearchTimer: ReturnType<typeof setTimeout> | null = null;
     let relatedSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
+    /**
+     * Функция для сокращения числа поисковых запросов по тэгам на сервер.
+     * @param {string} _q Поисковая строка.
+     */
     function debouncedTagSearch(_q: string) {
         if (tagSearchTimer) clearTimeout(tagSearchTimer);
         tagSearchTimer = setTimeout(() => { void handleTagSearch(); }, 250);
     }
 
+    /**
+     * Функция для сокращения числа поисковых запросов на сервер.
+     * @param {string} _q Поисковая строка.
+     */
     function debouncedRelatedSearch(_q: string) {
         if (relatedSearchTimer) clearTimeout(relatedSearchTimer);
         relatedSearchTimer = setTimeout(() => { void handleRelatedSearch(); }, 250);
     }
 
+    /**
+     * Обработчик поиска тэгов.
+     */
     async function handleTagSearch() {
         const q = tagQuery.trim();
         if (!q || q.length < 2) { tagSuggestions = []; return; }
@@ -79,6 +90,11 @@
         }
     }
 
+    /**
+     * Функция создания тэга.
+     * @param {string} name Имя нового тэга.
+     * @throws Уведомленние при ошибке создания.
+     */
     async function createTag(name: string) {
         const trimmed = (name ?? '').trim();
         if (!trimmed) return;
@@ -93,6 +109,10 @@
         }
     }
 
+    /**
+     * Добавляет выбранный тэг из предложенных соответствий.
+     * @param {ServerTagDto} tag Данные тэга с сервера.
+     */
     function addTagFromSuggestion(tag: ServerTagDto) {
         selectedTags = addTagFromSuggestionUtil(selectedTags, tag, tagSuggestions);
         tagQuery = '';
@@ -100,10 +120,17 @@
         showTagInput = false;
     }
 
+    /**
+     * Алиас для эдаления тэга.
+     * @param {number} id Идентификатор удаляемого тэга.
+     */
     function removeTag(id: number) {
         selectedTags = removeTagUtil(selectedTags, id);
     }
 
+    /**
+     * Обработчик поиска связанных статей.
+     */
     async function handleRelatedSearch() {
         const q = relatedQuery.trim();
         if (!q) { relatedSuggestions = []; return; }
@@ -117,6 +144,10 @@
         }
     }
 
+    /**
+     * Функция привязки связанных статей к документу.
+     * @param {({ id: string; title: string })} item Объект статьи.
+     */
     function addRelated(item?: { id: string; title: string }) {
         if (!item) return;
         if (!selectedRelated.some(r => r.id === item.id))
@@ -127,36 +158,66 @@
         showRelatedInput = false;
     }
 
+    /**
+     * Алиас для удаления связанных материалов.
+     * @param {number} id Идентификатор удаляемой статьи.
+     */
     function removeRelated(id: string) {
         selectedRelated = removeRelatedUtil(selectedRelated, id);
     }
 
+    /**
+     * Обновление содержимого статьи.
+     * @param {string} newContent Новый материал для статьи.
+     */
     function setContent(newContent: string) {
         content = newContent;
         if (editorDiv) editorDiv.innerHTML = newContent;
     }
 
+    /**
+     * Переключатель отображения меню добавления таблицы.
+     * @param {boolean} show Отображать ли меню.
+     */
     function setShowTableMenu(show: boolean) { showTableMenu = show; }
 
+    /**
+     * Обработчик ввода в тексте статьи.
+     * Обновляет отображение контента и статусов панели.
+     */
     function handleEditorInput() {
         transformMarkdownLinksInEditor(editorDiv);
         updateActiveStates();
         content = editorDiv?.innerHTML ?? '';
     }
 
+    /**
+     * Обработчик потери фокуса с панели редактирования имени статьи.
+     */
     function handleTitleBlur() {
         editingTitle = false;
         if (!title.trim()) title = 'Безымянный документ';
     }
 
+    /**
+     * Обработчик клавиатурного ввода в блоке редактирования имени статьи.
+     * @param {KeyboardEvent} e Событие нажатие клавиши.
+     */
     function handleTitleKeydown(e: KeyboardEvent) {
         (e.key === 'Enter' || e.key === 'Escape') && (e.target as HTMLInputElement).blur();
     }
 
+    /**
+     * Функция возврата к списку статей.
+     */
     function goBack() { 
         goto('/page');
      }
 
+     /**
+      * Обработчик нажатия на Tab. Определяет кастомное поведение селектора.
+      * @param {KeyboardEvent} e Событие нажатия клавиши.
+      */
     function handleTab(e: KeyboardEvent) {
         if (e.key !== 'Tab') return;
         e.preventDefault();
@@ -175,6 +236,10 @@
         updateActiveStates();
     }
 
+    /**
+     * Обработчик нажатия на клавиатуру - внешняя обертка.
+     * @param {KeyboardEvent} e Событие нажатия клавиши.
+     */
     function handleKeyDown(e: KeyboardEvent) {
         if (!editorDiv) return;
         e.stopPropagation();
@@ -184,6 +249,10 @@
         }
     }
 
+    /**
+     * Обработчик выделения в блоках кода и цитат.
+     * @returns {boolean} Захватывает ли выделение блок кода или цитаты.
+     */
     function selectionInsideCodeOrQuote(): boolean {
         const selection = window.getSelection();
         if (!selection || selection.rangeCount === 0) return false;
@@ -195,6 +264,9 @@
         return false;
     }
 
+    /**
+     * Функция для изменения подсветки активных статусов в панели редактирования.
+     */
     function updateActiveStates() {
         if (!editorDiv) return;
         const selection = window.getSelection();
@@ -243,6 +315,10 @@
         related?: { id: number; title?: string }[];
     };
 
+    /**
+     * Функция, применяемая для подгрузки содержиммого существующей статьи.
+     * @param {string} editId Идентификатор редактируемой статьи.
+     */
     async function loadDocumentForEdit(editId: string) {
         try {
             const resp = await api.get<ViewPage>(`/api/v1/pages/${editId}`);
@@ -268,6 +344,9 @@
         }
     }
 
+    /**
+     * Сохранение документа и автоматический переход к его просмотру.
+     */
     async function saveDocument() {
         if (!editorDiv) {
             notification('Редактор не инициализирован', NotificationType.Error);
@@ -307,6 +386,9 @@
     let userAvatarLoadedMobile = false;
     let userAvatarLoading = false;
 
+    /**
+     * Функция загрузки аватара автора документа.
+     */
     async function loadUserAvatar() {
         if (!$isAuthenticated || userAvatarLoading) return;
         const u = $currentUser as any;
@@ -328,6 +410,9 @@
         }
     }
 
+    /**
+     * Первичная настройка страницы при монтировании компонента.
+    */
     onMount(() => {
         if (!$isAuthenticated || $currentUser === null || $currentUser.role === UserRole.Client)
             handleAuthError(get(pageStore).url.pathname);
@@ -343,12 +428,18 @@
         document.addEventListener('selectionchange', updateActiveStates);
     });
 
+    /**
+     * Реактивное изменение заголовка страницы при смене имени статьи.
+    */
     $: pageTitle.set(title + ' | Система управления заявками ЕИ КФУ');
 
     $: if ($isAuthenticated && ((userAvatarContainerDesktop && !userAvatarLoadedDesktop) || (userAvatarContainerMobile && !userAvatarLoadedMobile)) && !userAvatarLoading) {
         void loadUserAvatar();
     }
 
+    /**
+     * Удаление листенеров и смена заголовка при размонтировании компонента.
+    */
     onDestroy(() => {
         pageTitle.set('Service Desk | Система управления заявками ЕИ КФУ');
         document.removeEventListener('selectionchange', updateActiveStates);
