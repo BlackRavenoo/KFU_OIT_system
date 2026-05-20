@@ -25,6 +25,7 @@
     import Departments from './components/Departments.svelte';
     import Notifications from './components/Notifications.svelte';
     import Statuses from './components/Statuses.svelte';
+    import AdminTransfer from './components/AdminTransfer.svelte';
 
     let activeTab: TabType = Tab.PROFILE;
     let isLoading: boolean = false;
@@ -250,11 +251,18 @@
                         Отделы
                     </button>
                     <button
-                        class={ activeTab === Tab.BOTS ? 'active' : '' } 
+                        class={ activeTab === Tab.BOTS ? 'active' : '' }
                         on:click={ () => setTab(Tab.BOTS) }
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8" y2="16"></line><line x1="16" y1="16" x2="16" y2="16"></line><rect x="10" y="14" width="4" height="3"></rect></svg>
                         Боты
+                    </button>
+                    <button
+                        class={ activeTab === Tab.ADMIN_TRANSFER ? 'active' : '' }
+                        on:click={ () => setTab(Tab.ADMIN_TRANSFER) }
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/><path d="M9 18H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>
+                        Передача прав
                     </button>
                 {/if}
             {/if}
@@ -294,6 +302,8 @@
                 <Request />
             {:else if activeTab === Tab.NOTIFICATIONS}
                 <Notifications />
+            {:else if activeTab === Tab.ADMIN_TRANSFER}
+                <AdminTransfer />
             {:else}
                 <div class="content-section">
                     <h1>Страница в разработке</h1>

@@ -14,6 +14,7 @@ export const Tab = {
     DEPARTMENTS: 'departments',
     NOTIFICATIONS: 'notifications',
     STATUSES: 'statuses',
+    ADMIN_TRANSFER: 'admin-transfer',
 } as const;
 
 export type TabType = typeof Tab[keyof typeof Tab];
