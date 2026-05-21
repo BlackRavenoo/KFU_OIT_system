@@ -119,6 +119,8 @@ async fn get_messages_works_with_before_and_limit() {
     .await
     .unwrap();
 
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
     let resp = reqwest::Client::new()
         .get(format!(
             "{}/v1/tickets/{}/messages?before={}&limit=20",
@@ -126,6 +128,7 @@ async fn get_messages_works_with_before_and_limit() {
             ticket_id,
             second.id
         ))
+        .bearer_auth(&access)
         .send()
         .await
         .unwrap();

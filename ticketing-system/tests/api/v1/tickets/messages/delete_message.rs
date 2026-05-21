@@ -19,7 +19,6 @@ async fn delete_message(
     builder.send().await.unwrap()
 }
 
-
 #[tokio::test]
 async fn delete_message_returns_200() {
     let app = spawn_app().await;
