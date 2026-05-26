@@ -170,6 +170,7 @@ mod tests {
     use super::TokenStore;
     use bb8_redis::{RedisConnectionManager, bb8::Pool, redis::AsyncCommands};
     use claims::assert_ok;
+    use actix_web::ResponseError;
 
     async fn create_test_pool() -> Pool<RedisConnectionManager> {
         let manager = RedisConnectionManager::new("redis://127.0.0.1:6379")
@@ -267,5 +268,16 @@ mod tests {
         assert!(result2.is_ok());
 
         cleanup_redis(&pool, 888888).await;
+    }
+
+    #[test]
+    fn token_store_error_status_codes() {
+        use actix_web::http::StatusCode;
+        use anyhow::anyhow;
+
+        assert_eq!(TokenStoreError::TokenNotFound.status_code(), StatusCode::UNAUTHORIZED);
+        assert_eq!(TokenStoreError::FingerprintMismatch.status_code(), StatusCode::FORBIDDEN);
+        let unexpected = TokenStoreError::Unexpected(anyhow!("test"));
+        assert_eq!(unexpected.status_code(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 }

@@ -30,3 +30,22 @@ impl ResponseError for JwtExtractorError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::JwtExtractorError;
+    use actix_web::{http::StatusCode, ResponseError};
+
+    #[test]
+    fn debug_contains_message_and_status_code() {
+        let missing = JwtExtractorError::MissingClaims;
+        let s = format!("{:?}", missing);
+        assert!(s.contains("Missing claims"));
+        assert_eq!(missing.status_code(), StatusCode::UNAUTHORIZED);
+
+        let unexpected = JwtExtractorError::Unexpected(anyhow::anyhow!("boom"));
+        let s2 = format!("{:?}", unexpected);
+        assert!(s2.contains("boom"));
+        assert_eq!(unexpected.status_code(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+}
