@@ -5,3 +5,4 @@ mod refresh_token;
 mod login;
 mod change_password;
 mod request_account_recovery;
+mod validate_admin_transfer_token;
