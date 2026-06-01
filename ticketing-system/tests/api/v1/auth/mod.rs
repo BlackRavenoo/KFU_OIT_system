@@ -6,3 +6,4 @@ mod login;
 mod change_password;
 mod request_account_recovery;
 mod validate_admin_transfer_token;
+mod validate_recovery_token;
