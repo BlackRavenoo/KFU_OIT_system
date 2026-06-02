@@ -2,6 +2,27 @@ use wiremock::{Mock, ResponseTemplate, matchers::{method, path}};
 
 use crate::helpers::{spawn_app};
 
+fn extract_token(email_request: &wiremock::Request, expected_path: &str) -> String {
+    let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+    let get_token_from_text = |text: &str| {
+        linkify::LinkFinder::new()
+            .links(text)
+            .filter(|link| *link.kind() == linkify::LinkKind::Url)
+            .filter_map(|link| reqwest::Url::parse(link.as_str()).ok())
+            .find(|url| url.path() == expected_path)
+            .and_then(|url| {
+                url.query_pairs()
+                    .find(|(k, _)| k == "token")
+                    .map(|(_, v)| v.into_owned())
+            })
+    };
+
+    get_token_from_text(body["html"].as_str().unwrap())
+        .or_else(|| get_token_from_text(body["text"].as_str().unwrap()))
+        .expect("Failed to extract token from email")
+}
+
 #[tokio::test]
 async fn request_account_recovery_sends_email_for_existing_user() {
     let app = spawn_app().await;
@@ -25,8 +46,7 @@ async fn request_account_recovery_sends_email_for_existing_user() {
     assert_eq!(resp.status(), 200);
 
     let email_request = &mock_guard.received_requests().await[0];
-    let links = app.get_invitation_links(email_request);
-    let token = links.html.query_pairs().find(|(k, _)| k == &std::borrow::Cow::Borrowed("token")).unwrap().1;
+    let token = extract_token(email_request, "/reset-password");
     assert!(!token.is_empty());
 }
 
