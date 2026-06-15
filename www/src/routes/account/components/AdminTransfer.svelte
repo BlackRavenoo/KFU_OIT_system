@@ -28,6 +28,9 @@
     let loadedAvatars: Set<string> = new Set();
     let loadingAvatars: Set<string> = new Set();
 
+    /**
+     * Загрузка пользователей с сервера с учетом текущей страницы, количества элементов на странице и поискового запроса.
+     */
     async function loadUsers() {
         loading = true;
         error = false;
@@ -43,6 +46,10 @@
         setTimeout(() => loadAvatars(), 100);
     }
 
+    /**
+     * Загрузка аватаров для отображаемых пользователей. Проходит по списку пользователей и загружает аватар для каждого, 
+     * если он еще не был загружен или не находится в процессе загрузки.
+     */
     async function loadAvatars() {
         for (const user of users) {
             if (loadedAvatars.has(user.id) || loadingAvatars.has(user.id)) continue;
@@ -51,6 +58,12 @@
         }
     }
 
+    /**
+     * Загрузка аватара для конкретного пользователя. Проверяет, не был ли аватар уже загружен или не находится ли он в процессе загрузки,
+     * затем загружает аватар и обновляет состояние загрузки.
+     * @param {string} id - ID пользователя, для которого нужно загрузить аватар
+     * @param {HTMLDivElement} container - HTML элемент, в который будет загружен аватар
+     */
     async function loadAvatarForUser(id: string, container: HTMLDivElement) {
         if (loadedAvatars.has(id) || loadingAvatars.has(id)) return;
         const user = users.find(u => u.id === id);
@@ -65,6 +78,12 @@
         }
     }
 
+    /**
+     * Svelte action для установки контейнера аватара и загрузки аватара при его появлении.
+     * @param {HTMLDivElement} node - HTML элемент, который будет использоваться как контейнер для аватара
+     * @param {string} userId - ID пользователя, для которого нужно загрузить аватар
+     * @returns {Object} - объект с методами для обновления и уничтожения действия
+    */
     function setAvatarContainer(node: HTMLDivElement, userId?: string) {
         let currentId = userId;
         if (currentId) {
@@ -95,6 +114,10 @@
         };
     }
 
+    /**
+     * Обработчик изменения страницы для пагинации
+     * @param {number} page - номер страницы, на которую нужно перейти
+     */
     function changePage(page: number) {
         if (page !== currentPage && page > 0 && page <= totalPages) {
             currentPage = page;
@@ -102,21 +125,36 @@
         }
     }
 
+    /**
+     * Обработчик поиска пользователей. 
+     * Сбрасывает текущую страницу на 1 и загружает пользователей с учетом нового поискового запроса.
+     */
     function handleSearch() {
         currentPage = 1;
         loadUsers();
     }
 
+    /**
+     * Открывает модальное окно подтверждения передачи прав администратора для выбранного пользователя.
+     * @param {IUserData} user - пользователь, для которого нужно подтвердить передачу прав администратора
+     */
     function openConfirmModal(user: IUserData) {
         targetUser = user;
         showConfirmModal = true;
     }
 
+    /**
+     * Закрывает все модальные окна и сбрасывает состояние выбранного пользователя для передачи прав администратора.
+     */
     function closeModals() {
         showConfirmModal = false;
         targetUser = null;
     }
 
+    /**
+     * Подтверждает передачу прав администратора выбранному пользователю. 
+     * Отправляет запрос на сервер для передачи прав, закрывает модальное окно и обновляет состояние отправки.
+     */
     async function confirmTransfer() {
         if (!targetUser) return;
         const userId = targetUser.id;
@@ -126,18 +164,32 @@
         isSending = false;
     }
 
+    /**
+     * Получает текстовое представление роли пользователя для отображения в интерфейсе.
+     * @param {UserRole} role - роль пользователя
+     * @returns {string} - текстовое представление роли
+     */
     function getRoleLabel(role: UserRole): string {
         return role === UserRole.Moderator ? 'Модератор' :
                role === UserRole.Programmer ? 'Сотрудник' :
                'Пользователь';
     }
 
+    /**
+     * Получает CSS класс для роли пользователя для отображения соответствующего стиля в интерфейсе.
+     * @param {UserRole} role - роль пользователя
+     * @returns {string} - CSS класс для роли пользователя
+     */
     function getRoleClass(role: UserRole): string {
         return role === UserRole.Moderator ? 'moderator-role' :
                role === UserRole.Programmer ? 'employee-role' :
                'user-role';
     }
 
+    /**
+     * При монтировании компонента проверяет, является ли текущий пользователь администратором. 
+     * Если нет, вызывает обработчик ошибки авторизации.
+    */
     onMount(() => {
         if ($currentUser?.role !== UserRole.Administrator) {
             handleAuthError();

@@ -39,11 +39,20 @@
     $: editNameValid = editName.trim().length > 0;
     $: editColorValid = HEX_COLOR_REGEX.test(editColor.trim());
 
+    /**
+     * Нормализует цвет, добавляя # в начало, если его нет, и приводя к верхнему регистру
+     * @param {string} color - Цвет в формате строки.
+     * @returns {string} - Нормализованный цвет в формате строки с # в начале и верхним регистром.
+     */
     function normalizeColor(color: string): string {
         const normalized = color.trim().toUpperCase();
         return normalized.startsWith('#') ? normalized : `#${normalized}`;
     }
 
+    /**
+     * Загружает статусы активов с сервера и обновляет состояние компонента. В случае ошибки отображает уведомление.
+     * @returns {Promise<void>} - Возвращает промис, который разрешается после завершения загрузки статусов.
+     */
     async function loadStatuses() {
         loading = true;
 
@@ -62,18 +71,29 @@
         loading = false;
     }
 
+    /**
+     * Начинает редактирование статуса, устанавливая его ID в editingId и заполняя поля редактирования текущими данными статуса.
+     * @param {AssetStatus} status - Статус, который будет редактироваться.
+     */
     function startEdit(status: AssetStatus) {
         editingId = status.id;
         editName = status.name;
         editColor = normalizeColor(status.color);
     }
 
+    /**
+     * Отменяет редактирование статуса, сбрасывая editingId и очищая поля редактирования.
+     */
     function cancelEdit() {
         editingId = null;
         editName = '';
         editColor = '#3B82F6';
     }
 
+    /**
+     * Обрабатывает добавление нового статуса. Проверяет валидность данных, отправляет запрос на создание статуса
+     * и обновляет список статусов. В случае ошибки отображает уведомление.
+     */
     async function handleAdd() {
         if (!newNameValid || !newColorValid || isAdding) return;
 
@@ -97,6 +117,10 @@
         isAdding = false;
     }
 
+    /**
+     * Обрабатывает сохранение изменений статуса. Проверяет валидность данных, отправляет запрос на обновление статуса
+     * и обновляет список статусов. В случае ошибки отображает уведомление.
+    */
     async function handleSaveEdit() {
         if (editingId === null || !editNameValid || !editColorValid || isSaving) return;
 
@@ -119,16 +143,26 @@
         isSaving = false;
     }
 
+    /**
+     * Открывает модальное окно подтверждения удаления статуса, устанавливая deletingStatus в выбранный статус и showDeleteModal в true.
+     * @param {AssetStatus} status - Статус, который будет удаляться.
+     */
     function openDeleteModal(status: AssetStatus) {
         deletingStatus = status;
         showDeleteModal = true;
     }
 
+    /**
+     * Закрывает модальное окно подтверждения удаления статуса, сбрасывая deletingStatus и устанавливая showDeleteModal в false.
+    */
     function closeDeleteModal() {
         deletingStatus = null;
         showDeleteModal = false;
     }
 
+    /**
+     * Обрабатывает удаление статуса. Отправляет запрос на удаление статуса и обновляет список статусов. В случае ошибки отображает уведомление.
+     */
     async function handleDelete() {
         if (!deletingStatus) return;
 
@@ -146,6 +180,10 @@
         notification('Статус удалён', NotificationType.Success);
     }
 
+    /**
+     * При монтировании компонента проверяет роль текущего пользователя. 
+     * Если пользователь не является администратором или модератором, перенаправляет на страницу ошибки 403.
+    */
     onMount(async () => {
         const role = $currentUser?.role;
         if (role !== UserRole.Administrator && role !== UserRole.Moderator) {

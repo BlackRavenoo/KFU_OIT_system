@@ -49,6 +49,11 @@
 
     $: canManageStatus = $currentUser?.role === UserRole.Administrator || $currentUser?.role === UserRole.Moderator;
 
+    /**
+     * Парсит строку с одним или несколькими email, разделёнными ";", и проверяет их валидность.
+     * @param {string} input - Строка с email для проверки.
+     * @returns {{ valid: boolean; emails: string[]; error?: string }} - Результат проверки.
+     */
     function parseAndValidateMultipleEmails(input: string): { valid: boolean; emails: string[]; error?: string } {
         const s = input.trim();
         if (s === '') return { valid: false, emails: [], error: 'Введите хотя бы один email' };
@@ -77,6 +82,9 @@
         return { valid: true, emails, error: undefined };
     }
 
+    /**
+     * Обрабатывает отправку приглашения пользователю. Валидирует каждый email и отображает ошибки при необходимости.
+     */
     async function handleSendInvitation() {
         isAddingUser = true;
         emailError = '';
@@ -106,6 +114,13 @@
         isAddingUser = false;
     }
 
+    /**
+     * Обрабатывает изменение статуса пользователя. Сначала обновляет статус в UI, затем отправляет запрос на сервер. 
+     * Если запрос не удался, возвращает предыдущий статус.
+     * @param {string} userId - Идентификатор пользователя.
+     * @param {UserStatus} newStatus - Новый статус пользователя.
+     * @throws {Error} Если запрос на сервер завершился с ошибкой.
+     */
     async function handleStatusChange(userId: string, newStatus: UserStatus) {
         const user = users.find(u => u.id === userId);
         if (!user) return;
@@ -136,6 +151,9 @@
         }
     }
 
+    /**
+     * Загружает список пользователей с сервера с учётом текущих параметров (страница, количество на странице, поиск, фильтр по сотрудникам).
+    */
     async function loadUsers() {
         loading = true;
         error = false;
@@ -159,17 +177,25 @@
         }, 100);
     }
 
+    /**
+     * Загружает аватары для всех пользователей, которые ещё не были загружены и для которых есть контейнеры. 
+     * @returns {Promise<void>} - Promise, который разрешается после загрузки всех аватаров.
+     */
     async function loadAvatars() {
         for (const user of users) {
             if (loadedAvatars.has(user.id) || loadingAvatars.has(user.id)) continue;
             
             const container = avatarContainers.get(user.id);
-            if (container) {
+            if (container)
                 await loadAvatarForUser(user.id, container);
-            }
         }
     }
 
+    /**
+     * Загружает аватар для конкретного пользователя, если он ещё не был загружен и не находится в процессе загрузки.
+     * @param {string} id - Идентификатор пользователя.
+     * @param {HTMLDivElement} container - Контейнер для отображения аватара.
+     */
     async function loadAvatarForUser(id: string, container: HTMLDivElement) {
         if (loadedAvatars.has(id) || loadingAvatars.has(id)) return;
         
@@ -186,6 +212,11 @@
         }
     }
 
+    /**
+     * Svelte action для управления контейнерами аватаров пользователей. 
+     * Автоматически загружает аватар при монтировании и обновляет его при изменении пользователя.
+     * @returns {object} - Объект с методами update и destroy для управления жизненным циклом действия.
+    */
     function setAvatarContainer(node: HTMLDivElement, userId?: string) {
         let currentId = userId;
         
@@ -218,6 +249,10 @@
         };
     }
 
+    /**
+     * Обрабатывает изменение страницы в пагинации. Загружает пользователей для новой страницы, если она валидна и отличается от текущей.
+     * @param {number} page - Номер новой страницы.
+     */
     function changePage(page: number) {
         if (page !== currentPage && page > 0 && page <= totalPages) {
             currentPage = page;
@@ -225,6 +260,12 @@
         }
     }
 
+    /**
+     * Обрабатывает изменение роли пользователя. Определяет новую роль на основе текущей и направления изменения, 
+     * отправляет запрос на сервер и обновляет UI при успешном ответе.
+     * @param {string} id - Идентификатор пользователя.
+     * @param {boolean} promote - Направление изменения роли (true для повышения, false для понижения).
+    */
     async function handleChangeRole(id: string, promote: boolean) {
         const user = users.find(u => u.id === id);
         if (!user) return;
@@ -254,16 +295,27 @@
         }
     }
 
+    /**
+     * Открывает модальное окно подтверждения удаления пользователя. Устанавливает удаляемого пользователя в состояние и отображает модал.
+     * @param {IUserData} user - Пользователь, которого необходимо удалить.
+     */
     function openDeleteModal(user: IUserData) {
         deletingUser = user;
         showDeleteModal = true;
     }
 
+    /**
+     * Закрывает все модальные окна, связанные с управлением пользователями, и сбрасывает состояние удаляемого пользователя. 
+    */
     function closeModals() {
         showDeleteModal = false;
         deletingUser = null;
     }
 
+    /**
+     * Отправляет запрос на сервер для удаления пользователя, 
+     * и при успешном ответе обновляет список пользователей и очищает связанные с аватаром данные.
+    */
     async function handleDeleteUser() {
         if (!deletingUser) return;
 
@@ -278,21 +330,35 @@
         }
     }
 
+    /**
+     * Обрабатывает выполнение поиска. Сбрасывает текущую страницу на первую и загружает пользователей с учётом нового поискового запроса.
+     */
     function handleSearch() {
         currentPage = 1;
         loadUsers();
     }
 
+    /**
+     * Обрабатывает изменение размера окна. Устанавливает флаг isMobile в зависимости от ширины окна. 
+      Этот флаг используется для адаптации текста кнопок и других элементов интерфейса на мобильных устройствах.
+     */
     function handleResize() {
         if (browser) isMobile = window.innerWidth < 768;
     }
 
+    /**
+     * Наблюдает за изменением флага showOnlyStaff. 
+     * Если он изменился, сбрасывает текущую страницу на первую и перезагружает список пользователей с учётом нового фильтра.
+    */
     $: if (showOnlyStaff !== previousShowOnlyStaff) {
         previousShowOnlyStaff = showOnlyStaff;
         currentPage = 1;
         loadUsers();
     }
 
+    /**
+     * При монтировании компонента устанавливает слушатель изменения размера окна для адаптивности интерфейса и загружает список пользователей.
+    */
     onMount(async () => {
         if (browser) {
             isMobile = window.innerWidth < 768;
@@ -301,6 +367,9 @@
         await loadUsers();
     });
 
+    /**
+     * При размонтировании компонента удаляет слушатель изменения размера окна и очищает все данные, связанные с аватарами пользователей.
+    */
     onDestroy(() => {
         browser && window.removeEventListener('resize', handleResize);
         avatarContainers.clear();
@@ -308,6 +377,10 @@
         loadingAvatars.clear();
     });
 
+    /**
+     * Наблюдает за изменением строки ввода новых email для приглашения. 
+     * При каждом изменении парсит строку, проверяет валидность каждого email и устанавливает соответствующие флаги и сообщения об ошибках.
+    */
     $: {
         const parsed = parseAndValidateMultipleEmails(newUserEmail);
         newEmailsValid = parsed.valid;

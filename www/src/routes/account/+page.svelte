@@ -51,6 +51,9 @@
     
     let activeTickets: any[] = [];
 
+    /**
+     * При загрузке страницы проверяем наличие параметра "tab" в URL и устанавливаем активную вкладку.
+    */
     $: if (browser && $page.url.searchParams) {
         const tabParam = $page.url.searchParams.get('tab');
         if (tabParam) {
@@ -63,6 +66,10 @@
         }
     }
     
+    /**
+     * При изменении текущего пользователя обновляем данные профиля, роль и аватар. 
+     * Роль отображается в виде читаемой строки на основе перечисления UserRole.
+    */
     $: if ($currentUser) {
         userData = $currentUser;
         userRole = $currentUser.role === UserRole.Administrator ? 'Администратор' :
@@ -74,21 +81,35 @@
         avatarContainer && getAvatar($currentUser, avatarContainer, 80, true);
     }
 
+    /**
+     * Устанавливает активную вкладку и обновляет URL. На мобильных устройствах также закрывает меню после выбора вкладки.
+     * @param {TabType} tab - Вкладка, которую нужно установить активной.
+     */
     function setTab(tab: TabType) {
         activeTab = tab;
         updateUrlParam(tab);
         isMobileView && toggleMenu();
     }
 
+    /**
+     * Переключает состояние мобильного меню и блокирует прокрутку страницы при открытом меню для улучшения 
+     * пользовательского опыта на мобильных устройствах.
+     */
     function toggleMenu() {
         isMenuOpen = !isMenuOpen;
         document.body.style.overflow = isMenuOpen ? 'hidden' : '';
     }
     
+    /**
+     * Проверяет ширину окна и устанавливает флаг isMobileView для определения, находится ли пользователь на мобильном устройстве.
+    */
     function checkMobileView() {
         isMobileView = window.innerWidth < 900;
     }
     
+    /**
+     * Обрабатывает выход пользователя из системы. При успешном выходе отображает уведомление об успехе, а при ошибке - уведомление об ошибке.
+     */
     async function handleLogout() {
         try {
             await logout();
@@ -98,6 +119,10 @@
         }
     }
     
+    /**
+     * При монтировании компонента устанавливает заголовок страницы и описание, а также проверяет аутентификацию пользователя. 
+     * Если пользователь не аутентифицирован, перенаправляет его на страницу входа.
+    */
     onMount(() => {
         pageTitle.set('Личный кабинет | Система управления заявками ЕИ КФУ');
         pageDescription.set('Управление личной учетной записью и просмотр статистики по заявкам.');
@@ -110,6 +135,9 @@
         }
     });
 
+    /**
+     * При размонтировании компонента удаляет обработчик события изменения размера окна.
+    */
     onDestroy(() => {
         window.removeEventListener('resize', checkMobileView);
     });

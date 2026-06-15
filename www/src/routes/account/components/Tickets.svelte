@@ -9,6 +9,7 @@
     import { UserRole } from '$lib/utils/auth/types';
     import Pagination from '$lib/components/Search/Pagination.svelte';
     import Confirmation from '$lib/components/Modal/Confirmation.svelte';
+    import type { S } from 'vitest/dist/chunks/config.d.D2ROskhv.js';
 
     let tickets: any[] = [];
     let loading = true;
@@ -23,11 +24,20 @@
     let currentPage = 1;
     let totalPages = 1;
 
+    /**
+     * Определяет, какое значение приоритета соответствует "критичному" на сервере, чтобы корректно сравнивать и отображать статус заявок.
+     * @returns {string} - Значение приоритета, соответствующее "критичному" на сервере.
+     */
     function resolveCriticalServerValue(): string {
         const val = statusPriority.find(o => (o as any).value === 'critical')?.serverValue;
         return String(val ?? 'critical');
     }
 
+    /**
+     * Проверяет, имеет ли заявка критичный приоритет, сравнивая её приоритет с серверным значением для "критичного".
+     * @param {any} ticket - Заявка для проверки.
+     * @returns {boolean} - true, если заявка имеет критичный приоритет, иначе false.
+    */
     function isCritical(ticket: any): boolean {
         const v = String(ticket?.priority ?? '').toLowerCase();
         const critical = resolveCriticalServerValue().toLowerCase();
@@ -37,12 +47,20 @@
     let confirmVisible = false;
     let ticketForCritical: any = null;
 
+    /**
+     * Инициирует процесс установки критичного приоритета для заявки. 
+     * @param {any} ticket - Заявка, для которой нужно установить критичный приоритет.
+    */
     function promptCritical(ticket: any) {
         if (isCritical(ticket)) return;
         ticketForCritical = ticket;
         confirmVisible = true;
     }
 
+    /**
+     * Подтверждает установку критичного приоритета для выбранной заявки. 
+     * Отправляет запрос на сервер для обновления приоритета и обновляет локальное состояние заявок.
+    */
     async function confirmSetCritical() {
         const id = ticketForCritical?.id != null ? String(ticketForCritical.id) : '';
         if (!id) {
@@ -59,11 +77,19 @@
             ticketForCritical = null;
         }
     }
+
+    /**
+     * Отменяет процесс установки критичного приоритета, скрывая окно подтверждения и сбрасывая выбранную заявку.
+     */
     function cancelSetCritical() {
         confirmVisible = false;
         ticketForCritical = null;
     }
 
+    /**
+     * Загружает список заявок с сервера, учитывая текущего пользователя, выбранные статусы, сортировку и пагинацию.
+     * @throws {Error} - Если произошла ошибка при загрузке заявок, она будет выброшена и обработана в вызывающем коде.
+     */
     async function loadTickets() {
         loading = true;
         error = false;
@@ -96,6 +122,11 @@
         }
     }
 
+    /**
+     * Обрабатывает изменение страницы в пагинации. Если новая страница отличается от текущей и находится в допустимых пределах,
+     * обновляет текущую страницу и перезагружает список заявок.
+     * @param {number} page - Новая страница для отображения.
+    */
     function changePage(page: number) {
         if (page !== currentPage && page > 0 && page <= totalPages) {
             currentPage = page;
@@ -103,6 +134,10 @@
         }
     }
 
+    /**
+     * Обрабатывает переключение порядка сортировки заявок. 
+     * Меняет порядок сортировки на противоположный, сохраняет его в фильтрах и перезагружает список заявок.
+     */
     function handleToggleSort() {
         const f = getTicketsFilters();
         sortOrder = f.sortOrder === 'asc' ? 'desc' : 'asc';
@@ -111,12 +146,20 @@
         loadTickets();
     }
 
+    /**
+     * Обрабатывает переключение режима отображения заявок между карточками и списком.
+     * Меняет режим отображения на противоположный, сохраняет его в фильтрах и перезагружает список заявок.
+     */
     function handleToggleViewMode() {
         const f = getTicketsFilters();
         viewMode = f.viewMode === 'cards' ? 'list' : 'cards';
         setTicketsFilters({ ...f, viewMode });
     }
 
+    /**
+     * Обрабатывает изменение количества заявок, отображаемых на странице.
+     * Валидирует введенное значение, ограничивая его диапазоном от 10 до 50.
+     */
     function handlePageSizeChange() {
         let n = Number(page_size);
         if (!Number.isFinite(n)) n = 10;
@@ -128,6 +171,10 @@
         loadTickets();
     }
 
+    /**
+     * Обрабатывает переключение фильтра статуса заявок. Если статус уже выбран, удаляет его из списка выбранных, иначе добавляет.
+     * @param {SimpleStatus} s - Статус заявки для переключения.
+     */
     function toggleStatusFilter(s: SimpleStatus) {
         selectedStatuses = selectedStatuses.includes(s)
             ? selectedStatuses.filter(x => x !== s)
@@ -136,6 +183,9 @@
         loadTickets();
     }
 
+    /**
+     * При монтировании компонента загружает начальные фильтры, устанавливает количество заявок на странице и загружает список заявок.
+    */
     onMount(async () => {
         const f = getTicketsFilters();
         page_size = Number(f.page_size ?? 10);

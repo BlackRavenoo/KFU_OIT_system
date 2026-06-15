@@ -80,6 +80,11 @@
         p95: getLatestNonZeroMetric(metrics, 'p95_mttr')
     };
 
+    /**
+     * Асинхронная функция для создания отчёта. Устанавливает флаг isGeneratingStatistics в true, 
+     * вызывает функцию generateStatisticsReport с указанными датами,
+     * и сбрасывает флаг isGeneratingStatistics в false после завершения.
+     */
     async function createReport() {
         isGeneratingStatistics = true;
         try {
@@ -89,6 +94,12 @@
         }
     }
 
+    /**
+     * Асинхронная функция для загрузки данных дашборда. Устанавливает флаг isDashboardLoading в true,
+     * очищает возможные ошибки, загружает метрики с помощью getTicketsMetrics и сохраняет их в переменную metrics. 
+     * @throws {Error} - Если при загрузке метрик возникает ошибка, сохраняет сообщение об ошибке в dashboardError.
+     * @returns {Promise<void>} - Возвращает промис, который разрешается после завершения загрузки метрик и обновления состояния.
+     */
     async function loadDashboard(): Promise<void> {
         isDashboardLoading = true;
         dashboardError = '';
@@ -105,15 +116,31 @@
         }
     }
 
+    /**
+     * Функция для форматирования числа в строку с одним десятичным знаком и добавлением символа процента.
+     * @param {number} value - Число для форматирования.
+     * @returns {string} - Отформатированная строка с символом процента.
+     */
     function toPercent(value: number): string {
         return `${ value.toFixed(1) }%`;
     }
 
+    /**
+     * Функция для получения текстовой метки месяца по его числовому представлению.
+     * @param {number} month - Числовое представление месяца (1-12).
+     * @returns {string} - Текстовая метка месяца.
+     */
     function monthLabel(month: number): string {
         if (month < 1 || month > 12) return String(month);
         return monthNames[month - 1];
     }
 
+    /**
+     * Функция для преобразования количества секунд в строку формата "Xч Yм". 
+     * Если количество часов равно нулю, отображается только количество минут.
+     * @param {number} seconds - Количество секунд для преобразования.
+     * @returns {string} - Строка в формате "Xч Yм" или "Yм", если часов нет. 
+     */
     function toDuration(seconds: number): string {
         if (!seconds) return '0м';
 
@@ -125,11 +152,23 @@
         return `${ Math.max(1, minutes) }м`;
     }
 
+    /**
+     * Функция для расчёта высоты столбца в диаграмме на основе его значения и максимального значения в серии.
+     * @param {number} value - Значение столбца.
+     * @param {number} maxValue - Максимальное значение в серии.
+     * @returns {number} - Высота столбца в процентах.
+     */
     function barHeight(value: number, maxValue: number): number {
         if (!maxValue) return 0;
         return (value / maxValue) * 100;
     }
 
+    /**
+     * Функция для построения строки координат для элемента <polyline> в SVG на основе массива значений и максимального значения для нормализации.
+     * @param {number[]} values - Массив значений для построения полилинии.
+     * @param {number} maxValue - Максимальное значение для нормализации координат по оси Y.
+     * @returns {string} - Строка координат для атрибута points элемента <polyline>.
+     */
     function buildPolyline(values: number[], maxValue: number): string {
         if (!values.length) return '';
 
@@ -149,6 +188,14 @@
             .join(' ');
     }
 
+    /**
+     * Функция для извлечения последнего ненулевого значения метрики из массива точек. 
+     * Проходит по массиву в обратном порядке и возвращает первое найденное значение, которое больше нуля.
+     * @param {TicketsMetrics[]} points - Массив точек метрик.
+     * @param {'avg_frt' | 'p50_frt' | 'p90_frt' | 'p95_frt' | 'avg_mttr' | 'p50_mttr' | 'p90_mttr' | 'p95_mttr'} key 
+     *  - Ключ метрики для извлечения значения.
+     * @returns {number} - Последнее ненулевое значение метрики или 0, если таких значений нет.
+     */
     function buildSeriesValues(
         points: TicketsMetrics[],
         key: 'avg_frt' | 'p50_frt' | 'p90_frt' | 'p95_frt' | 'avg_mttr' | 'p50_mttr' | 'p90_mttr' | 'p95_mttr'
@@ -156,6 +203,13 @@
         return points.map((item) => item[key]);
     }
 
+    /**
+     * Функция для получения последнего ненулевого значения метрики из массива точек.
+     * @param {TicketsMetrics[]} points - Массив точек метрик.
+     * @param {'avg_frt' | 'p50_frt' | 'p90_frt' | 'p95_frt' | 'avg_mttr' | 'p50_mttr' | 'p90_mttr' | 'p95_mttr'} key 
+     *  - Ключ метрики для извлечения значения.
+     * @returns {number} - Последнее ненулевое значение метрики или 0, если таких значений нет.
+     */
     function getLatestNonZeroMetric(
         points: TicketsMetrics[],
         key: 'avg_frt' | 'p50_frt' | 'p90_frt' | 'p95_frt' | 'avg_mttr' | 'p50_mttr' | 'p90_mttr' | 'p95_mttr'
@@ -168,6 +222,12 @@
         return points.length > 0 ? points[points.length - 1][key] : 0;
     }
 
+    /**
+     * Функция для построения массива значений для сетки диаграммы на основе максимального значения и количества шагов.
+     * @param {number} maxValue - Максимальное значение для построения сетки.
+     * @param {number} steps - Количество шагов сетки.
+     * @returns {number[]} - Массив значений для сетки диаграммы.
+     */
     function buildGridValues(maxValue: number, steps: number): number[] {
         const safeSteps = Math.max(1, steps);
         return Array.from({ length: safeSteps + 1 }, (_, index) => {
@@ -176,12 +236,22 @@
         });
     }
 
+    /**
+     * Функция для расчёта координаты Y на диаграмме на основе значения и максимального значения для нормализации.
+     * @param {number} value - Значение для расчёта координаты Y.
+     * @param {number} maxValue - Максимальное значение для нормализации.
+     * @returns {number} - Координата Y на диаграмме.
+     */
     function chartY(value: number, maxValue: number): number {
         const innerHeight = Math.max(1, chartHeight - chartPaddingY * 2);
         const normalized = maxValue ? value / maxValue : 0;
         return chartHeight - chartPaddingY - normalized * innerHeight;
     }
 
+    /**
+     * Асинхронная функция, которая выполняется при монтировании компонента. Устанавливает начальные значения для fromDate и toDate,
+     * и вызывает функцию loadDashboard для загрузки данных дашборда.
+    */
     onMount(() => {
         const today = new Date().toISOString().split('T')[0];
         fromDate = today;

@@ -69,6 +69,10 @@
         Cabinet.trim() !== ''
     );
 
+    /**
+     * Функция валидации формы. Заполняет объект errors соответствующими сообщениями об ошибках для каждого поля. 
+     * @returns {boolean} - Возвращает true, если форма валидна, иначе false.
+     */
     function validateForm() {
         errors.Title = Title.trim() === '' ? 'Заполните заголовок' : '';
         errors.Description = Description.trim() === '' ? 'Заполните описание' : '';
@@ -80,10 +84,19 @@
         return Object.values(errors).every(e => e === '');
     }
 
+    /**
+     * Универсальный обработчик для событий input и blur на полях формы. 
+     * Устанавливает touched для соответствующего поля и вызывает validateForm для обновления ошибок и состояния валидности формы.
+    */
     function onAnyInput() {
         validateForm();
     }
 
+    /**
+     * Обработчик изменения файлов. Вызывает handleFileChange для получения новых массивов файлов и их имен, 
+     * обновляет локальные переменные и вызывает onAnyInput для валидации.
+     * @param {Event} event - Событие изменения файлов, содержащее информацию о выбранных файлах.
+    */
     function onFileChange(event: Event) {
         const result = handleFileChange(event, File, fileName, () => {
             showModalWithFocus(
@@ -96,6 +109,11 @@
         onAnyInput();
     }
 
+    /**
+     * Обработчик удаления файла. Вызывает removeFile для получения обновленных массивов файлов и их имен после удаления,
+     * обновляет локальные переменные и вызывает onAnyInput для валидации.
+     * @param {number} index - Индекс файла для удаления.
+     */
     function onRemoveFile(index: number) {
         const result = removeFile(index, File, fileName);
         File = result.files;
@@ -103,6 +121,9 @@
         onAnyInput();
     }
 
+    /**
+     * Сброс формы к начальным значениям. Очищает все поля, массивы файлов и имен, а также сбрасывает touched и errors.
+     */
     function resetForm() {
         Title = '';
         Description = '';
@@ -117,6 +138,10 @@
         validateForm();
     }
 
+    /**
+     * Функция для фокусировки и прокрутки к первому полю с ошибкой в форме. 
+     * Ищет первое поле, у которого есть сообщение об ошибке,
+     */
     function focusFirstError() {
         setTimeout(() => {
             const firstError = Object.entries(errors).find(([_, v]) => v);
@@ -131,6 +156,10 @@
         }, 0);
     }
 
+    /**
+     * Асинхронная функция для обработки отправки формы. Сначала устанавливает все поля как touched, затем валидирует форму и файлы.
+     * @throws {Error} - Если в процессе отправки возникает ошибка, выбрасывает исключение, которое можно поймать для отображения уведомления об ошибке.
+     */
     async function onSubmitForm() {
         Object.keys(touched).forEach(k => (touched as any)[k] = true);
         const valid = validateForm();
@@ -156,6 +185,9 @@
         }
     }
 
+    /**
+     * Загружает системные уведомления и фильтрует их по дате активности.
+    */
     onMount(async () => {
         loadingNotifications = true;
         const res = await getSystemNotifications();

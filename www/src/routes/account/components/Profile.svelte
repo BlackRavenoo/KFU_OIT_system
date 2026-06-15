@@ -67,7 +67,8 @@
 
     /**
      * Обработчик изменения статуса пользователя
-     * @param newStatus - Новый статус пользователя
+     * @param {UserStatus} newStatus - Новый статус пользователя
+     * @throws {Error} - Если произошла ошибка при обновлении статуса на сервере
      */
     async function handleStatusChange(newStatus: UserStatus) {
         const previousStatus = userData.status || UserStatus.Active;
@@ -84,8 +85,10 @@
 
     /**
      * Получить кэшированную статистику пользователя
-     * @param userId ID пользователя
-     * @param fallbackStats Статистика по умолчанию, если кэш недоступен
+     * @param {string} userId - ID пользователя
+     * @param {any} fallbackStats - Статистика по умолчанию, если кэш недоступен
+     * @return {Promise<any>} - Статистика пользователя, либо из кэша, либо свежая
+     * @throws {Error} - Если произошла ошибка при доступе к кэшу или загрузке данных
      */
     async function getCachedStats(userId: string, fallbackStats: any) {
         try {
@@ -110,7 +113,9 @@
 
     /**
      * Получить кэшированные активные заявки пользователя
-     * @param userId ID пользователя
+     * @param {string} userId - ID пользователя
+     * @return {Promise<any[]>} - Список активных заявок пользователя, либо из кэша, либо свежий
+     * @throws {Error} - Если произошла ошибка при доступе к кэшу или загрузке данных
      */
     async function getCachedTickets(userId: string) {
         try {
@@ -207,7 +212,7 @@
 
     /**
      * Обработчик выбора файла аватара
-     * @param event
+     * @param {Event} event - Событие выбора файла
      */
     function handleFileSelect(event: Event) {
         const input = event.target as HTMLInputElement;
@@ -246,7 +251,7 @@
     
     /**
      * Обработчик начала перетаскивания изображения
-     * @param event
+     * @param {MouseEvent} event - Событие начала перетаскивания
      */
     function handleMouseDown(event: MouseEvent) {
         if (avatarState.isResizing) return;
@@ -259,7 +264,7 @@
     /**
      * Обработчик перемещения мыши
      * Изменяет позицию изображения или размер области кадрирования
-     * @param event
+     * @param {MouseEvent} event - Событие перемещения мыши
      */
     function handleMouseMove(event: MouseEvent) {
         if (avatarState.isResizing) {
@@ -302,7 +307,7 @@
      * Обработчик начала касания
      * Начинает перетаскивание изображения
      * Альтернатива для мобильных устройств
-     * @param event
+     * @param {TouchEvent} event - Событие начала касания
      */
     function handleTouchStart(event: TouchEvent) {
         if (event.touches.length !== 1) return;
@@ -316,7 +321,7 @@
      * Обработчик перемещения касания
      * Изменяет позицию изображения
      * Альтернатива для мобильных устройств
-     * @param event
+     * @param {TouchEvent} event - Событие перемещения касания
      */
     function handleTouchMove(event: TouchEvent) {
         if (!avatarState.isDragging || event.touches.length !== 1) return;
@@ -344,7 +349,7 @@
     
     /**
      * Обработчик начала изменения размера области кадрирования
-     * @param event
+     * @param {MouseEvent} event - Событие начала изменения размера
      */
     function handleResizeStart(event: MouseEvent) {
         avatarState.isResizing = true;
@@ -358,7 +363,7 @@
     /**
      * Обработчик прокрутки колесика мыши
      * Масштабирует изображение
-     * @param event
+     * @param {WheelEvent} event - Событие прокрутки колесика мыши
      */
     function handleWheel(event: WheelEvent) {
         event.preventDefault();
@@ -371,7 +376,7 @@
     /**
      * Обработчик клавиатурной навигации
      * Позволяет управлять масштабом и позицией изображения с клавиатуры
-     * @param event
+     * @param {KeyboardEvent} event - Событие клавиатурной навигации
      */
     function handleKeyboardNavigation(event: KeyboardEvent) {
         if (!showAvatarModal) return;
@@ -555,6 +560,9 @@
         };
     });
 
+    /**
+     * Очистка ресурсов при уничтожении компонента
+    */
     onDestroy(() => {
         localAvatarUrl && URL.revokeObjectURL(localAvatarUrl);
     });

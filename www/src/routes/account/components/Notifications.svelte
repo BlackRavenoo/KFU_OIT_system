@@ -32,6 +32,10 @@
     let showDeleteModal: boolean = false;
     let deletingNotification: SystemNotification | null = null;
 
+    /**
+     * Начинает редактирование уведомления, заполняя поля формы текущими данными уведомления.
+     * @param {SystemNotification} n - уведомление, которое нужно редактировать
+     */
     function startEdit(n: SystemNotification) {
         editingId = n.id;
         editText = n.text ?? '';
@@ -41,6 +45,9 @@
             : '';
     }
 
+    /**
+     * Отменяет редактирование, сбрасывая все поля формы и скрывая режим редактирования.
+    */
     function cancelEdit() {
         editingId = null;
         editText = '';
@@ -48,6 +55,11 @@
         editActiveUntil = '';
     }
 
+    /**
+     * Сохраняет изменения в уведомлении, отправляя обновленные данные на сервер. 
+     * После успешного обновления перезагружает список уведомлений и отображает уведомление об успехе. 
+     * @throws {Error} Если произошла ошибка при обновлении уведомления, выбрасывает ошибку с сообщением об ошибке.
+     */
     async function saveEdit() {
         if (editingId == null) return;
         const text = editText.trim();
@@ -70,6 +82,11 @@
         }
     }
 
+    /**
+     * Обрабатывает добавление нового уведомления. Валидирует введенный текст, отправляет данные на сервер для создания уведомления,
+     * обновляет список уведомлений после успешного создания и отображает уведомление об успехе.
+     * @throws {Error} Если произошла ошибка при создании уведомления, выбрасывает ошибку с сообщением об ошибке.
+     */
     async function handleAdd() {
         isAdding = true;
         const text = newText.trim();
@@ -99,16 +116,29 @@
         }
     }
 
+    /**
+     * Открывает модальное окно подтверждения удаления для выбранного уведомления. 
+     * Устанавливает текущее удаляемое уведомление и отображает модальное окно.
+     * @param {SystemNotification} n - уведомление, которое нужно удалить
+    */
     function openDelete(n: SystemNotification) {
         deletingNotification = n;
         showDeleteModal = true;
     }
 
+    /**
+     * Закрывает модальное окно подтверждения удаления и сбрасывает текущее удаляемое уведомление.
+     */
     function closeDelete() {
         deletingNotification = null;
         showDeleteModal = false;
     }
 
+    /**
+     * Подтверждает удаление уведомления, отправляя запрос на сервер для удаления выбранного уведомления.
+     * После успешного удаления обновляет список уведомлений и отображает уведомление об успехе
+     * @throws {Error} Если произошла ошибка при удалении уведомления, выбрасывает ошибку с сообщением об ошибке.
+     */
     async function confirmDelete() {
         if (!deletingNotification) return;
 
@@ -126,6 +156,10 @@
         }
     }
 
+    /**
+     * Возвращает человекочитаемую метку для категории уведомления.
+     * @param {SystemNotificationCategory} cat - категория уведомления
+     */
     function categoryLabel(cat: SystemNotificationCategory) {
         switch (cat) {
             case SystemNotificationCategory.INFO: 
@@ -138,6 +172,10 @@
         }
     }
 
+    /**
+     * При монтировании компонента проверяет роль текущего пользователя. 
+     * Если пользователь не является администратором, перенаправляет его на страницу ошибки 403.
+    */
     onMount(async () => {
         if ($currentUser?.role !== UserRole.Administrator) {
             if (browser) goto('/error?status=403');
