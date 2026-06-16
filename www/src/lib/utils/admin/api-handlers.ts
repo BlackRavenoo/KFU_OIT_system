@@ -5,13 +5,14 @@ import type { UserRole } from '../auth/types';
 
 /**
  * Общая функция для загрузки данных с пагинацией и поиском
- * @param endpoint - API endpoint для загрузки данных
- * @param currentPage - текущая страница (по умолчанию 1)
- * @param itemsPerPage - количество элементов на странице (по умолчанию 10)
- * @param searchQuery - строка для поиска (по умолчанию пустая)
- * @param errorMessage - сообщение об ошибке при загрузке данных
- * @param minimal_role - минимальная роль пользователя для доступа к данным
- * @returns объект с массивом элементов, количеством страниц и флагом ошибки
+ * @param {string} endpoint - API endpoint для загрузки данных
+ * @param {number} [currentPage=1] - текущая страница (по умолчанию 1)
+ * @param {number} [itemsPerPage=10] - количество элементов на странице (по умолчанию 10)
+ * @param {string} [searchQuery=''] - строка для поиска (по умолчанию пустая)
+ * @param {string} [errorMessage='Ошибка при загрузке данных'] - сообщение об ошибке при загрузке данных
+ * @param {UserRole} [minimal_role] - минимальная роль пользователя для доступа к данным
+ * @throws {Error} выбрасывает ошибку, если запрос не удался
+ * @returns {Promise<{ items: T[]; totalPages: number; error: boolean }>} объект с массивом элементов, количеством страниц и флагом ошибки
  */
 export async function loadItems<T>({
     endpoint,
@@ -87,11 +88,12 @@ export async function loadItems<T>({
 
 /**
  * Общая функция для создания элемента
- * @param endpoint - API endpoint для создания элемента
- * @param data - данные для создания элемента
- * @param successMessage - сообщение об успешном создании элемента
- * @param errorMessage - сообщение об ошибке при создании элемента
- * @returns объект с флагом успеха и данными созданного элемента (если успешно)
+ * @param {string} endpoint - API endpoint для создания элемента
+ * @param {Record<string, any>} data - данные для создания элемента
+ * @param {string} [successMessage='Успешно создано'] - сообщение об успешном создании элемента
+ * @param {string} [errorMessage='Ошибка при создании'] - сообщение об ошибке при создании элемента
+ * @throws {Error} выбрасывает ошибку, если запрос не удался
+ * @returns {Promise<{ success: boolean; data?: T }>} объект с флагом успеха и данными созданного элемента (если успешно)
  */
 export async function createItem<T>({
     endpoint,
@@ -125,11 +127,12 @@ export async function createItem<T>({
 
 /**
  * Общая функция для удаления элемента
- * @param endpoint - API endpoint для удаления элемента
- * @param id - идентификатор элемента для удаления
- * @param successMessage - сообщение об успешном удалении элемента
- * @param errorMessage - сообщение об ошибке при удалении элемента
- * @returns флаг успеха удаления
+ * @param {string} endpoint - API endpoint для удаления элемента
+ * @param {string | number} id - идентификатор элемента для удаления
+ * @param {string} [successMessage='Успешно удалено'] - сообщение об успешном удалении элемента
+ * @param {string} [errorMessage='Ошибка при удалении'] - сообщение об ошибке при удалении элемента
+ * @throws {Error} выбрасывает ошибку, если запрос не удался
+ * @returns {Promise<boolean>} флаг успеха удаления
  */
 export async function deleteItem({
     endpoint,

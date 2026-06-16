@@ -20,6 +20,10 @@
     let fromUserName: string = '';
     let toUserName: string = '';
 
+    /**
+     * Обработчик подтверждения передачи прав администратора
+     * @returns {Promise<void>}
+     */
     async function handleConfirm() {
         if (!token) return;
         isSubmitting = true;
@@ -33,6 +37,9 @@
         isSubmitting = false;
     }
 
+    /**
+     * При монтировании компонента проверяем токен из URL, загружаем данные о передаче прав и отображаем информацию пользователю.
+    */
     onMount(async () => {
         pageTitle.set('Подтверждение передачи прав | Система управления заявками ЕИ КФУ');
 
@@ -65,6 +72,9 @@
         loading = false;
     });
 
+    /**
+     * При размонтировании компонента сбрасываем заголовок страницы к стандартному значению.
+    */
     onDestroy(() => {
         pageTitle.set('Service Desk | Система управления заявками ЕИ КФУ');
     });

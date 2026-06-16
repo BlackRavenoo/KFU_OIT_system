@@ -13,7 +13,7 @@ export interface AdminTransferValidateResponse {
 
 /**
  * Валидирует токен передачи прав без его потребления.
- * @param token - токен из URL
+ * @param {string} token - токен из URL
  * @returns {Promise<AdminTransferValidateResponse|null>} - данные о передаче прав или null, если токен недействителен
  */
 export async function validateAdminTransferToken(token: string): Promise<AdminTransferValidateResponse | null> {
@@ -27,7 +27,7 @@ export async function validateAdminTransferToken(token: string): Promise<AdminTr
 
 /**
  * Подтверждает передачу прав администратора (одноразовый токен).
- * @param token - токен из URL
+ * @param {string} token - токен из URL
  * @returns {Promise<boolean>} - результат подтверждения (успех или ошибка)
  */
 export async function confirmAdminTransfer(token: string): Promise<boolean> {
@@ -49,7 +49,7 @@ export async function confirmAdminTransfer(token: string): Promise<boolean> {
 /**
  * Отправляет запрос на передачу прав администратора другому пользователю.
  * На email целевого пользователя будет отправлено письмо с подтверждением.
- * @param userId - ID пользователя, которому передаются права
+ * @param {string} userId - ID пользователя, которому передаются права
  * @returns {Promise<boolean>} - результат отправки запроса (успех или ошибка)
  */
 export async function requestAdminTransfer(userId: string): Promise<boolean> {

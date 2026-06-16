@@ -3,8 +3,8 @@ import { api } from '$lib/utils/api';
 /**
  * Формирование и скачивание отчёта по заявкам в Excel
  * Файл формируется на сервере
- * @param fromDate - дата начала периода (включительно) в формате 'YYYY-MM-DD'
- * @param toDate - дата окончания периода (включительно) в формате 'YYYY-MM-DD'
+ * @param {string} fromDate - дата начала периода (включительно) в формате 'YYYY-MM-DD'
+ * @param {string} toDate - дата окончания периода (включительно) в формате 'YYYY-MM-DD'
  */
 export async function generateStatisticsReport(
     fromDate: string,

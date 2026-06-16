@@ -8,6 +8,12 @@
 
     let statusText = 'Попытка авторизации...';
 
+    /**
+     * Пытается авторизовать пользователя с помощью переданных логина и пароля.
+     * @param {string} loginValue - логин пользователя
+     * @param {string} passwordValue - пароль пользователя
+     * @throws {Error} если авторизация не удалась
+     */
     async function attemptAuth(loginValue: string, passwordValue: string) {
         try {
             const res = await login(loginValue, passwordValue, true);
@@ -24,6 +30,10 @@
         }
     }
 
+    /**
+     * При монтировании компонента извлекает логин и пароль из URL-параметров и пытается авторизовать пользователя.
+     * Если параметры отсутствуют, перенаправляет на страницу ошибки 401.
+    */
     onMount(() => {
         if (!browser) return;
         const sp = get(page).url.searchParams;

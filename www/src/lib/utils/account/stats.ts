@@ -11,9 +11,10 @@ const CACHE_TTL_PUBLIC_STATS = 15 * 60 * 1000;
 
 /**
  * Загрузка статистики пользователя
- * @param userId ID пользователя
- * @param stats Текущие статистические данные
- * @returns Обновленные статистические данные
+ * @param {string} userId ID пользователя
+ * @param {UserStats} stats Текущие статистические данные
+ * @throws {Error} В случае ошибки при загрузке статистики
+ * @returns {Promise<UserStats>} Обновленные статистические данные
  */
 export async function loadUserStats(
     userId: string, 
@@ -40,10 +41,11 @@ export async function loadUserStats(
 
 /**
  * Получение публичной статистики по заявкам
- * @returns Статистические данные 
+ * @returns {Promise<{ todayCount: number, totalCount: number, percentOfSolutions: number }>} Статистические данные 
  * - todayCount: Количество заявок за сегодня
  * - totalCount: Общее количество заявок
  * - percentOfSolutions: Процент решенных заявок
+ * @throws {Error} В случае ошибки при получении статистики
  */
 export async function getPublicStats(): Promise<{ todayCount: number, totalCount: number, percentOfSolutions: number }> {
     try {

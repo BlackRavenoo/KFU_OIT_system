@@ -34,8 +34,8 @@
     
     /**
      * Переключение состояния FAQ (открыт/закрыт)
-     * @param categoryIndex Номер категории
-     * @param itemIndex Номер вопроса в категории
+     * @param {number} categoryIndex Номер категории
+     * @param {number} itemIndex Номер вопроса в категории
      */
     function toggleFAQ(categoryIndex: number, itemIndex: number) {
         faqCategories[categoryIndex].items[itemIndex].isOpen = !faqCategories[categoryIndex].items[itemIndex].isOpen;

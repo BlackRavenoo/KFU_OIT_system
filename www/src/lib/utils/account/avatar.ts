@@ -31,7 +31,7 @@ export interface AvatarState {
 
 /**
  * Функция для инициализации состояния аватара
- * @returns Инициализированное состояние аватара
+ * @returns {AvatarState} Инициализированное состояние аватара
  */
 export function initAvatarState(): AvatarState {
     return {
@@ -55,8 +55,8 @@ export function initAvatarState(): AvatarState {
 
 /**
  * Функция для центрирования изображения аватара в контейнере
- * @param state Текущее состояние аватара
- * @returns Состояние аватара с центрированным изображением
+ * @param {AvatarState} state Текущее состояние аватара
+ * @returns {AvatarState} Состояние аватара с центрированным изображением
  */
 export function centerImage(state: AvatarState): AvatarState {
     if (!state.imageSize.width || !state.imageSize.height) return state;
@@ -85,8 +85,8 @@ export function centerImage(state: AvatarState): AvatarState {
 
 /**
  * Функция для ограничения перемещения изображения в пределах области обрезки
- * @param state Текущее состояние аватара
- * @returns Состояние аватара с ограниченной позицией изображения
+ * @param {AvatarState} state Текущее состояние аватара
+ * @returns {AvatarState} Состояние аватара с ограниченной позицией изображения
  */
 export function constrainCrop(state: AvatarState): AvatarState {
     if (!state.imageSize.width || !state.imageSize.height) return state;
@@ -114,10 +114,10 @@ export function constrainCrop(state: AvatarState): AvatarState {
 
 /**
  * Функция для обновления позиции и масштаба изображения в DOM
- * @param imageContainer Контейнер с изображением
- * @param imgX Координата X изображения
- * @param imgY Координата Y изображения
- * @param scale Параметр масштабирования изображения
+ * @param {HTMLDivElement | null} imageContainer Контейнер с изображением
+ * @param {number} imgX Координата X изображения
+ * @param {number} imgY Координата Y изображения
+ * @param {number} scale Параметр масштабирования изображения
  */
 export function updateImagePosition(imageContainer: HTMLDivElement | null, imgX: number, imgY: number, scale: number): void {
     if (imageContainer)
@@ -128,9 +128,9 @@ export function updateImagePosition(imageContainer: HTMLDivElement | null, imgX:
 
 /**
  * Функция для обновления рамки обрезки в DOM
- * @param cropFrame Элемент рамки обрезки
- * @param cropSize Размер рамки обрезки
- * @param containerSize Размер контейнера
+ * @param {HTMLDivElement | null} cropFrame Элемент рамки обрезки
+ * @param {number} cropSize Размер рамки обрезки
+ * @param {number} containerSize Размер контейнера
  */
 export function updateCropFrame(cropFrame: HTMLDivElement | null, cropSize: number, containerSize: number): void {
     if (cropFrame) {
@@ -145,9 +145,9 @@ export function updateCropFrame(cropFrame: HTMLDivElement | null, cropSize: numb
 
 /**
  * Функция для изменения масштаба изображения аватара
- * @param state Текущее состояние аватара
- * @param delta Порядок изменения масштаба
- * @returns 
+ * @param {AvatarState} state Текущее состояние аватара
+ * @param {number} delta Порядок изменения масштаба
+ * @returns {AvatarState} Новое состояние аватара с измененным масштабом
  */
 export function zoomImage(state: AvatarState, delta: number): AvatarState {
     const newScale = Math.max(0.1, Math.min(5, state.scale + delta));
@@ -168,10 +168,10 @@ export function zoomImage(state: AvatarState, delta: number): AvatarState {
 
 /**
  * Функция для перемещения изображения аватара
- * @param state Текущее состояние аватара
- * @param deltaX Изменение по оси X
- * @param deltaY Изменение по оси Y
- * @returns 
+ * @param {AvatarState} state Текущее состояние аватара
+ * @param {number} deltaX Изменение по оси X
+ * @param {number} deltaY Изменение по оси Y
+ * @returns {AvatarState} Новое состояние аватара с измененной позицией
  */
 export function moveImage(state: AvatarState, deltaX: number, deltaY: number): AvatarState {
     return constrainCrop({
@@ -183,7 +183,7 @@ export function moveImage(state: AvatarState, deltaX: number, deltaY: number): A
 
 /**
  * Функция для добавления обработчиков клавиатуры
- * @param handler Функция-обработчик событий клавиатуры
+ * @param {function} handler Функция-обработчик событий клавиатуры
  */
 export function addKeyboardHandlers(handler: (event: KeyboardEvent) => void): void {
     browser && window.addEventListener('keydown', handler);
@@ -191,7 +191,7 @@ export function addKeyboardHandlers(handler: (event: KeyboardEvent) => void): vo
 
 /**
  * Функция для удаления обработчиков клавиатуры
- * @param handler Функция-обработчик событий клавиатуры
+ * @param {function} handler Функция-обработчик событий клавиатуры
  */
 export function removeKeyboardHandlers(handler: (event: KeyboardEvent) => void): void {
     browser && window.removeEventListener('keydown', handler);
@@ -199,13 +199,13 @@ export function removeKeyboardHandlers(handler: (event: KeyboardEvent) => void):
 
 /**
  * Функция для обрезки изображения аватара на основе текущих параметров
- * @param canvas Холст для отрисовки и обрезки изображения
- * @param avatarPreviewUrl Ссылка на предварительный просмотр изображения
- * @param imgX Координата X изображения
- * @param imgY Координата Y изображения
- * @param scale Параметр масштабирования изображения
- * @param cropSize Размер области обрезки
- * @param containerSize Размер контейнера
+ * @param {HTMLCanvasElement} canvas Холст для отрисовки и обрезки изображения
+ * @param {string} avatarPreviewUrl Ссылка на предварительный просмотр изображения
+ * @param {number} imgX Координата X изображения
+ * @param {number} imgY Координата Y изображения
+ * @param {number} scale Параметр масштабирования изображения
+ * @param {number} cropSize Размер области обрезки
+ * @param {number} containerSize Размер контейнера
  */
 export async function cropAvatarImage(
     canvas: HTMLCanvasElement,
@@ -269,7 +269,8 @@ export async function cropAvatarImage(
 
 /**
  * Функция для загрузки аватара на сервер
- * @param file Файл изображения аватара
+ * @param {File} file Файл изображения аватара
+ * @throws {Error} В случае ошибки при загрузке аватара
  */
 export async function uploadAvatar(file: File): Promise<string | null> {
     try {
@@ -303,8 +304,8 @@ export async function uploadAvatar(file: File): Promise<string | null> {
 
 /**
  * Функция для обновления изображения аватара в компоненте.
- * @param avatarComponent Элемент компонента аватара
- * @param url Ссылка на новое изображение
+ * @param {HTMLElement | null} avatarComponent Элемент компонента аватара
+ * @param {string} url Ссылка на новое изображение
  */
 export async function updateAvatarImage(avatarComponent: HTMLElement | null, url: string): Promise<void> {
     if (!avatarComponent) return;
@@ -326,9 +327,9 @@ export async function updateAvatarImage(avatarComponent: HTMLElement | null, url
 
 /**
  * Генерирует аватар с инициалами на основе имени пользователя
- * @param name Имя пользователя
- * @param size Размер аватара
- * @returns Data URI изображения
+ * @param {string} name Имя пользователя
+ * @param {number} size Размер аватара
+ * @returns {string} Data URI изображения
  */
 function generateLetterAvatar(name: string, size: number): string {
     const avatarColors = [
@@ -373,10 +374,10 @@ function generateLetterAvatar(name: string, size: number): string {
 
 /**
  * Функция для получения и отображения аватара пользователя
- * @param user Объект пользователя
- * @param container HTML элемент, в который нужно вставить аватар
- * @param width Ширина аватара (по умолчанию 48)
- * @param round Круглый ли аватар (по умолчанию true)
+ * @param {IUserData | { name: string; avatar_key?: string }} user Объект пользователя
+ * @param {HTMLElement | null} container HTML элемент, в который нужно вставить аватар
+ * @param {number} width Ширина аватара (по умолчанию 48)
+ * @param {boolean} round Круглый ли аватар (по умолчанию true)
  */
 export async function getAvatar(
     user: IUserData | { name: string; avatar_key?: string },

@@ -32,9 +32,9 @@ export interface UsersState {
 
 /**
  * Загрузка списка пользователей
- * @param currentPage Текущая страница
- * @param itemsPerPage Количество элементов на страницу
- * @param searchQuery Строка поиска
+ * @param {number} currentPage - Текущая страница
+ * @param {number} itemsPerPage - Количество элементов на страницу
+ * @param {string} searchQuery - Строка поиска
  */
 export async function loadUsersData(
     currentPage: number,
@@ -60,7 +60,8 @@ export async function loadUsersData(
 
 /**
  * Отправка приглашения на email
- * @param email Email для приглашения
+ * @param {string} email - Email для приглашения
+ * @returns {Promise<boolean>} - Результат отправки приглашения
  */
 export async function sendInvitation(email: string): Promise<boolean> {
     if (!validateEmail(email)) {
@@ -80,8 +81,10 @@ export async function sendInvitation(email: string): Promise<boolean> {
 
 /**
  * Смена роли пользователя
- * @param userId - id пользователя для смены
- * @param newRole - новая роль для установки пользователю
+ * @param {string} userId - id пользователя для смены
+ * @param {string} newRole - новая роль для установки пользователю
+ * @throws {Error} - В случае ошибки при выполнении запроса
+ * @returns {Promise<boolean>} - Результат смены роли
  */
 export async function changeRole(userId: string, newRole: string): Promise<boolean> {
     try {
@@ -105,8 +108,10 @@ export async function changeRole(userId: string, newRole: string): Promise<boole
 
 /**
  * Установка статуса пользователя
- * @param id - ID пользователя
- * @param status - Новый статус пользователя
+ * @param {number} id - ID пользователя
+ * @param {UserStatus} status - Новый статус пользователя
+ * @throws {Error} - В случае ошибки при выполнении запроса
+ * @returns {Promise<boolean>} - Результат установки статуса
  */
 export async function setUserStatus(id: number, status: UserStatus): Promise<boolean> {
     try {
@@ -129,7 +134,9 @@ export async function setUserStatus(id: number, status: UserStatus): Promise<boo
 
 /**
  * Функция удаления пользователя
- * @param id - идентификатор удаляемого пользователя
+ * @param {number} id - идентификатор удаляемого пользователя
+ * @returns {Promise<boolean>} - Результат удаления пользователя
+ * @throws {Error} - В случае ошибки при выполнении запроса
  */
 export async function deleteUser(id: number): Promise<boolean> {
     try {
@@ -154,7 +161,9 @@ export async function deleteUser(id: number): Promise<boolean> {
 
 /**
  * Функция восстановления помеченного на удаление пользователя
- * @param id  - идентификатор пользователя, которого необходимо восстановить
+ * @param {number} id  - идентификатор пользователя, которого необходимо восстановить
+ * @returns {Promise<boolean>} - Результат восстановления пользователя
+ * @throws {Error} - В случае ошибки при выполнении запроса
  */
 export async function restoreUser(id: number): Promise<boolean> {
     try {

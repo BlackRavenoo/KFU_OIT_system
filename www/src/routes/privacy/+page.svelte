@@ -14,7 +14,7 @@
     
     /**
      * Прокручивает страницу к выбранной секции политики конфиденциальности.
-     * @param index Индекс секции в массиве sections
+     * @param {number} index Индекс секции в массиве sections
      */
     function scrollToSection(index: number) {
         currentSection = index;

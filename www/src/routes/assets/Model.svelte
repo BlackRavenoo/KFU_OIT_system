@@ -6,6 +6,7 @@
     import { createModel, deleteCategory, deleteModel, updateModel } from '$lib/utils/assets/api';
     import { setupKeydownListener, removeKeydownListener } from '$lib/components/Modal/Modal';
     import type { AssetCategory, AssetModel } from '$lib/utils/assets/types';
+    import type { Key } from 'readline';
 
     export let model: AssetModel | null = null;
     export let mode: 'create' | 'edit' | 'view' = 'create';
@@ -47,10 +48,17 @@
     };
     $: isFormInvalid = Object.values(validationErrors).some((msg) => Boolean(msg));
 
+    /**
+     * Переключает режим с "просмотр" на "редактирование", позволяя редактировать модель после просмотра.
+     */
     function switchToEdit() {
         mode = 'edit';
     }
 
+    /**
+     * Обрабатывает сохранение модели. В режиме "создание" вызывает createModel, в режиме "редактирование" — updateModel.
+     * @throws {Error} Если возникает ошибка при сохранении, она будет выброшена и обработана в блоке catch.
+     */
     async function handleSave() {
         if (isFormInvalid) {
             errorMsg = 'Проверьте корректность заполнения полей';
@@ -79,23 +87,39 @@
         }
     }
 
+    /**
+     * Закрывает модальное окно, отправляя событие "close" родительскому компоненту.
+     */
     function close() {
         dispatch('close');
     }
 
+    /**
+     * Открывает модальное окно для создания новой категории, отправляя событие "openCategory" родительскому компоненту.
+     */
     function openCategoryModal() {
         dispatch('openCategory');
     }
 
+    /**
+     * Открывает модальное окно подтверждения удаления модели. 
+     */
     function openDeleteModelModal() {
         showDeleteModelModal = true;
     }
 
+    /**
+     * Закрывает модальное окно подтверждения удаления модели, если в данный момент не происходит процесс удаления.
+     */
     function closeDeleteModelModal() {
         if (deletingModel) return;
         showDeleteModelModal = false;
     }
 
+    /**
+     * Обрабатывает удаление модели. Отправляет запрос на удаление модели и обрабатывает результат. 
+     * В случае успеха отправляет событие "deleteModel" с ID удаленной модели, в случае ошибки отображает сообщение об ошибке.
+     */
     async function handleDeleteModel() {
         if (!model || deletingModel) return;
 
@@ -114,16 +138,26 @@
         dispatch('deleteModel', { id: model.id });
     }
 
+    /**
+     * Открывает модальное окно подтверждения удаления категории.
+     */
     function openDeleteCategoryModal() {
         if (!selectedCategoryId) return;
         showDeleteCategoryModal = true;
     }
 
+    /**
+     * Закрывает модальное окно подтверждения удаления категории, если в данный момент не происходит процесс удаления.
+     */
     function closeDeleteCategoryModal() {
         if (deletingCategory) return;
         showDeleteCategoryModal = false;
     }
 
+    /**
+     * Обрабатывает удаление категории. Отправляет запрос на удаление категории и обрабатывает результат.
+     * В случае успеха отправляет событие "deleteCategory" с ID удаленной категории, в случае ошибки отображает сообщение об ошибке.
+     */
     async function handleDeleteCategory() {
         if (!selectedCategoryId || deletingCategory) return;
 
@@ -143,14 +177,25 @@
         dispatch('deleteCategory', { id: categoryId });
     }
 
+    /**
+     * Обработчик события нажатия клавиши. Закрывает модальное окно при нажатии клавиши "Escape".
+     * @param {KeyboardEvent} e - объект события клавиатуры, содержащий информацию о нажатой клавише.
+     */
     function keydownHandler(e: KeyboardEvent) {
         if (e.key === 'Escape') close();
     }
 
+    /**
+     * Устанавливает слушатель события нажатия клавиши при монтировании компонента.
+    */
     onMount(() => {
         setupKeydownListener(keydownHandler);
     });
 
+    /**
+     * Удаляет слушатель события нажатия клавиши при размонтировании компонента, 
+     * чтобы предотвратить утечки памяти и нежелательное поведение после закрытия модального окна.
+    */
     onDestroy(() => {
         removeKeydownListener(keydownHandler);
     });

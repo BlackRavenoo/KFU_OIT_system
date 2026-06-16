@@ -55,8 +55,9 @@ interface DashboardTotals {
 /**
  * Функция для получения метрик по тикетам с сервера
  * Принимает необязательные параметры для фильтрации по зданию и отделу.
- * @param query - параметры для фильтрации метрик
- * @returns массив метрик по тикетам
+ * @param {DashboardMetricsQuery} query - параметры для фильтрации метрик
+ * @throws {Error} если запрос не удался или данные не в ожидаемом формате
+ * @returns {Promise<TicketsMetrics[]>} массив метрик по тикетам
  */
 export async function getTicketsMetrics(
 	query: DashboardMetricsQuery = {}
@@ -82,8 +83,8 @@ export async function getTicketsMetrics(
 /**
  * Функция для расчета итоговых показателей для дашборда 
  * На основе массива метрик по тикетам.
- * @param metrics - массив метрик по тикетам
- * @returns объект с итоговыми показателями
+ * @param {TicketsMetrics[]} metrics - массив метрик по тикетам
+ * @returns {DashboardTotals} объект с итоговыми показателями
  */
 export function calcDashboardTotals(metrics: TicketsMetrics[]): DashboardTotals {
 	return metrics.reduce<DashboardTotals>(
@@ -103,9 +104,9 @@ export function calcDashboardTotals(metrics: TicketsMetrics[]): DashboardTotals 
 /**
  * Функция для расчета процента соблюдения SLA 
  * На основе количества закрытых тикетов и нарушений SLA.
- * @param closed - количество закрытых тикетов
- * @param slaBreaches - количество нарушений SLA
- * @returns процент соблюдения SLA
+ * @param {number} closed - количество закрытых тикетов
+ * @param {number} slaBreaches - количество нарушений SLA
+ * @returns {number} процент соблюдения SLA
  */
 export function calcSlaPercent(closed: number, slaBreaches: number): number {
 	if (!closed) return 0;
@@ -117,8 +118,8 @@ export function calcSlaPercent(closed: number, slaBreaches: number): number {
 /**
  * Функция для нормализации данных метрик по тикетам, полученных с сервера.
  * Преобразует все числовые значения в целые числа, чтобы избежать проблем с типами данных.
- * @param raw - необработанные данные метрик
- * @returns нормализованные данные метрик
+ * @param {TicketsMetrics} raw - необработанные данные метрик
+ * @returns {TicketsMetrics} нормализованные данные метрик
  */
 function normalizeMetrics(raw: TicketsMetrics): TicketsMetrics {
 	return {
@@ -140,8 +141,8 @@ function normalizeMetrics(raw: TicketsMetrics): TicketsMetrics {
 /**
  * Функция для безопасного преобразования значения в целое число. 
  * Если значение не является числом или не является конечным, возвращает 0.
- * @param value - значение для преобразования
- * @returns целое число или 0, если преобразование невозможно
+ * @param {unknown} value - значение для преобразования
+ * @returns {number} целое число или 0, если преобразование невозможно
  */
 function toInt(value: unknown): number {
 	const numeric = Number(value);

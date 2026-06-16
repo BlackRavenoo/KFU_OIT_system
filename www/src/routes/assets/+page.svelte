@@ -87,11 +87,22 @@
     $: modelMap = createModelMap(models);
     $: statusMap = createStatusMap(statuses);
 
+    /**
+     * Преобразует строку в необязательное значение, возвращая undefined для пустых строк
+     * @param {string} value - входная строка
+     * @returns {string | undefined} - возвращает строку без пробелов или undefined, если строка пустая после обрезки
+     */
     function toOptional(value: string): string | undefined {
         const normalized = value.trim();
         return normalized.length > 0 ? normalized : undefined;
     }
 
+    /**
+     * Преобразует значение в URL для фотографии актива, добавляя версию кэша для предотвращения проблем с обновлением изображений
+     * @param {string} [value] - исходное значение URL
+     * @param {number} [cacheVersion] - версия кэша для предотвращения проблем с обновлением изображений
+     * @returns {string | undefined} - возвращает URL с добавленной версией кэша или undefined, если значение отсутствует
+     */
     function toAssetPhotoUrl(value?: string, cacheVersion?: number): string | undefined {
         if (!value) return undefined;
 
@@ -108,26 +119,48 @@
         return withVersion(`/api/v1/attachments${ normalizedPath }`);
     }
 
+    /**
+     * Нормализует строку MAC-адреса, удаляя все не-hex символы, преобразуя в верхний регистр и форматируя с двоеточиями
+     * @param {string} value - входная строка MAC-адреса
+     * @returns {string} - возвращает нормализованный MAC-адрес
+     */
     function normalizeMac(value: string): string {
         const hex = value.replace(/[^0-9a-fA-F]/g, '').toUpperCase().slice(0, 12);
         return hex.match(/.{1,2}/g)?.join(':') ?? '';
     }
 
+    /**
+     * Обработчик ввода для поля фильтра MAC-адреса, который нормализует введенное значение в реальном времени
+     * @param {Event} e - событие ввода для поля MAC-адреса
+     */
     function handleMacFilterInput(e: Event) {
         const input = e.currentTarget as HTMLInputElement;
         filterMac = normalizeMac(input.value);
     }
 
+    /**
+     * Блокирует прокрутку страницы, устанавливая overflow в 'hidden' для элемента document.documentElement и body. 
+     * Это предотвращает прокрутку фона при открытии мобильного меню фильтров.
+    */
     function lockScroll() {
         document.documentElement.style.overflow = 'hidden';
         document.body.style.overflow = 'hidden';
     }
 
+    /**
+     * Разблокирует прокрутку страницы, сбрасывая стиль overflow для элемента document.documentElement и body.
+      * Это позволяет снова прокручивать страницу после закрытия мобильного меню фильтров.
+     */
     function unlockScroll() {
         document.documentElement.style.overflow = '';
         document.body.style.overflow = '';
     }
 
+    /**
+     * Проверяет ширину окна и устанавливает флаг isMobile, а также состояние свернутости фильтров.
+     * Если ширина окна меньше или равна 900 пикселям, считается мобильным устройством.
+     * Если не мобильное устройство, фильтры по умолчанию будут свернуты, а прокрутка будет разблокирована.
+    */
     function checkMobile() {
         isMobile = window.innerWidth <= 900;
         if (!isMobile) {
@@ -136,6 +169,10 @@
         }
     }
 
+    /**
+     * Переключает состояние свернутости фильтров. 
+     * Если устройство мобильное, также блокирует или разблокирует прокрутку страницы в зависимости от нового состояния фильтров.
+    */
     function toggleFiltersCollapsed() {
         filtersCollapsed = !filtersCollapsed;
         if (isMobile) {
@@ -144,11 +181,19 @@
         }
     }
 
+    /**
+     * Обработчик для выполнения поиска активов. Сбрасывает текущую страницу на 1 и вызывает функцию 
+     * fetchAssets для загрузки данных с учетом текущих фильтров и параметров поиска.
+    */
     async function handleSearch() {
         page = 1;
         await fetchAssets();
     }
 
+    /**
+     * Обработчик для применения изменений в фильтрах. 
+     * Сбрасывает текущую страницу на 1 и вызывает функцию fetchAssets для загрузки данных с учетом новых фильтров.
+     */
     async function handleFilterChange() {
         page = 1;
         await fetchAssets();
@@ -159,6 +204,9 @@
         }
     }
 
+    /**
+     * Обработчик для сброса всех фильтров к их значениям по умолчанию.
+    */
     async function handleClearFilters() {
         clearAssetsFilters();
 
@@ -183,6 +231,11 @@
         }
     }
 
+    /**
+     * Обработчик для изменения текущей страницы. Проверяет, что новая страница находится в допустимом диапазоне,
+     * и вызывает функцию fetchAssets для загрузки данных с учетом текущих фильтров и параметров поиска.
+     * @param {number} newPage - новая страница для отображения
+     */
     async function handlePageChange(newPage: number) {
         if (newPage >= 1 && newPage <= totalPages) {
             page = newPage;
@@ -190,6 +243,12 @@
         }
     }
 
+    /**
+     * Обработчик для изменения размера страницы (количество элементов на странице). 
+     * Проверяет, что новое значение является положительным числом,
+     * и вызывает функцию fetchAssets для загрузки данных с учетом текущих фильтров и параметров поиска.
+     * @param {Event} e - событие изменения значения элемента ввода
+    */
     async function handlePageSizeChange(e: Event) {
         const val = Number((e.currentTarget as HTMLInputElement).value);
         if (!Number.isNaN(val) && val > 0) {
@@ -208,6 +267,10 @@
 
     let showCategoryModal = false;
 
+    /**
+     * Асинхронная функция для загрузки активов с сервера с учетом текущих фильтров, параметров поиска и пагинации.
+     * @returns {Promise<boolean>} - возвращает true при успешной загрузке данных, или false при ошибке загрузки.
+    */
     async function fetchAssets() {
         loading = true;
         error = null;
@@ -259,6 +322,10 @@
         return true;
     }
 
+    /**
+     * Асинхронная функция для загрузки списка моделей активов с сервера.
+     * @returns {Promise<boolean>} - возвращает true при успешной загрузке данных, или false при ошибке загрузки.
+    */
     async function fetchModelsList() {
         const resp = await getModels({ page: 1, page_size: 100 });
         if (!resp.success) return false;
@@ -268,6 +335,10 @@
         return true;
     }
 
+    /**
+     * Асинхронная функция для загрузки списка категорий активов с сервера.
+     * @return {Promise<boolean>} - возвращает true при успешной загрузке данных, или false при ошибке загрузки.
+    */
     async function fetchCategoriesList() {
         const resp = await getCategories({ page: 1, page_size: 100 });
         if (!resp.success) return false;
@@ -277,6 +348,10 @@
         return true;
     }
 
+    /**
+     * Асинхронная функция для загрузки списка статусов активов с сервера.
+     * @return {Promise<boolean>} - возвращает true при успешной загрузке данных, или false при ошибке загрузки.
+    */
     async function fetchStatuses() {
         const resp = await getStatuses({ page: 1, page_size: 100 });
         if (!resp.success) return false;
@@ -286,17 +361,30 @@
         return true;
     }
 
+    /**
+     * Открывает модальное окно для создания нового актива. 
+     * Загружает список моделей перед открытием, чтобы обеспечить актуальные данные для выбора модели при создании актива.
+    */
     async function openCreateAsset() {
         await fetchModelsList();
         editingAsset = null;
         showAssetModal = true;
     }
 
+    /**
+     * Открывает модальное окно для просмотра и редактирования существующего актива.
+     * @param {AssetItem} asset - актив, который будет отображаться и редактироваться в модальном окне
+    */
     function openViewAsset(asset: AssetItem) {
         editingAsset = asset;
         showAssetModal = true;
     }
 
+    /**
+     * Открывает модальное окно для создания или редактирования модели актива.
+     * @param {CustomEvent<{ mode?: 'create' | 'edit'; modelId?: number }>} [event] - 
+     * необязательное событие, содержащее режим (создание или редактирование) и идентификатор модели для редактирования
+    */
     async function openModelModal(event?: CustomEvent<{ mode?: 'create' | 'edit'; modelId?: number }>) {
         const detail = event?.detail;
         await fetchCategoriesList();
@@ -313,10 +401,17 @@
         showModelModal = true;
     }
 
+    /**
+     * Открывает модальное окно для создания новой категории активов.
+    */
     function openCreateCategory() {
         showCategoryModal = true;
     }
 
+    /**
+     * Обработчик для сохранения изменений актива. 
+     * Если актив уже существует в списке, обновляет его данные, иначе добавляет новый актив в начало списка.
+    */
     async function handleAssetSaved(event: CustomEvent<{ asset: AssetItem }>) {
         const savedAsset = event.detail.asset;
         const index = assets.findIndex((item) => item.id === savedAsset.id);
@@ -333,11 +428,18 @@
         editingAsset = null;
     }
 
+    /**
+     * Обработчик для закрытия модального окна актива. Сбрасывает состояние редактируемого актива и закрывает модальное окно.
+    */
     function handleAssetClose() {
         showAssetModal = false;
         editingAsset = null;
     }
 
+    /**
+     * Обработчик для удаления актива. Удаляет актив из списка по идентификатору, а затем обновляет список активов, вызвав функцию fetchAssets.
+     * @param {CustomEvent<{ id: number }>} event - событие, содержащее идентификатор удаленного актива
+    */
     async function handleAssetDeleted(event: CustomEvent<{ id: number }>) {
         const { id } = event.detail;
 
@@ -348,12 +450,21 @@
         await fetchAssets();
     }
 
+    /**
+     * Обработчик для сохранения изменений модели актива. После сохранения обновляет список моделей, 
+     * вызвав функцию fetchModelsList, а затем закрывает модальное окно и сбрасывает состояние редактируемой модели.
+    */
     async function handleModelSaved() {
         showModelModal = false;
         editingModel = null;
         await fetchModelsList();
     }
 
+    /**
+     * Обработчик для удаления модели актива. 
+     * Удаляет модель из списка по идентификатору, а также удаляет все активы, связанные с этой моделью.
+     * @param {CustomEvent<{ id: number }>} event - событие, содержащее идентификатор удаленной модели
+    */
     async function handleModelDeleted(event: CustomEvent<{ id: number }>) {
         const { id } = event.detail;
 
@@ -366,6 +477,12 @@
         await Promise.all([fetchModelsList(), fetchAssets()]);
     }
 
+    /**
+     * Обработчик для удаления категории актива. 
+     * Удаляет категорию из списка по идентификатору, а также удаляет все модели и активы, связанные с этой категорией.
+     * @param {CustomEvent<{ id: number }>} event - событие, содержащее идентификатор удаленной категории
+     * @returns {Promise<void>} - возвращает промис, который разрешается после завершения всех операций по удалению и обновлению данных
+    */
     async function handleCategoryDeleted(event: CustomEvent<{ id: number }>) {
         const { id } = event.detail;
 
@@ -381,16 +498,27 @@
         await Promise.all([fetchCategoriesList(), fetchModelsList(), fetchAssets()]);
     }
 
+    /**
+     * Обработчик для закрытия модального окна модели. 
+     * Сбрасывает состояние редактируемой модели и закрывает модальное окно.
+    */
     function handleModelClose() {
         showModelModal = false;
         editingModel = null;
     }
 
+    /**
+     * Обработчик для сохранения изменений категории актива. После сохранения обновляет список категорий,
+     * вызвав функцию fetchCategoriesList, а затем закрывает модальное окно.
+    */
     async function handleCategorySaved() {
         showCategoryModal = false;
         await fetchCategoriesList();
     }
 
+    /**
+     * Обработчик для закрытия модального окна категории. Закрывает модальное окно и сбрасывает состояние редактируемой категории.
+    */
     function handleCategoryClose() {
         showCategoryModal = false;
     }
@@ -404,6 +532,10 @@
         $currentUser?.role === UserRole.Administrator ||
         $currentUser?.role === UserRole.Moderator;
 
+    /**
+     * Инициализация компонента. Устанавливает заголовок страницы, описание, проверяет мобильное устройство
+     * и загружает данные категорий, моделей и статусов.
+     */
     onMount(async () => {
         pageTitle.set('Активы | Система управления заявками ЕИ КФУ');
         pageDescription.set('Управление активами и оборудованием организации.');
@@ -413,6 +545,9 @@
         await fetchAssets();
     });
 
+    /**
+     * Очистка ресурсов при уничтожении компонента. Удаляет обработчик изменения размера окна, разблокирует прокрутку страницы и сбрасывает заголовок и описание страницы к значениям по умолчанию.
+    */
     onDestroy(() => {
         window.removeEventListener('resize', checkMobile);
         unlockScroll();

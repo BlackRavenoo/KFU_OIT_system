@@ -36,7 +36,8 @@ export class LocalStorageAssetsFiltersStorage implements IAssetsFiltersStorage {
     /**
      * Читает фильтры из `localStorage` и объединяет с дефолтными значениями.
      * При ошибке парсинга очищает повреждённые данные.
-     * @returns Полный набор фильтров.
+     * @throws {Error} Если данные в `localStorage` повреждены и не могут быть распарсены.
+     * @returns {AssetsFilters} Полный набор фильтров.
      */
     private readFromLocalStorage(): AssetsFilters {
         try {
@@ -54,7 +55,7 @@ export class LocalStorageAssetsFiltersStorage implements IAssetsFiltersStorage {
 
     /**
      * Возвращает текущие фильтры.
-     * @returns Текущее значение фильтров.
+     * @returns {AssetsFilters} Текущее значение фильтров.
      */
     get(): AssetsFilters {
         return this.filters;
@@ -62,7 +63,7 @@ export class LocalStorageAssetsFiltersStorage implements IAssetsFiltersStorage {
 
     /**
      * Обновляет фильтры в памяти и сохраняет их в `localStorage`.
-     * @param filters Новое значение фильтров.
+     * @param {AssetsFilters} filters - Новое значение фильтров.
      */
     set(filters: AssetsFilters): void {
         this.filters = { ...filters };
@@ -83,7 +84,7 @@ let filtersStorage: IAssetsFiltersStorage | null = null;
 
 /**
  * Устанавливает глобальный экземпляр хранилища фильтров.
- * @param storage Экземпляр хранилища.
+ * @param {IAssetsFiltersStorage} storage - Экземпляр хранилища.
  */
 export function setAssetsFiltersStorage(storage: IAssetsFiltersStorage) {
     filtersStorage = storage;
@@ -92,7 +93,7 @@ export function setAssetsFiltersStorage(storage: IAssetsFiltersStorage) {
 /**
  * Возвращает текущий экземпляр хранилища фильтров.
  * @throws {Error} Если хранилище не инициализировано.
- * @returns Инициализированное хранилище фильтров.
+ * @returns {IAssetsFiltersStorage} Инициализированное хранилище фильтров.
  */
 export function getAssetsFiltersStorage(): IAssetsFiltersStorage {
     if (!filtersStorage)
@@ -103,7 +104,7 @@ export function getAssetsFiltersStorage(): IAssetsFiltersStorage {
 
 /**
  * Получает текущие фильтры активов из хранилища.
- * @returns Текущее значение фильтров.
+ * @returns {AssetsFilters} Текущее значение фильтров.
  */
 export function getAssetsFilters(): AssetsFilters {
     return getAssetsFiltersStorage().get();
@@ -111,7 +112,7 @@ export function getAssetsFilters(): AssetsFilters {
 
 /**
  * Сохраняет фильтры активов в хранилище.
- * @param filters Новое значение фильтров.
+ * @param {AssetsFilters} filters - Новое значение фильтров.
  */
 export function setAssetsFilters(filters: AssetsFilters) {
     getAssetsFiltersStorage().set(filters);

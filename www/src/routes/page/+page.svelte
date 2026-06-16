@@ -45,6 +45,9 @@
         }
     }
 
+    /**
+     * Обновляет URL, добавляя или удаляя параметр "page" в зависимости от текущей страницы.
+    */
     function updatePageUrl() {
         if (!browser) return;
         const url = new URL(window.location.href);
@@ -60,10 +63,20 @@
     let selectedTagIds: number[] = [];
     let selectedTags: Tag[] = [];
 
+    /**
+     * Проверяет, выбран ли тэг с данным id.
+     * @param {number} id - Идентификатор тэга
+     * @returns {boolean} - true, если тэг выбран, иначе false
+     */
     function haveSelected(id: number) {
         return selectedTagIds.includes(id);
     }
 
+    /**
+     * Загружает страницы с сервера с учетом текущих параметров поиска, фильтрации по тэгам и пагинации.
+     * Устанавливает флаги загрузки и обрабатывает ошибки, если они возникают. Результаты сохраняются в переменных `pages` и `totalItems`.
+     * @throws {Error} - Если запрос к API завершается с ошибкой, выбрасывается исключение с сообщением об ошибке.
+     */
     async function fetchPages() {
         loading = true;
         error = null;
@@ -95,12 +108,19 @@
         }
     }
 
+    /**
+     * Обрабатывает событие поиска. Сбрасывает текущую страницу на 1, обновляет URL и выполняет загрузку страниц с новыми параметрами поиска.
+     */
     async function handleSearch() {
         page = 1;
         updatePageUrl();
         await fetchPages();
     }
 
+    /**
+     * Обрабатывает изменение страницы. Если новая страница находится в допустимых пределах, обновляет текущую страницу, URL и выполняет загрузку страниц для новой страницы.
+     * @param {number} newPage - Новая страница
+     */
     async function handlePageChange(newPage: number) {
         if (newPage >= 1 && newPage <= totalPages) {
             page = newPage;
@@ -109,6 +129,11 @@
         }
     }
 
+    /**
+     * Обрабатывает изменение размера страницы. Если новое значение является допустимым числом, 
+     * обновляет размер страницы, сбрасывает текущую страницу на 1, обновляет URL и выполняет загрузку страниц с новым размером страницы.
+     * @param {Event} e - Событие изменения размера страницы
+     */
     async function handlePageSizeChange(e: Event) {
         const val = Number((e.currentTarget as HTMLInputElement).value);
         if (!Number.isNaN(val) && val > 0) {
@@ -119,6 +144,10 @@
         }
     }
 
+    /**
+     * Обрабатывает поиск по тэгам. Если строка поиска не пуста, выполняет запрос к серверу для получения списка тэгов, соответствующих поисковому запросу.
+     * @param {string} q - Строка поиска
+     */
     async function handleTagSearch(q: string) {
         tagSearch = q;
         if (!q.trim()) {
@@ -132,6 +161,11 @@
         tagSearchLoading = false;
     }
 
+    /**
+     * Обрабатывает выбор тэга из списка предложений. Если тэг еще не выбран, добавляет его в список выбранных тэгов и 
+     * выполняет загрузку страниц с учетом нового фильтра по тэгам. После выбора сбрасывает строку поиска и закрывает выпадающий список.
+     * @param {Tag} tag - Выбранный тэг
+     */
     function selectTagFromSuggestion(tag: Tag) {
         if (!haveSelected(tag.id)) {
             selectedTagIds = [...selectedTagIds, tag.id];
@@ -144,6 +178,10 @@
         tagDropdownOpen = false;
     }
 
+    /**
+     * Обрабатывает удаление выбранного тэга. Удаляет тэг с данным id из списка выбранных тэгов и выполняет загрузку страниц с учетом обновленного списка фильтров по тэгам.
+     * @param {number} id - ID тэга для удаления
+     */
     function removeSelectedTag(id: number) {
         selectedTagIds = selectedTagIds.filter(tid => tid !== id);
         selectedTags = selectedTags.filter(t => t.id !== id);
@@ -151,6 +189,10 @@
         fetchPages();
     }
 
+    /**
+     * Открывает страницу с данным id. Выполняет навигацию к URL страницы.
+     * @param {number} id - ID страницы для открытия
+     */
     function openPage(id: number) {
         goto(`/page/${id}`);
     }
@@ -170,6 +212,9 @@
     let newTagSynonyms = '';
     let creatingTag = false;
 
+    /**
+     * Открывает модальное окно для управления тэгами. Сбрасывает все поля и состояния, связанные с управлением тэгами, чтобы подготовить интерфейс для нового сеанса управления тэгами.
+    */
     async function openTagsModal() {
         showTagsModal = true;
         tagManageSearch = '';
@@ -178,6 +223,11 @@
         synonymsInput = '';
     }
 
+    /**
+     * Обрабатывает поиск тэгов для управления. Если строка поиска не пуста, выполняет запрос к серверу 
+     * для получения списка тэгов, соответствующих поисковому запросу, и обновляет состояние загрузки.
+     * @param {string} q - Строка поиска
+     */
     async function handleTagManageSearch(q: string) {
         tagManageSearch = q;
         if (!q.trim()) {
@@ -189,11 +239,19 @@
         tagManageLoading = false;
     }
 
+    /**
+     * Обрабатывает выбор тэга для управления. Устанавливает выбранный тэг в состояние `manageTag` и сбрасывает строку ввода синонимов, 
+     * чтобы подготовить интерфейс для добавления новых синонимов к выбранному тэгу.
+     * @param {Tag} tag - Выбранный тэг
+    */
     function selectManageTag(tag: Tag) {
         manageTag = tag;
         synonymsInput = '';
     }
 
+    /**
+     * Обрабатывает добавление синонимов к выбранному тэгу. Если тэг для управления не выбран, функция не выполняется.
+     */
     async function addSynonymsToTag() {
         if (!manageTag) return;
         const tag_id = manageTag.id;
@@ -208,6 +266,9 @@
         }
     }
 
+    /**
+     * Обрабатывает полное удаление выбранного тэга. Если тэг для управления не выбран, функция не выполняется. 
+     */
     async function deleteTagCompletely() {
         if (!manageTag) return;
         deletingTag = true;
@@ -221,6 +282,9 @@
         }
     }
 
+    /**
+     * Обрабатывает создание нового тэга с синонимами. Если пользователь не имеет прав на управление тэгами или название нового тэга пустое, функция не выполняется.
+     */
     async function createTagWithSynonyms() {
         if (!canManageTags) return;
         const name = newTagName.trim();
@@ -239,12 +303,19 @@
         }
     }
 
+    /**
+     * При монтировании компонента устанавливает заголовок страницы и описание, а также выполняет начальную загрузку страниц.
+    */
     onMount(async () => {
         pageTitle.set('Страницы | Система управления заявками ЕИ КФУ');
         pageDescription.set('Просматривайте справочные страницы и инструкции. Фильтруйте по тэгам и находите нужные материалы быстрее.');
         await fetchPages();
     });
 
+    /**
+     * При размонтировании компонента сбрасывает заголовок страницы и описание к значениям по умолчанию, 
+     * чтобы обеспечить корректное отображение информации при навигации на другие страницы приложения.
+    */
     onDestroy(() => {
         pageTitle.set('Service Desk | Система управления заявками ЕИ КФУ');
         pageDescription.set('Система обработки заявок Елабужского института КФУ.');

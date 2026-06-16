@@ -14,8 +14,8 @@ const BASE = '/api/v1/assets/statuses';
 /**
  * Получает список статусов активов.
  * Если передан `page_size`, значение ограничивается диапазоном от 10 до 100.
- * @param params Параметры запроса списка статусов.
- * @returns Запрос, возвращающий пагинированный список статусов.
+ * @param {GetStatusesParams} [params] - Параметры запроса списка статусов.
+ * @returns {Promise<PaginatedResponse<AssetStatus>>} Запрос, возвращающий пагинированный список статусов.
  */
 export function getStatuses(params?: GetStatusesParams) {
     const pageSize = params?.page_size;
@@ -31,8 +31,8 @@ export function getStatuses(params?: GetStatusesParams) {
 /**
  * Создаёт новый статус актива.
  * Перед отправкой цвет приводится к формату API через `toApiColor`.
- * @param payload Данные для создания статуса.
- * @returns Запрос, возвращающий идентификатор созданного статуса.
+ * @param {CreateStatusPayload} payload - Данные для создания статуса.
+ * @returns {Promise<{ id: number }>} Запрос, возвращающий идентификатор созданного статуса.
  */
 export function createStatus(payload: CreateStatusPayload) {
     return api.post<{ id: number }>(BASE, {
@@ -45,9 +45,9 @@ export function createStatus(payload: CreateStatusPayload) {
  * Обновляет существующий статус актива.
  * Если в полезной нагрузке указан цвет, он приводится к формату API
  * через `toApiColor`.
- * @param statusId Идентификатор обновляемого статуса.
- * @param payload Поля для обновления статуса.
- * @returns Запрос на обновление статуса.
+ * @param {number} statusId - Идентификатор обновляемого статуса.
+ * @param {UpdateStatusPayload} payload - Поля для обновления статуса.
+ * @returns {Promise<void>} Запрос на обновление статуса.
  */
 export function updateStatus(statusId: number, payload: UpdateStatusPayload) {
     const preparedPayload: UpdateStatusPayload = { ...payload };
@@ -57,8 +57,8 @@ export function updateStatus(statusId: number, payload: UpdateStatusPayload) {
 
 /**
  * Удаляет статус актива по идентификатору.
- * @param statusId Идентификатор удаляемого статуса.
- * @returns Запрос на удаление статуса.
+ * @param {number} statusId - Идентификатор удаляемого статуса.
+ * @returns {Promise<void>} Запрос на удаление статуса.
  */
 export function deleteStatus(statusId: number) {
     return api.delete(`${BASE}/${statusId}`);

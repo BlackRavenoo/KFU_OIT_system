@@ -21,7 +21,7 @@ export type TabType = typeof Tab[keyof typeof Tab];
 
 /**
  * Обновляет параметр 'tab' в URL без перезагрузки страницы.
- * @param tab - Выбранная вкладка.
+ * @param {TabType} tab - Выбранная вкладка.
  */
 export function updateUrlParam(tab: TabType): void {
     if (browser) {
@@ -33,7 +33,8 @@ export function updateUrlParam(tab: TabType): void {
 
 /**
  * Проверяет, является ли параметр допустимой вкладкой.
- * @param tabParam - Параметр для проверки
+ * @param {string} tabParam - Параметр для проверки
+ * @returns {boolean} - true, если параметр является допустимой вкладкой, иначе false
  */
 export function isValidTab(tabParam: string): tabParam is TabType {
     return Object.values(Tab).includes(tabParam as TabType);

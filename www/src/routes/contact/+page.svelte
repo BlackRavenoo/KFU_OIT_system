@@ -25,6 +25,11 @@
         map: false
     };
 
+    /**
+     * Функция для обновления видимости элементов страницы
+     * @param {string} id - Идентификатор элемента
+     * @param {boolean} value - Новое значение видимости
+     */
     function setVisible(id: string, value: boolean) {
         visibleElements = { ...visibleElements, [id]: value };
     }

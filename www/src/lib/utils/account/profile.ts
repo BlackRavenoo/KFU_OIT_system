@@ -7,9 +7,11 @@ import { validateEmail } from '$lib/utils/validation/validate';
 
 /**
  * Функция для обновления профиля пользователя
- * @param name Имя пользователя
- * @param email Email пользователя
- * @returns Успешно ли обновление профиля
+ * @param {string} name Имя пользователя
+ * @param {string} email Email пользователя
+ * @param {string} login Логин пользователя
+ * @throws {Error} Если произошла ошибка при обновлении профиля
+ * @returns {Promise<boolean>} Успешно ли обновление профиля
  */
 export async function updateUserProfile(name?: string, email?: string, login?: string): Promise<boolean> {
     const profileData: {name?: string, email?: string, login?: string} = {};
@@ -69,9 +71,10 @@ export async function updateUserProfile(name?: string, email?: string, login?: s
 
 /**
  * Функция для обновления пароля пользователя
- * @param currentPassword Текущий пароль
- * @param newPassword Новый пароль
- * @returns Обновлен ли пароль
+ * @param {string} currentPassword Текущий пароль
+ * @param {string} newPassword Новый пароль
+ * @throws {Error} Если произошла ошибка при обновлении пароля
+ * @returns {Promise<boolean>} Обновлен ли пароль
  */
 export async function updateUserPassword(currentPassword: string, newPassword: string): Promise<boolean> {
     try {
@@ -94,12 +97,13 @@ export async function updateUserPassword(currentPassword: string, newPassword: s
 
 /**
  * Функция для сохранения профиля пользователя
- * @param name Имя пользователя
- * @param email Почта пользователя
- * @param changePassword Флаг изменять ли пароль
- * @param currentPassword Текущий пароль
- * @param newPassword Новый пароль
- * @returns Обновлен ли профиль
+ * @param {string} name Имя пользователя
+ * @param {string} email Почта пользователя
+ * @param {string} login Логин пользователя
+ * @param {boolean} changePassword Флаг изменять ли пароль
+ * @param {string} currentPassword Текущий пароль
+ * @param {string} newPassword Новый пароль
+ * @returns {Promise<boolean>} Обновлен ли профиль
  */
 export async function saveUserProfile(
     name: string,

@@ -12,6 +12,7 @@
         AssetModel,
         AssetStatus,
     } from '$lib/utils/assets/types';
+    import type { K } from 'vitest/dist/chunks/reporters.d.BFLkQcL6.js';
 
     export let asset: Asset | null = null;
     export let models: AssetModel[] = [];
@@ -54,11 +55,21 @@
 
     const macPattern = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;
 
+    /**
+     * Нормализует ввод MAC-адреса, удаляя все не-hex символы и форматируя в виде AA:BB:CC:DD:EE:FF
+     * @param {string} value - Входная строка, содержащая MAC-адрес в любом формате
+     * @returns {string} Нормализованный MAC-адрес или пустая строка, если входные данные не содержат валидных hex символов
+    */
     function normalizeMac(value: string): string {
         const hex = value.replace(/[^0-9a-fA-F]/g, '').toUpperCase().slice(0, 12);
         return hex.match(/.{1,2}/g)?.join(':') ?? '';
     }
 
+    /**
+     * Проверяет, является ли строка валидным IP-адресом (IPv4 или IPv6), с поддержкой CIDR нотации. Пустая строка считается валидной.
+     * @param {string} value - Входная строка для проверки
+     * @returns {boolean} true, если строка является валидным IP-адресом или пустой, иначе false
+    */
     function isValidIp(value: string): boolean {
         const input = value.trim();
         if (!input) return true;
@@ -71,12 +82,23 @@
         return input.includes(':') && ipv6WithCidr.test(input);
     }
 
+    /**
+     * Проверяет, является ли строка валидным MAC-адресом в формате AA:BB:CC:DD:EE:FF. Пустая строка считается валидной.
+     * @param {string} value - Входная строка для проверки
+     * @returns {boolean} true, если строка является валидным MAC-адресом или пустой, иначе false
+    */
     function isValidMac(value: string): boolean {
         const input = value.trim();
         if (!input) return true;
         return macPattern.test(input);
     }
 
+    /**
+     * Преобразует строку даты в формате ISO в строку, подходящую для input[type="datetime-local"]. 
+     * Если входная строка невалидная или отсутствует, возвращает пустую строку.
+     * @param {string} [value] - Входная строка даты в формате ISO
+     * @returns {string} Строка, подходящая для input[type="datetime-local"], или пустая строка, если входные данные невалидные
+     */
     function toDateTimeLocal(value?: string): string {
         if (!value) return '';
 
@@ -88,6 +110,12 @@
         return `${ date.getFullYear() }-${ pad(date.getMonth() + 1) }-${ pad(date.getDate()) }T${ pad(date.getHours()) }:${ pad(date.getMinutes()) }`;
     }
 
+    /**
+     * Преобразует строку из input[type="datetime-local"] в ISO-строку для хранения. 
+     * Если входная строка невалидная или отсутствует, возвращает undefined.
+     * @param {string} value - Входная строка из input[type="datetime-local"]
+     * @returns {string | undefined} ISO-строка для хранения или undefined, если входные данные невалидные
+     */
     function toOptionalDate(value: string): string | undefined {
         if (!value) return undefined;
 
@@ -97,6 +125,12 @@
         return date.toISOString();
     }
 
+    /**
+     * Преобразует строку из input[type="datetime-local"] в ISO-строку для хранения. 
+     * Если входная строка невалидная или отсутствует, возвращает null.
+     * @param {string} value - Входная строка из input[type="datetime-local"]
+     * @returns {string | null} ISO-строка для хранения или null, если входные данные невалидные
+     */
     function toNullableDate(value: string): string | null {
         if (!value) return null;
 
@@ -106,11 +140,20 @@
         return date.toISOString();
     }
 
+    /**
+     * Обработчик ввода для поля MAC-адреса. Нормализует ввод в реальном времени, удаляя все не-hex символы и форматируя в виде AA:BB:CC:DD:EE:FF.
+     * @param {Event} e - Событие ввода для поля MAC-адреса
+     */
     function handleMacInput(e: Event) {
         const input = e.currentTarget as HTMLInputElement;
         mac = normalizeMac(input.value);
     }
 
+    /**
+     * Обработчик изменения для поля загрузки фото. Сохраняет выбранный файл и создает URL для предпросмотра.
+     * Если выбран новый файл, предыдущий URL для предпросмотра будет освобожден для предотвращения утечек памяти.
+     * @param {Event} e - Событие изменения для поля загрузки фото
+    */
     function handlePhotoChange(e: Event) {
         const input = e.currentTarget as HTMLInputElement;
         photo = input?.files?.[0] ?? null;
@@ -120,9 +163,8 @@
             photoPreviewUrl = '';
         }
 
-        if (photo) {
+        if (photo)
             photoPreviewUrl = URL.createObjectURL(photo);
-        }
     }
 
     $: categoryMap = createCategoryMap(categories);
@@ -152,16 +194,31 @@
 
     $: isFormInvalid = Object.values(validationErrors).some((msg) => Boolean(msg));
 
+    /**
+     * Преобразует строку в undefined, если она пустая или состоит только из пробелов. Иначе возвращает оригинальную строку.
+     * @param {string} value - Входная строка для преобразования
+     * @returns {string | undefined} Оригинальная строка или undefined, если строка пустая/пробельная
+    */
     function toOptional(value: string): string | undefined {
         const normalized = value.trim();
         return normalized.length > 0 ? normalized : undefined;
     }
 
+    /**
+     * Преобразует строку в null, если она пустая или состоит только из пробелов. Иначе возвращает оригинальную строку.
+     * @param {string} value - Входная строка для преобразования
+     * @returns {string | null} Оригинальная строка или null, если строка пустая/пробельная
+     */
     function toNullable(value: string): string | null {
         const normalized = value.trim();
         return normalized.length > 0 ? normalized : null;
     }
 
+    /**
+     * Обработчик сохранения актива. Валидирует форму, нормализует данные и вызывает API для создания или обновления актива.
+     * В случае ошибки отображает сообщение, иначе диспатчит событие сохранения с данными актива.
+     * @returns {Promise<void>} - Асинхронная функция, которая выполняет сохранение актива и обрабатывает результат
+     */
     async function handleSave() {
         if (isFormInvalid) {
             errorMsg = 'Проверьте корректность заполнения полей';
@@ -246,14 +303,25 @@
         saving = false;
     }
 
+    /**
+     * Обработчик закрытия модального окна. Диспатчит событие закрытия, которое может быть обработано родительским компонентом для скрытия модального окна.
+     */
     function close() {
         dispatch('close');
     }
 
+    /**
+     * Открывает модальное окно для создания новой модели. Диспатчит событие с режимом 'create', 
+     * которое может быть обработано родительским компонентом для отображения соответствующего модального окна.
+     */
     function openModelModal() {
         dispatch('openModel', { mode: 'create' });
     }
 
+    /**
+     * Открывает модальное окно для редактирования существующей модели, связанной с активом. Диспатчит событие с режимом 'edit' и ID модели,
+     * которое может быть обработано родительским компонентом для отображения соответствующего модального окна.
+     */
     function openEditModelModal() {
         if (!model_id) return;
 
@@ -263,15 +331,25 @@
         });
     }
 
+    /**
+     * Открывает модальное окно подтверждения удаления актива.
+     */
     function openDeleteModal() {
         showDeleteModal = true;
     }
 
+    /**
+     * Закрывает модальное окно подтверждения удаления актива. Если в данный момент выполняется операция удаления, окно не будет закрыто, чтобы предотвратить прерывание процесса.
+     */
     function closeDeleteModal() {
         if (deleting) return;
         showDeleteModal = false;
     }
 
+    /**
+     * Обработчик удаления актива. Вызывает API для удаления актива и обрабатывает результат. 
+     * В случае успеха диспатчит событие удаления с ID актива, которое может быть обработано родительским компонентом для обновления списка активов.
+     */
     async function handleDelete() {
         if (!asset || deleting) return;
 
@@ -290,20 +368,31 @@
         dispatch('delete', { id: asset.id });
     }
 
+    /**
+     * Обработчик нажатия клавиш для модального окна. Закрывает окно при нажатии клавиши Escape.
+     * @param {KeyboardEvent} e - Событие нажатия клавиши, которое проверяется на наличие клавиши Escape для вызова функции закрытия модального окна
+     */
     function keydownHandler(e: KeyboardEvent) {
         if (e.key === 'Escape') close();
     }
 
+    /**
+     * Устанавливает слушатель нажатия клавиш при монтировании компонента и удаляет его при уничтожении, 
+     * чтобы обеспечить возможность закрытия модального окна с помощью клавиши Escape и предотвратить утечки памяти от неиспользуемых слушателей.
+    */
     onMount(() => {
         setupKeydownListener(keydownHandler);
     });
 
+    /**
+     * Удаляет слушатель нажатия клавиш и освобождает URL для предпросмотра фото при уничтожении компонента, 
+     * чтобы предотвратить утечки памяти и обеспечить корректное управление ресурсами при закрытии модального окна.
+    */
     onDestroy(() => {
         removeKeydownListener(keydownHandler);
 
-        if (photoPreviewUrl) {
+        if (photoPreviewUrl)
             URL.revokeObjectURL(photoPreviewUrl);
-        }
     });
 </script>
 
