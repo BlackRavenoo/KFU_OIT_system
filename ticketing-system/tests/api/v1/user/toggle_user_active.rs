@@ -10,7 +10,6 @@ async fn activate_account_sets_is_active_true() {
         .await
         .unwrap();
 
-    // set is_active = false
     sqlx::query!("UPDATE users SET is_active = false WHERE id = $1", user_id)
         .execute(&app.db_pool)
         .await
