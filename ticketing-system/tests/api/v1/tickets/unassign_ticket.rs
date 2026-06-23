@@ -20,7 +20,7 @@ async fn unassign_from_self_removes_assignment_and_updates_status() {
         .await
         .unwrap();
 
-    assert_eq!(assign_resp.status().as_u16(), 200);
+    assert_eq!(assign_resp.status(), 200);
 
     
     let unassign_resp = client
@@ -30,7 +30,7 @@ async fn unassign_from_self_removes_assignment_and_updates_status() {
         .await
         .unwrap();
 
-    assert_eq!(unassign_resp.status().as_u16(), 200);
+    assert_eq!(unassign_resp.status(), 200);
 
     let count: Option<i64> = sqlx::query_scalar!(
         "SELECT COUNT(*) FROM tickets_users WHERE ticket_id = $1",
@@ -48,4 +48,31 @@ async fn unassign_from_self_removes_assignment_and_updates_status() {
         .unwrap();
 
     assert_eq!(status, ticketing_system::schema::tickets::TicketStatus::Open as i16);
+}
+
+#[tokio::test]
+async fn unassign_ticket_with_db_error_returns_500() {
+    let app = spawn_app().await;
+
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
+    let resp = app.create_test_ticket().await;
+    let json: serde_json::Value = resp.json().await.unwrap();
+    let ticket_id = json["id"].as_i64().unwrap();
+    
+        sqlx::query!(
+            "DROP TABLE tickets CASCADE"
+        )
+        .execute(&app.db_pool)
+        .await
+        .unwrap();
+    
+    let resp = reqwest::Client::new()
+        .patch(format!("{}/v1/tickets/{}/unassign", app.address, ticket_id))
+        .bearer_auth(&access)
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 500);
 }
