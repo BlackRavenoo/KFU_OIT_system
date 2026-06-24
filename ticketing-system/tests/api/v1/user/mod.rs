@@ -5,3 +5,4 @@ mod change_user_status;
 mod toggle_user_active;
 mod update_profile;
 mod update_avatar;
+mod get_stats;
