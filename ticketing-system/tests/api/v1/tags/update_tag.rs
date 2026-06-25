@@ -36,6 +36,25 @@ async fn update_tag_returns_200() {
 }
 
 #[tokio::test]
+async fn update_tag_with_synonyms_returns_200() {
+    let app = spawn_app().await;
+
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
+    app.create_test_tag().await;
+
+    let body = serde_json::json!({
+        "name": "Test1",
+        "synonyms_to_add": [],
+        "synonyms_to_delete": []
+    });
+
+    let resp = update_tag(&app, &body, 1, Some(&access)).await;
+
+    assert_eq!(resp.status(), 200);
+}
+
+#[tokio::test]
 async fn update_tag_without_token_returns_401() {
     let app = spawn_app().await;
 
@@ -48,4 +67,26 @@ async fn update_tag_without_token_returns_401() {
     let resp = update_tag(&app, &body, 1, None).await;
 
     assert_eq!(resp.status(), 401);
+}
+
+#[tokio::test]
+async fn update_tag_with_db_err_returns_500() {
+    let app = spawn_app().await;
+
+    let (access, _) = app.get_admin_jwt_tokens().await;
+
+    app.create_test_tag().await;
+
+    let body = serde_json::json!({
+        "name": "Test1"
+    });
+
+    sqlx::query!("DROP TABLE tags CASCADE")
+        .execute(&app.db_pool)
+        .await
+        .unwrap();
+
+    let resp = update_tag(&app, &body, 1, Some(&access)).await;
+
+    assert_eq!(resp.status(), 500);
 }
