@@ -36,8 +36,6 @@ impl NotificationService {
             )"
         );
 
-        println!("{}", builder.sql());
-
         builder.build()
             .execute(executor)
             .await?;
