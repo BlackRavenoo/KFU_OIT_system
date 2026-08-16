@@ -37,9 +37,9 @@ macro_rules! build_where_condition {
         if let Some(value) = &$field {
             build_where_condition!(@add_where_and $builder, $has_filters);
 
-            $builder.push(concat!($column, " ILIKE "));
-            let expr = format!("%{}%", value);
-            $builder.push_bind(expr);
+            $builder.push(concat!($column, " ILIKE '%' || "));
+            $builder.push_bind(value);
+            $builder.push(" || '%'");
         }
     };
 
