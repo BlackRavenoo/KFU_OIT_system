@@ -182,8 +182,7 @@ fn get_builder<'a>(
             cabinet,
             COUNT(*) OVER() as total_items
         FROM tickets t
-        LEFT JOIN tickets_users tu ON tu.ticket_id = t.id 
-        LEFT JOIN users u ON u.id = tu.assigned_to
+        LEFT JOIN tickets_users tu ON tu.ticket_id = t.id
         JOIN buildings b ON b.id = t.building_id
         JOIN departments d ON d.id = t.department_id
         "#
