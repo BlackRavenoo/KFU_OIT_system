@@ -26,7 +26,7 @@ impl From<i16> for UserRole {
             4 => UserRole::Admin,
             _ => {
                 tracing::error!("Invalid UserRole value: {}", value);
-                UserRole::Employee
+                UserRole::AnonymousClient
             }
         }
     }
@@ -112,8 +112,7 @@ mod tests {
         assert_eq!(UserRole::from(3i16), UserRole::Moderator);
         assert_eq!(UserRole::from(4i16), UserRole::Admin);
 
-        // out-of-range values default to Employee
-        assert_eq!(UserRole::from(99i16), UserRole::Employee);
+        assert_eq!(UserRole::from(99i16), UserRole::AnonymousClient);
 
         assert_eq!(format!("{}", UserRole::AnonymousClient), "anonym");
         assert_eq!(format!("{}", UserRole::Client), "client");
@@ -136,7 +135,6 @@ mod tests {
         assert_eq!(UserStatus::from(2i16), UserStatus::Vacation);
         assert_eq!(UserStatus::from(3i16), UserStatus::Busy);
 
-        // out-of-range defaults to Available
         assert_eq!(UserStatus::from(99i16), UserStatus::Available);
     }
 }
