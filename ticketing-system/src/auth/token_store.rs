@@ -137,7 +137,10 @@ impl TokenStore {
     }
 
     pub async fn revoke_all_user_tokens(&self, user_id: i32, except_token: Option<&str>, conn: Option<PooledConnection<'_, RedisConnectionManager>>) -> Result<(), TokenStoreError> {
-        let mut conn = conn.unwrap_or(self.get_connection().await?);
+        let mut conn = match conn {
+            Some(conn) => conn,
+            None => self.get_connection().await?,
+        };
 
         let user_tokens_key = self.get_user_tokens_key(user_id);
 
