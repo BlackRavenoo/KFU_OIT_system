@@ -5,6 +5,8 @@ use sqlx::PgPool;
 
 use crate::{auth::{jwt::JwtService, token_store::TokenStore, types::{RefreshToken, UserRole}}, schema::auth::TokenResponse, utils::{error_chain_fmt, is_password_valid}};
 
+const DUMMY_PASSWORD_HASH: &str = "$argon2id$v=19$m=19456,t=2,p=1$MDEyMzQ1Njc4OWFiY2RlZg$le7XJZtK76w+hyh0IzZ2JOWTgCVryM7asU81KlPS+bM";
+
 #[derive(Deserialize)]
 pub struct LoginRequest {
     #[serde(alias = "email", alias = "login")]
@@ -24,8 +26,6 @@ struct User {
 pub enum LoginError {
     #[error("User cannot be authorized")]
     UserCannotBeAuthorized,
-    #[error("Invalid password")]
-    PasswordNotValid,
     #[error("User does not exist")]
     UserNotExist,
     #[error(transparent)]
@@ -41,7 +41,7 @@ impl std::fmt::Debug for LoginError {
 impl ResponseError for LoginError {
     fn status_code(&self) -> StatusCode {
         match self {
-            LoginError::PasswordNotValid | LoginError::UserNotExist => StatusCode::UNAUTHORIZED,
+            LoginError::UserNotExist => StatusCode::UNAUTHORIZED,
             LoginError::UserCannotBeAuthorized => StatusCode::FORBIDDEN,
             LoginError::Unexpected(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
@@ -56,16 +56,27 @@ pub async fn login(
 ) -> Result<HttpResponse, LoginError> {
     let user = get_user(&pool, &req.login)
         .await
-        .context("Failed to get user from db")?
-        .ok_or(LoginError::UserNotExist)?;
+        .context("Failed to get user from db")?;
 
-    if !is_password_valid(&req.password, &user.password_hash)
-        .context("Failed to verify password")? {
-        return Err(LoginError::PasswordNotValid);
-    }
+    let (user, password_ok) = match user {
+        Some(user) => {
+            let ok = is_password_valid(&req.password, &user.password_hash)
+                .context("Failed to verify password")?;
+            (Some(user), ok)
+        }
+        None => {
+            let _ = is_password_valid(&req.password, DUMMY_PASSWORD_HASH);
+            (None, false)
+        }
+    };
+
+    let user = match (user, password_ok) {
+        (Some(user), true) => user,
+        _ => return Err(LoginError::UserNotExist),
+    };
 
     if !user.is_active {
-        return Err(LoginError::UserCannotBeAuthorized)
+        return Err(LoginError::UserCannotBeAuthorized);
     }
 
     let resp = get_token_response(&jwt_service, &token_store, user, req.fingerprint)
